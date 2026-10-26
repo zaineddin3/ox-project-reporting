@@ -1,0 +1,55 @@
+{
+  "name": "ox-project-reporting",
+  "productName": "OX Project Reporting",
+  "version": "1.0.0",
+  "description": "Oxford Electrical Group project reporting",
+  "author": "Oxford Electrical Group",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:mac": "electron-builder --mac zip --x64 --arm64"
+  },
+  "build": {
+    "appId": "au.com.oxfordgroup.projectreporting",
+    "productName": "OX Project Reporting",
+    "copyright": "Oxford Electrical Group Pty Ltd",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "afterPack": "./build/afterPack.js",
+    "win": {
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false,
+      "artifactName": "OX-Project-Reporting-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "OX Project Reporting"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.business",
+      "identity": null,
+      "artifactName": "OX-Project-Reporting-${version}-mac-${arch}.${ext}"
+    },
+    "publish": null
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^2.1.8",
+    "resedit": "^2.0.2"
+  }
+}

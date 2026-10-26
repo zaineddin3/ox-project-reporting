@@ -1,3 +1,5 @@
 existing-data.sql
 *.local.*
 .DS_Store
+desktop/node_modules/
+desktop/dist/

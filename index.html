@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c2732'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='13' fill='%23e2884d' text-anchor='middle'%3EOX%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="alternate icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c2732'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='13' fill='%23e2884d' text-anchor='middle'%3EOX%3C/text%3E%3C/svg%3E">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1c2732">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="OX Reporting">
+<script>if('serviceWorker' in navigator&&location.protocol==='https:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
 </head>
 <body>
 <title>Oxford Project Reporting</title>
@@ -1126,7 +1133,7 @@ function scheduleRender(ms=60){clearTimeout(rTimer);rTimer=setTimeout(render,ms)
 function projList(){const ids=new Set(['main',...Object.keys(PROJ)]);ids.add(PID);
   return [...ids].filter(id=>!(PROJ[id]&&PROJ[id].removed)).map(id=>({id,name:projName(id),created:PROJ[id]?.created||(id==='main'?1:Date.now())})).sort((a,b)=>a.created-b.created)}
 function renderChrome(){
-  const nav=VIEWS_LIST.map(([k,l],i)=>`<button data-act="nav" data-v="${k}" aria-current="${UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
+  const nav=(HOSTED&&window.__me?[...VIEWS_LIST,['team','Team & users']]:VIEWS_LIST).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" aria-current="${UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
   const list=projList();
   const one=list.length<2;
   const headRow=x=>{const open=x.id===PID;
@@ -1294,6 +1301,7 @@ document.addEventListener('click',e=>{
     else if(kind==='item'){S.tasks[id].items.splice(+x,1);persist('tasks/'+id)}
     else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
+    else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
     else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
     else if(kind==='pcsec'){claimDoc().secs.splice(+x,1);persist('project/claim')}
     else if(kind==='pch'){claimDoc().hist.splice(+x,1);persist('project/claim')}
@@ -1349,7 +1357,7 @@ document.addEventListener('change',e=>{if(e.target.id==='projsel'){const v=e.tar
 
 /* ---------- hosted mode (outside Claude): Supabase ---------- */
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('a[data-file]');if(!a||!HOSTED||!window.__sb)return;e.preventDefault();
-  const w=window.open('','_blank');try{const {data,error}=await window.__sb.storage.from('files').createSignedUrl(a.dataset.file,600);if(error)throw error;if(w)w.location=data.signedUrl;else location.href=data.signedUrl}catch(err){if(w)w.close();setSave('error','Could not open the file')}});
+  const w=window.oxDesktop?null:window.open('','_blank');try{const {data,error}=await window.__sb.storage.from('files').createSignedUrl(a.dataset.file,600);if(error)throw error;if(window.oxDesktop)window.oxDesktop.openExternal(data.signedUrl);else if(w)w.location=data.signedUrl;else location.href=data.signedUrl}catch(err){if(w)w.close();setSave('error','Could not open the file')}});
 function jsonMerge(a,b){if(!a||typeof a!=='object'||Array.isArray(a))a={};const o={...a};for(const k in b){const v=b[k];o[k]=(v&&typeof v==='object'&&!Array.isArray(v))?jsonMerge(a[k],v):v}return o}
 function makeSbDb(sb){
   const parent=p=>p.split('/').slice(0,-1).join('/');const T='docs';
@@ -1376,24 +1384,74 @@ function makeSbAssets(sb){return {
 }}
 const browserDownloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:'saved'}}};
 function loginScreen(sb,msg){
+  const web=/^https?:$/.test(location.protocol);
   const el=document.createElement('div');el.className='login';el.innerHTML=`<form class="login-card" id="loginform"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
-    <h2>Sign in</h2><p class="hint">Enter your work email and we’ll send you a sign-in link. Only people invited to this app can sign in.</p>
-    <label for="loginemail">Email</label><input class="f" id="loginemail" type="email" required autocomplete="email" placeholder="name@oxfordgroup.com.au">
-    <button class="btn primary" type="submit" id="loginbtn">Send sign-in link</button><p class="hint" id="loginmsg">${esc(msg||'')}</p></form>`;
+    <h2>Sign in</h2><p class="hint" id="loginhelp">Enter your work email and we’ll email you a 6-digit sign-in code. Only people added to the team can see project data.</p>
+    <div id="step1"><label for="loginemail">Email</label><input class="f" id="loginemail" type="email" required autocomplete="email" placeholder="name@oxfordgroup.com.au"></div>
+    <div id="step2" hidden><label for="logincode">Sign-in code</label><input class="f" id="logincode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></div>
+    <button class="btn primary" type="submit" id="loginbtn">Email me a code</button>
+    <button class="btn ghost" type="button" id="loginback" hidden>Use a different email</button>
+    ${window.oxDesktop?'<button class="btn ghost" type="button" id="loginsettings">Connection settings</button>':''}
+    <p class="hint" id="loginmsg">${esc(msg||'')}</p></form>`;
   document.body.appendChild(el);
-  el.querySelector('#loginform').addEventListener('submit',async ev=>{ev.preventDefault();const em=el.querySelector('#loginemail').value.trim();const m=el.querySelector('#loginmsg');const b=el.querySelector('#loginbtn');b.disabled=true;m.textContent='Sending…';
-    const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}});
-    b.disabled=false;m.textContent=error?(/signups? not allowed|not found|Invalid/i.test(error.message)?'That email has not been invited yet. Ask the app owner to invite you.':'Could not send the link: '+error.message):'Check your email for the sign-in link. You can close this tab once you’ve clicked it.'});
+  const $=q=>el.querySelector(q);let stage=1;
+  if(window.oxDesktop&&$('#loginsettings'))$('#loginsettings').onclick=()=>window.oxDesktop.openSettings();
+  $('#loginback').onclick=()=>{stage=1;$('#step1').hidden=false;$('#step2').hidden=true;$('#loginback').hidden=true;$('#loginbtn').textContent='Email me a code';$('#loginmsg').textContent=''};
+  $('#loginform').addEventListener('submit',async ev=>{ev.preventDefault();const em=$('#loginemail').value.trim();const m=$('#loginmsg');const b=$('#loginbtn');b.disabled=true;
+    if(stage===1){m.textContent='Sending…';
+      const opts={shouldCreateUser:true};if(web)opts.emailRedirectTo=location.origin+location.pathname;
+      const {error}=await sb.auth.signInWithOtp({email:em,options:opts});b.disabled=false;
+      if(error){m.textContent=/signups? not allowed|not found|Invalid/i.test(error.message)?'That email has not been invited yet. Ask the app owner to invite you.':'Could not send the code: '+error.message;return}
+      stage=2;$('#step1').hidden=true;$('#step2').hidden=false;$('#loginback').hidden=false;b.textContent='Sign in';m.textContent='We’ve emailed a code to '+em+'. Type it here'+(web?', or click the link in the email.':'.');setTimeout(()=>$('#logincode').focus(),30);return}
+    m.textContent='Checking…';const {error}=await sb.auth.verifyOtp({email:em,token:$('#logincode').value.trim(),type:'email'});b.disabled=false;
+    if(error){m.textContent='That code didn’t work. Check it and try again, or request a new one.';return}
+    location.reload()});
 }
+function noAccess(sb,email){
+  const el=document.createElement('div');el.className='login';el.innerHTML=`<div class="login-card"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
+    <h2>Waiting for access</h2><p class="hint">You’re signed in as <b>${esc(email)}</b>, but this email hasn’t been added to the team yet. Ask an admin to add you under <b>Team &amp; users</b>, then reopen the app.</p>
+    <button class="btn primary" type="button" id="na-retry">Check again</button><button class="btn ghost" type="button" id="na-out">Sign out</button></div>`;
+  document.body.appendChild(el);el.querySelector('#na-retry').onclick=()=>location.reload();el.querySelector('#na-out').onclick=()=>sb.auth.signOut();
+}
+let TEAM=null,TEAMMSG='';
+async function loadTeam(){const {data,error}=await window.__sb.from('team').select('*').order('added_at');if(error){TEAMMSG='Could not load the team: '+error.message;TEAM=[]}else TEAM=data;render()}
+V.team=()=>{
+  if(!HOSTED||!window.__me)return `<div class="panel empty"><b>Team & users</b>User management is available in the hosted and desktop versions of the app.</div>`;
+  if(TEAM===null){loadTeam();return `<div class="panel empty"><b>Loading team…</b></div>`}
+  const admin=window.__me.role==='admin';const me=window.__me.email;
+  return `<div class="stack">${head('Team & users','Everyone listed here can sign in with their email and a code and work on every project. Admins can add and remove people and change roles.')}
+  ${TEAMMSG?`<div class="banner">${esc(TEAMMSG)}</div>`:''}
+  ${admin?`<form class="panel" id="teamform"><h3>Add a user</h3><div class="form" style="margin-top:10px">
+    <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@oxfordgroup.com.au"></label>
+    <label>Name<input class="f" id="tm_name" placeholder="Full name"></label>
+    <label>Role<select class="f" id="tm_role"><option value="member">Member: can edit projects</option><option value="admin">Admin: can also manage users</option></select></label>
+    <label style="justify-content:flex-end"><button class="btn primary" type="submit" style="text-transform:none;letter-spacing:0">Add user</button></label></div>
+    <p class="hint" style="margin:8px 0 0">After you add someone, they open the app, enter this email, and sign in with the code they’re emailed. No password needed.</p></form>`:''}
+  <div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead><tbody>
+  ${TEAM.map(u=>{const self=u.email===me;return `<tr><td>${esc(u.name||'—')}${self?' <span class="tag acc">you</span>':''}</td><td class="mono">${esc(u.email)}</td>
+    <td>${admin&&!self?`<select class="f" data-teamrole="${esc(u.email)}" aria-label="Role for ${esc(u.email)}"><option value="member"${u.role==='member'?' selected':''}>Member</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select>`:`<span class="tag ${u.role==='admin'?'good':''}">${u.role==='admin'?'Admin':'Member'}</span>`}</td>
+    <td class="hint">${u.added_at?new Date(u.added_at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
+    <td>${admin&&!self?delBtn('team','x',u.email,'Remove'):''}</td></tr>`}).join('')}
+  </tbody></table></div></div>`;
+};
+document.addEventListener('submit',async e=>{if(e.target.id!=='teamform')return;e.preventDefault();
+  const email=document.getElementById('tm_email').value.trim().toLowerCase(),name=document.getElementById('tm_name').value.trim(),role=document.getElementById('tm_role').value;
+  const {error}=await window.__sb.from('team').insert({email,name,role});TEAMMSG=error?(/duplicate/i.test(error.message)?email+' is already on the team.':'Could not add the user: '+error.message):'Added '+email+'. They can sign in now.';loadTeam()});
+document.addEventListener('change',async e=>{const r=e.target.dataset&&e.target.dataset.teamrole;if(!r)return;const {error}=await window.__sb.from('team').update({role:e.target.value}).eq('email',r);TEAMMSG=error?'Could not change the role: '+error.message:'Updated '+r+'.';loadTeam()});
 async function hostedBoot(startStore,offline){
   const C=window.OX_CONFIG||{};
-  if(!window.supabase||!C.supabaseUrl||!C.supabaseAnonKey||/YOUR_/.test(C.supabaseUrl+C.supabaseAnonKey)){document.getElementById('banner').innerHTML='<div class="banner">This copy of the app is not connected to a database yet. Add your Supabase URL and key to config.js (see the setup guide).</div>';setSave('local');return}
+  if(!window.supabase||!C.supabaseUrl||!C.supabaseAnonKey||/YOUR_/.test(C.supabaseUrl+C.supabaseAnonKey)){document.getElementById('banner').innerHTML='<div class="banner">This copy of the app is not connected to a database yet. '+(window.oxDesktop?'Open <b>Connection settings</b> from the app menu and enter your Supabase details.':'Add your Supabase URL and key to config.js (see the setup guide).')+'</div>';setSave('local');return}
   const sb=window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true}});window.__sb=sb;
   const {data:{session}}=await sb.auth.getSession();
   if(!session){loginScreen(sb);sb.auth.onAuthStateChange((ev,s2)=>{if(s2&&ev==='SIGNED_IN')location.reload()});setSave('local');document.getElementById('savepill').textContent='Signed out';return}
   sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')location.reload()});
-  document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="signout" type="button">Sign out</button></div>`;
-  document.getElementById('signout').onclick=()=>sb.auth.signOut();
+  const myEmail=(session.user.email||'').toLowerCase();
+  const {data:meRow,error:meErr}=await sb.from('team').select('*').eq('email',myEmail).maybeSingle();
+  if(meErr){document.getElementById('banner').innerHTML='<div class="banner">Could not check your access: '+esc(meErr.message)+'. Has supabase-setup.sql been run?</div>';setSave('error','No connection');return}
+  if(!meRow){noAccess(sb,myEmail);setSave('local');document.getElementById('savepill').textContent='No access';return}
+  window.__me=meRow;
+  document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="signout" type="button">Sign out</button>${window.oxDesktop?'<button class="addproj" id="oxsettings" type="button">Connection settings</button>':''}</div>`;
+  document.getElementById('signout').onclick=()=>sb.auth.signOut();if(window.oxDesktop)document.getElementById('oxsettings').onclick=()=>window.oxDesktop.openSettings();
   assets=makeSbAssets(sb);downloads=browserDownloads;
   startStore(makeSbDb(sb));render();
 }
