@@ -1,0 +1,1416 @@
+<title>Oxford Project Reporting</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a dark switchboard-style rail lists the report sections (the workbook's tabs); the work surface scrolls beside it. Under 860px the rail becomes a sticky scrolling tab strip. */
+:root{
+  --bg:#f1f2ef; --surface:#ffffff; --ink:#1a232d; --muted:#5b6672; --line:#d8dcd6; --soft:#e9ebe6;
+  --accent:#b0541c; --accent-soft:#f5e3d6; --accent-ink:#ffffff;
+  --rail:#1c2732; --rail-ink:#c9d2db; --rail-hi:#ffffff;
+  --series2:#386a96; --good:#2b7a4b; --good-soft:#dcefe3; --warn:#9a6a08; --warn-soft:#f6ebcf; --bad:#b0352a; --bad-soft:#f6dcd8;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --surface:#171f28; --ink:#e3e8ed; --muted:#95a1ae; --line:#2a3541; --soft:#1e2832;
+  --accent:#e2884d; --accent-soft:#3a2618; --accent-ink:#1a1008;
+  --rail:#0b1015; --rail-ink:#aeb9c4; --rail-hi:#ffffff;
+  --series2:#7eb0dc; --good:#5cc088; --good-soft:#163024; --warn:#e2b44c; --warn-soft:#33290f; --bad:#ef6f62; --bad-soft:#3a1916;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#171f28; --ink:#e3e8ed; --muted:#95a1ae; --line:#2a3541; --soft:#1e2832;
+  --accent:#e2884d; --accent-soft:#3a2618; --accent-ink:#1a1008;
+  --rail:#0b1015; --rail-ink:#aeb9c4; --rail-hi:#ffffff;
+  --series2:#7eb0dc; --good:#5cc088; --good-soft:#163024; --warn:#e2b44c; --warn-soft:#33290f; --bad:#ef6f62; --bad-soft:#3a1916;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--rail);color:var(--rail-ink);position:sticky;top:0;height:100vh;overflow-y:auto;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;gap:10px;align-items:center}
+.brand .mark{width:38px;height:38px;border:2px solid var(--accent);border-radius:6px;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:var(--rail-hi);letter-spacing:.04em}
+.brand .t{font-family:var(--f-display);font-weight:600;color:var(--rail-hi);font-size:17px;line-height:1.1}
+.brand .s{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;font-size:13.5px}
+.nav button .n{font-family:var(--f-mono);font-size:11px;opacity:.55;width:18px}
+.nav button:hover{background:color-mix(in srgb,var(--rail-ink) 10%,transparent)}
+.nav button[aria-current="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.nav button[aria-current="true"] .n{opacity:.8}
+.nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ptree{display:flex;flex-direction:column;gap:4px}
+.plabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:0 10px 2px}
+.pgroup{display:flex;flex-direction:column;gap:2px}
+.pgroup.open{background:color-mix(in srgb,var(--rail-ink) 6%,transparent);border-radius:8px;padding:2px 0 6px}
+.proj{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-family:var(--f-display);font-weight:600;font-size:15px;color:var(--rail-hi)}
+.proj .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .caret{width:12px;font-size:11px;opacity:.7}
+.proj:hover{background:color-mix(in srgb,var(--rail-ink) 10%,transparent)}
+.proj:focus-visible,.addproj:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pgroup .nav{padding-left:12px}
+.addproj{all:unset;cursor:pointer;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--accent);font-weight:600}
+.addproj:hover{background:color-mix(in srgb,var(--rail-ink) 10%,transparent)}
+.projsel{display:none}
+.prow{display:flex;align-items:center;gap:2px;min-width:0}
+.prow .proj{flex:1;min-width:0}
+.pacts{display:none}
+.prow:hover .pacts,.prow:focus-within .pacts,.pgroup.open .pacts{display:flex}
+.pact{all:unset;cursor:pointer;padding:5px 7px;border-radius:5px;font-size:12px;color:var(--rail-ink);opacity:.8}
+.pact:hover{background:color-mix(in srgb,var(--rail-ink) 14%,transparent);opacity:1}
+.pact:focus-visible{outline:2px solid var(--accent)}
+.pact.danger{background:var(--bad);color:#fff;opacity:1;font-weight:600}
+.prow.confirm{padding:6px 8px;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--rail-hi)}
+.prow.confirm .pn{flex-basis:100%}
+.prename{flex:1;min-width:0;background:var(--rail);color:var(--rail-hi);border:1px solid var(--accent);border-radius:5px;padding:6px 8px;font:600 15px var(--f-display)}
+.prename:focus{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+.rail .foot{margin-top:auto;font-size:11.5px;opacity:.7;line-height:1.4}
+main{min-width:0;padding-block:22px 60px;padding-left:max(16px,min(4vw,40px));padding-right:max(16px,env(safe-area-inset-right,0px),min(4vw,40px))}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:18px}
+.top h1{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.top .meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--muted);font-size:13px;margin-top:6px}
+.top .meta b{color:var(--ink);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.busy{background:var(--warn-soft);color:var(--warn)}
+.pill.err{background:var(--bad-soft);color:var(--bad)}
+.banner{background:var(--warn-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0;line-height:1.15}
+h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-height:1.2}
+.sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 20px;margin-bottom:12px}
+.sec-head p{margin:4px 0 0;color:var(--muted);max-width:68ch}
+.stack{display:flex;flex-direction:column;gap:22px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.panel > h3{margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--f-display);font-weight:600;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .d{font-size:12px;color:var(--muted)}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--soft);white-space:nowrap;position:sticky;top:0;z-index:1}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right}
+td.mono{font-family:var(--f-mono);font-size:12.5px}
+tfoot td{font-weight:600;background:var(--soft);border-top:1px solid var(--line);border-bottom:0}
+.money{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.ledger td{padding:6px 0;border-bottom:1px dashed var(--line)}
+.ledger td:last-child{text-align:right}
+.ledger tr.total td{border-bottom:0;border-top:1.5px solid var(--ink);font-weight:600;padding-top:8px}
+.ledger tr.sub td{color:var(--muted);font-size:13px}
+input.f,select.f,textarea.f{width:100%;min-width:0;background:transparent;border:1px solid transparent;border-radius:5px;padding:5px 7px}
+input.f:hover,select.f:hover,textarea.f:hover{border-color:var(--line)}
+input.f:focus,select.f:focus,textarea.f:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px var(--accent-soft)}
+input.f.num{text-align:right;font-family:var(--f-mono);font-size:12.5px}
+input.f::placeholder,textarea.f::placeholder{color:color-mix(in srgb,var(--muted) 70%,transparent)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px 16px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.form label .f{border-color:var(--line);text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink);font-weight:400;background:var(--surface)}
+.form label.wide{grid-column:1/-1}
+textarea.f{resize:vertical;min-height:84px}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 12px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:4px 8px}
+.btn.ghost:hover{color:var(--bad)}
+.btn.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--soft);color:var(--muted)}
+.tag.good{background:var(--good-soft);color:var(--good)} .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.bad{background:var(--bad-soft);color:var(--bad)} .tag.acc{background:var(--accent-soft);color:var(--accent)}
+.empty{padding:26px 18px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:17px;font-weight:600;margin-bottom:4px}
+.bar{height:8px;border-radius:4px;background:var(--soft);overflow:hidden;min-width:60px}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.bar.b2 > i{background:var(--series2)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.toolbar label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.toolbar select,.toolbar input{border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:var(--surface)}
+.cur{position:relative}
+.cur::before{content:"$";position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-family:var(--f-mono);font-size:12.5px;pointer-events:none}
+.cur input.f{padding-left:20px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:22px}
+tr.subtot td{background:var(--soft);font-weight:600;border-bottom:2px solid var(--line)}
+tr.grand td{background:var(--ink);color:var(--surface);font-weight:600}
+tr.grand td.neg{color:var(--bad-soft)}
+.form input.f:disabled{opacity:.7}
+.addrow td{padding:6px 8px;border-bottom:2px solid var(--line)}
+.secrow td{background:var(--soft);padding:6px 8px}
+.secrow input.f{font-family:var(--f-display);font-weight:600;font-size:15px}
+.itp{display:flex;align-items:center;gap:2px;white-space:nowrap}
+.itp-file{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;background:var(--good-soft);color:var(--good);font-weight:600;font-size:12px;text-decoration:none}
+.itp-file::before{content:"";width:9px;height:11px;border:1.5px solid currentColor;border-radius:1px}
+.itp-file:hover{text-decoration:underline}
+.itp-act{padding:3px 6px;font-size:12px}
+.itp-up{padding:4px 10px;font-size:12px;white-space:nowrap;cursor:pointer}
+.cur.strong input.f{font-weight:700}
+.pcbar{display:flex;flex-direction:column;gap:3px}
+.bar.thin{height:4px}
+.pcbar-l{display:flex;justify-content:space-between;gap:6px;font-family:var(--f-mono);font-size:11.5px;margin-top:3px}
+.tog{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:20px;height:20px;margin-right:4px;border-radius:4px;color:var(--ink);font-size:12px}
+.tog:hover{background:var(--soft)}
+.tog:focus-visible{outline:2px solid var(--accent)}
+.subtask{display:flex;gap:6px;align-items:center}
+.subtask select.f{width:150px;flex:0 0 150px}
+.subtask input.f{flex:1;min-width:120px}
+tr.subrow select.f[data-b$='|pct']{width:110px}
+.splitbtn{padding:3px 8px;font-size:12px;color:var(--accent);opacity:.75;white-space:nowrap}
+tr:hover .splitbtn{opacity:1}
+tr.parentrow td{border-bottom-style:dashed}
+tr.subrow input.f.num{min-width:72px}
+tr.subrow input.f:not(.num){min-width:60px}
+tr.subrow td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+tr.subrow td:nth-child(2){padding-left:18px}
+tr.subadd td{padding:2px 8px 6px;background:color-mix(in srgb,var(--soft) 45%,transparent)}
+.bupanel{padding:16px 18px 20px;background:var(--surface);border-top:2px solid var(--accent);display:flex;flex-direction:column;gap:6px}
+.form.rates{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+.bu-sum td{padding:6px 8px}
+.bu-sum td:nth-child(2),.bu-sum td:nth-child(3){text-align:right;width:130px}
+.tender{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px 16px;align-items:end}
+.tender label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tender label .f{border-color:var(--line);font-size:14px;color:var(--ink);background:var(--surface)}
+.hcmp-wrap{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.hcmp{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 110px;gap:12px;align-items:center}
+.hcmp-l{display:flex;flex-direction:column;font-size:13px;line-height:1.25}
+.hcmp-t{position:relative;height:16px;background:var(--soft);border-radius:4px}
+.hcmp-b{height:100%;border-radius:4px}
+.hcmp-b.t{background:var(--muted);opacity:.55}
+.hcmp-b.a{background:var(--accent)}
+.hcmp-b.f{background:var(--series2)}
+.hcmp-tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);transform:translateX(-1px)}
+.hcmp-v{text-align:right;font-size:13px}
+@media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
+.login{position:fixed;inset:0;z-index:100;background:var(--rail);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
+.login-card{background:var(--surface);color:var(--ink);border-radius:12px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
+.login-card .brand .t{color:var(--ink)}.login-card .brand .s{color:var(--muted);opacity:1}
+.login-card h2{margin-top:10px}
+.login-card label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.login-card input.f{border-color:var(--line);font-size:15px;padding:9px 10px}
+.login-card .btn{justify-content:center;padding:10px}
+.who{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;color:var(--rail-hi);word-break:break-all}
+.who .addproj{padding:4px 0;font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{all:unset;cursor:pointer;padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-weight:600;font-size:13px}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--accent)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.complete{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:20px 32px;align-items:start}
+.complete .big{font-family:var(--f-display);font-weight:700;font-size:60px;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;margin:6px 0}
+.crow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:16px 26px}
+.ct{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:5px}
+@media (max-width:640px){.complete{grid-template-columns:minmax(0,1fr)}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}
+.seg button{all:unset;cursor:pointer;padding:6px 14px;font-weight:600;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.apt td{padding:3px 6px}
+.apt select.f{padding:3px 4px;font-family:var(--f-mono);font-size:12px;min-width:58px}
+.apt select.f.p100{background:var(--good-soft);color:var(--good)}
+.apt select.f.ppart{background:var(--warn-soft);color:var(--warn)}
+.apt input[type=checkbox]{width:16px;height:16px;accent-color:var(--good)}
+.apt th{white-space:normal;min-width:70px;line-height:1.2}
+.tw.tall{max-height:70vh}
+.levelrow td{background:var(--soft);font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.04em;color:var(--muted);padding:5px 10px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-mono);font-size:10.5px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:10px}
+.mini{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.mini .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mini .v{font-family:var(--f-display);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}
+.alert:last-child{border-bottom:0}
+.hint{color:var(--muted);font-size:12.5px}
+.rowlink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}
+.rowlink:hover{color:var(--accent)}
+.rowlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+tr.sel td{background:var(--accent-soft)}
+.yn{display:flex;gap:4px}
+.yn button{all:unset;cursor:pointer;padding:3px 10px;border:1px solid var(--line);border-radius:5px;font-size:12px;font-weight:600;color:var(--muted)}
+.yn button[aria-pressed="true"].y{background:var(--good-soft);color:var(--good);border-color:transparent}
+.yn button[aria-pressed="true"].no{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.yn button:focus-visible{outline:2px solid var(--accent)}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:sticky;top:env(safe-area-inset-top,0px);height:auto;z-index:20;flex-direction:row;align-items:center;padding-block:10px;padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:auto;gap:14px}
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--rail)}
+  .brand .t,.brand .s,.rail .foot{display:none}
+  .brand .mark{width:32px;height:32px;font-size:13px}
+  .nav{flex-direction:row;gap:4px}
+  .nav button{white-space:nowrap;padding:7px 10px}
+  .nav button .n{display:none}
+  .ptree{flex-direction:row;align-items:center;gap:8px}
+  .plabel,.addproj,.pgroup:not(.open),.pgroup.open .proj{display:none}
+  .pgroup.open{background:none;padding:0}
+  .pgroup .nav{padding-left:0}
+  .projsel{display:block;order:-1;background:var(--rail);color:var(--rail-hi);border:1px solid color-mix(in srgb,var(--rail-ink) 30%,transparent);border-radius:6px;padding:6px 8px;max-width:160px}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .top h1{font-size:25px}
+  th{position:static}
+}
+@media (prefers-reduced-motion:no-preference){.bar>i{transition:width .3s ease}}
+</style>
+
+<div class="app">
+  <aside class="rail" aria-label="Report sections">
+    <div class="brand"><div class="mark">OX</div><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
+    <div class="ptree" id="ptree"></div>
+    <div class="foot"><div id="whoami"></div>Changes save automatically and are shared with everyone who has access to this page.</div>
+  </aside>
+  <main>
+    <header class="top">
+      <div>
+        <h1 id="pname">Project report</h1>
+        <div class="meta" id="pmeta"></div>
+      </div>
+      <span class="pill" id="savepill">Connecting</span>
+    </header>
+    <div id="banner"></div>
+    <section id="view" aria-live="off"></section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+const UNITS_RAW={"E": "0101:2,0102:2,0103:2,0104:3,0105:3,0106:3,0107:3,0108:3,0109:3,0201:2,0202:2,0203:2,0301:2,0302:2,0303:2,0304:2,0305:2,0306:2,0307:2,0308:2,0309:2,0310:2,0311:2,0401:2,0402:2,0403:2,0404:2,0405:2,0406:2,0407:2,0408:2,0409:2,0410:2,0411:2,0501:2,0502:2,0503:2,0504:1,0505:2,0506:2,0507:2,0508:2,0509:2,0510:2,0601:2,0602:2,0603:1,0604:2,0605:2,0606:2,0607:2,0608:2,0701:2,0702:2,0703:1,0704:2,0705:2,0706:2,0707:2,0708:2,0801:2,0802:2,0803:1,0804:2,0805:2,0806:2,0807:2,0808:2,0901:2,0902:2,0903:1,0904:2,0905:2,0906:2,0907:2,0908:2,1001:2,1002:2,1003:1,1004:2,1005:2,1006:2,1007:2,1008:2,1101:2,1102:2,1103:1,1104:2,1105:2,1106:2,1107:2,1108:2,1201:2,1202:2,1203:1,1204:2,1205:5,1206:2,1207:2,1208:2,1301:2,1302:2,1303:1,1304:2,1305:5,1306:2,1307:2,1308:2,1401:2,1402:2,1403:1,1404:2,1405:5,1406:2,1407:2,1408:2,1501:2,1502:2,1503:1,1504:2,1505:2,1506:2,1507:2,1508:2,1601:2,1602:2,1603:1,1604:2,1605:2,1606:2,1607:2,1608:2,1701:2,1702:2,1703:1,1704:2,1705:2,1706:2,1707:2,1708:2,1801:2,1802:2,1803:1,1804:2,1805:2,1806:2,1807:2,1808:2,1901:2,1902:2,1903:1,1904:2,1905:2,1906:2,1907:2,1908:2,2001:2,2002:2,2003:1,2004:2,2005:2,2006:2,2007:2,2008:2,2101:2,2102:2,2103:1,2104:2,2105:2,2106:2,2107:2,2108:2,2201:2,2202:2,2203:1,2204:2,2205:2,2206:2,2207:2,2208:2,2301:2,2302:2,2303:1,2304:2,2305:2,2306:2,2307:2,2308:2,2401:2,2402:2,2403:1,2404:2,2405:2,2406:2,2407:2,2408:2,2501:2,2502:2,2503:1,2504:2,2505:2,2506:2,2507:2,2508:2,2601:2,2602:2,2603:1,2604:2,2605:2,2606:2,2607:2,2608:2,2701:2,2702:2,2703:1,2704:2,2705:2,2706:2,2707:2,2708:2,2801:2,2802:2,2803:1,2804:2,2805:2,2806:2,2901:2,2902:2,2903:1,2904:2,2905:2,3001:2,3002:2,3003:1,3004:4,3101:2,3102:2,3103:1,3104:3,3105:4,3201:2,3202:2,3203:1,3204:3,3205:4,3301:2,3302:2,3303:1,3304:3,3305:4,3401:2,3402:2,3403:1,3404:3,3405:4,3501:2,3502:2,3503:1,3504:3,3505:4,3601:2,3602:2,3603:1,3604:3,3605:4,3701:2,3702:2,3703:1,3704:3,3705:4,3801:2,3802:2,3803:1,3804:3,3805:4,3901:2,3902:2,3903:1,3904:3,3905:4", "F": "0312:2,0313:2,0314:2,0315:2,0316:2,0412:2,0413:2,0414:2,0415:2,0416:2,0511:2,0512:2,0513:2,0514:2,0609:2,0610:2,0611:2,0612:2,0613:2,0614:1,0615:2,0616:2,0709:2,0710:2,0711:2,0712:2,0713:2,0714:1,0715:2,0716:2,0809:2,0810:2,0811:2,0812:2,0813:1,0814:1,0815:2,0816:2,0909:2,0910:2,0911:2,0912:2,0913:2,0914:1,0915:2,0916:2,1009:2,1010:2,1011:2,1012:2,1013:2,1014:1,1015:2,1016:1,1109:2,1110:2,1111:2,1112:2,1113:2,1114:1,1115:2,1116:2,1209:2,1210:2,1211:2,1212:2,1213:2,1214:1,1215:2,1216:2,1309:2,1310:2,1311:2,1312:2,1313:2,1314:1,1315:2,1316:2,1409:2,1410:2,1411:2,1412:2,1413:2,1414:1,1415:2,1416:2,1509:2,1510:2,1511:2,1512:2,1513:2,1514:1,1515:2,1516:2,1609:2,1610:2,1611:2,1612:2,1613:2,1614:1,1615:2,1616:1,1709:2,1710:2,1711:2,1712:2,1713:2,1714:1,1715:2,1716:2,1809:2,1810:2,1811:2,1812:2,1813:2,1814:1,1815:2,1816:2,1909:2,1910:2,1911:2,1912:2,1913:2,1914:1,1915:2,1916:2,2009:2,2010:2,2011:2,2012:2,2013:2,2014:1,2015:2,2016:2,2109:2,2110:2,2111:2,2112:2,2113:2,2114:1,2115:2,2116:2,2209:2,2210:2,2211:2,2212:2,2213:2,2214:1,2215:2,2216:2,2309:2,2310:2,2311:1,2312:2,2313:2,2409:2,2410:2,2411:1,2412:2,2413:2,2509:2,2510:2,2511:3,2512:1,2513:2,2514:2,2609:2,2610:2,2611:3,2612:1,2613:2,2614:2,2709:2,2710:2,2711:3,2712:1,2713:2,2714:2,2809:2,2810:2,2811:3,2812:1,2813:2,2814:2,2906:2,2907:2,2908:3,2909:1,2910:2,2911:2,3006:2,3007:2,3008:3,3009:1,3010:2,3011:2,3106:2,3107:2,3108:3,3109:1,3110:2,3111:2,3206:2,3207:2,3208:3,3209:1,3210:2,3211:2"};
+const VIEWS_LIST=[
+  ['overview','Overview'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
+  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks']
+];
+const TASKS=["Temporary works","Deck work","Rough in","Fit off","Common containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
+const TASK_IDS=TASKS.map((_,i)=>'t'+String(i+1).padStart(2,'0'));
+const CREW_DEFAULT=[
+ ["Project manager","Normal",1,75,4],["Site supervisor","Normal",1,67,8],["Leading hand electrician","Normal",2,58,8],["Licensed electrician","Normal",2,55,8],["Trade assistant","Normal",2,49,8],["Apprentice","Normal",2,36,8],
+ ["Site supervisor","Overtime ×1.5",1,100.5,2],["Leading hand electrician","Overtime ×1.5",2,87,2],["Licensed electrician","Overtime ×1.5",2,82.5,2],["Trade assistant","Overtime ×1.5",2,73.5,2],["Apprentice","Overtime ×1.5",2,54,2],
+ ["Site supervisor","Overtime ×2",1,134,4],["Leading hand electrician","Overtime ×2",2,116,4],["Licensed electrician","Overtime ×2",2,110,4],["Trade assistant","Overtime ×2",2,98,4],["Apprentice","Overtime ×2",2,72,4]
+].map(r=>({role:r[0],time:r[1],qty:String(r[2]),rate:String(r[3]),hrs:String(r[4])}));
+const BLD={E:{name:'Building E'},F:{name:'Building F'}};
+for(const b of ['E','F']){BLD[b].units=UNITS_RAW[b].split(',').map(s=>{const [n,t]=s.split(':');return {id:b+'-'+n,b,type:t+' bed',level:n.slice(0,2)}})}
+const mkStages=a=>a.map((s,i)=>({id:'s'+i,name:s[0],rate:String(s[1])}));
+const DEF_ITPS=[{id:'i0',name:'Rough-in ITP'},{id:'i1',name:'Fit-off ITP'},{id:'i2',name:'CCEW'}];
+const TRADE_DEFAULT={
+  E:{name:'Wiring — Building E',bld:'E',created:1,itps:DEF_ITPS,stages:mkStages([['Mark, bracket & rough-in',1050],['Cut, strip & plug base',300],['Fit-off lights, GPOs, switches',500],['Fit-off kitchen & shaving cabinets',200],['Fit-off wet areas',200],['Test & commission',250]])},
+  F:{name:'Wiring — Building F',bld:'F',created:2,itps:DEF_ITPS,stages:mkStages([['Mark, bracket & rough-in',800],['Cut, strip & plug base',300],['Fit-off lights, GPOs, switches',600],['Fit-off wet areas',400],['Test & commission',300]])}
+};
+const BLD_OPTS=[['E','Building E'],['F','Building F'],['EF','Buildings E & F']];
+const VSTATUS=['Draft','Submitted','Approved','Rejected','Withdrawn'];
+const PSTATUS=['Waiting for contract','In progress','Ordered','Delivered','Complete'];
+const CS_ITEMS=[
+ ['eot','Extension of time claims','Issued'],['vn','Variation notices','Issued'],['bcn_i','Breach of contract notices','Issued'],['nod_i','Notices of delay','Issued'],
+ ['nod_r','Notices of delay','Received'],['bcn_r','Breach of contract notices','Received'],['dev','Deviation from notice process agreed',''],
+ ['pc_terms','Progress claims issued within contract terms',''],['pc_sd','Progress claims issued with stat. declarations',''],['pc_prog','Progress claims issued with program',''],
+ ['pc_audit','Progress claims issued with site audit',''],['pc_rep','Progress claims issued with report','']
+];
+
+/* ---------- helpers ---------- */
+const num=v=>{if(v===null||v===undefined)return 0;const n=parseFloat(String(v).replace(/[$,\s]/g,''));return isFinite(n)?n:0};
+const money=n=>{n=Math.round(n||0);return (n<0?'−$':'$')+Math.abs(n).toLocaleString('en-AU')};
+const kmoney=n=>{const a=Math.abs(n);if(a>=1e6)return (n<0?'−':'')+'$'+(a/1e6).toFixed(2)+'m';if(a>=1e4)return (n<0?'−':'')+'$'+Math.round(a/1e3)+'k';return money(n)};
+const pct=(n,d=1)=>(isFinite(n)?(n*100).toFixed(d):'0.0')+'%';
+const hrs=n=>Math.round(n||0).toLocaleString('en-AU');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o||{}));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fmtDate=s=>{if(!s)return '';const d=new Date(s+'T00:00:00');return isNaN(d)?s:d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})};
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+const inp=(b,val,o={})=>`<input class="f${o.num?' num':''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" type="${o.type||'text'}" ${o.num?'inputmode="decimal"':''} value="${esc(val)}" placeholder="${esc(o.ph||'')}" aria-label="${esc(o.label||'')}" ${o.style?`style="${o.style}"`:''}>`;
+const sel=(b,val,opts,o={})=>`<select class="f${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" aria-label="${esc(o.label||'')}">${opts.map(x=>{const [v,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(t)}</option>`}).join('')}</select>`;
+
+/* ---------- state ---------- */
+const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},tasks:{},apt:{},claim:null};
+const UI={view:'overview',bld:'E',level:'all',q:'',task:'t01',open:{},armed:null,bulkStage:'',bulkPct:'100',setup:false};
+const crewRows=()=>S.crew.rows||CREW_DEFAULT;
+function unitSections(bld){
+  const bs=bld==='E'?['E']:bld==='F'?['F']:['E','F'];const out=[];
+  for(const b of bs){let cur=null;for(const u of BLD[b].units){const k=b+u.level;if(!cur||cur.k!==k){cur={k,id:'L'+k,name:(bs.length>1?BLD[b].name+' · ':'')+'Level '+u.level,lines:[]};out.push(cur)}cur.lines.push({id:u.id,name:u.id,desc:u.type,qty:'1',rate:''})}}
+  return out.map(x=>({id:x.id,name:x.name,lines:x.lines}));
+}
+const newLine=()=>({id:uid('l'),name:'',desc:'',qty:'1',rate:''});
+function normTrade(id,d){
+  d=d||{};const def=TRADE_DEFAULT[id];
+  let stages=d.stages,itps=d.itps;
+  if(!Array.isArray(stages)){stages=def?clone(def.stages):[{id:'s0',name:'Complete',rate:'0'}];if(Array.isArray(d.prices))d.prices.forEach((p,i)=>{if(stages[i])stages[i].rate=String(p)})}
+  if(!Array.isArray(itps))itps=def?clone(def.itps):[];
+  const sections=Array.isArray(d.sections)?d.sections.map(x=>({id:x.id,name:x.name||'',lines:Array.isArray(x.lines)?x.lines:[]})):[{id:'S1',name:'Section 1',lines:[{id:'l1',name:'',desc:'',qty:'1',rate:''}]}];
+  const units={};
+  for(const [u,v] of Object.entries(d.units||{})){
+    if(Array.isArray(v.s)){const s={},it={};v.s.forEach((x,i)=>s['s'+i]=x);(v.itp||[]).forEach((x,i)=>it['i'+i]=x);units[u]={s,itp:it}}
+    else units[u]={s:v.s||{},itp:v.itp||{}};
+  }
+  return {name:d.name??(def?def.name:'New trade'),created:d.created||(def?def.created:Date.now()),removed:!!d.removed,stages,itps,sections,units};
+}
+const aptDoc=t=>S.apt[t]||(S.apt[t]=normTrade(t,null));
+const tradeIds=()=>[...new Set([...(PID==='main'?['E','F']:[]),...Object.keys(S.apt)])].filter(id=>!aptDoc(id).removed).sort((a,b)=>aptDoc(a).created-aptDoc(b).created);
+const tradeLines=t=>aptDoc(t).sections.flatMap((x,si)=>x.lines.map((l,li)=>({...l,si,li,sec:x.id})));
+const lineQty=l=>(l.qty===''||l.qty==null)?1:num(l.qty);
+const unitState=(t,u)=>{const d=aptDoc(t).units[u];return {s:{...(d?.s||{})},itp:{...(d?.itp||{})}}};
+const structDirty=new Set();
+function lineMatch(l,q){return !q||String(l.name||'').toUpperCase().includes(q)||String(l.desc||'').toUpperCase().includes(q)}
+const taskDoc=t=>S.tasks[t]||{items:[],sections:[]};
+function taskSecs(t){const d=taskDoc(t);return d.sections&&d.sections.length?d.sections:[{id:'S1',name:'Section 1'}]}
+function ensureTask(t){const d=S.tasks[t]=taskDoc(t);if(!d.sections||!d.sections.length)d.sections=[{id:'S1',name:'Section 1'}];return d}
+const newItem=sec=>({sec,wbs:'',desc:'',unit:'',qty:'',pct:'',estHrs:'',spentHrs:''});
+
+/* ---------- persistence ---------- */
+let db=null;
+let PID='main';try{PID=localStorage.getItem('ox_pid')||'main'}catch(e){}
+const PROJ={};
+const phys=p=>{if(p.startsWith('projects/'))return p;return PID==='main'?p:'p/'+PID+'/'+p};
+const projName=(id=PID)=>PROJ[id]?.name||(id===PID?S.info.name:'')||(id==='main'?'Project 1':'New project');
+const physColl=n=>PID==='main'?n:'p/'+PID+'/'+n;
+const pending={}, inflight={}, latest={}, latestAt={}, flushAt={}, deleted=new Set(), exists=new Set();
+const aptQueue={};
+const isDirty=p=>!!pending[p]||!!inflight[p];
+function setSave(state,msg){
+  const el=document.getElementById('savepill');
+  el.className='pill '+({saving:'busy',saved:'ok',error:'err',local:''}[state]||'');
+  el.textContent={saving:'Saving…',saved:'All changes saved',error:msg||'Save failed',local:'Not saving'}[state]||state;
+}
+function dataFor(p){
+  const [c,id]=p.split('/');
+  if(c==='projects')return PROJ[id];
+  if(c==='project'){if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
+  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];
+  if(c==='tasks')return taskDoc(id);
+}
+function persist(p){
+  if(!db){setSave('local');return}
+  setSave('saving');clearTimeout(pending[p]);
+  pending[p]=setTimeout(()=>flush(p),650);
+}
+async function flush(p){
+  delete pending[p];inflight[p]=(inflight[p]||0)+1;flushAt[p]=Date.now();
+  try{
+    if(p.startsWith('apartments/')){
+      const t=p.split('/')[1];const d=aptDoc(t);const Q=aptQueue[t]||new Set();const units={};
+      for(const u of Q)units[u]=unitState(t,u);Q.clear();
+      const body={name:d.name,created:d.created,removed:d.removed,stages:d.stages,itps:d.itps,units};if(structDirty.has(t)){body.sections=d.sections;structDirty.delete(t)}
+      if(exists.has(p))await db.doc(phys(p)).update(body);else{await db.doc(phys(p)).set(clone(d));exists.add(p)}
+    }else{
+      const data=dataFor(p);if(data)await db.doc(phys(p)).set(clone(data));exists.add(p);
+    }
+  }catch(e){
+    console.error(e);
+    if(e&&e.code==='invalid_argument'&&p.startsWith('apartments/')){exists.delete(p)}
+    setSave('error',e&&e.code==='quota_exceeded'?'Storage full':e&&e.code==='invalid_argument'?'You can view but not edit':'Save failed — retrying on next edit');
+    inflight[p]--;return;
+  }
+  inflight[p]--;
+  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/'))applyDoc(p,latest[p]);
+  if(!Object.keys(pending).length&&!Object.values(inflight).some(Boolean))setSave('saved');
+  scheduleRender();
+}
+async function removeDoc(p){
+  deleted.add(p);clearTimeout(pending[p]);delete pending[p];
+  if(!db)return;
+  try{await db.doc(phys(p)).delete()}catch(e){setSave('error','Delete failed')}
+}
+function applyDoc(p,data){
+  const [c,id]=p.split('/');const d=clone(data);
+  if(c==='project'){if(id==='labourlog')S.llog={rows:Array.isArray(d.rows)?d.rows:[]};else if(id==='claim')S.claim=normClaim(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash={start:d.start||'',m:d.m||{}};else if(id==='crew')S.crew={rows:d.rows||null}}
+  else if(c==='apartments'){S.apt[id]=normTrade(id,d)}
+  else if(c==='tasks'){S.tasks[id]={items:d.items||[],sections:d.sections||[]}}
+}
+function onColl(name,snap){
+  const mapKey={variations:'vars',orders:'orders',procurement:'procs'}[name];
+  const seen=new Set();
+  const next={};
+  for(const d of snap.docs){
+    const p=name+'/'+d.id;seen.add(p);exists.add(p);latest[p]=d.data();latestAt[p]=Date.now();
+    if(deleted.has(p))continue;
+    if(mapKey){next[d.id]=isDirty(p)&&S[mapKey][d.id]?S[mapKey][d.id]:clone(d.data())}
+    else if(!isDirty(p))applyDoc(p,d.data());
+  }
+  for(const p of [...deleted])if(p.startsWith(name+'/')&&!seen.has(p))deleted.delete(p);
+  if(mapKey){
+    for(const id in S[mapKey]){const p=name+'/'+id;if(!(id in next)&&isDirty(p))next[id]=S[mapKey][id]}
+    S[mapKey]=next;
+  }
+  scheduleRender();
+}
+
+/* ---------- calculations ---------- */
+function crewRate(){
+  let c=0,h=0;for(const r of crewRows()){c+=num(r.qty)*num(r.rate)*num(r.hrs);h+=num(r.qty)*num(r.hrs)}
+  return h?c/h:0;
+}
+function logTotals(){let h=0,o=0,c=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);c+=num(r.cost)}return {hire:h,ox:o,hrs:h+o,cost:c,rate:(h+o)?c/(h+o):0}}
+function labourRateSrc(){if(num(S.info.labourRate))return 'Override set in project details';if(logTotals().rate)return 'Average from labour cost log';if(num(S.info.tenderRate))return 'Tendered rate (no labour cost log entries yet)';return 'Blended crew rate (add rows to the labour cost log to use actual costs)'}
+function labourRate(){return num(S.info.labourRate)||logTotals().rate||num(S.info.tenderRate)||crewRate()}
+function taskCalc(t){
+  let est=0,spent=0,earned=0,fc=0;
+  for(const it of taskDoc(t).items){const x=itemCalc(it);est+=x.est;spent+=x.spent;earned+=x.earned;fc+=x.fc}
+  return {est,spent,earned,fc,varHrs:est-fc,pct:est?earned/est:0};
+}
+function itemOne(it){
+  const e=num(it.estHrs),s=num(it.spentHrs),p=Math.min(Math.max(num(it.pct),0),100)/100,q=num(it.qty);
+  const ftc=p>0?s*(1-p)/p:e;
+  return {est:e,spent:s,qty:q,pct:p,installed:q*p,earned:e*p,ftc,fc:s+ftc,varHrs:e-(s+ftc),rateEst:q?e/q:0,rateAct:q*p?s/(q*p):0};
+}
+function itemCalc(it){
+  if(!(it.subs&&it.subs.length))return itemOne(it);
+  const t={est:0,spent:0,qty:0,installed:0,earned:0,ftc:0,fc:0};
+  for(const sb of it.subs){const x=itemOne(sb);for(const k in t)t[k]+=x[k]}
+  t.pct=t.est?t.earned/t.est:0;t.varHrs=t.est-t.fc;t.rateEst=t.qty?t.est/t.qty:0;t.rateAct=t.installed?t.spent/t.installed:0;t.split=true;return t;
+}
+function subRate(d,sb){const sg=d.stages.find(z=>z.id===sb.task);return sb.rate!==''&&sb.rate!=null?num(sb.rate):(sg?num(sg.rate):0)}
+function subCalc(d,sb){const v=subRate(d,sb)*lineQty(sb);const p=Math.min(Math.max(num(sb.pct),0),100)/100;return {v,p,c:v*p}}
+function aptCalc(t){
+  const d=aptDoc(t);const rates=d.stages.map(s=>num(s.rate));const per=rates.reduce((a,x)=>a+x,0);const n=d.stages.length;
+  const share=i=>per?rates[i]/per:(n?1/n:0);
+  const stage=d.stages.map((s,i)=>({id:s.id,name:s.name,price:rates[i],total:0,claimed:0,done:0}));
+  const itp={};d.itps.forEach(x=>itp[x.id]=0);let claimed=0,full=0,total=0,count=0;const secs={};
+  for(const sec of d.sections){const sc=secs[sec.id]={total:0,claimed:0,count:sec.lines.length};
+    for(const l of sec.lines){count++;const st=d.units[l.id]||{};let uc=0,v=0,all;
+      if(l.subs&&l.subs.length){all=true;for(const sb of l.subs){const x=subCalc(d,sb);v+=x.v;uc+=x.c;const sg=stage.find(z=>z.id===sb.task);if(sg){sg.total+=x.v;sg.claimed+=x.c;if(x.p>=1)sg.done++}if(x.p<1)all=false}total+=v;sc.total+=v}
+      else{v=(num(l.rate)||per)*lineQty(l);total+=v;sc.total+=v;all=n>0;
+      stage.forEach((s,i)=>{const p=num(st.s?.[s.id]);const sv=v*share(i);s.total+=sv;s.claimed+=sv*p/100;uc+=sv*p/100;if(p>=100)s.done++;else all=false})}
+      claimed+=uc;sc.claimed+=uc;if(all)full++;for(const k in itp)if(st.itp?.[k])itp[k]++}}
+  return {id:t,name:d.name,count,per,total,claimed,stage,itp,full,secs,pct:total?claimed/total:0};
+}
+function calc(){
+  const contract=(S.info.contract!==undefined&&S.info.contract!=='')?num(S.info.contract):claimTotals().c.sum,pcSum=num(S.info.pcSum);
+  let vApp=0,vUn=0,vRej=0,vProfit=0;const vCount={};
+  for(const v of Object.values(S.vars)){
+    const VN=vNums(v);const sub=VN.sell;const st=v.status||'Submitted';vCount[st]=(vCount[st]||0)+1;
+    if(st==='Approved'){vApp+=sub;vProfit+=VN.margin}
+    else if(st==='Rejected'||st==='Withdrawn')vRej+=sub;else vUn+=sub;
+  }
+  const revised=contract+vApp;
+  let poTotal=0,matInv=0,matAnt=0,matFc=0,ret=0,leftPO=0;
+  for(const o of Object.values(S.orders)){
+    const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0),ant=num(o.anticipated);
+    poTotal+=po;leftPO+=Math.max(po-inv,0);matInv+=inv;matAnt+=ant;matFc+=Math.max(po,inv)+ant;if(o.retention)ret+=inv*0.05;
+  }
+  const rate=labourRate();
+  let lEst=0,lSpent=0,lFc=0,lEarned=0;
+  for(const t of TASK_IDS){const c=taskCalc(t);lEst+=c.est;lSpent+=c.spent;lFc+=c.fc;lEarned+=c.earned}
+  const otherHrs=num(S.info.otherHrs);lSpent+=otherHrs;lFc+=otherHrs;
+  const labAct=lSpent*rate,labFc=lFc*rate;
+  const other=num(S.info.otherCost);
+  const fcCost=matFc+labFc+other;
+  const CT=claimTotals();const hasHistCost=claimDoc().hist.some(h=>h.cost!==''&&h.cost!=null);const costCalc=matInv+labAct+num(S.info.otherCostToDate);const costToDate=hasHistCost?CT.cost:costCalc;
+  const invoiced=CT.ha,retention=CT.ret;
+  const gp=revised-fcCost;const TR=tradeIds().map(aptCalc);const subTotal=TR.reduce((a,x)=>a+x.total,0),subClaimed=TR.reduce((a,x)=>a+x.claimed,0);
+  return {contract,pcSum,vApp,vUn,vRej,vProfit,vCount,revised,poTotal,matInv,matAnt,matFc,ret,rate,lEst,lSpent,lFc,lEarned,labAct,labFc,other,fcCost,costToDate,
+    invoiced,retention,gp,gpPct:revised?gp/revised:0,leftInvoice:revised-invoiced,leftSpend:Math.max(lFc-lSpent,0)*rate+leftPO+matAnt,labHrsToGo:Math.max(lFc-lSpent,0),leftPO,marginToDate:invoiced-costToDate,pctInv:revised?invoiced/revised:0,
+    trades:TR,subTotal,subClaimed,pctCost:fcCost?costToDate/fcCost:0,pctHrs:lEst?lEarned/lEst:0,pctSub:subTotal?subClaimed/subTotal:0};
+}
+function months(){
+  let st=S.cash.start;if(!/^\d{4}-\d{2}$/.test(st||'')){const d=new Date();st=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+  let [y,m]=st.split('-').map(Number);const out=[];
+  for(let i=0;i<30;i++){out.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++}}
+  return out;
+}
+const monthLabel=k=>{const [y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('en-AU',{month:'short',year:'2-digit'})};
+
+/* ---------- views ---------- */
+const V={};
+function head(title,sub,actions=''){return `<div class="sec-head"><div><h2>${title}</h2>${sub?`<p>${sub}</p>`:''}</div>${actions}</div>`}
+
+V.overview=()=>{
+  const c=calc();
+  const proc=Object.values(S.procs).filter(p=>p.status!=='Complete'&&p.status!=='Delivered'&&p.required&&!p.ordered&&p.required&&addDays(p.required,-7*num(p.lead))<todayISO());
+  const vSt=VSTATUS.filter(s=>c.vCount[s]).map(s=>`<span class="tag ${s==='Approved'?'good':s==='Rejected'||s==='Withdrawn'?'bad':s==='Submitted'?'warn':''}">${c.vCount[s]} ${s.toLowerCase()}</span>`).join(' ');
+  const taskRows=TASK_IDS.map((t,i)=>({t,i,c:taskCalc(t)})).filter(x=>x.c.est||x.c.spent).sort((a,b)=>a.c.varHrs-b.c.varHrs).slice(0,5);
+  return `<div class="stack">
+  <div class="kpis">
+    <div class="kpi"><span class="l">Revised contract</span><span class="v">${kmoney(c.revised)}</span><span class="d">${money(c.contract)} original + ${money(c.vApp)} approved variations</span></div>
+    <div class="kpi"><span class="l">Forecast cost</span><span class="v">${kmoney(c.fcCost)}</span><span class="d">${money(c.costToDate)} spent to date</span></div>
+    <div class="kpi"><span class="l">Forecast margin</span><span class="v ${c.gp<0?'neg':''}">${pct(c.gpPct)}</span><span class="d">${money(c.gp)} gross profit</span></div>
+    <div class="kpi"><span class="l">Invoiced</span><span class="v">${pct(c.pctInv)}</span><span class="d">${money(c.invoiced)} of revised contract</span></div>
+    <div class="kpi"><span class="l">Overall complete</span><span class="v">${overallPct().v}</span><span class="d">${overallPct().l}</span></div>
+  </div>
+  ${tenderPanel(c)}
+  ${completionPanel()}
+  <div class="grid2">
+    <div class="panel"><h3>Financial position</h3>${ledger(c)}</div>
+    <div class="stack">
+    <div class="panel"><h3>Variations</h3>
+      <div class="statgrid" style="margin-bottom:12px">
+        <div class="mini"><span class="l">Approved</span><span class="v">${money(c.vApp)}</span></div>
+        <div class="mini"><span class="l">Pending</span><span class="v">${money(c.vUn)}</span></div>
+        <div class="mini"><span class="l">Profit on approved</span><span class="v">${money(c.vProfit)}</span></div>
+      </div>
+      ${vSt||'<span class="hint">No variations logged yet.</span>'}
+    </div>
+    <div class="panel"><h3>Needs attention</h3>
+      ${proc.map(p=>`<div class="alert"><span class="tag bad">Order late</span><div><b>${esc(p.item||'Unnamed item')}</b><div class="hint">Should have been ordered by ${fmtDate(addDays(p.required,-7*num(p.lead)))} to arrive ${fmtDate(p.required)}</div></div></div>`).join('')}
+      ${taskRows.filter(x=>x.c.varHrs<0).map(x=>`<div class="alert"><span class="tag warn">Hours over</span><div><b>${esc(TASKS[x.i])}</b><div class="hint">Forecast ${hrs(x.c.fc)} hrs against ${hrs(x.c.est)} estimated (${hrs(-x.c.varHrs)} over)</div></div></div>`).join('')}
+      ${c.gp<0?`<div class="alert"><span class="tag bad">Loss</span><div><b>Forecast cost exceeds contract value</b><div class="hint">${money(-c.gp)} short at completion</div></div></div>`:''}
+      ${(!proc.length&&!taskRows.some(x=>x.c.varHrs<0)&&c.gp>=0)?'<p class="hint" style="margin:0">Nothing flagged. Late orders, tasks forecasting over their hours, and a negative margin show here.</p>':''}
+    </div>
+    </div>
+  </div>
+  <div class="panel chart"><div class="sec-head" style="margin-bottom:6px"><h3>Cash flow forecast</h3><button class="btn" data-act="nav" data-v="cashflow">Edit forecast</button></div>${cashChart()}</div>
+  </div>`;
+};
+function tradeBars(c){
+  if(!c.trades.length)return '<p class="hint" style="margin:0">No subcontractor trades set up.</p>';
+  return c.trades.map((a,i)=>`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(a.name||'Untitled trade')}</b><span class="money">${money(a.claimed)} / ${money(a.total)}</span></div>
+    <div class="bar${i%2?' b2':''}"><i style="width:${(a.pct*100).toFixed(1)}%"></i></div>
+    <div class="hint">${pct(a.pct)} claimed · ${a.full} of ${a.count} lines fully complete</div></div>`).join('');
+}
+function tenderPanel(c){
+  const th=num(S.info.tenderHrs),tr=num(S.info.tenderRate);const tv=th*tr;
+  const LT=logTotals();const act=LT.hrs||c.lSpent;const actSrc=LT.hrs?'from labour cost log':'from hours spent in tasks';
+  const fc=Math.max(c.lFc,act);
+  const max=Math.max(th,act,fc,1);
+  const bar=(lbl,v,cls,sub)=>`<div class="hcmp"><div class="hcmp-l"><b>${lbl}</b><span class="hint">${sub}</span></div><div class="hcmp-t"><div class="hcmp-b ${cls}" style="width:${(v/max*100).toFixed(1)}%"></div>${th?`<div class="hcmp-tick" style="left:${(th/max*100).toFixed(1)}%"></div>`:''}</div><div class="hcmp-v money">${hrs(v)} hrs</div></div>`;
+  const chip=(v,label)=>{if(!th)return `<span class="tag">Enter tendered hours</span>`;const d=v-th;const p=d/th;return `<span class="tag ${d>0?'bad':'good'}">${d>0?hrs(d)+' hrs over':hrs(-d)+' hrs under'} ${label} (${d>0?'+':''}${pct(p,1)})</span>`};
+  const used=th?act/th:0;
+  return `<div class="panel"><div class="sec-head" style="margin-bottom:12px"><div><h3>Labour hours against tender</h3><p class="hint">Actual hours to date and forecast hours at completion compared with the tendered hours. The thin line marks the tender.</p></div></div>
+  <div class="tender">
+    <label>Total tendered hours${inp('info|tenderHrs',S.info.tenderHrs||'',{num:1,label:'Total tendered hours',ph:'0'})}</label>
+    <label>Tendered rate $/hr<div class="cur">${inp('info|tenderRate',S.info.tenderRate||'',{num:1,label:'Tendered rate',ph:'0'})}</div></label>
+    <div class="mini"><span class="l">Tendered labour value</span><span class="v">${money(tv)}</span></div>
+    <div class="mini"><span class="l">Forecast hours</span><span class="v ${th&&fc>th?'neg':''}">${hrs(fc)}</span><span class="hint ${th&&fc>th?'neg':''}">${th?(fc>th?hrs(fc-th)+' hrs over tender':hrs(th-fc)+' hrs under tender'):'Enter tendered hours to compare'}</span></div>
+    <div class="mini"><span class="l">Rate used for forecast</span><span class="v">$${c.rate.toFixed(2)}/hr</span><span class="hint">${labourRateSrc().split(' (')[0]}</span></div>
+  </div>
+  <div class="hcmp-wrap">
+    ${bar('Tendered',th,'t','Allowed in the tender')}
+    ${bar('Actual to date',act,'a',actSrc)}
+    ${bar('Forecast at completion',fc,'f','actual + hours to go')}
+  </div>
+  <div class="toolbar" style="margin-top:12px">
+    <span class="hint">Actual vs tender:</span>${th?`<span class="tag ${used>1?'bad':used>.9?'warn':'acc'}">${pct(used,0)} of tendered hours used</span>`:''}
+    <span class="hint" style="margin-left:10px">Forecast vs tender:</span>${chip(fc,'estimate')}
+    ${th&&tr?`<span class="hint" style="margin-left:10px">Cost impact at forecast rate:</span><span class="tag ${fc*c.rate>tv?'bad':'good'}">${money(fc*c.rate-tv)}</span>`:''}
+  </div></div>`;
+}
+function completionMeasures(c){return [['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
+    ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
+    ['hrs','Labour hours earned vs estimate',c.lEst,c.pctHrs,`${hrs(c.lEarned)} of ${hrs(c.lEst)} hrs`],
+    ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]]}
+function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
+function completionPanel(){
+  const c=calc();
+  const m=[['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
+    ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
+    ['hrs','Labour hours earned vs estimate',c.lEst,c.pctHrs,`${hrs(c.lEarned)} of ${hrs(c.lEst)} hrs`],
+    ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]];
+  const lead=m.find(x=>x[2]>0);
+  const tasks=TASK_IDS.map((t,i)=>({i,c:taskCalc(t)})).filter(x=>x.c.est>0);
+  return `<div class="panel"><div class="complete">
+    <div><div class="kpi" style="padding:0;background:none"><span class="l">Overall completion</span></div><div class="big">${lead?pct(lead[3]):'—'}</div><div class="hint">${lead?lead[1]:'Enter contract, cost, labour or subcontractor figures to calculate completion.'}</div></div>
+    <div class="crow">${m.map(([k,l,den,v,dd],i)=>`<div><div class="ct"><span>${l}</span><span class="money">${den?pct(v):'—'}</span></div><div class="bar${i%2?' b2':''}"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div><div class="hint" style="margin-top:4px">${den?dd:'No figures yet'}</div></div>`).join('')}</div>
+  </div>
+  <div class="grid2" style="margin-top:20px"><div><h3 style="margin-bottom:10px">By trade</h3>${tradeBars(c)}</div>
+  <div><div class="ct" style="margin-bottom:10px"><h3>Labour & tasks</h3><span class="money" style="font-size:14px"><b>${pct(c.pctHrs)}</b> overall · ${hrs(c.lEarned)} / ${hrs(c.lEst)} hrs</span></div><div class="bar" style="height:12px;margin-bottom:16px"><i style="width:${Math.min(c.pctHrs*100,100).toFixed(1)}%"></i></div>${tasks.length?tasks.map(x=>`<div class="ct"><span>${esc(TASKS[x.i])}</span><span class="money">${pct(x.c.pct,0)}</span></div><div class="bar" style="margin-bottom:10px"><i style="width:${Math.min(x.c.pct*100,100).toFixed(1)}%"></i></div>`).join(''):'<p class="hint" style="margin:0">No task estimates yet. Add line items under Labour & tasks.</p>'}</div></div></div>`;
+}
+function ledger(c){
+  const r=(l,v,cls='')=>`<tr class="${cls}"><td>${l}</td><td class="money ${v<0?'neg':''}">${money(v)}</td></tr>`;
+  return `<table class="ledger"><tbody>
+    ${r('Original contract value',c.contract)}${r('Approved variations',c.vApp)}
+    ${r('Revised contract value',c.revised,'total')}
+    ${r('Forecast cost, materials',c.matFc,'sub')}${r('Forecast cost, labour',c.labFc,'sub')}${c.other?r('Forecast cost, other',c.other,'sub'):''}
+    ${r('Total forecast cost',c.fcCost)}
+    ${r('Forecast gross profit',c.gp,'total')}
+    <tr><td>Forecast margin</td><td class="money ${c.gp<0?'neg':''}">${pct(c.gpPct)}</td></tr>
+    ${r('Invoiced to date',c.invoiced)}${r('Retention held to date',c.retention,'sub')}${r('Cost to date',c.costToDate)}${r('Margin to date',c.marginToDate)}
+    ${r('Left to invoice',c.leftInvoice)}${r('Left to spend',c.leftSpend)}
+  </tbody></table>`;
+}
+function cashChart(){
+  const ms=months();let cs=0,cc=0;const pts=ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=num(r.cost);return {k,cs,cc}});
+  const max=Math.max(1,...pts.map(p=>Math.max(p.cs,p.cc)));
+  if(!pts.some(p=>p.cs||p.cc))return `<div class="empty"><b>No forecast entered yet</b>Add monthly claim and cost forecasts under Cash flow to see cumulative sales against cost.</div>`;
+  const W=900,H=260,L=64,R=14,T=12,B=30,iw=W-L-R,ih=H-T-B;
+  const nice=(()=>{const step=Math.pow(10,Math.floor(Math.log10(max)));const m=[1,2,2.5,5,10].find(x=>x*step*4>=max)*step;return m})();
+  const top=nice*4;const x=i=>L+iw*i/(pts.length-1),y=v=>T+ih*(1-v/top);
+  let grid='';for(let i=0;i<=4;i++){const v=nice*i;grid+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${y(v)+3.5}" text-anchor="end">${kmoney(v)}</text>`}
+  let xl='';pts.forEach((p,i)=>{if(i%3===0)xl+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle">${monthLabel(p.k)}</text>`});
+  const line=key=>pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join('');
+  const area=`${line('cs')}L${x(pts.length-1)},${y(0)}L${x(0)},${y(0)}Z`;
+  const last=pts[pts.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative forecast sales and costs by month">${grid}${xl}
+    <path d="${area}" fill="var(--accent)" fill-opacity=".08"/>
+    <path d="${line('cs')}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+    <path d="${line('cc')}" fill="none" stroke="var(--series2)" stroke-width="2.4" stroke-dasharray="6 4"/>
+    <circle cx="${x(pts.length-1)}" cy="${y(last.cs)}" r="4" fill="var(--accent)"/><circle cx="${x(pts.length-1)}" cy="${y(last.cc)}" r="4" fill="var(--series2)"/>
+  </svg><div class="legend"><span><i style="background:var(--accent)"></i>Cumulative claims ${money(last.cs)}</span><span><i style="background:var(--series2)"></i>Cumulative costs ${money(last.cc)}</span><span>Net position ${money(last.cs-last.cc)}</span></div>`;
+}
+
+V.details=()=>{
+  const i=S.info,cs=i.cs||{};
+  const f=(k,l,o={})=>`<label class="${o.wide?'wide':''}">${l}${o.area?`<textarea class="f" id="info_${k}" data-b="info|${k}" placeholder="${esc(o.ph||'')}">${esc(i[k]||'')}</textarea>`:inp('info|'+k,i[k]||'',{num:o.num,ph:o.ph,type:o.type})}</label>`;
+  return `<div class="stack">${head('Project details','The cover page of the monthly significant project report.')}
+  ${completionPanel()}
+  <div class="panel"><h3>Project</h3><div class="form">
+    <label>Project name${inp('info|name',PROJ[PID]?.name||S.info.name||'',{ph:'e.g. Sanctuary Stage 4'})}</label>${f('job','Job number',{ph:'OX-'})}${f('period','Period ending',{type:'date'})}
+    ${f('pm','Project manager')}${f('report','Direct report')}${f('sites','Site managers')}
+    ${f('desc','Project description',{area:1,wide:1})}${f('comments','Comments and key risk areas',{area:1,wide:1,ph:'1. Labour / access / incentives …'})}
+  </div></div>
+  <div class="panel"><h3>Contract figures</h3><p class="hint" style="margin:-6px 0 12px">Ex-GST. Variations come from the variation register; costs from orders and labour.</p><div class="form">
+    ${f('contract','Original contract value $',{num:1,ph:'From progress claim: '+money(claimTotals().c.sum)})}<label>Invoiced to date $ <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">(auto, from cost to complete)</span><input class="f num" id="info_invoiced_auto" disabled value="${money(calc().invoiced)}"></label>
+    <label>Retention withheld to date $ <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">(auto, from cost to complete)</span><input class="f num" id="info_retention_auto" disabled value="${money(calc().retention)}"></label>${f('cash','Cash position (from MYOB) $',{num:1})}${f('otherCost','Other forecast costs $',{num:1,ph:'Plant, hire, permits'})}
+    ${f('otherCostToDate','Other costs to date $',{num:1})}${f('otherHrs','Labour hours not in tasks',{num:1})}${f('tenderHrs','Total tendered hours',{num:1})}${f('tenderRate','Tendered rate $/hr',{num:1})}${f('labourRate','Labour rate override $/hr',{num:1,ph:'Current rate: $'+labourRate().toFixed(2)})}
+  </div></div>
+  <div class="panel"><h3>Contract summary</h3><div class="tw" style="border:0"><table><thead><tr><th>Item</th><th></th><th>Yes / No</th><th style="width:45%">Details</th></tr></thead><tbody>
+    ${CS_ITEMS.map(([k,l,d])=>{const v=cs[k]||{};return `<tr><td>${esc(l)}</td><td class="hint">${esc(d)}</td><td><div class="yn"><button class="y" data-act="yn" data-k="${k}" data-v="yes" aria-pressed="${v.yn==='yes'}">Yes</button><button class="no" data-act="yn" data-k="${k}" data-v="no" aria-pressed="${v.yn==='no'}">No</button></div></td><td>${inp('cs|'+k+'|details',v.details||'',{label:l+' details'})}</td></tr>`}).join('')}
+  </tbody></table></div></div></div>`;
+};
+
+V.cost=()=>{
+  const c=calc();
+  const ords=Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+  return `<div class="stack">${head('Cost to complete','Materials come from the order tracker; labour from task hours at '+money(c.rate)+'/hr ('+labourRateSrc().split(' (')[0].toLowerCase()+'). Left to spend is labour hours to go at that rate, plus what is left on POs, plus extras outside POs.')}
+  <div class="grid2"><div class="panel"><h3>Summary</h3>${ledger(c)}</div>
+  <div class="panel"><h3>Labour</h3><table class="ledger"><tbody>
+    <tr><td>Estimated hours</td><td class="money">${hrs(c.lEst)}</td></tr><tr><td>Hours spent</td><td class="money">${hrs(c.lSpent)}</td></tr>
+    <tr><td>Hours earned</td><td class="money">${hrs(c.lEarned)}</td></tr><tr><td>Forecast total hours</td><td class="money">${hrs(c.lFc)}</td></tr>
+    <tr><td>Hours over (−) / under (+)</td><td class="money ${c.lEst-c.lFc<0?'neg':'pos'}">${hrs(c.lEst-c.lFc)}</td></tr>
+    <tr class="total"><td>Labour cost to date</td><td class="money">${money(c.labAct)}</td></tr><tr><td>Labour forecast at completion</td><td class="money">${money(c.labFc)}</td></tr>
+  </tbody></table></div></div>
+  <div><h3 style="margin-bottom:10px">Materials and subcontractors</h3>
+  ${ords.length?`<div class="tw"><table><thead><tr><th>Supplier / subcontractor</th><th>PO</th><th class="n">Committed</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">Extra outside PO</th><th class="n">Forecast total</th></tr></thead><tbody>
+  ${ords.map(([id,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0),ant=num(o.anticipated);return `<tr><td>${esc(o.supplier||'—')}</td><td class="mono">${esc(o.poNo||'')}</td><td class="n money">${money(po)}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n money">${money(ant)}</td><td class="n money">${money(Math.max(po,inv)+ant)}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${money(c.poTotal)}</td><td class="n money">${money(c.matInv)}</td><td class="n money">${money(c.poTotal-c.matInv)}</td><td class="n money">${money(c.matAnt)}</td><td class="n money">${money(c.matFc)}</td></tr></tfoot></table></div>`
+  :`<div class="panel empty"><b>No orders yet</b>Add purchase orders under Orders & invoices and they roll up here.<div style="margin-top:12px"><button class="btn primary" data-act="nav" data-v="orders">Go to orders</button></div></div>`}</div></div>`;
+};
+
+V.variations=()=>{
+  const c=calc();
+  const rows=Object.entries(S.vars).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+  const NC=17;
+  return `<div class="stack">${head('Variation register','All amounts ex-GST. Open a variation’s build-up to price it line by line like the variation sheet; its sell, cost, margin, hours, labour and material then fill in here.','<button class="btn primary" data-act="add-var">+ Add variation</button>')}
+  <div class="statgrid"><div class="mini"><span class="l">Approved</span><span class="v">${money(c.vApp)}</span></div><div class="mini"><span class="l">Unapproved</span><span class="v">${money(c.vUn)}</span></div><div class="mini"><span class="l">Rejected / withdrawn</span><span class="v">${money(c.vRej)}</span></div><div class="mini"><span class="l">Margin on approved</span><span class="v">${money(c.vProfit)}</span></div></div>
+  ${rows.length?`<div class="tw"><table style="min-width:1900px"><thead><tr><th></th><th>Our ref</th><th>Client ref</th><th style="min-width:220px">Description</th><th>Submitted</th><th>Author</th><th>Status</th><th class="n">Sell</th><th class="n">Cost</th><th class="n">Margin</th><th class="n">Labour hrs</th><th class="n">Labour $</th><th class="n">Material $</th><th>Approved</th><th>Approval ref</th><th style="min-width:160px">Comments</th><th></th></tr></thead><tbody>
+  ${rows.map(([id,v])=>{const k='var|'+id+'|';const st=v.status||'Submitted';const N=vNums(v);const open=UI.vopen===id;
+    const cell=(f,val,lbl)=>N.bu?`<td class="n money">${f==='hours'?hrs(val):money(val)}</td>`:`<td style="width:110px">${inp(k+f,v[f],{num:1,label:lbl})}</td>`;
+    return `<tr class="${open?'sel':''}"><td style="white-space:nowrap"><button class="btn ${open?'primary':''}" style="padding:4px 10px;font-size:12px" data-act="vopen" data-v="${id}" aria-expanded="${open}">${open?'▾':'▸'} Build-up${hasBu(v)?' · '+v.bu.lines.length:''}</button></td>
+    <td style="min-width:100px">${inp(k+'ref',v.ref,{label:'Ref'})}</td><td style="min-width:100px">${inp(k+'clientRef',v.clientRef,{label:'Client ref'})}</td><td style="min-width:240px">${inp(k+'desc',v.desc,{label:'Description',ph:'Describe the change'})}</td>
+    <td style="min-width:150px">${inp(k+'date',v.date,{type:'date',label:'Date submitted'})}</td><td style="width:110px">${inp(k+'author',v.author,{label:'Author'})}</td>
+    <td style="min-width:130px">${sel(k+'status',st,VSTATUS,{label:'Status',cls:''})}</td>
+    ${cell('submitted',N.sell,'Sell')}<td class="n money">${money(N.cost)}</td>
+    <td class="n money ${N.margin<0?'neg':''}">${money(N.margin)}<div class="hint">${N.sell?pct(N.margin/N.sell,0):''}</div></td>
+    ${cell('hours',N.hrs,'Labour hours')}${cell('labour',N.lab,'Labour cost')}${cell('nonLabour',N.mat,'Material cost')}
+    <td style="width:140px">${inp(k+'dateApproved',v.dateApproved,{type:'date',label:'Date approved'})}</td><td style="width:130px">${inp(k+'approvalRef',v.approvalRef,{label:'Approval reference'})}</td><td>${inp(k+'comments',v.comments,{label:'Comments'})}</td>
+    <td>${delBtn('var',id)}</td></tr>`}).join('')}
+  </tbody></table></div>${UI.vopen&&S.vars[UI.vopen]?`<div class="panel" id="bupanel" style="padding:0;overflow:hidden">${buPanel(UI.vopen,S.vars[UI.vopen])}</div>`:''}`:`<div class="panel empty"><b>No variations logged</b>Add a variation, then open its build-up to price materials, labour and supervision.</div>`}</div>`;
+};
+function buPanel(id,v){
+  const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};const k='vbu|'+id+'|';
+  const rows=(bu.lines||[]).map((l,li)=>{const kl='vline|'+id+'|'+li+'|';const q=num(l.qty);return `<tr><td style="width:86px">${delBtn('vline',id,String(li),'Remove')}</td>
+    <td style="min-width:220px">${inp(kl+'item',l.item,{label:'Item',ph:'Item description'})}</td>
+    <td style="min-width:180px">${sel(kl+'kind',kindOf(l),[['L','Labour & material'],['S','Supervision'],['P','Project management']],{label:'Labour type'})}</td>
+    <td style="width:80px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'0'})}</td>
+    <td style="width:110px"><div class="cur">${inp(kl+'mat',l.mat,{num:1,label:'Material',ph:'0'})}</div></td>
+    <td style="width:70px">${inp(kl+'per',l.per,{label:'Per',ph:'ea'})}</td>
+    <td class="n money">${money(q*num(l.mat))}</td>
+    <td style="width:80px">${inp(kl+'hrs',l.hrs,{num:1,label:'Labour hours each',ph:'0'})}</td>
+    <td class="n money">${(q*num(l.hrs)).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
+    <td style="min-width:180px">${inp(kl+'comments',l.comments,{label:'Comments'})}</td></tr>`}).join('');
+  const L=(lbl,c,sv,cls='')=>`<tr class="${cls}"><td>${lbl}</td><td class="money">${money(c)}</td><td class="money">${money(sv)}</td></tr>`;
+  return `<div class="bupanel">
+    <div class="sec-head"><div><h3>Variation build-up · ${esc(v.ref||'')}${v.desc?' · '+esc(v.desc):''}</h3><p class="hint">Price it like the variation sheet: quantity × material and quantity × labour hours. Labour, supervision and project management each have their own cost and sell rates.</p></div>
+      <div class="toolbar"><button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button><button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
+    <div class="form">
+      <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}</div></label>
+      <label class="wide">Description for the quote<textarea class="f" id="vbu_${id}_longDesc" data-b="${k}longDesc" placeholder="Scope of the variation as it should appear on the sell sheet">${esc(bu.longDesc||'')}</textarea></label>
+    </div>
+    <div class="tw" style="margin-top:14px"><table style="min-width:1250px"><thead><tr><th></th><th>Item</th><th>Type</th><th class="n">Quantity</th><th class="n">Material</th><th>Per</th><th class="n">Extension</th><th class="n">Labour hrs</th><th class="n">Lab extension</th><th>Comments</th></tr></thead><tbody>
+    ${rows||'<tr><td colspan="10" class="empty">No lines yet.</td></tr>'}
+    <tr class="addrow"><td colspan="10"><button class="btn" data-act="vline-add" data-v="${id}">+ Add line</button></td></tr>
+    </tbody><tfoot><tr><td colspan="6">Totals</td><td class="n money">${money(X.mat)}</td><td></td><td class="n money">${X.hrs.toLocaleString('en-AU',{maximumFractionDigits:2})} hrs</td><td class="hint">${X.lh.toLocaleString('en-AU',{maximumFractionDigits:2})} labour · ${X.sh.toLocaleString('en-AU',{maximumFractionDigits:2})} supervision · ${X.ph.toLocaleString('en-AU',{maximumFractionDigits:2})} PM</td></tr></tfoot></table></div>
+    <div class="grid2" style="margin-top:16px">
+      <div><h3 style="font-size:15px;margin-bottom:8px">Rates</h3><div class="form rates">
+        <label>Cost labour $/hr${inp(k+'r_cl',r.cl,{num:1,label:'Cost labour rate'})}</label><label>Cost supervision $/hr${inp(k+'r_cs',r.cs,{num:1,label:'Cost supervision rate'})}</label>
+        <label>Cost project management $/hr${inp(k+'r_cp',rateOf(r,'cp'),{num:1,label:'Cost project management rate'})}</label>
+        <label>Sell labour $/hr${inp(k+'r_sl',r.sl,{num:1,label:'Sell labour rate'})}</label><label>Sell supervision $/hr${inp(k+'r_ss',r.ss,{num:1,label:'Sell supervision rate'})}</label><label>Sell project management $/hr${inp(k+'r_sp',rateOf(r,'sp'),{num:1,label:'Sell project management rate'})}</label>
+        <label>Material mark-up on sell %${inp(k+'mark',bu.mark,{num:1,label:'Mark-up %'})}</label>
+      </div></div>
+      <div><h3 style="font-size:15px;margin-bottom:8px">Summary</h3><table class="ledger bu-sum"><thead><tr><td></td><td class="hint">Cost</td><td class="hint">Sell</td></tr></thead><tbody>
+        ${L('Material total',X.cost.mat,X.sell.mat)}${L(`Mark-up ${num(bu.mark)}%`,0,X.sell.extra,'sub')}${L(`Labour (${X.lh.toLocaleString('en-AU',{maximumFractionDigits:2})} hrs)`,X.cost.lab,X.sell.lab)}${L(`Supervision (${X.sh.toLocaleString('en-AU',{maximumFractionDigits:2})} hrs)`,X.cost.sup,X.sell.sup)}${L(`Project management (${X.ph.toLocaleString('en-AU',{maximumFractionDigits:2})} hrs)`,X.cost.pm,X.sell.pm)}
+        ${L('Total variation',X.cost.total,X.sell.total,'total')}
+        <tr class="total"><td>Margin</td><td></td><td class="money ${X.margin<0?'neg':''}">${money(X.margin)} · ${X.sell.total?pct(X.margin/X.sell.total,1):'—'}</td></tr>
+      </tbody></table></div>
+    </div></div>`;
+}
+let downloads=null;
+async function sellPdf(id){
+  const v=S.vars[id];if(!v)return;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};
+  if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+  try{doc.addImage(LOGO,'PNG',14,10,20,24)}catch(e){}
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
+  doc.setDrawColor(176,84,28);doc.setLineWidth(.6);doc.line(14,38,W-14,38);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text('Variation quotation',14,47);
+  doc.setFontSize(9.5);doc.setFont('helvetica','normal');
+  const proj=[S.info.job,PROJ[PID]?.name||S.info.name].filter(Boolean).join(' ');
+  const meta=[['Project',proj||'—'],['Date',fmtDate(v.date)||fmtDate(todayISO())],['VQ #',v.ref||'—'],['HCV #',bu.hcv||'—'],['Ref',bu.refTxt||v.clientRef||'—']];
+  let y=55;meta.forEach(([a,b],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(a+':',x,y);doc.setFont('helvetica','normal');doc.text(String(b),x+18,y)});
+  y+=8;doc.setFont('helvetica','bold');doc.text('Description:',14,y);doc.setFont('helvetica','normal');
+  const dl=doc.splitTextToSize(bu.longDesc||v.desc||'—',W-28-24);doc.text(dl,38,y);y+=Math.max(6,dl.length*4.6)+3;
+  const f2=n=>n?Number(n).toLocaleString('en-AU',{maximumFractionDigits:2}):'';
+  const body=(bu.lines||[]).filter(l=>l.item||num(l.qty)).map(l=>{const q=num(l.qty);return [l.item||'',f2(q),num(l.mat)?money(num(l.mat)):'',l.per||'',q*num(l.mat)?money(q*num(l.mat)):'',f2(num(l.hrs)),f2(q*num(l.hrs)),l.comments||'']});
+  doc.autoTable({startY:y,head:[['Item','Quantity','Material','Per','Extension','Labour','Lab ext.','Comments']],body,theme:'grid',
+    styles:{fontSize:8.5,cellPadding:1.8,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:52},1:{halign:'right',cellWidth:16},2:{halign:'right',cellWidth:20},3:{cellWidth:12},4:{halign:'right',cellWidth:22},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{cellWidth:'auto'}},margin:{left:14,right:14}});
+  y=doc.lastAutoTable.finalY+6;if(y>240){doc.addPage();y=20}
+  const tot=[['Material total','',money(X.sell.mat)],[`Mark-up ${num(bu.mark)}%`,'',money(X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
+  doc.autoTable({startY:y,body:tot,foot:[['Total variation (ex GST)','',money(X.sell.total)]],theme:'plain',styles:{fontSize:9.5,cellPadding:1.6},
+    columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},margin:{left:W-14-150}});
+  y=doc.lastAutoTable.finalY+8;doc.setFontSize(8);doc.setTextColor(90);doc.text('All prices exclude GST.',14,Math.min(y,285));
+  const blob=doc.output('blob');
+  const name=`${(v.ref||'Variation').replace(/[^\w.-]+/g,'_')} - Sell.pdf`;
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
+}
+const HOSTED=!!window.OX_CONFIG;
+let assets=null;const UP={};
+let COLL=new Set();try{COLL=new Set(JSON.parse(localStorage.getItem('ox_coll')||'[]'))}catch(e){}
+function saveColl(){try{localStorage.setItem('ox_coll',JSON.stringify([...COLL]))}catch(e){}}
+const NO_ITP=new Set(['t15','t16']);
+function itpCell(key,f,L='ITP'){
+  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');
+  if(UP[key])return `<span class="hint">Uploading…</span>`;
+  if(f&&f.id){const armed=UI.armed==='itpf'+key;
+    return `<div class="itp"><a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(f.id)}" data-file="${esc(f.id)}" target="_blank" rel="noopener" title="${esc(f.name||L+'.pdf')}">${L}</a>${assets?`<label class="btn ghost itp-act" for="${eid}">Replace</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden><button class="btn ${armed?'armed':'ghost'} itp-act" data-act="del" data-kind="itpf" data-id="${esc(key)}" data-x="" aria-label="Remove ${L}">${armed?'Confirm':'✕'}</button>`:''}</div>`}
+  return assets?`<label class="btn itp-up" for="${eid}">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
+}
+function setItp(key,v){const parts=key.split('|');parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return taskDoc(a).items[+b]?.subs?.[+c]?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+async function uploadItp(key,file){
+  if(!assets)return;
+  if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name))){setSave('error','File must be a PDF');return}
+  if(file.size>20*1024*1024){setSave('error','File is over 20 MB');return}
+  UP[key]=true;render();
+  try{const old=getItp(key);const r=await assets.upload(file,{type:'application/pdf'});setItp(key,{id:r.id,name:file.name});
+    if(old&&old.id)assets.delete(old.id).catch(()=>{})}
+  catch(e){console.error(e);setSave('error',e&&e.code==='too_large'?'ITP is over 20 MB':e&&e.code==='quota_or_state'?'File storage is full':'ITP upload failed')}
+  delete UP[key];render();
+}
+const LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGwAAACECAYAAAB1cc4iAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMDY3IDc5LjE1Nzc0NywgMjAxNS8wMy8zMC0yMzo0MDo0MiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTUgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjU2MTg1MjhFMzM1QTExRTZBNTg4RDg1M0I5NUIyNEVBIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjU2MTg1MjhGMzM1QTExRTZBNTg4RDg1M0I5NUIyNEVBIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6NTYxODUyOEMzMzVBMTFFNkE1ODhEODUzQjk1QjI0RUEiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6NTYxODUyOEQzMzVBMTFFNkE1ODhEODUzQjk1QjI0RUEiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz5qbjriAAAqoUlEQVR42uxd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';
+const VBU_DEF=()=>({hcv:'',refTxt:'',longDesc:'',rates:{cl:'65',cs:'65',cp:'65',sl:'135',ss:'185',sp:'185'},mark:'10',
+  lines:[{id:uid('x'),item:'',qty:'',mat:'',per:'',hrs:'',kind:'L',comments:''},{id:uid('x'),item:'Supervision',qty:'',mat:'',per:'',hrs:'',kind:'S',comments:''},{id:uid('x'),item:'Project Management',qty:'',mat:'',per:'',hrs:'',kind:'P',comments:''}]});
+const kindOf=l=>(l.kind==='S'&&/project\s*manag/i.test(l.item||''))?'P':(l.kind||'L');
+const rateOf=(r,k)=>{const v=r[k];return v===undefined||v===''?(k==='cp'?(r.cs??'65'):k==='sp'?(r.ss??'185'):v):v};
+function vbuCalc(bu){
+  const r=bu.rates||{};let mat=0,lh=0,sh=0,ph=0;
+  for(const l of bu.lines||[]){const q=num(l.qty);mat+=q*num(l.mat);const k=kindOf(l);if(k==='S')sh+=q*num(l.hrs);else if(k==='P')ph+=q*num(l.hrs);else lh+=q*num(l.hrs)}
+  const mark=mat*num(bu.mark)/100;
+  const cost={mat,extra:0,lab:lh*num(r.cl),sup:sh*num(r.cs),pm:ph*num(rateOf(r,'cp'))};cost.total=cost.mat+cost.lab+cost.sup+cost.pm;
+  const sell={mat,extra:mark,lab:lh*num(r.sl),sup:sh*num(r.ss),pm:ph*num(rateOf(r,'sp'))};sell.total=sell.mat+sell.extra+sell.lab+sell.sup+sell.pm;
+  return {mat,lh,sh,ph,hrs:lh+sh+ph,cost,sell,margin:sell.total-cost.total,matCost:mat,labCost:cost.lab+cost.sup+cost.pm};
+}
+const hasBu=v=>!!(v&&v.bu&&v.bu.lines&&v.bu.lines.some(l=>num(l.qty)&&(num(l.mat)||num(l.hrs))));
+function syncClaimVar(id){
+  const d=claimDoc();const v=S.vars[id];
+  const take=L=>{const i=L.findIndex(l=>l.vid===id);return i>=0?L.splice(i,1)[0]:null};
+  const old=take(d.av)||take(d.pv);
+  let changed=!!old;
+  if(v){const st=v.status||'Submitted';
+    if(st==='Approved'||st==='Submitted'){
+      const base=old||{...newPcLine(),vid:id};
+      Object.assign(base,{ref:v.ref||base.ref||'',desc:v.desc||base.desc||'',sum:String(Math.round(vNums(v).sell*100)/100)});
+      if(st==='Approved'){base.aref=v.approvalRef||base.aref||'';d.av.push(base)}
+      else{base.status=base.status&&base.status!=='Draft'?base.status:'Submitted';base.sub=base.sub||v.date||'';d.pv.push(base)}
+      changed=true;
+    }else if(st==='Draft'&&old){d.pv.push(old)}
+  }
+  if(changed)persist('project/claim');
+}
+function vNums(v){if(hasBu(v)){const x=vbuCalc(v.bu);return {sell:x.sell.total,cost:x.cost.total,mat:x.matCost,lab:x.labCost,hrs:x.hrs,margin:x.margin,bu:true}}
+  const sell=num(v.submitted),mat=num(v.nonLabour),lab=num(v.labour);return {sell,cost:mat+lab,mat,lab,hrs:num(v.hours),margin:sell-mat-lab,bu:false}}
+function delBtn(kind,id,extra='',label=''){const a=UI.armed===kind+id+extra;return `<button class="btn ${a?'armed':'ghost'}" data-act="del" data-kind="${kind}" data-id="${id}" data-x="${extra}" aria-label="${label||'Delete'}" style="white-space:nowrap">${a?'Confirm':(label||'✕')}</button>`}
+
+V.orders=()=>{
+  const c=calc();
+  const rows=Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+  return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Ticking retention holds 5% of invoiced value.','<button class="btn primary" data-act="add-order">+ Add order</button>')}
+  <div class="statgrid"><div class="mini"><span class="l">Committed</span><span class="v">${money(c.poTotal)}</span></div><div class="mini"><span class="l">Invoiced</span><span class="v">${money(c.matInv)}</span></div><div class="mini"><span class="l">Left on POs</span><span class="v">${money(c.poTotal-c.matInv)}</span></div><div class="mini"><span class="l">Retention held</span><span class="v">${money(c.ret)}</span></div></div>
+  ${rows.length?`<div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>PO number</th><th style="min-width:200px">Supplier / subcontractor</th><th>PO date</th><th class="n">PO amount</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">% left</th><th class="n">Extra outside PO</th><th>Subbie retention</th><th></th></tr></thead><tbody>
+  ${rows.map(([id,o])=>{const k='ord|'+id+'|';const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0);const open=UI.open[id];
+    return `<tr class="${open?'sel':''}"><td><button class="btn ghost" data-act="toggle" data-id="${id}" aria-expanded="${!!open}" style="color:var(--ink)">${open?'▾':'▸'} ${(o.inv||[]).length}</button></td>
+    <td style="width:120px">${inp(k+'poNo',o.poNo,{label:'PO number'})}</td><td>${inp(k+'supplier',o.supplier,{label:'Supplier',ph:'Supplier name and scope'})}</td><td style="width:140px">${inp(k+'date',o.date,{type:'date',label:'PO date'})}</td>
+    <td style="width:120px">${inp(k+'po',o.po,{num:1,label:'PO amount'})}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n">${po?pct((po-inv)/po,0):'—'}</td>
+    <td style="width:120px">${inp(k+'anticipated',o.anticipated,{num:1,label:'Anticipated extra'})}</td>
+    <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
+    ${open?`<tr class="sel"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">
+      ${(o.inv||[]).map((x,j)=>`<div style="display:grid;grid-template-columns:150px 160px 140px 220px 1fr auto;gap:6px;align-items:center">${inp('inv|'+id+'|'+j+'|date',x.date,{type:'date',label:'Invoice date'})}${inp('inv|'+id+'|'+j+'|ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}<div class="cur">${inp('inv|'+id+'|'+j+'|amount',x.amount,{num:1,label:'Amount',ph:'0'})}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div><span></span>${delBtn('inv',id,String(j))}</div>`).join('')}
+      <div><button class="btn" data-act="add-inv" data-id="${id}">+ Add invoice</button></div></div></td></tr>`:''}`}).join('')}
+  </tbody></table></div>`:`<div class="panel empty"><b>No orders yet</b>Add each major PO or subcontract, then log invoices against it as they arrive.</div>`}</div>`;
+};
+
+V.procurement=()=>{
+  const rows=Object.entries(S.procs).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+  const today=todayISO();
+  let save=0;rows.forEach(([,p])=>{if(num(p.po))save+=num(p.tender)-num(p.po)});
+  return `<div class="stack">${head('Procurement schedule','Latest order date is worked back from the date required on site and the total lead time.','<button class="btn primary" data-act="add-proc">+ Add item</button>')}
+  <div class="statgrid"><div class="mini"><span class="l">Items</span><span class="v">${rows.length}</span></div><div class="mini"><span class="l">Savings / losses vs tender</span><span class="v ${save<0?'neg':''}">${money(save)}</span></div></div>
+  ${rows.length?`<div class="tw"><table style="min-width:1400px"><thead><tr><th style="min-width:190px">Item</th><th>Status</th><th class="n">Tender / budget</th><th class="n">PO value</th><th class="n">Saving</th><th>Supplier</th><th>PO no.</th><th>Approval</th><th class="n">Lead time (wks)</th><th>Required on site</th><th>Order by</th><th>Ordered</th><th>Est. delivery</th><th>Delivery</th><th style="min-width:150px">Comments</th><th></th></tr></thead><tbody>
+  ${rows.map(([id,p])=>{const k='proc|'+id+'|';const sv=num(p.po)?num(p.tender)-num(p.po):0;
+    const by=p.required?addDays(p.required,-7*num(p.lead)):'';const late=by&&!p.ordered&&by<today&&!['Complete','Delivered'].includes(p.status);
+    const dd=p.required&&p.eta?daysBetween(p.eta,p.required):null;
+    return `<tr><td>${inp(k+'item',p.item,{label:'Item',ph:'e.g. Main switchboard'})}</td><td style="width:150px">${sel(k+'status',p.status||'Waiting for contract',PSTATUS,{label:'Status'})}</td>
+    <td style="width:110px">${inp(k+'tender',p.tender,{num:1,label:'Tender price'})}</td><td style="width:110px">${inp(k+'po',p.po,{num:1,label:'PO value'})}</td><td class="n money ${sv<0?'neg':''}">${num(p.po)?money(sv):'—'}</td>
+    <td style="width:130px">${inp(k+'supplier',p.supplier,{label:'Supplier'})}</td><td style="width:100px">${inp(k+'poNo',p.poNo,{label:'PO number'})}</td>
+    <td style="width:130px">${sel(k+'approval',p.approval||'Not submitted',['Not submitted','Submitted','Approved','Rejected'],{label:'Approval'})}</td>
+    <td style="width:80px">${inp(k+'lead',p.lead,{num:1,label:'Lead time weeks'})}</td><td style="width:140px">${inp(k+'required',p.required,{type:'date',label:'Required on site'})}</td>
+    <td>${by?`<span class="tag ${late?'bad':p.ordered?'good':''}">${fmtDate(by)}</span>`:'<span class="hint">—</span>'}</td>
+    <td style="width:140px">${inp(k+'ordered',p.ordered,{type:'date',label:'Order placed'})}</td><td style="width:140px">${inp(k+'eta',p.eta,{type:'date',label:'Estimated delivery'})}</td>
+    <td>${dd===null?'<span class="hint">—</span>':`<span class="tag ${dd<0?'bad':'good'}">${dd<0?-dd+' days late':dd+' days spare'}</span>`}</td>
+    <td>${inp(k+'comments',p.comments,{label:'Comments'})}</td><td>${delBtn('proc',id)}</td></tr>`}).join('')}
+  </tbody></table></div>`:`<div class="panel empty"><b>No items scheduled</b>Add long-lead equipment (switchboards, generators, luminaires) to track approvals and order-by dates.</div>`}</div>`;
+};
+
+V.cashflow=()=>{
+  const ms=months();let cs=0,cc=0;
+  return `<div class="stack">${head('Project cash flow','Monthly forecast of progress claims and costs, ex-GST. Thirty months from the start month.',`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label>`)}
+  <div class="panel chart">${cashChart()}</div>
+  <div class="tw tall"><table><thead><tr><th>Month</th><th class="n">Claims (forecast)</th><th class="n">Costs (forecast)</th><th class="n">Cumulative claims</th><th class="n">Cumulative costs</th><th class="n">Cumulative net</th></tr></thead><tbody>
+  ${ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=num(r.cost);return `<tr><td>${monthLabel(k)}</td><td style="width:150px">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Claims '+k,ph:'0'})}</td><td style="width:150px">${inp('cash|'+k+'|cost',r.cost||'',{num:1,label:'Costs '+k,ph:'0'})}</td><td class="n money">${money(cs)}</td><td class="n money">${money(cc)}</td><td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td></tr>`}).join('')}
+  </tbody></table></div></div>`;
+};
+
+V.subcontractors=()=>{
+  const ids=tradeIds();if(!ids.includes(UI.bld))UI.bld=ids[0]||'';
+  const t=UI.bld;
+  const chips=`<div class="chips" role="group" aria-label="Trade">${ids.map(x=>`<button class="chip" data-act="bld" data-v="${x}" aria-pressed="${t===x}">${esc(aptDoc(x).name||'Untitled trade')}</button>`).join('')}<button class="chip add" data-act="add-trade">+ Add trade</button></div>`;
+  const hd=head('Subcontractors','Build each trade’s claim from your own sections and lines. A line with no rate uses the trade’s standard rate from its claim stages.',t?`<button class="btn" data-act="setup" aria-expanded="${UI.setup}">${UI.setup?'Close setup':'Edit trade setup'}</button>`:'');
+  if(!t)return `<div class="stack">${hd}${chips}<div class="panel empty"><b>No trades yet</b>Add a trade to track a subcontractor's progress line by line.</div></div>`;
+  const d=aptDoc(t),a=aptCalc(t);
+  if(UI.level!=='all'&&!d.sections.some(x=>x.id===UI.level))UI.level='all';
+  if(!d.stages.some(x=>x.id===UI.bulkStage))UI.bulkStage=d.stages[0]?.id||'';
+  const q=UI.q.trim().toUpperCase();
+  const shown=d.sections.map((x,si)=>({x,si})).filter(o=>UI.level==='all'||o.x.id===UI.level);
+  const nLines=shown.reduce((n,o)=>n+o.x.lines.filter(l=>lineMatch(l,q)).length,0);
+  const opts=[0,25,50,75,100].map(x=>[String(x),x+'%']);
+  const pc=v=>num(v)>=100?'p100':num(v)>0?'ppart':'';
+  const ncol=9+d.stages.length+d.itps.length;
+  const n=d.stages.length,per=a.per,share=i=>per?num(d.stages[i].rate)/per:(n?1/n:0);
+  const body=shown.map(({x,si})=>{
+    const lines=x.lines.map((l,li)=>({l,li})).filter(o=>lineMatch(o.l,q));
+    if(q&&!lines.length)return '';
+    const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
+    return `<tr class="secrow"><td colspan="3">${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</td><td colspan="${ncol-6}" class="hint">${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
+      const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
+      if(l.subs&&l.subs.length){
+        let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
+        const nS=d.stages.length;
+        return `<tr class="parentrow"><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+        <td colspan="${2+nS+d.itps.length}" class="hint">${COLL.has(l.id)?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}Split into ${l.subs.length} task${l.subs.length===1?'':'s'} · <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="unsplit" data-id="${t}" data-x="${si}.${li}">${UI.armed==='unsplit'+t+si+'.'+li?'Confirm merge (tasks without a stage are dropped)':'Merge back'}</button></td>
+        <td class="n money"><b>${money(v)}</b></td><td class="n money"><b>${money(uc)}</b></td><td class="n"><b>${v?pct(uc/v,0):'—'}</b></td></tr>`+
+        (COLL.has(l.id)?'':l.subs.map((sb,ji)=>{const x=xs[ji];const ks='tsub|'+t+'|'+si+'|'+li+'|'+ji+'|';const sg=d.stages.find(z=>z.id===sb.task);
+          return `<tr class="subrow"><td style="width:86px">${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
+          <td><div class="subtask">${sel(ks+'task',sb.task||'',[['','Other task'],...d.stages.map(z=>[z.id,z.name||'Unnamed stage'])],{label:'Task'})}${inp(ks+'desc',sb.desc,{label:'Task description',ph:sg?sg.name:'Task description'})}</div></td>
+          <td>${itpCell('tsub|'+t+'|'+si+'|'+li+'|'+ji,sb.itpFile)}</td>
+          <td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity',ph:'1'})}</td><td><div class="cur">${inp(ks+'rate',sb.rate,{num:1,label:'Rate',ph:String(sg?num(sg.rate):0)})}</div></td>
+          <td colspan="${Math.max(nS,1)}">${sel(ks+'pct',String(num(sb.pct)),opts,{label:'% complete',cls:pc(sb.pct)})}</td>${d.itps.map(()=>'<td></td>').join('')}
+          <td class="n money">${money(x.v)}</td><td class="n money">${money(x.c)}</td><td class="n">${x.v?pct(x.p,0):'—'}</td></tr>`}).join('')+
+        `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
+      }
+      const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
+      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+      <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
+      ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
+      ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
+      <td class="n money">${money(v)}</td><td class="n money">${money(uc)}</td><td class="n">${v?pct(uc/v,0):'—'}</td></tr>`}).join('')+(q?'':`<tr class="addrow"><td colspan="${ncol}"><button class="btn" data-act="add-line" data-id="${t}" data-s="${si}">+ Add line to ${esc(x.name||'this section')}</button></td></tr>`);
+  }).join('');
+  return `<div class="stack">${hd}${chips}
+  ${UI.setup?setupPanel(t,d):''}
+  <div class="kpis">
+    <div class="kpi"><span class="l">Lines</span><span class="v">${a.count}</span><span class="d">${a.full} fully complete · ${d.sections.length} section${d.sections.length===1?'':'s'}</span></div>
+    <div class="kpi"><span class="l">Contract value</span><span class="v">${kmoney(a.total)}</span><span class="d">${money(a.per)} standard rate per line</span></div>
+    <div class="kpi"><span class="l">Claimed</span><span class="v">${kmoney(a.claimed)}</span><span class="d">${pct(a.pct)} complete</span></div>
+    <div class="kpi"><span class="l">Left to claim</span><span class="v">${kmoney(a.total-a.claimed)}</span><span class="d">${d.itps.map(x=>`${a.itp[x.id]||0} ${esc(x.name||'checks')}`).join(' · ')||'No inspections set up'}</span></div>
+  </div>
+  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Claim stages</h3><p class="hint">The stages each line is claimed against. Their rates add up to the standard rate per line.</p></div><button class="btn" data-act="add-stage" data-id="${t}">+ Add stage</button></div>
+  ${d.stages.length?`<div class="tw"><table><thead><tr><th></th><th style="min-width:200px">Stage</th><th class="n">Standard rate</th><th class="n">Stage value</th><th class="n">Claimed</th><th style="width:22%">Progress</th><th class="n">Lines at 100%</th></tr></thead><tbody>
+    ${a.stage.map((s2,i)=>`<tr><td style="width:86px">${delBtn('stage',t,String(i),'Remove')}</td><td>${inp('tstage|'+t+'|'+i+'|name',d.stages[i].name,{label:'Stage name',ph:'e.g. Rough-in'})}</td><td style="width:130px"><div class="cur">${inp('tstage|'+t+'|'+i+'|rate',d.stages[i].rate,{num:1,label:'Standard rate'})}</div></td><td class="n money">${money(s2.total)}</td><td class="n money">${money(s2.claimed)}</td><td><div class="bar"><i style="width:${s2.total?(s2.claimed/s2.total*100).toFixed(1):0}%"></i></div></td><td class="n">${s2.done}</td></tr>`).join('')}
+  </tbody><tfoot><tr><td></td><td>Total</td><td class="n money">${money(a.per)}</td><td class="n money">${money(a.total)}</td><td class="n money">${money(a.claimed)}</td><td></td><td></td></tr></tfoot></table></div>`:`<div class="empty"><b>No claim stages</b>Add the stages this subcontractor claims against, such as rough-in and fit-off.</div>`}</div>
+  <div class="panel" style="padding:12px 14px"><div class="toolbar">
+    <label>Section <select id="apt_level" data-ui="level"><option value="all">All sections</option>${d.sections.map(x=>`<option value="${x.id}"${UI.level===x.id?' selected':''}>${esc(x.name||'Untitled section')}</option>`).join('')}</select></label>
+    <label>Find <input id="apt_q" data-ui="q" value="${esc(UI.q)}" placeholder="Line or description" style="width:150px"></label>
+    <span class="hint">${nLines} lines shown</span>
+    ${d.sections.some(x=>x.lines.some(l=>l.subs&&l.subs.length))?`<button class="btn" data-act="coll-all" data-v="1">Minimise all sub-lines</button><button class="btn" data-act="coll-all" data-v="0">Expand all</button>`:''}
+    <span style="flex:1"></span>
+    ${d.stages.length?`<label>Set <select id="apt_bs" data-ui="bulkStage">${d.stages.map(x=>`<option value="${x.id}"${UI.bulkStage===x.id?' selected':''}>${esc(x.name||'Unnamed stage')}</option>`).join('')}</select></label>
+    <label>to <select id="apt_bp" data-ui="bulkPct">${opts.map(([v,x])=>`<option value="${v}"${UI.bulkPct===v?' selected':''}>${x}</option>`).join('')}</select></label>
+    <button class="btn" data-act="bulk">Apply to ${nLines} shown</button>`:''}
+  </div></div>
+  <div class="tw tall apt"><table><thead><tr><th></th><th>#</th><th style="min-width:340px">Description</th><th>ITP</th><th class="n">Qty</th><th class="n">Rate</th>${d.stages.map(x=>`<th>${esc(x.name||'Unnamed stage')}</th>`).join('')}${d.itps.map(x=>`<th>${esc(x.name||'Check')}</th>`).join('')}<th class="n">Value</th><th class="n">Claimed</th><th class="n">Complete</th></tr></thead><tbody>
+  ${body||`<tr><td colspan="${ncol}" class="empty">${d.sections.length?'No lines match.':'No sections yet. Add one below.'}</td></tr>`}
+  </tbody></table></div>
+  <div class="toolbar"><button class="btn primary" data-act="add-sec" data-id="${t}">+ Add section</button><span class="hint">Sections group lines, for example a level, a building or common areas.</span></div></div>`;
+};
+function setupPanel(t,d){
+  const armed=UI.armed==='trade'+t;
+  return `<div class="panel"><div class="sec-head"><h3>Trade setup</h3><button class="btn ${armed?'armed':''}" data-act="del" data-kind="trade" data-id="${t}" data-x="">${armed?'Confirm: remove this trade':'Remove trade'}</button></div>
+  <div class="form"><label>Trade / subcontractor name${inp('trade|'+t+'|name',d.name,{label:'Trade name',ph:'e.g. MATV — Aerial Co'})}</label>
+  <label>Add apartment units as sections<div style="display:flex;gap:8px"><select class="f" id="imp_bld" data-ui="importBld" style="flex:1">${BLD_OPTS.map(([v,x])=>`<option value="${v}"${(UI.importBld||'E')===v?' selected':''}>${x}</option>`).join('')}</select><button class="btn" data-act="import" data-id="${t}" style="text-transform:none;letter-spacing:0">Add units</button></div></label></div>
+  <div class="grid2" style="margin-top:18px">
+    <div><h3 style="font-size:15px;margin-bottom:8px">Inspections & certificates</h3><div class="tw"><table><thead><tr><th>Check</th><th></th></tr></thead><tbody>
+      ${d.itps.map((x,i)=>`<tr><td>${inp('titp|'+t+'|'+i+'|name',x.name,{label:'Check name',ph:'e.g. Rough-in ITP'})}</td><td style="width:40px">${delBtn('itp',t,String(i))}</td></tr>`).join('')||'<tr><td colspan="2" class="hint">None. Add ITPs or certificates to tick off per line.</td></tr>'}
+    </tbody></table></div>
+    <div style="margin-top:8px"><button class="btn" data-act="add-itp" data-id="${t}">+ Add check</button></div></div>
+  </div></div>`;
+}
+
+function labourLogPanel(){
+  const T=logTotals();
+  return `<div class="panel"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by date. Total cost divided by total hours gives the average labour rate used for the labour forecast.</p></div>
+    <div style="text-align:right"><div class="kpi" style="padding:0;background:none"><span class="l">Average labour rate</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${T.hrs?'$'+T.rate.toFixed(2)+'/hr':'—'}</div></div></div>
+  <div class="tw"><table style="min-width:760px"><thead><tr><th></th><th>Date</th><th class="n">Labour hire hours</th><th class="n">Oxford hours</th><th class="n">Total hours</th><th class="n">Oxford + subcontractor cost</th><th class="n">Rate $/hr</th></tr></thead><tbody>
+  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Date'})}</td><td style="min-width:110px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire hours',ph:'0'})}</td><td style="min-width:110px">${inp(k+'ox',r.ox,{num:1,label:'Oxford hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:150px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Total cost',ph:'0'})}</div></td><td class="n money">${h?money(num(r.cost)/h):'—'}</td></tr>`}).join('')||'<tr><td colspan="7" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
+  <tr class="addrow"><td colspan="7"><button class="btn" data-act="llog-add">+ Add row</button></td></tr>
+  </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${hrs(T.hire)}</td><td class="n money">${hrs(T.ox)}</td><td class="n money">${hrs(T.hrs)}</td><td class="n money">${money(T.cost)}</td><td class="n money">${T.hrs?'$'+T.rate.toFixed(2):'—'}</td></tr></tfoot></table></div></div>`;
+}
+function allLinesPanel(){
+  const rows=[];let E=0,Sp=0,Ea=0,F=0;
+  TASK_IDS.forEach((t,ti)=>taskDoc(t).items.forEach((it,j)=>{const x=itemCalc(it);E+=x.est;Sp+=x.spent;Ea+=x.earned;F+=x.fc;rows.push({t,ti,j,it,x})}));
+  return `<div class="panel"><div class="sec-head"><div><h3>All line items</h3><p class="hint">Percent complete for every line across all tasks. Overall is hours earned over estimated hours.</p></div>
+    <div style="text-align:right"><div class="kpi" style="padding:0;background:none"><span class="l">Overall complete</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${pct(E?Ea/E:0)}</div></div></div>
+  ${rows.length?`<div class="tw tall"><table style="min-width:900px"><thead><tr><th>Task</th><th>Section</th><th>WBS</th><th style="min-width:180px">Description</th><th class="n">Qty</th><th style="width:20%">% complete</th><th class="n">Est. hrs</th><th class="n">Spent</th><th class="n">Earned</th><th class="n">Forecast</th><th class="n">+/− hrs</th><th></th></tr></thead><tbody>
+  ${rows.map(({t,ti,j,it,x})=>{const pc=Math.min(Math.max(x.pct*100,0),100);return `<tr><td><button class="rowlink" data-act="task" data-v="${t}">${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</button></td><td class="hint">${esc((taskSecs(t).find(z=>z.id===it.sec)||taskSecs(t)[0]).name||'')}</td><td class="mono">${esc(it.wbs||'')}</td><td>${esc(it.desc||'—')}${it.subs&&it.subs.length?` <span class="tag">${it.subs.length} sub-lines</span>`:''}</td><td class="n money">${esc(it.qty||'')} ${esc(it.unit||'')}</td>
+    <td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${pc}%"></i></div><span class="money" style="width:40px;text-align:right">${pc.toFixed(0)}%</span></div></td>
+    <td class="n money">${hrs(x.est)}</td><td class="n money">${hrs(x.spent)}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.fc)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td>${delBtn('item',t,String(j),'Remove')}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td colspan="5">All lines (${rows.length})</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${E?Math.min(Ea/E*100,100).toFixed(1):0}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(E?Ea/E:0)}</span></div></td><td class="n money">${hrs(E)}</td><td class="n money">${hrs(Sp)}</td><td class="n money">${hrs(Ea)}</td><td class="n money">${hrs(F)}</td><td class="n money ${E-F<0?'neg':''}">${hrs(E-F)}</td><td></td></tr></tfoot></table></div>`
+  :`<div class="empty"><b>No line items yet</b>Pick a task above and add its line items; every line shows here with its percent complete.</div>`}</div>`;
+}
+
+/* ---------- progress claim ---------- */
+const newPcLine=()=>({id:uid('c'),item:'',desc:'',sum:'',pct:'',prev:'',apct:''});
+function normClaim(d){d=d||{};return {hdr:d.hdr||{},secs:Array.isArray(d.secs)&&d.secs.length?d.secs:[{id:'C1',name:'Contract works',lines:[{id:'c1',item:'1',desc:'',sum:'',pct:'',prev:'',apct:''}]}],
+  av:Array.isArray(d.av)?d.av:[],pv:Array.isArray(d.pv)?d.pv:[],hist:Array.isArray(d.hist)?d.hist:[],retMax:d.retMax??'5'}}
+const claimDoc=()=>S.claim||(S.claim=normClaim(null));
+function pcLine(l){const sum=num(l.sum),claimed=sum*num(l.pct)/100,prev=num(l.prev);const ap=(l.apct===''||l.apct==null)?num(l.pct):num(l.apct);const assessed=sum*ap/100;
+  return {sum,claimed,prev,this:claimed-prev,ap,assessed,pay:assessed-prev,diff:(assessed-prev)-(claimed-prev)}}
+function pcSum(lines){const t={sum:0,claimed:0,prev:0,this:0,assessed:0,pay:0,diff:0};for(const l of lines){const x=pcLine(l);for(const k in t)t[k]+=x[k]}return t}
+function claimTotals(){
+  const d=claimDoc();const c=pcSum(d.secs.flatMap(x=>x.lines)),a=pcSum(d.av),p=pcSum(d.pv);const all={};for(const k in c)all[k]=c[k]+a[k]+p[k];
+  let hs=0,ha=0,hr=0,hp=0,hc=0;for(const h of d.hist){const ap=num(h.approved);hs+=num(h.submitted);ha+=ap;const r=ap*num(h.ret)/100;hr+=r;hp+=ap-r;hc+=num(h.cost)}
+  return {c,a,p,all,hs,ha,ret:hr,paid:hp,cost:hc}}
+const r2s=v=>(v===''||v==null)?'':String(Math.round(num(v)*100)/100);
+function pcBar(c,a){c=Math.min(Math.max(c,0),1);a=Math.min(Math.max(a,0),1);
+  return `<div class="pcbar" title="${pct(c,0)} claimed · ${pct(a,0)} approved"><div class="bar"><i style="width:${(c*100).toFixed(1)}%"></i></div><div class="bar b2 thin"><i style="width:${(a*100).toFixed(1)}%"></i></div></div><div class="pcbar-l"><span>${pct(c,0)}</span><span class="hint">${pct(a,0)} appr.</span></div>`}
+function pcRows(area,lines,si,opt={}){
+  return lines.map((l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;
+    return `<tr><td style="width:86px">${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td>
+    ${opt.var?`<td style="min-width:100px">${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}</td>`:`<td style="width:70px">${inp(k+'item',l.item,{label:'Item'})}</td>`}
+    <td style="min-width:220px">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</td>
+    ${area==='a'?`<td style="min-width:120px">${inp(k+'aref',l.aref,{label:'Approval ref'})}</td>`:''}
+    ${area==='p'?`<td style="width:120px">${sel(k+'status',l.status||'Submitted',['Draft','Submitted','Under review','Directed'],{label:'Status'})}</td><td style="width:140px">${inp(k+'sub',l.sub,{type:'date',label:'Submitted'})}</td>`:''}
+    <td style="min-width:140px"><div class="cur">${inp(k+'sum',l.sum,{num:1,label:'Amount'})}</div></td>
+    <td style="min-width:80px">${inp(k+'pct',r2s(l.pct),{num:1,label:'% complete',ph:'0'})}</td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'prev',l.prev,{num:1,label:'Previously approved',ph:'0'})}</div></td>
+    <td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'amtC',r2s(x.claimed),{num:1,label:'Claimed to date'})}</div></td>
+    <td class="n">${sum?pct(x.this/sum,1):'—'}</td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'thisC',r2s(x.this),{num:1,label:'This claim'})}</div></td>
+    <td style="min-width:80px">${inp(k+'apct',r2s(l.apct),{num:1,label:'% approved',ph:r2s(num(l.pct))})}</td>
+    <td style="min-width:130px"><div class="cur strong">${inp(k+'amtA',r2s(x.assessed),{num:1,label:'Amount approved'})}</div></td><td style="min-width:130px"><div class="cur">${inp(k+'payA',r2s(x.pay),{num:1,label:'Approved this claim'})}</div></td><td class="n money ${x.diff<0?'neg':''}">${money(x.diff)}</td></tr>`}).join('');
+}
+function pcHead(opt={}){const A=esc(claimDoc().hdr.assessor||'client');
+  return `<thead><tr><th></th>${opt.var?'<th>Ref</th>':'<th>Item</th>'}<th>Description</th>${opt.area==='a'?'<th>Approval ref</th>':''}${opt.area==='p'?'<th>Status</th><th>Submitted</th>':''}<th class="n">${opt.var?'Amount':'Contract sum'}</th><th class="n">% complete</th><th class="n">Prev. approved</th><th>Progress (claimed · approved)</th><th class="n">Claimed to date</th><th class="n">% claimed this claim</th><th class="n">This claim</th><th class="n">% approved by ${A}</th><th class="n">Amount approved</th><th class="n">Approved this claim</th><th class="n">Difference</th></tr></thead>`}
+function pcFoot(t,label,lead,grand){return `<tr class="${grand?'grand':'subtot'}"><td colspan="${lead}">${label}</td><td class="n money">${money(t.sum)}</td><td class="n">${t.sum?pct(t.claimed/t.sum,0):'—'}</td><td class="n money">${money(t.prev)}</td><td>${grand?'':pcBar(t.sum?t.claimed/t.sum:0,t.sum?t.assessed/t.sum:0)}</td><td class="n money">${money(t.claimed)}</td><td class="n">${t.sum?pct(t.this/t.sum,1):'—'}</td><td class="n money">${money(t.this)}</td><td class="n">${t.sum?pct(t.assessed/t.sum,0):'—'}</td><td class="n money">${money(t.assessed)}</td><td class="n money">${money(t.pay)}</td><td class="n money ${t.diff<0?'neg':''}">${money(t.diff)}</td></tr>`}
+V.claim=()=>{
+  const d=claimDoc(),h=d.hdr,T=claimTotals();const A=h.assessor||'client';
+  const hf=(k,l,o={})=>`<label>${l}${inp('pc|'+k,h[k]||'',o)}</label>`;
+  const r=(l,v,cls='')=>`<tr class="${cls}"><td>${l}</td><td class="money ${v<0?'neg':''}">${money(v)}</td></tr>`;
+  const NC=14;
+  const armed=UI.armed==='roll';
+  const gst=T.all.pay*0.1;
+  const maxRet=(T.c.sum+T.a.sum)*num(d.retMax)/100;
+  return `<div class="stack">${head('Progress claim','Contract works by section, approved and pending variations, the payment summary and claim history, as in the workbook. All amounts ex GST unless shown.',`<button class="btn ${armed?'armed':''}" data-act="roll">${armed?'Confirm: log this claim and start the next':'Start next claim'}</button>`)}
+  <div class="panel"><h3>Claim details</h3><div class="form">
+    <label>Project<input class="f" value="${esc(PROJ[PID]?.name||S.info.name||'')}" disabled placeholder="Set in Project details"></label>
+    ${hf('poNo','PO number')}${hf('claimNo','Progress claim no.',{num:1})}${hf('claimDate','Claim date',{type:'date'})}
+    ${hf('invoiceNo','Invoice no.')}${hf('invoiceDate','Invoice date',{type:'date'})}${hf('assessor','Assessed by',{ph:'e.g. builder or QS name'})}
+  </div></div>
+  <div class="grid3">
+    <div class="panel"><h3>Contract value</h3><table class="ledger"><tbody>${r('Original contract value',T.c.sum)}${r('Approved variations',T.a.sum)}${r('Revised contract value',T.c.sum+T.a.sum,'total')}</tbody></table></div>
+    <div class="panel"><h3>Claimed amount</h3><table class="ledger"><tbody>${r('Contract work completed to date',T.c.claimed)}${r('Agreed variation work to date',T.a.claimed)}${r('Pending variation work to date',T.p.claimed)}${r('Total claimed to date',T.all.claimed,'total')}<tr class="sub"><td>Percent complete</td><td class="money">${T.all.sum?pct(T.all.claimed/T.all.sum):'—'}</td></tr></tbody></table></div>
+    <div class="panel"><h3>Payment summary</h3><table class="ledger"><tbody>${r('Contract work approved to date',T.c.assessed)}${r('Variation work approved to date',T.a.assessed+T.p.assessed)}${r('Total approved to date',T.all.assessed,'total')}${r('Less previously approved',-T.all.prev)}${r('This claim',T.all.pay,'total')}${r('Add GST (10%)',gst)}${r('Payment amount incl. GST',T.all.pay+gst,'total')}<tr class="sub"><td colspan="2" style="padding-top:12px;text-align:left">From claim history</td></tr>${r('Total approved to date',T.ha)}${r('Retention held to date',T.ret)}${r('Approved less retention',T.ha-T.ret,'total')}</tbody></table></div>
+  </div>
+  <div><div class="sec-head"><div><h3>Contract works</h3><p class="hint">Contract sums must add up to the original tendered amount. Leave % approved blank until ${esc(A)} assesses the claim; until then it follows your % complete. Percentages and amounts are linked: type either and the other updates. Changing the approved % also sets % complete to match. The top bar is claimed, the thin bar approved.</p></div><button class="btn primary" data-act="pc-addsec">+ Add section</button></div>
+  <div class="tw"><table style="min-width:1600px">${pcHead()}<tbody>
+  ${d.secs.map((sc,si)=>{const t=pcSum(sc.lines);return `<tr class="secrow"><td colspan="3">${inp('pcsec|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Building E wiring'})}</td><td colspan="${NC-4}" class="hint">${sc.lines.length} line${sc.lines.length===1?'':'s'} · <span class="money">${money(t.claimed)} / ${money(t.sum)}</span> claimed · this claim <span class="money">${money(t.this)}</span></td><td style="text-align:right">${delBtn('pcsec','x',String(si),'Remove section')}</td></tr>`+
+    pcRows('c',sc.lines,si)+`<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="pc-addline" data-a="c" data-s="${si}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`+pcFoot(t,'Subtotal · '+esc(sc.name||'section'),3)}).join('')}
+  ${pcFoot(T.c,'Contract works total (ex GST)',3,1)}
+  </tbody></table></div></div>
+  <div><div class="sec-head"><div><h3>Approved variations</h3><p class="hint">Order amendments agreed to the original contract sum.</p></div><div class="toolbar"><button class="btn" data-act="pc-import" data-a="a">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="a" data-s="0">+ Add variation</button></div></div>
+  <div class="tw"><table style="min-width:1700px">${pcHead({var:1,area:'a'})}<tbody>${pcRows('a',d.av,0,{var:1})||`<tr><td colspan="15" class="empty">No approved variations on this claim.</td></tr>`}${pcFoot(T.a,'Approved variations total (ex GST)',4,1)}</tbody></table></div></div>
+  <div><div class="sec-head"><div><h3>Pending variations</h3><p class="hint">Variations submitted but not yet agreed.</p></div><div class="toolbar"><button class="btn" data-act="pc-import" data-a="p">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="p" data-s="0">+ Add variation</button></div></div>
+  <div class="tw"><table style="min-width:1800px">${pcHead({var:1,area:'p'})}<tbody>${pcRows('p',d.pv,0,{var:1})||`<tr><td colspan="16" class="empty">No pending variations on this claim.</td></tr>`}${pcFoot(T.p,'Pending variations total (ex GST)',5,1)}</tbody></table></div></div>
+  <div class="panel"><div class="sec-head"><div><h3>Claim history</h3><p class="hint">Submitted, approved, retention and monthly cost for each claim. Edit any figure after submission to record the client’s reassessment, or reopen the latest claim to change line percentages and resubmit.</p></div><div class="toolbar"><label>Max retention<span style="width:70px">${inp('pcret',d.retMax,{num:1,label:'Max retention %'})}</span>%</label><button class="btn" data-act="pc-addhist">+ Add claim</button></div></div>
+  <div class="tw"><table style="min-width:1300px"><thead><tr><th></th><th>Claim no.</th><th>Status</th><th>Date</th><th class="n">Submitted</th><th class="n">Approved</th><th class="n">Difference</th><th class="n">Retention %</th><th class="n">Retention held</th><th class="n">Paid ex retention</th><th class="n">Monthly cost</th><th class="n">Margin</th></tr></thead><tbody>
+  ${d.hist.map((x,i)=>{const k='pch|'+i+'|';const ap=num(x.approved),rt=ap*num(x.ret)/100;return `<tr><td style="width:86px">${delBtn('pch','x',String(i),'Remove')}</td><td style="width:80px">${inp(k+'no',x.no,{label:'Claim no.'})}</td><td style="min-width:170px">${sel(k+'status',x.status||'Submitted',['Submitted','Reassessed','Approved','Paid'],{label:'Status'})}${i===d.hist.length-1&&x.snap?`<button class="btn ghost" style="display:block;padding:2px 4px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="pc-reopen">${UI.armed==='reopen'?'Confirm reopen':'Reopen to reassess'}</button>`:''}</td><td style="width:140px">${inp(k+'date',x.date,{type:'date',label:'Date'})}</td><td style="min-width:140px"><div class="cur">${inp(k+'submitted',x.submitted,{num:1,label:'Submitted'})}</div></td><td style="min-width:140px"><div class="cur">${inp(k+'approved',x.approved,{num:1,label:'Approved'})}</div></td><td class="n money ${ap-num(x.submitted)<0?'neg':''}">${money(ap-num(x.submitted))}</td><td style="width:80px">${inp(k+'ret',x.ret,{num:1,label:'Retention %',ph:'0'})}</td><td class="n money">${money(rt)}</td><td class="n money">${money(ap-rt)}</td><td style="width:130px"><div class="cur">${inp(k+'cost',x.cost,{num:1,label:'Monthly cost'})}</div></td><td class="n money ${ap-num(x.cost)<0?'neg':''}">${money(ap-num(x.cost))}</td></tr>`}).join('')||'<tr><td colspan="12" class="empty">No claims logged yet.</td></tr>'}
+  </tbody><tfoot><tr><td colspan="4">Totals</td><td class="n money">${money(T.hs)}</td><td class="n money">${money(T.ha)}</td><td class="n money">${money(T.ha-T.hs)}</td><td></td><td class="n money">${money(T.ret)}</td><td class="n money">${money(T.paid)}</td><td class="n money">${money(T.cost)}</td><td class="n money ${T.ha-T.cost<0?'neg':''}">${money(T.ha-T.cost)}</td></tr></tfoot></table></div>
+  <div class="statgrid" style="margin-top:14px"><div class="mini"><span class="l">Margin claimed to date</span><span class="v ${T.ha-T.cost<0?'neg':''}">${money(T.ha-T.cost)}</span></div><div class="mini"><span class="l">Max retention</span><span class="v">${money(maxRet)}</span></div><div class="mini"><span class="l">Retention remaining</span><span class="v">${money(maxRet-T.ret)}</span></div></div>
+  </div></div>`;
+};
+function taskEditor(t){
+  const td=taskDoc(t);const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));
+  const showItp=!NO_ITP.has(t);const NC=showItp?15:14;
+  const body=secs.map((sc,si)=>{
+    const rows=td.items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id);
+    let e=0,ea=0;rows.forEach(o=>{const x=itemCalc(o.it);e+=x.est;ea+=x.earned});
+    return `<tr class="secrow"><td colspan="3">${inp('tksec|'+t+'|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Level 3'})}</td><td colspan="${NC-4}" class="hint">${rows.length} line${rows.length===1?'':'s'} · ${hrs(ea)} of ${hrs(e)} hrs earned · ${pct(e?ea/e:0,0)}</td><td style="text-align:right">${delBtn('tksec',t,sc.id,'Remove section')}</td></tr>`+
+    rows.map(({it,j})=>{const k='item|'+t+'|'+j+'|';const x=itemCalc(it);
+      const tail=`<td class="n money">${x.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.ftc)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td class="n money">${x.rateEst.toFixed(2)} · ${x.rateAct?x.rateAct.toFixed(2):'—'}</td>`;
+      if(x.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);const armed=UI.armed==='imerge'+t+j;
+        return `<tr class="parentrow"><td style="width:110px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button>${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td>${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}</td>${showItp?`<td style="width:150px">${itpCell('item|'+t+'|'+j,it.itpFile)}</td>`:''}
+        <td class="hint" style="white-space:nowrap">${cl?'<span class="tag acc">Minimised</span>':''} ${it.subs.length} sub-lines</td><td class="n money"><b>${x.qty.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td><td class="n money"><b>${pct(x.pct,0)}</b></td><td class="n money"><b>${hrs(x.est)}</b></td><td class="n money"><b>${hrs(x.spent)}</b></td>${tail}
+        <td><button class="btn ghost" style="padding:2px 6px;font-size:12px;white-space:nowrap" data-act="imerge" data-v="${j}">${armed?'Confirm merge':'Merge'}</button></td></tr>`+
+        (cl?'':it.subs.map((sb,q)=>{const ks='isub|'+t+'|'+j+'|'+q+'|';const y=itemOne(sb);
+          return `<tr class="subrow"><td>${delBtn('isub',t,j+'.'+q,'Remove')}</td><td class="mono hint" style="padding-left:18px">${esc(it.wbs||'')}${it.wbs?'.':''}${q+1}</td><td>${inp(ks+'desc',sb.desc,{label:'Sub-line description',ph:'Sub-line description'})}</td>${showItp?`<td>${itpCell('isub|'+t+'|'+j+'|'+q,sb.itpFile)}</td>`:''}
+          <td>${inp(ks+'unit',sb.unit,{label:'Unit',ph:it.unit||'m'})}</td><td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity'})}</td><td>${inp(ks+'pct',sb.pct,{num:1,label:'% complete',ph:'0'})}</td><td>${inp(ks+'estHrs',sb.estHrs,{num:1,label:'Estimated hours'})}</td><td>${inp(ks+'spentHrs',sb.spentHrs,{num:1,label:'Hours spent'})}</td>
+          <td class="n money">${y.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</td><td class="n money">${hrs(y.earned)}</td><td class="n money">${hrs(y.ftc)}</td><td class="n money ${y.varHrs<0?'neg':''}">${hrs(y.varHrs)}</td><td class="n money">${y.rateEst.toFixed(2)} · ${y.rateAct?y.rateAct.toFixed(2):'—'}</td><td></td></tr>`}).join('')+
+          `<tr class="subadd"><td></td><td colspan="${NC-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="isub-add" data-v="${j}">+ Add sub-line to ${esc(it.desc||'this line')}</button></td></tr>`);
+      }
+      return `<tr><td style="width:86px">${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td><div class="subtask">${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}<button class="btn ghost splitbtn" data-act="isplit" data-v="${j}" title="Split this line into sub-lines">Split</button></div></td>${showItp?`<td style="width:150px">${itpCell('item|'+t+'|'+j,it.itpFile)}</td>`:''}<td style="width:70px">${inp(k+'unit',it.unit,{label:'Unit',ph:'m'})}</td>
+    <td style="width:90px">${inp(k+'qty',it.qty,{num:1,label:'Quantity'})}</td><td style="width:90px">${inp(k+'pct',it.pct,{num:1,label:'% complete',ph:'0'})}</td><td style="width:90px">${inp(k+'estHrs',it.estHrs,{num:1,label:'Estimated hours'})}</td><td style="width:90px">${inp(k+'spentHrs',it.spentHrs,{num:1,label:'Hours spent'})}</td>
+    ${tail}<td></td></tr>`}).join('')+
+    `<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="add-item" data-s="${sc.id}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`;
+  }).join('');
+  return `<div class="tw"><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th>Unit</th><th class="n">Qty</th><th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Hrs spent</th><th class="n">Installed</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n">+/− hrs</th><th class="n">Hrs / unit (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+V.labour=()=>{
+  const c=calc();const t=UI.task;const td=taskDoc(t);const ti=TASK_IDS.indexOf(t);
+  const rows=crewRows();
+  return `<div class="stack">${head('Labour & tasks','Production tracking by task, replacing the sixteen task sheets. Forecast hours to complete use the actual hours per unit once work has started, otherwise the estimate.')}
+  <div class="kpis">
+    <div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours, all lines</span></div>
+    <div class="kpi"><span class="l">Estimated hours</span><span class="v">${hrs(c.lEst)}</span></div>
+    <div class="kpi"><span class="l">Spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">${hrs(c.lEarned)} earned</span></div>
+    <div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div>
+    <div class="kpi"><span class="l">Labour rate</span><span class="v">$${c.rate.toFixed(2)}/hr</span><span class="d">${labourRateSrc()}</span></div>
+  </div>
+  <div class="tw"><table><thead><tr><th>Task</th><th class="n">Est. hrs</th><th class="n">Spent</th><th class="n">Earned</th><th class="n">Forecast</th><th class="n">+/− hrs</th><th style="width:18%">% complete</th></tr></thead><tbody>
+  ${TASK_IDS.map((id,i)=>{const x=taskCalc(id);return `<tr class="${id===t?'sel':''}"><td><button class="rowlink" data-act="task" data-v="${id}">${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}</button> <span class="hint">${taskDoc(id).items.length?taskDoc(id).items.length+' items':''}</span></td><td class="n money">${hrs(x.est)}</td><td class="n money">${hrs(x.spent)}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.fc)}</td><td class="n money ${x.varHrs<0?'neg':x.varHrs>0?'pos':''}">${hrs(x.varHrs)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${(x.pct*100).toFixed(1)}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(x.pct,0)}</span></div></td></tr>`}).join('')}
+  </tbody></table></div>
+  <div class="panel"><div class="sec-head"><div><h3>Task ${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</h3><p class="hint">Group the work into labelled sections, then enter quantity, % complete and hours spent for each line.</p></div><button class="btn primary" data-act="add-tsec">+ Add section</button></div>
+  ${taskEditor(t)}</div>
+  ${labourLogPanel()}
+  ${allLinesPanel()}
+  <div class="panel"><h3>Crew mix and rates</h3><p class="hint" style="margin:-6px 0 12px">From the gang rate sheet. The blended rate is total shift cost over total crew hours.</p>
+  <div class="tw" style="border:0"><table><thead><tr><th>Role</th><th>Time</th><th class="n">Qty</th><th class="n">Rate $/hr</th><th class="n">Hrs / person</th><th class="n">Crew hrs</th><th class="n">Shift cost</th></tr></thead><tbody>
+  ${rows.map((r,i)=>{const k='crew|'+i+'|';return `<tr><td>${esc(r.role)}</td><td class="hint">${esc(r.time)}</td><td style="width:80px">${inp(k+'qty',r.qty,{num:1,label:r.role+' qty'})}</td><td style="width:100px">${inp(k+'rate',r.rate,{num:1,label:r.role+' rate'})}</td><td style="width:90px">${inp(k+'hrs',r.hrs,{num:1,label:r.role+' hours'})}</td><td class="n money">${hrs(num(r.qty)*num(r.hrs))}</td><td class="n money">${money(num(r.qty)*num(r.rate)*num(r.hrs))}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td colspan="5">Blended crew rate</td><td class="n money">${hrs(rows.reduce((a,r)=>a+num(r.qty)*num(r.hrs),0))}</td><td class="n money">${money(crewRate())}/hr</td></tr></tfoot></table></div></div></div>`;
+};
+
+/* ---------- rendering ---------- */
+const viewEl=document.getElementById('view');
+let rTimer=null;
+function scheduleRender(ms=60){clearTimeout(rTimer);rTimer=setTimeout(render,ms)}
+function projList(){const ids=new Set(['main',...Object.keys(PROJ)]);ids.add(PID);
+  return [...ids].filter(id=>!(PROJ[id]&&PROJ[id].removed)).map(id=>({id,name:projName(id),created:PROJ[id]?.created||(id==='main'?1:Date.now())})).sort((a,b)=>a.created-b.created)}
+function renderChrome(){
+  const nav=VIEWS_LIST.map(([k,l],i)=>`<button data-act="nav" data-v="${k}" aria-current="${UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
+  const list=projList();
+  const one=list.length<2;
+  const headRow=x=>{const open=x.id===PID;
+    if(UI.renaming===x.id)return `<div class="prow"><input class="prename" id="prename_${x.id}" data-pid="${x.id}" value="${esc(x.name)}" aria-label="Project name"><button class="pact" data-act="proj-rename-ok" data-v="${x.id}" title="Save name" aria-label="Save name">✓</button></div>`;
+    if(UI.armed==='proj'+x.id)return `<div class="prow confirm"><span class="pn">Remove ${esc(x.name)}?</span><button class="pact danger" data-act="proj-remove" data-v="${x.id}">Remove</button><button class="pact" data-act="proj-cancel">Cancel</button></div>`;
+    return `<div class="prow"><button class="proj" data-act="proj" data-v="${x.id}" aria-expanded="${open}"><span class="caret">${open?'▾':'▸'}</span><span class="pn">${esc(x.name)}</span></button><span class="pacts"><button class="pact" data-act="proj-rename" data-v="${x.id}" title="Rename project" aria-label="Rename ${esc(x.name)}">✎</button>${one?'':`<button class="pact" data-act="proj-remove" data-v="${x.id}" title="Remove project" aria-label="Remove ${esc(x.name)}">✕</button>`}</span></div>`};
+  const tree=document.getElementById('ptree');const keepRename=UI.renaming&&tree.querySelector('.prename');
+  if(keepRename)return renderHeader();
+  tree.innerHTML=`<div class="plabel">Projects</div>`+list.map(x=>x.id===PID
+    ?`<div class="pgroup open">${headRow(x)}<nav class="nav">${nav}</nav></div>`
+    :`<div class="pgroup">${headRow(x)}</div>`).join('')+
+    `<button class="addproj" data-act="add-proj">+ Add project</button>`+
+    `<select class="projsel" id="projsel" aria-label="Project">${list.map(x=>`<option value="${x.id}"${x.id===PID?' selected':''}>${esc(x.name)}</option>`).join('')}<option value="__new">+ Add project</option></select>`;
+  renderHeader();
+}
+function renderHeader(){
+  const i=S.info;document.getElementById('pname').textContent=PROJ[PID]?.name||i.name||'Project report';
+  const m=[['Job',i.job?(i.job):''],['Period ending',fmtDate(i.period)],['PM',i.pm]].filter(x=>x[1]);
+  document.getElementById('pmeta').innerHTML=m.length?m.map(([l,v])=>`<span>${l} <b>${esc(v)}</b></span>`).join(''):'<span>Add the project name, job number and period in Project details.</span>';
+}
+function render(){
+  const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;
+  try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
+  const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
+  renderChrome();
+  viewEl.innerHTML=(V[UI.view]||V.overview)();
+  [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
+  if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
+}
+
+/* ---------- editing ---------- */
+function apply(parts,v){
+  const [kind,a,b,c,d]=parts;
+  if(kind==='info'){S.info[a]=v;persist('project/info');if(a==='name'){PROJ[PID]={...(PROJ[PID]||{created:PID==='main'?1:Date.now()}),name:v};persist('projects/'+PID);renderChrome()}return}
+  if(kind==='cs'){S.info.cs=S.info.cs||{};S.info.cs[a]=S.info.cs[a]||{};S.info.cs[a][b]=v;persist('project/info');return}
+  if(kind==='cashstart'){S.cash.start=v;persist('project/cashflow');return}
+  if(kind==='cash'){S.cash.m[a]=S.cash.m[a]||{};S.cash.m[a][b]=v;persist('project/cashflow');return}
+  if(kind==='crew'){if(!S.crew.rows)S.crew.rows=clone(CREW_DEFAULT);S.crew.rows[+a][b]=v;persist('project/crew');return}
+  if(kind==='var'){if(S.vars[a]){S.vars[a][b]=v;persist('variations/'+a);if(b==='status')syncClaimVar(a)}return}
+  if(kind==='vbu'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();if(b.startsWith('r_')){x.bu.rates=x.bu.rates||{};x.bu.rates[b.slice(2)]=v}else x.bu[b]=v;persist('variations/'+a);return}
+  if(kind==='vq'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();x.bu.quoteFile=v;persist('variations/'+a);return}
+  if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;persist('variations/'+a)}return}
+  if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
+  if(kind==='inv'){const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
+  if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
+  if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
+  if(kind==='pc'){claimDoc().hdr[a]=v;persist('project/claim');return}
+  if(kind==='pcret'){claimDoc().retMax=v;persist('project/claim');return}
+  if(kind==='pcsec'){const d=claimDoc();if(d.secs[+a]){d.secs[+a][b]=v;persist('project/claim')}return}
+  if(kind==='pcl'){const d=claimDoc();const L=a==='c'?d.secs[+b]?.lines:a==='a'?d.av:d.pv;const l=L&&L[+c];if(!l)return;const f=parts[4];const sm=num(l.sum),pv=num(l.prev);
+    const P=x=>sm?String(Math.round(x/sm*1e8)/1e6):'';
+    if(f==='amtC')l.pct=P(num(v));else if(f==='thisC')l.pct=P(pv+num(v));else if(f==='amtA')l.apct=v===''?'':P(num(v));else if(f==='payA')l.apct=v===''?'':P(pv+num(v));else l[f]=v;
+    if((f==='amtA'||f==='payA'||f==='apct')&&l.apct!=='')l.pct=l.apct;
+    persist('project/claim');return}
+  if(kind==='pch'){const d=claimDoc();if(d.hist[+a]){d.hist[+a][b]=v;persist('project/claim')}return}
+  if(kind==='tksec'){const d=ensureTask(a);if(d.sections[+b]){d.sections[+b][c]=v;persist('tasks/'+a)}return}
+  if(kind==='isub'){const d=ensureTask(a);const sb=d.items[+b]?.subs?.[+c];if(sb){sb[parts[4]]=v;persist('tasks/'+a)}return}
+  if(kind==='item'){const t=S.tasks[a]=taskDoc(a);if(t.items[+b]){t.items[+b][c]=v;persist('tasks/'+a)}return}
+  if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
+  if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
+  if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
+  if(kind==='tsub'){const d=aptDoc(a);const sb=d.sections[+b]?.lines[+c]?.subs?.[+parts[4]];if(sb){sb[parts[5]]=v;structDirty.add(a);persist('apartments/'+a)}return}
+  if(kind==='tstage'){const d=S.apt[a]=aptDoc(a);if(d.stages[+b]){d.stages[+b][c]=v;persist('apartments/'+a)}return}
+  if(kind==='titp'){const d=S.apt[a]=aptDoc(a);if(d.itps[+b]){d.itps[+b][c]=v;persist('apartments/'+a)}return}
+  if(kind==='apt'){const d=S.apt[a]=aptDoc(a);const st=unitState(a,b);const [k,id]=c.split(':');
+    if(k==='itp')st.itp[id]=!!v;else st.s[id]=num(v);
+    d.units[b]=st;(aptQueue[a]=aptQueue[a]||new Set()).add(b);persist('apartments/'+a);return}
+}
+viewEl.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.itp&&t.files&&t.files[0]){uploadItp(t.dataset.itp,t.files[0]);t.value=''}});
+viewEl.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
+  const b=t.dataset.b;if(!b)return;
+  apply(b.split('|'),t.type==='checkbox'?t.checked:t.value);
+  scheduleRender(t.tagName==='SELECT'||t.type==='checkbox'||t.type==='date'||t.type==='month'?0:450);
+});
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-act]');if(!btn)return;
+  const act=btn.dataset.act;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge')UI.armed=null;
+  if(act==='proj'){switchProject(btn.dataset.v);return}
+  if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
+  if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
+  if(act==='proj-cancel'){UI.armed=null;renderChrome();return}
+  if(act==='proj-remove'){const id=btn.dataset.v;if(UI.armed!=='proj'+id){UI.armed='proj'+id;renderChrome();setTimeout(()=>{if(UI.armed==='proj'+id){UI.armed=null;renderChrome()}},6000);return}
+    UI.armed=null;removeProject(id);return}
+  if(act==='add-proj'){addProject();return}
+  if(act==='nav'){UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
+  if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
+  if(act==='setup'){UI.setup=!UI.setup;render();return}
+  if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
+  if(act==='add-sec'){const t=btn.dataset.id;const d=aptDoc(t);d.sections.push({id:uid('S'),name:'',lines:[newLine()]});structDirty.add(t);UI.level='all';UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tsec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+  if(act==='add-line'){const t=btn.dataset.id,si=+btn.dataset.s;const d=aptDoc(t);d.sections[si].lines.push(newLine());structDirty.add(t);UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tline_'+t+'_'+si+'_'+(d.sections[si].lines.length-1)+'_name');if(el)el.focus()},60);return}
+  if(act==='split'){const t=btn.dataset.id;const [si,li]=btn.dataset.x.split('.').map(Number);const d=aptDoc(t);const l=d.sections[si].lines[li];
+    const per=d.stages.reduce((x,z)=>x+num(z.rate),0);const f=num(l.rate)&&per?num(l.rate)/per:1;const st=d.units[l.id]||{s:{}};
+    l.subs=d.stages.length?d.stages.map(z=>({id:uid('j'),task:z.id,desc:'',qty:l.qty||'1',rate:f===1?'':String(Math.round(num(z.rate)*f*100)/100),pct:String(num(st.s?.[z.id]))})):[{id:uid('j'),task:'',desc:'',qty:l.qty||'1',rate:'',pct:''}];
+    structDirty.add(t);persist('apartments/'+t);render();return}
+  if(act==='tog-sub'){const id=btn.dataset.v;if(COLL.has(id))COLL.delete(id);else COLL.add(id);saveColl();render();return}
+  if(act==='coll-all'){const d=aptDoc(UI.bld);for(const x of d.sections)for(const l of x.lines)if(l.subs&&l.subs.length){if(btn.dataset.v==='1')COLL.add(l.id);else COLL.delete(l.id)}saveColl();render();return}
+  if(act==='add-sub'){const t=btn.dataset.id;const [si,li]=btn.dataset.x.split('.').map(Number);const d=aptDoc(t);const l=d.sections[si].lines[li];(l.subs=l.subs||[]).push({id:uid('j'),task:'',desc:'',qty:'1',rate:'',pct:''});structDirty.add(t);persist('apartments/'+t);render();return}
+  if(act==='unsplit'){const t=btn.dataset.id;const key='unsplit'+t+btn.dataset.x;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
+    UI.armed=null;const [si,li]=btn.dataset.x.split('.').map(Number);const d=aptDoc(t);const l=d.sections[si].lines[li];const st=unitState(t,l.id);
+    for(const sb of l.subs||[])if(sb.task)st.s[sb.task]=num(sb.pct);d.units[l.id]=st;(aptQueue[t]=aptQueue[t]||new Set()).add(l.id);delete l.subs;structDirty.add(t);persist('apartments/'+t);render();return}
+  if(act==='import'){const t=btn.dataset.id;const d=aptDoc(t);const have=new Set(d.sections.flatMap(x=>x.lines.map(l=>l.id)));
+    for(const sec of unitSections(UI.importBld||'E')){sec.id=uid('S');sec.lines.forEach(l=>{if(have.has(l.id))l.id=uid('l')});d.sections.push(sec)}
+    structDirty.add(t);persist('apartments/'+t);render();return}
+  if(act==='add-stage'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.stages.push({id:uid('s'),name:'',rate:'0'});persist('apartments/'+t);render();return}
+  if(act==='add-itp'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.itps.push({id:uid('i'),name:''});persist('apartments/'+t);render();return}
+  if(act==='task'){UI.task=btn.dataset.v;render();return}
+  if(act==='toggle'){UI.open[btn.dataset.id]=!UI.open[btn.dataset.id];render();return}
+  if(act==='yn'){const k=btn.dataset.k;const cur=(S.info.cs||{})[k]?.yn;apply(['cs',k,'yn'],cur===btn.dataset.v?'':btn.dataset.v);render();return}
+  if(act==='vopen'){const id=btn.dataset.v;UI.vopen=UI.vopen===id?null:id;const x=S.vars[id];if(x&&!x.bu){x.bu=VBU_DEF();persist('variations/'+id)}render();if(UI.vopen)setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
+  if(act==='vline-add'){const x=S.vars[btn.dataset.v];x.bu=x.bu||VBU_DEF();const sIdx=x.bu.lines.findIndex(l=>kindOf(l)!=='L');const nl={id:uid('x'),item:'',qty:'',mat:'',per:'',hrs:'',kind:'L',comments:''};if(sIdx>=0)x.bu.lines.splice(sIdx,0,nl);else x.bu.lines.push(nl);persist('variations/'+btn.dataset.v);render();return}
+  if(act==='vpdf'){sellPdf(btn.dataset.v);return}
+  if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.vars[id]={ref:'VQ-'+String(n).padStart(3,'0'),status:'Draft',date:todayISO(),created:Date.now()};persist('variations/'+id);render();return}
+  if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],retention:false,date:todayISO()};UI.open[id]=false;persist('orders/'+id);render();return}
+  if(act==='add-inv'){const o=S.orders[btn.dataset.id];o.inv=o.inv||[];o.inv.push({date:todayISO(),ref:'',amount:''});UI.open[btn.dataset.id]=true;persist('orders/'+btn.dataset.id);render();return}
+  if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
+  if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
+  if(act==='llog-add'){S.llog.rows.push({date:todayISO(),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
+  if(act==='pc-addsec'){const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+  if(act==='pc-addline'){const d=claimDoc();const a=btn.dataset.a;const L=a==='c'?d.secs[+btn.dataset.s].lines:a==='a'?d.av:d.pv;L.push(a==='p'?{...newPcLine(),status:'Submitted'}:newPcLine());persist('project/claim');render();return}
+  if(act==='pc-addhist'){const d=claimDoc();d.hist.push({no:String(d.hist.length+1),date:todayISO(),submitted:'',approved:'',ret:'',cost:''});persist('project/claim');render();return}
+  if(act==='pc-import'){const d=claimDoc();const have=new Set([...d.av,...d.pv].map(l=>l.vid).filter(Boolean));
+    for(const [id,v] of Object.entries(S.vars)){if(have.has(id))continue;const st=v.status||'Submitted';if(st==='Rejected'||st==='Withdrawn')continue;
+      const base={...newPcLine(),vid:id,ref:v.ref||'',desc:v.desc||'',sum:String(Math.round(vNums(v).sell*100)/100)};
+      if(st==='Approved'){if(btn.dataset.a!=='p')d.av.push({...base,aref:v.approvalRef||''})}else if(btn.dataset.a!=='a')d.pv.push({...base,status:st==='Draft'?'Draft':'Submitted',sub:v.date||''})}
+    persist('project/claim');render();return}
+  if(act==='roll'){
+    if(UI.armed!=='roll'){UI.armed='roll';render();setTimeout(()=>{if(UI.armed==='roll'){UI.armed=null;render()}},5000);return}
+    UI.armed=null;const d=claimDoc();const T=claimTotals();
+    const allL=[...d.secs.flatMap(x=>x.lines),...d.av,...d.pv];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
+    const keep=d.hdr.keep||{};delete d.hdr.keep;const snap={hdr:clone(d.hdr),lines:Object.fromEntries(allL.map(l=>[l.id,{prev:l.prev??'',apct:l.apct??'',pct:l.pct??''}]))};
+    const cur=String(d.hdr.claimNo||d.hist.length+1);d.hist.push({snap,status:'Submitted',no:cur,date:d.hdr.claimDate||todayISO(),submitted:String(Math.round(T.all.this*100)/100),approved:String(Math.round(T.all.pay*100)/100),ret:keep.ret||'',cost:keep.cost||'',status:keep.ret!==undefined?'Reassessed':'Submitted'});
+    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.apct=''}
+    d.hdr.claimNo=String(num(cur)+1);d.hdr.claimDate='';d.hdr.invoiceNo='';d.hdr.invoiceDate='';
+    persist('project/claim');render();return}
+  if(act==='pc-reopen'){
+    if(UI.armed!=='reopen'){UI.armed='reopen';render();setTimeout(()=>{if(UI.armed==='reopen'){UI.armed=null;render()}},5000);return}
+    UI.armed=null;const d=claimDoc();const h=d.hist[d.hist.length-1];if(!h||!h.snap)return;
+    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct}}
+    d.hdr={...h.snap.hdr,keep:{ret:h.ret||'',cost:h.cost||''}};d.hist.pop();persist('project/claim');render();return}
+  if(act==='isplit'){const t=UI.task;const d=ensureTask(t);const it=d.items[+btn.dataset.v];if(!it)return;
+    it.subs=[{id:uid('q'),desc:it.desc||'',unit:it.unit||'',qty:it.qty||'',pct:it.pct||'',estHrs:it.estHrs||'',spentHrs:it.spentHrs||'',itpFile:null},{id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''}];
+    persist('tasks/'+t);render();return}
+  if(act==='isub-add'){const t=UI.task;const d=ensureTask(t);const it=d.items[+btn.dataset.v];(it.subs=it.subs||[]).push({id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''});persist('tasks/'+t);render();return}
+  if(act==='imerge'){const t=UI.task;const key='imerge'+t+btn.dataset.v;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
+    UI.armed=null;const d=ensureTask(t);const it=d.items[+btn.dataset.v];const x=itemCalc(it);
+    Object.assign(it,{qty:String(Math.round(x.qty*100)/100),estHrs:String(Math.round(x.est*100)/100),spentHrs:String(Math.round(x.spent*100)/100),pct:String(Math.round(x.pct*1000)/10)});delete it.subs;persist('tasks/'+t);render();return}
+  if(act==='add-tsec'){const t=UI.task;const d=ensureTask(t);const id=uid('S');d.sections.push({id,name:''});d.items.push(newItem(id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('tksec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+  if(act==='bulk'){
+    const t=UI.bld;if(!t)return;const d=S.apt[t]=aptDoc(t);const q=UI.q.trim().toUpperCase();const v=num(UI.bulkPct);const Q=aptQueue[t]=aptQueue[t]||new Set();
+    for(const x of d.sections)if(UI.level==='all'||x.id===UI.level)for(const l of x.lines)if(lineMatch(l,q)){if(l.subs&&l.subs.length){let hit=false;for(const sb of l.subs)if(sb.task===UI.bulkStage){sb.pct=String(v);hit=true}if(hit)structDirty.add(t);continue}const st=unitState(t,l.id);st.s[UI.bulkStage]=v;d.units[l.id]=st;Q.add(l.id)}
+    persist('apartments/'+t);render();return}
+  if(act==='del'){
+    const key=btn.dataset.kind+btn.dataset.id+btn.dataset.x;
+    if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},4000);return}
+    UI.armed=null;const {kind,id,x}=btn.dataset;
+    if(kind==='var'){delete S.vars[id];removeDoc('variations/'+id);syncClaimVar(id)}
+    else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
+    else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
+    else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
+    else if(kind==='inv'){const f=S.orders[id].inv[+x]?.invFile;if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{});S.orders[id].inv.splice(+x,1);persist('orders/'+id)}
+    else if(kind==='isub'){const d=ensureTask(id);const [j,q]=x.split('.').map(Number);const it=d.items[j];if(it&&it.subs){it.subs.splice(q,1);if(!it.subs.length)delete it.subs}persist('tasks/'+id)}
+    else if(kind==='item'){S.tasks[id].items.splice(+x,1);persist('tasks/'+id)}
+    else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
+    else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
+    else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
+    else if(kind==='pcsec'){claimDoc().secs.splice(+x,1);persist('project/claim')}
+    else if(kind==='pch'){claimDoc().hist.splice(+x,1);persist('project/claim')}
+    else if(kind==='tksec'){const d=ensureTask(id);const first=d.sections[0].id;const ids=new Set(d.sections.map(z=>z.id));d.items=d.items.filter(it=>(ids.has(it.sec)?it.sec:first)!==x);d.sections=d.sections.filter(z=>z.id!==x);persist('tasks/'+id)}
+    else if(kind==='trade'){const d=S.apt[id]=aptDoc(id);d.removed=true;persist('apartments/'+id);UI.setup=false;UI.bld=''}
+    else if(kind==='stage'){const d=S.apt[id]=aptDoc(id);d.stages.splice(+x,1);persist('apartments/'+id)}
+    else if(kind==='sec'){const d=aptDoc(id);d.sections.splice(+x,1);structDirty.add(id);persist('apartments/'+id)}
+    else if(kind==='sub'){const d=aptDoc(id);const [si,li,ji]=x.split('.').map(Number);const l=d.sections[si]?.lines[li];if(l&&l.subs){l.subs.splice(ji,1);if(!l.subs.length)delete l.subs}structDirty.add(id);persist('apartments/'+id)}
+    else if(kind==='line'){const d=aptDoc(id);const [si,li]=x.split('.').map(Number);d.sections[si]?.lines.splice(li,1);structDirty.add(id);persist('apartments/'+id)}
+    else if(kind==='itp'){const d=S.apt[id]=aptDoc(id);d.itps.splice(+x,1);persist('apartments/'+id)}
+    render();return}
+});
+
+/* ---------- projects ---------- */
+let unsubs=[];
+function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},tasks:{},apt:{},claim:null})}
+async function flushAll(){const keys=Object.keys(pending);await Promise.all(keys.map(k=>{clearTimeout(pending[k]);return flush(k)}))}
+function subscribe(){
+  unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
+  if(!db)return;const err=e=>{console.error(e)};
+  for(const name of ['project','variations','orders','procurement','tasks','apartments'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
+}
+async function switchProject(id){
+  if(id===PID)return;
+  if(S.info.name&&!PROJ[PID]?.name){PROJ[PID]={...(PROJ[PID]||{created:PID==='main'?1:Date.now()}),name:S.info.name};persist('projects/'+PID)}
+  await flushAll();
+  PID=id;try{localStorage.setItem('ox_pid',id)}catch(e){}
+  blankState();for(const k of Object.keys(aptQueue))delete aptQueue[k];exists.clear();deleted.clear();structDirty.clear();for(const k in latest)delete latest[k];
+  UI.bld='';UI.level='all';UI.q='';UI.task='t01';UI.setup=false;UI.armed=null;UI.view='overview';
+  subscribe();render();window.scrollTo(0,0);
+}
+function commitRename(id){
+  const el=document.getElementById('prename_'+id);UI.renaming=null;
+  const v=el?el.value.trim():'';
+  if(v){PROJ[id]={...(PROJ[id]||{created:id==='main'?1:Date.now()}),name:v};persist('projects/'+id);if(id===PID){S.info.name=v;persist('project/info')}}
+  render();
+}
+async function removeProject(id){
+  const others=projList().filter(x=>x.id!==id);if(!others.length)return;
+  PROJ[id]={...(PROJ[id]||{created:id==='main'?1:Date.now(),name:projName(id)}),removed:true,removedAt:Date.now()};persist('projects/'+id);
+  if(id===PID)await switchProject(others[0].id);else render();
+}
+document.addEventListener('keydown',e=>{const t=e.target;if(!t.classList||!t.classList.contains('prename'))return;
+  if(e.key==='Enter'){e.preventDefault();commitRename(t.dataset.pid)}else if(e.key==='Escape'){UI.renaming=null;render()}});
+document.addEventListener('focusout',e=>{const t=e.target;if(t.classList&&t.classList.contains('prename')){setTimeout(()=>{if(UI.renaming===t.dataset.pid&&!document.activeElement?.closest?.('.prow'))commitRename(t.dataset.pid)},120)}});
+async function addProject(){
+  const id=uid('P');PROJ[id]={name:'New project',created:Date.now()};persist('projects/'+id);
+  await switchProject(id);S.info.name='New project';persist('project/info');UI.view='details';render();
+  setTimeout(()=>{const el=document.getElementById('info_name');if(el){el.focus();el.select()}},80);
+}
+document.addEventListener('change',e=>{if(e.target.id==='projsel'){const v=e.target.value;if(v==='__new')addProject();else switchProject(v)}});
+
+
+/* ---------- hosted mode (outside Claude): Supabase ---------- */
+document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('a[data-file]');if(!a||!HOSTED||!window.__sb)return;e.preventDefault();
+  const w=window.open('','_blank');try{const {data,error}=await window.__sb.storage.from('files').createSignedUrl(a.dataset.file,600);if(error)throw error;if(w)w.location=data.signedUrl;else location.href=data.signedUrl}catch(err){if(w)w.close();setSave('error','Could not open the file')}});
+function jsonMerge(a,b){if(!a||typeof a!=='object'||Array.isArray(a))a={};const o={...a};for(const k in b){const v=b[k];o[k]=(v&&typeof v==='object'&&!Array.isArray(v))?jsonMerge(a[k],v):v}return o}
+function makeSbDb(sb){
+  const parent=p=>p.split('/').slice(0,-1).join('/');const T='docs';
+  const listeners={};
+  async function fetchColl(c){const {data,error}=await sb.from(T).select('path,data').eq('coll',c);if(error)throw error;return data}
+  async function emit(c){const L=listeners[c];if(!L||!L.size)return;try{const rows=await fetchColl(c);const snap={docs:rows.map(r=>({id:r.path.split('/').pop(),exists:true,data:()=>r.data})),metadata:{fromCache:false,hasPendingWrites:false}};snap.size=snap.docs.length;snap.empty=!snap.size;for(const f of L)f.next(snap)}catch(e){for(const f of L)f.err&&f.err(e)}}
+  const timers={};const bump=c=>{clearTimeout(timers[c]);timers[c]=setTimeout(()=>emit(c),120)};
+  sb.channel('docs-all').on('postgres_changes',{event:'*',schema:'public',table:T},pl=>{const p=(pl.new&&pl.new.path)||(pl.old&&pl.old.path);if(p)bump(parent(p))}).subscribe();
+  setInterval(()=>{for(const c in listeners)if(listeners[c].size)emit(c)},60000);
+  return {
+    doc(p){return {
+      async set(data){const {error}=await sb.from(T).upsert({path:p,coll:parent(p),data,updated_at:new Date().toISOString()});if(error)throw Object.assign(error,{code:'unavailable'})},
+      async update(patch){const {data:row,error:e1}=await sb.from(T).select('data').eq('path',p).maybeSingle();if(e1)throw e1;if(!row)throw {code:'invalid_argument',message:'missing'};
+        const {error}=await sb.from(T).update({data:jsonMerge(row.data,patch),updated_at:new Date().toISOString()}).eq('path',p);if(error)throw error},
+      async delete(){const {error}=await sb.from(T).delete().eq('path',p);if(error)throw error},
+      async get(){const {data}=await sb.from(T).select('data').eq('path',p).maybeSingle();return {id:p.split('/').pop(),exists:!!data,data:()=>data&&data.data}}
+    }},
+    collection(c){return {onSnapshot(next,err){const f={next,err};(listeners[c]=listeners[c]||new Set()).add(f);emit(c);return ()=>listeners[c].delete(f)}}}
+  };
+}
+function makeSbAssets(sb){return {
+  async upload(file,opts){const id=(crypto.randomUUID?crypto.randomUUID():uid('f'))+'.pdf';const {error}=await sb.storage.from('files').upload(id,file,{contentType:(opts&&opts.type)||file.type||'application/pdf',upsert:false});if(error)throw Object.assign(error,{code:'upstream_error'});return {id,url:'#'}},
+  async delete(id){await sb.storage.from('files').remove([id]);return {deleted:true}}
+}}
+const browserDownloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:'saved'}}};
+function loginScreen(sb,msg){
+  const el=document.createElement('div');el.className='login';el.innerHTML=`<form class="login-card" id="loginform"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
+    <h2>Sign in</h2><p class="hint">Enter your work email and we’ll send you a sign-in link. Only people invited to this app can sign in.</p>
+    <label for="loginemail">Email</label><input class="f" id="loginemail" type="email" required autocomplete="email" placeholder="name@oxfordgroup.com.au">
+    <button class="btn primary" type="submit" id="loginbtn">Send sign-in link</button><p class="hint" id="loginmsg">${esc(msg||'')}</p></form>`;
+  document.body.appendChild(el);
+  el.querySelector('#loginform').addEventListener('submit',async ev=>{ev.preventDefault();const em=el.querySelector('#loginemail').value.trim();const m=el.querySelector('#loginmsg');const b=el.querySelector('#loginbtn');b.disabled=true;m.textContent='Sending…';
+    const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}});
+    b.disabled=false;m.textContent=error?(/signups? not allowed|not found|Invalid/i.test(error.message)?'That email has not been invited yet. Ask the app owner to invite you.':'Could not send the link: '+error.message):'Check your email for the sign-in link. You can close this tab once you’ve clicked it.'});
+}
+async function hostedBoot(startStore,offline){
+  const C=window.OX_CONFIG||{};
+  if(!window.supabase||!C.supabaseUrl||!C.supabaseAnonKey||/YOUR_/.test(C.supabaseUrl+C.supabaseAnonKey)){document.getElementById('banner').innerHTML='<div class="banner">This copy of the app is not connected to a database yet. Add your Supabase URL and key to config.js (see the setup guide).</div>';setSave('local');return}
+  const sb=window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true}});window.__sb=sb;
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){loginScreen(sb);sb.auth.onAuthStateChange((ev,s2)=>{if(s2&&ev==='SIGNED_IN')location.reload()});setSave('local');document.getElementById('savepill').textContent='Signed out';return}
+  sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')location.reload()});
+  document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="signout" type="button">Sign out</button></div>`;
+  document.getElementById('signout').onclick=()=>sb.auth.signOut();
+  assets=makeSbAssets(sb);downloads=browserDownloads;
+  startStore(makeSbDb(sb));render();
+}
+
+/* ---------- boot ---------- */
+(function(){
+  let h=(location.hash||'').slice(1);if(h==='apartments')h='subcontractors';if(VIEWS_LIST.some(v=>v[0]===h))UI.view=h;
+  render();setSave('saving');document.getElementById('savepill').textContent='Connecting';
+  const timeout=setTimeout(()=>{if(!db)offline()},12000);
+  function offline(){
+    setSave('local');
+    document.getElementById('banner').innerHTML='<div class="banner">This view can’t reach the shared project store, so edits stay in this browser tab only and are lost on reload. Open the page from claude.ai while signed in to save and share changes.</div>';
+  }
+  if(HOSTED){clearTimeout(timeout);hostedBoot(startStore,offline);return}
+  if(!window.claude||!window.claude.use){clearTimeout(timeout);offline();return}
+  window.claude.use('db').then(d=>{
+    clearTimeout(timeout);
+    if(!d){offline();return}
+    window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});
+    window.claude.use('downloads').then(x=>{downloads=x}).catch(()=>{});
+    startStore(d);
+  }).catch(()=>{clearTimeout(timeout);offline()});
+  function startStore(d){
+    db=d;setSave('saved');
+    db.collection('projects').onSnapshot(sn=>{for(const k in PROJ)if(!isDirty('projects/'+k))delete PROJ[k];for(const d of sn.docs)if(!isDirty('projects/'+d.id))PROJ[d.id]=clone(d.data());
+      if(PID!=='main'&&!PROJ[PID]&&!isDirty('projects/'+PID)&&!sn.metadata.fromCache){PID='main';try{localStorage.setItem('ox_pid','main')}catch(e){}blankState();subscribe()}
+      scheduleRender()},e=>console.error(e));
+    subscribe();
+  }
+})();
+</script>
