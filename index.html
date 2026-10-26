@@ -216,6 +216,11 @@ tr.subadd td{padding:2px 8px 6px;background:color-mix(in srgb,var(--soft) 45%,tr
 .login-card .btn{justify-content:center;padding:10px}
 .who{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;color:var(--rail-hi);word-break:break-all}
 .who .addproj{padding:4px 0;font-size:12px}
+.splitsum{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-top:5px;font-size:12px}
+.schip{display:inline-flex;gap:4px;align-items:center;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--muted);font-family:var(--f-mono);font-size:11.5px;white-space:nowrap}
+.schip b{font-family:var(--f-body);font-weight:600;color:var(--ink)}
+.schip.part{background:var(--warn-soft);color:var(--warn)}.schip.done{background:var(--good-soft);color:var(--good)}
+tr.pg-empty td{color:var(--muted)}
 .pg-task{padding:12px 16px}
 .pg-head{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
 .pg-head:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
@@ -1085,6 +1090,7 @@ V.claim=()=>{
   <div class="statgrid" style="margin-top:14px"><div class="mini"><span class="l">Margin claimed to date</span><span class="v ${T.ha-T.cost<0?'neg':''}">${money(T.ha-T.cost)}</span></div><div class="mini"><span class="l">Max retention</span><span class="v">${money(maxRet)}</span></div><div class="mini"><span class="l">Retention remaining</span><span class="v">${money(maxRet-T.ret)}</span></div></div>
   </div></div>`;
 };
+function splitChips(it){return `<div class="splitsum"><span class="hint">Split into ${it.subs.length}:</span>${it.subs.map((sb,k)=>{const z=itemOne(sb);return `<span class="schip ${z.pct>=1?'done':z.pct>0?'part':''}"><b>${esc(sb.desc||'Sub-line '+(k+1))}</b> ${pct(z.pct,0)} · ${hrs(z.spent)}/${hrs(z.est)} h</span>`}).join('')}</div>`}
 function taskEditor(t){
   const td=taskDoc(t);const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));
   const showItp=!NO_ITP.has(t);const NC=showItp?15:14;
@@ -1095,7 +1101,7 @@ function taskEditor(t){
     rows.map(({it,j})=>{const k='item|'+t+'|'+j+'|';const x=itemCalc(it);
       const tail=`<td class="n money">${x.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.ftc)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td class="n money">${x.rateEst.toFixed(2)} · ${x.rateAct?x.rateAct.toFixed(2):'—'}</td>`;
       if(x.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);const armed=UI.armed==='imerge'+t+j;
-        return `<tr class="parentrow"><td style="width:110px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button>${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td>${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}</td>${showItp?`<td style="width:150px">${itpCell('item|'+t+'|'+j,it.itpFile)}</td>`:''}
+        return `<tr class="parentrow"><td style="width:110px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button>${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td>${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}${splitChips(it)}</td>${showItp?`<td style="width:150px"></td>`:''}
         <td class="hint" style="white-space:nowrap">${cl?'<span class="tag acc">Minimised</span>':''} ${it.subs.length} sub-lines</td><td class="n money"><b>${x.qty.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td><td class="n money"><b>${pct(x.pct,0)}</b></td><td class="n money"><b>${hrs(x.est)}</b></td><td class="n money"><b>${hrs(x.spent)}</b></td>${tail}
         <td><button class="btn ghost" style="padding:2px 6px;font-size:12px;white-space:nowrap" data-act="imerge" data-v="${j}">${armed?'Confirm merge':'Merge'}</button></td></tr>`+
         (cl?'':it.subs.map((sb,q)=>{const ks='isub|'+t+'|'+j+'|'+q+'|';const y=itemOne(sb);
@@ -1125,8 +1131,9 @@ V.progress=()=>{
       let e=0,ea=0,sp=0;rows.forEach(o=>{const y=itemCalc(o.it);e+=y.est;ea+=y.earned;sp+=y.spent});
       return `<tr class="secrow"><td>${esc(sc.name||'Untitled section')}</td><td>${bar(e?ea/e:0)}</td><td class="n money hint">${hrs(sp)} / ${hrs(e)}</td></tr>`+
       rows.map(({it,j})=>{const y=itemCalc(it);
-        if(y.split)return `<tr class="parentrow"><td><b>${esc(it.desc||'Untitled line')}</b> <span class="hint">· ${it.subs.length} sub-lines</span></td><td>${bar(y.pct)}</td><td class="n money"><b>${hrs(y.spent)}</b> <span class="hint">/ ${hrs(y.est)}</span></td></tr>`+
-          it.subs.map((sb,k)=>{const z=itemOne(sb);return `<tr class="subrow"><td style="padding-left:26px">${esc(sb.desc||'Sub-line '+(k+1))}</td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${bar(z.pct)}</div></td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|spentHrs',sb.spentHrs,(sb.desc||'Sub-line')+' hours')}<span class="hint">/ ${hrs(z.est)} hrs</span></div></td></tr>`}).join('');
+        if(y.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);
+          return `<tr class="parentrow"><td><div style="display:flex;align-items:flex-start;gap:6px"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button><div><b>${esc(it.desc||'Untitled line')}</b>${cl?' <span class="tag acc">Minimised</span>':''}${splitChips(it)}</div></div></td><td>${bar(y.pct)}</td><td class="n money"><b>${hrs(y.spent)}</b> <span class="hint">/ ${hrs(y.est)}</span></td></tr>`+
+          (cl?'':it.subs.map((sb,k)=>{const z=itemOne(sb);return `<tr class="subrow"><td style="padding-left:34px">${esc(sb.desc||'Sub-line '+(k+1))}</td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${bar(z.pct)}</div></td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|spentHrs',sb.spentHrs,(sb.desc||'Sub-line')+' hours')}<span class="hint">/ ${hrs(z.est)} hrs</span></div></td></tr>`}).join(''));}
         return `<tr><td>${esc(it.desc||'Untitled line')}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|pct',it.pct,(it.desc||'Line')+' % complete')}<span class="hint">%</span>${bar(y.pct)}</div></td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|spentHrs',it.spentHrs,(it.desc||'Line')+' hours')}<span class="hint">/ ${hrs(y.est)} hrs</span></div></td></tr>`}).join('');
     }).join('');
     if(q&&!secHtml)return '';
@@ -1135,6 +1142,10 @@ V.progress=()=>{
   }).join('');
   return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. Changes here update Labour & tasks straight away, and new sections and lines appear here automatically.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
   <div class="kpis"><div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours</span></div><div class="kpi"><span class="l">Hours spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">of ${hrs(c.lEst)} estimated</span></div><div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div></div>
+  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Overall completion by task</h3><p class="hint">All tasks, by hours earned against estimated hours.</p></div></div>
+  <div class="tw" style="border:0"><table><thead><tr><th>Task</th><th style="width:40%">% complete</th><th class="n">Hours spent / estimated</th><th class="n">Forecast</th></tr></thead><tbody>
+  ${TASK_IDS.map((t,ti)=>{const x=taskCalc(t);return `<tr class="${x.est?'':'pg-empty'}"><td>${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</td><td>${x.est?bar(x.pct):'<span class="hint">No lines yet</span>'}</td><td class="n money">${hrs(x.spent)} / ${hrs(x.est)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.fc)}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td>All tasks</td><td>${bar(c.lEst?c.lEarned/c.lEst:0)}</td><td class="n money">${hrs(c.lSpent)} / ${hrs(c.lEst)}</td><td class="n money">${hrs(c.lFc)}</td></tr></tfoot></table></div></div>
   <div class="toolbar"><button class="btn" data-act="pg-all" data-v="0">Expand all</button><button class="btn" data-act="pg-all" data-v="1">Collapse all</button></div>
   ${body||`<div class="panel empty"><b>${q?'No lines match':'No task lines yet'}</b>${q?'Try a different search.':'Add sections and lines under Labour & tasks and they’ll appear here.'}</div>`}</div>`;
 };
