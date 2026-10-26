@@ -1044,7 +1044,7 @@ function pcRows(area,lines,si,opt={}){
     ${area==='p'?`<td style="width:120px">${sel(k+'status',l.status||'Submitted',['Draft','Submitted','Under review','Directed'],{label:'Status'})}</td><td style="width:140px">${inp(k+'sub',l.sub,{type:'date',label:'Submitted'})}</td>`:''}
     <td style="min-width:140px"><div class="cur">${inp(k+'sum',l.sum,{num:1,label:'Amount'})}</div></td>
     <td style="min-width:80px">${inp(k+'pct',r2s(l.pct),{num:1,label:'% complete',ph:'0'})}</td>
-    <td style="min-width:130px"><div class="cur">${inp(k+'prev',l.prev,{num:1,label:'Previously approved',ph:'0'})}</div></td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'prev',l.prev,{num:1,label:'Previously approved',ph:'0'})}</div>${sum&&num(l.prev)?`<div class="hint" style="text-align:right;font-size:11.5px;margin-top:2px">${pct(num(l.prev)/sum,1)} approved before</div>`:''}</td>
     <td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
     <td style="min-width:130px"><div class="cur">${inp(k+'amtC',r2s(x.claimed),{num:1,label:'Claimed to date'})}</div></td>
     <td class="n">${sum?pct(x.this/sum,1):'—'}</td>
@@ -1317,7 +1317,7 @@ document.addEventListener('click',e=>{
     const allL=[...d.secs.flatMap(x=>x.lines),...d.av,...d.pv];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
     const keep=d.hdr.keep||{};delete d.hdr.keep;const snap={hdr:clone(d.hdr),lines:Object.fromEntries(allL.map(l=>[l.id,{prev:l.prev??'',apct:l.apct??'',pct:l.pct??''}]))};
     const cur=String(d.hdr.claimNo||d.hist.length+1);d.hist.push({snap,status:'Submitted',no:cur,date:d.hdr.claimDate||todayISO(),submitted:String(Math.round(T.all.this*100)/100),approved:String(Math.round(T.all.pay*100)/100),ret:keep.ret||'',cost:keep.cost||'',status:keep.ret!==undefined?'Reassessed':'Submitted'});
-    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.apct=''}
+    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.pct=String(Math.round(x.ap*1e6)/1e6);l.apct=''}
     d.hdr.claimNo=String(num(cur)+1);d.hdr.claimDate='';d.hdr.invoiceNo='';d.hdr.invoiceDate='';
     persist('project/claim');render();return}
   if(act==='pc-reopen'){
