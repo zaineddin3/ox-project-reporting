@@ -201,6 +201,9 @@ tr.subadd td{padding:2px 8px 6px;background:color-mix(in srgb,var(--soft) 45%,tr
 tr.revrow.revcur td{background:var(--accent-soft)}
 tr.bmrow td{padding-top:0}
 tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size:13px}
+.invbox{display:flex;flex-direction:column;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.invmat{margin:2px 0 6px 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow-x:auto}
+.invmat th{position:static}
 .bupanel{padding:16px 18px 20px;background:var(--surface);border-top:2px solid var(--accent);display:flex;flex-direction:column;gap:6px}
 .form.rates{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
 .bu-sum td{padding:6px 8px}
@@ -333,7 +336,7 @@ tr.sel td{background:var(--accent-soft)}
 const UNITS_RAW={"E": "0101:2,0102:2,0103:2,0104:3,0105:3,0106:3,0107:3,0108:3,0109:3,0201:2,0202:2,0203:2,0301:2,0302:2,0303:2,0304:2,0305:2,0306:2,0307:2,0308:2,0309:2,0310:2,0311:2,0401:2,0402:2,0403:2,0404:2,0405:2,0406:2,0407:2,0408:2,0409:2,0410:2,0411:2,0501:2,0502:2,0503:2,0504:1,0505:2,0506:2,0507:2,0508:2,0509:2,0510:2,0601:2,0602:2,0603:1,0604:2,0605:2,0606:2,0607:2,0608:2,0701:2,0702:2,0703:1,0704:2,0705:2,0706:2,0707:2,0708:2,0801:2,0802:2,0803:1,0804:2,0805:2,0806:2,0807:2,0808:2,0901:2,0902:2,0903:1,0904:2,0905:2,0906:2,0907:2,0908:2,1001:2,1002:2,1003:1,1004:2,1005:2,1006:2,1007:2,1008:2,1101:2,1102:2,1103:1,1104:2,1105:2,1106:2,1107:2,1108:2,1201:2,1202:2,1203:1,1204:2,1205:5,1206:2,1207:2,1208:2,1301:2,1302:2,1303:1,1304:2,1305:5,1306:2,1307:2,1308:2,1401:2,1402:2,1403:1,1404:2,1405:5,1406:2,1407:2,1408:2,1501:2,1502:2,1503:1,1504:2,1505:2,1506:2,1507:2,1508:2,1601:2,1602:2,1603:1,1604:2,1605:2,1606:2,1607:2,1608:2,1701:2,1702:2,1703:1,1704:2,1705:2,1706:2,1707:2,1708:2,1801:2,1802:2,1803:1,1804:2,1805:2,1806:2,1807:2,1808:2,1901:2,1902:2,1903:1,1904:2,1905:2,1906:2,1907:2,1908:2,2001:2,2002:2,2003:1,2004:2,2005:2,2006:2,2007:2,2008:2,2101:2,2102:2,2103:1,2104:2,2105:2,2106:2,2107:2,2108:2,2201:2,2202:2,2203:1,2204:2,2205:2,2206:2,2207:2,2208:2,2301:2,2302:2,2303:1,2304:2,2305:2,2306:2,2307:2,2308:2,2401:2,2402:2,2403:1,2404:2,2405:2,2406:2,2407:2,2408:2,2501:2,2502:2,2503:1,2504:2,2505:2,2506:2,2507:2,2508:2,2601:2,2602:2,2603:1,2604:2,2605:2,2606:2,2607:2,2608:2,2701:2,2702:2,2703:1,2704:2,2705:2,2706:2,2707:2,2708:2,2801:2,2802:2,2803:1,2804:2,2805:2,2806:2,2901:2,2902:2,2903:1,2904:2,2905:2,3001:2,3002:2,3003:1,3004:4,3101:2,3102:2,3103:1,3104:3,3105:4,3201:2,3202:2,3203:1,3204:3,3205:4,3301:2,3302:2,3303:1,3304:3,3305:4,3401:2,3402:2,3403:1,3404:3,3405:4,3501:2,3502:2,3503:1,3504:3,3505:4,3601:2,3602:2,3603:1,3604:3,3605:4,3701:2,3702:2,3703:1,3704:3,3705:4,3801:2,3802:2,3803:1,3804:3,3805:4,3901:2,3902:2,3903:1,3904:3,3905:4", "F": "0312:2,0313:2,0314:2,0315:2,0316:2,0412:2,0413:2,0414:2,0415:2,0416:2,0511:2,0512:2,0513:2,0514:2,0609:2,0610:2,0611:2,0612:2,0613:2,0614:1,0615:2,0616:2,0709:2,0710:2,0711:2,0712:2,0713:2,0714:1,0715:2,0716:2,0809:2,0810:2,0811:2,0812:2,0813:1,0814:1,0815:2,0816:2,0909:2,0910:2,0911:2,0912:2,0913:2,0914:1,0915:2,0916:2,1009:2,1010:2,1011:2,1012:2,1013:2,1014:1,1015:2,1016:1,1109:2,1110:2,1111:2,1112:2,1113:2,1114:1,1115:2,1116:2,1209:2,1210:2,1211:2,1212:2,1213:2,1214:1,1215:2,1216:2,1309:2,1310:2,1311:2,1312:2,1313:2,1314:1,1315:2,1316:2,1409:2,1410:2,1411:2,1412:2,1413:2,1414:1,1415:2,1416:2,1509:2,1510:2,1511:2,1512:2,1513:2,1514:1,1515:2,1516:2,1609:2,1610:2,1611:2,1612:2,1613:2,1614:1,1615:2,1616:1,1709:2,1710:2,1711:2,1712:2,1713:2,1714:1,1715:2,1716:2,1809:2,1810:2,1811:2,1812:2,1813:2,1814:1,1815:2,1816:2,1909:2,1910:2,1911:2,1912:2,1913:2,1914:1,1915:2,1916:2,2009:2,2010:2,2011:2,2012:2,2013:2,2014:1,2015:2,2016:2,2109:2,2110:2,2111:2,2112:2,2113:2,2114:1,2115:2,2116:2,2209:2,2210:2,2211:2,2212:2,2213:2,2214:1,2215:2,2216:2,2309:2,2310:2,2311:1,2312:2,2313:2,2409:2,2410:2,2411:1,2412:2,2413:2,2509:2,2510:2,2511:3,2512:1,2513:2,2514:2,2609:2,2610:2,2611:3,2612:1,2613:2,2614:2,2709:2,2710:2,2711:3,2712:1,2713:2,2714:2,2809:2,2810:2,2811:3,2812:1,2813:2,2814:2,2906:2,2907:2,2908:3,2909:1,2910:2,2911:2,3006:2,3007:2,3008:3,3009:1,3010:2,3011:2,3106:2,3107:2,3108:3,3109:1,3110:2,3111:2,3206:2,3207:2,3208:3,3209:1,3210:2,3211:2"};
 const VIEWS_LIST=[
   ['overview','Overview'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
-  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress']
+  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Bill of Quantity']
 ];
 const TASKS=["Temporary works","Deck work","Rough in","Fit off","Common containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
 const TASK_IDS=TASKS.map((_,i)=>'t'+String(i+1).padStart(2,'0'));
@@ -539,7 +542,7 @@ function calc(){
   const revised=contract+vApp;
   let poTotal=0,matInv=0,matAnt=0,matFc=0,ret=0,leftPO=0;
   for(const o of Object.values(S.orders)){
-    const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0),ant=num(o.anticipated);
+    const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0),ant=num(o.anticipated);
     poTotal+=po;leftPO+=Math.max(po-inv,0);matInv+=inv;matAnt+=ant;matFc+=Math.max(po,inv)+ant;if(o.retention)ret+=inv*0.05;
   }
   const rate=labourRate();
@@ -725,7 +728,7 @@ V.cost=()=>{
   </tbody></table></div></div>
   <div><h3 style="margin-bottom:10px">Materials and subcontractors</h3>
   ${ords.length?`<div class="tw"><table><thead><tr><th>Supplier / subcontractor</th><th>PO</th><th class="n">Committed</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">Extra outside PO</th><th class="n">Forecast total</th></tr></thead><tbody>
-  ${ords.map(([id,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0),ant=num(o.anticipated);return `<tr><td>${esc(o.supplier||'—')}</td><td class="mono">${esc(o.poNo||'')}</td><td class="n money">${money(po)}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n money">${money(ant)}</td><td class="n money">${money(Math.max(po,inv)+ant)}</td></tr>`}).join('')}
+  ${ords.map(([id,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0),ant=num(o.anticipated);return `<tr><td>${esc(o.supplier||'—')}</td><td class="mono">${esc(o.poNo||'')}</td><td class="n money">${money(po)}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n money">${money(ant)}</td><td class="n money">${money(Math.max(po,inv)+ant)}</td></tr>`}).join('')}
   </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${money(c.poTotal)}</td><td class="n money">${money(c.matInv)}</td><td class="n money">${money(c.poTotal-c.matInv)}</td><td class="n money">${money(c.matAnt)}</td><td class="n money">${money(c.matFc)}</td></tr></tfoot></table></div>`
   :`<div class="panel empty"><b>No orders yet</b>Add purchase orders under Orders & invoices and they roll up here.<div style="margin-top:12px"><button class="btn primary" data-act="nav" data-v="orders">Go to orders</button></div></div>`}</div></div>`;
 };
@@ -928,6 +931,11 @@ function syncClaimVar(id){
 }
 function vNums(v){if(hasBu(v)){const x=vbuCalc(v.bu);return {sell:x.sell.total,cost:x.cost.total,mat:x.matCost,lab:x.labCost,hrs:x.hrs,margin:x.margin,bu:true}}
   const sell=num(v.submitted),mat=num(v.nonLabour),lab=num(v.labour);return {sell,cost:mat+lab,mat,lab,hrs:num(v.hours),margin:sell-mat-lab,bu:false}}
+const GST=0.1;
+const money2=n=>(n<0?'−$':'$')+Math.abs(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+const invLines=x=>Array.isArray(x.lines)?x.lines:[];
+const lineEx=l=>num(l.qty===''||l.qty==null?1:l.qty)*num(l.rate);
+const invAmt=x=>invLines(x).length?invLines(x).reduce((a,l)=>a+lineEx(l),0):num(x.amount);
 function delBtn(kind,id,extra='',label=''){const a=UI.armed===kind+id+extra;return `<button class="btn ${a?'armed':'ghost'}" data-act="del" data-kind="${kind}" data-id="${id}" data-x="${extra}" aria-label="${label||'Delete'}" style="white-space:nowrap">${a?'Confirm':(label||'✕')}</button>`}
 
 V.orders=()=>{
@@ -936,14 +944,19 @@ V.orders=()=>{
   return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Ticking retention holds 5% of invoiced value.','<button class="btn primary" data-act="add-order">+ Add order</button>')}
   <div class="statgrid"><div class="mini"><span class="l">Committed</span><span class="v">${money(c.poTotal)}</span></div><div class="mini"><span class="l">Invoiced</span><span class="v">${money(c.matInv)}</span></div><div class="mini"><span class="l">Left on POs</span><span class="v">${money(c.poTotal-c.matInv)}</span></div><div class="mini"><span class="l">Retention held</span><span class="v">${money(c.ret)}</span></div></div>
   ${rows.length?`<div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>PO number</th><th style="min-width:200px">Supplier / subcontractor</th><th>PO date</th><th class="n">PO amount</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">% left</th><th class="n">Extra outside PO</th><th>Subbie retention</th><th></th></tr></thead><tbody>
-  ${rows.map(([id,o])=>{const k='ord|'+id+'|';const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+num(x.amount),0);const open=UI.open[id];
+  ${rows.map(([id,o])=>{const k='ord|'+id+'|';const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0);const open=UI.open[id];
     return `<tr class="${open?'sel':''}"><td><button class="btn ghost" data-act="toggle" data-id="${id}" aria-expanded="${!!open}" style="color:var(--ink)">${open?'▾':'▸'} ${(o.inv||[]).length}</button></td>
     <td style="width:120px">${inp(k+'poNo',o.poNo,{label:'PO number'})}</td><td>${inp(k+'supplier',o.supplier,{label:'Supplier',ph:'Supplier name and scope'})}</td><td style="width:140px">${inp(k+'date',o.date,{type:'date',label:'PO date'})}</td>
     <td style="width:120px">${inp(k+'po',o.po,{num:1,label:'PO amount'})}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n">${po?pct((po-inv)/po,0):'—'}</td>
     <td style="width:120px">${inp(k+'anticipated',o.anticipated,{num:1,label:'Anticipated extra'})}</td>
     <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
     ${open?`<tr class="sel"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">
-      ${(o.inv||[]).map((x,j)=>`<div style="display:grid;grid-template-columns:150px 160px 140px 220px 1fr auto;gap:6px;align-items:center">${inp('inv|'+id+'|'+j+'|date',x.date,{type:'date',label:'Invoice date'})}${inp('inv|'+id+'|'+j+'|ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}<div class="cur">${inp('inv|'+id+'|'+j+'|amount',x.amount,{num:1,label:'Amount',ph:'0'})}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div><span></span>${delBtn('inv',id,String(j))}</div>`).join('')}
+      ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
+        return `<div class="invbox"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${L.length?`<div class="n money" title="Total of the material lines, ex GST"><b>${money(invAmt(x))}</b> <span class="hint">ex GST</span></div>`:`<div class="cur">${inp(kb+'amount',x.amount,{num:1,label:'Amount ex GST',ph:'0'})}</div>`}<div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
+          <button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button><span></span>${delBtn('inv',id,String(j))}</div>
+        ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
+          ${L.map((l,li)=>{const kl='invl|'+id+'|'+j+'|'+li+'|';const ex=lineEx(l);return `<tr><td style="width:80px">${delBtn('invl',id,j+'.'+li,'Remove')}</td><td>${inp(kl+'mat',l.mat,{label:'Material',ph:'e.g. 2.5mm² TPS cable 100m'})}</td><td style="width:80px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:70px">${inp(kl+'unit',l.unit,{label:'Unit',ph:'ea'})}</td><td style="width:130px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Unit price ex GST',ph:'0'})}</div></td><td class="n money">${money2(ex)}</td><td class="n money hint">${money2(ex*GST)}</td><td class="n money"><b>${money2(ex*(1+GST))}</b></td></tr>`}).join('')||`<tr><td colspan="8" class="hint">No materials yet. Add each item on the invoice; they’ll appear in the Bill of Quantity.</td></tr>`}
+          <tr class="addrow"><td colspan="8"><button class="btn" data-act="invl-add" data-id="${id}" data-x="${j}">+ Add material</button></td></tr></tbody></table></div>`:''}</div>`}).join('')}
       <div><button class="btn" data-act="add-inv" data-id="${id}">+ Add invoice</button></div></div></td></tr>`:''}`}).join('')}
   </tbody></table></div>`:`<div class="panel empty"><b>No orders yet</b>Add each major PO or subcontract, then log invoices against it as they arrive.</div>`}</div>`;
 };
@@ -1216,6 +1229,32 @@ V.progress=()=>{
   <div class="toolbar"><button class="btn" data-act="pg-all" data-v="0">Expand all</button><button class="btn" data-act="pg-all" data-v="1">Collapse all</button></div>
   ${body||`<div class="panel empty"><b>${q?'No lines match':'No task lines yet'}</b>${q?'Try a different search.':'Add sections and lines under Labour & tasks and they’ll appear here.'}</div>`}</div>`;
 };
+V.boq=()=>{
+  const q=(UI.bq||'').trim().toLowerCase();const grp=UI.bqg==='mat';
+  const rows=[];
+  for(const [oid,o] of Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0)))(o.inv||[]).forEach((x,j)=>{
+    const L=invLines(x);
+    if(L.length)L.forEach((l,li)=>rows.push({oid,j,li,mat:l.mat||'',qty:num(l.qty===''||l.qty==null?1:l.qty),unit:l.unit||'',rate:num(l.rate),ex:lineEx(l),sup:o.supplier||'',po:o.poNo||'',inv:x.ref||'',date:x.date||''}));
+    else if(num(x.amount))rows.push({oid,j,li:-1,mat:'',qty:null,unit:'',rate:null,ex:num(x.amount),sup:o.supplier||'',po:o.poNo||'',inv:x.ref||'',date:x.date||'',nolines:true});
+  });
+  const hit=r=>!q||[r.mat,r.sup,r.po,r.inv,r.unit].some(v=>String(v).toLowerCase().includes(q));
+  const shown=rows.filter(hit);const tot=shown.reduce((a,r)=>a+r.ex,0);
+  let table;
+  if(grp){const G={};for(const r of shown){const k=(r.mat||'(no material listed)').trim().toLowerCase()+'|'+r.unit.toLowerCase();const g=G[k]=G[k]||{mat:r.mat||'(no material listed)',unit:r.unit,qty:0,ex:0,n:0,sup:new Set()};g.qty+=r.qty||0;g.ex+=r.ex;g.n++;if(r.sup)g.sup.add(r.sup)}
+    const gs=Object.values(G).sort((a,b)=>b.ex-a.ex);
+    table=`<table style="min-width:900px"><thead><tr><th style="min-width:260px">Material</th><th>Suppliers</th><th class="n">Invoice lines</th><th class="n">Total qty</th><th>Unit</th><th class="n">Avg unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
+      ${gs.map(g=>`<tr><td><b>${esc(g.mat)}</b></td><td class="hint">${esc([...g.sup].join(', '))}</td><td class="n">${g.n}</td><td class="n money">${g.qty.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="hint">${esc(g.unit)}</td><td class="n money">${g.qty?money2(g.ex/g.qty):'—'}</td><td class="n money">${money2(g.ex)}</td><td class="n money hint">${money2(g.ex*GST)}</td><td class="n money"><b>${money2(g.ex*(1+GST))}</b></td></tr>`).join('')}`;
+  }else{
+    table=`<table style="min-width:1150px"><thead><tr><th style="min-width:260px">Material</th><th>Supplier</th><th>PO</th><th>Invoice</th><th>Date</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th><th></th></tr></thead><tbody>
+      ${shown.map(r=>`<tr><td>${r.nolines?'<span class="hint">No materials listed on this invoice</span>':esc(r.mat||'—')}</td><td>${esc(r.sup||'—')}</td><td class="mono" style="white-space:nowrap">${esc(r.po)}</td><td class="mono" style="white-space:nowrap">${esc(r.inv)}</td><td class="hint" style="white-space:nowrap">${fmtDate(r.date)}</td><td class="n money">${r.qty==null?'':r.qty.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="hint">${esc(r.unit)}</td><td class="n money">${r.rate==null?'':money2(r.rate)}</td><td class="n money">${money2(r.ex)}</td><td class="n money hint">${money2(r.ex*GST)}</td><td class="n money"><b>${money2(r.ex*(1+GST))}</b></td><td><button class="btn ghost" style="padding:2px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="boq-edit" data-id="${r.oid}" data-x="${r.j}">Edit</button></td></tr>`).join('')}`;
+  }
+  return `<div class="stack">${head('Bill of Quantity','Every material on the invoices in Orders & invoices, with costs excluding and including GST. Add materials to an invoice and they appear here automatically.')}
+  <div class="kpis"><div class="kpi"><span class="l">Material lines</span><span class="v">${shown.filter(r=>!r.nolines).length}</span><span class="d">${q?'matching your search':'across all invoices'}</span></div><div class="kpi"><span class="l">Total ex GST</span><span class="v">${money(tot)}</span></div><div class="kpi"><span class="l">GST</span><span class="v">${money(tot*GST)}</span></div><div class="kpi"><span class="l">Total inc GST</span><span class="v">${money(tot*(1+GST))}</span></div></div>
+  <div class="panel" style="padding:12px 14px"><div class="toolbar"><label>Search <input id="bq_q" data-ui="bq" value="${esc(UI.bq||'')}" placeholder="Material, supplier, PO or invoice no." style="width:300px"></label>
+    <span style="flex:1"></span><div class="seg" role="group" aria-label="View"><button data-act="bqg" data-v="" aria-pressed="${!grp}">Every line</button><button data-act="bqg" data-v="mat" aria-pressed="${grp}">Grouped by material</button></div></div></div>
+  ${rows.length?`<div class="tw tall">${table}</tbody><tfoot><tr><td colspan="${grp?6:8}">${shown.length===rows.length?'Total':'Total of '+shown.length+' shown'}</td><td class="n money">${money2(tot)}</td><td class="n money">${money2(tot*GST)}</td><td class="n money">${money2(tot*(1+GST))}</td>${grp?'':'<td></td>'}</tr></tfoot></table></div>`
+    :`<div class="panel empty"><b>No invoices yet</b>Add invoices to your orders under Orders & invoices, then open <b>Materials</b> on each invoice to list what was supplied.</div>`}</div>`;
+};
 V.labour=()=>{
   const c=calc();const t=UI.task;const td=taskDoc(t);const ti=TASK_IDS.indexOf(t);
   const rows=crewRows();
@@ -1294,6 +1333,7 @@ function apply(parts,v){
   if(kind==='vq'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();x.bu.quoteFile=v;persist('variations/'+a);return}
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;persist('variations/'+a)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
+  if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
   if(kind==='inv'){const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
   if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
@@ -1376,6 +1416,9 @@ document.addEventListener('click',async e=>{
   if(act==='vrevview'){const id=btn.dataset.v;UI.vopen=id;UI.vrev=btn.dataset.r===''?null:+btn.dataset.r;render();setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
   if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.vars[id]={ref:'VQ-'+String(n).padStart(3,'0'),status:'Draft',date:todayISO(),created:Date.now()};persist('variations/'+id);render();return}
   if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],retention:false,date:todayISO()};UI.open[id]=false;persist('orders/'+id);render();return}
+  if(act==='bqg'){UI.bqg=btn.dataset.v;render();return}
+  if(act==='boq-edit'){UI.view='orders';UI.open[btn.dataset.id]=true;UI.open['invm'+btn.dataset.id+'_'+btn.dataset.x]=true;render();window.scrollTo(0,0);return}
+  if(act==='invl-add'){const o=S.orders[btn.dataset.id];const x=o.inv[+btn.dataset.x];x.lines=invLines(x);if(!x.lines.length&&num(x.amount)&&!x.lines.length){}x.lines.push({id:uid('m'),mat:'',qty:'',unit:'',rate:''});persist('orders/'+btn.dataset.id);render();setTimeout(()=>{const el=document.getElementById('invl_'+btn.dataset.id+'_'+btn.dataset.x+'_'+(x.lines.length-1)+'_mat');if(el)el.focus()},50);return}
   if(act==='add-inv'){const o=S.orders[btn.dataset.id];o.inv=o.inv||[];o.inv.push({date:todayISO(),ref:'',amount:''});UI.open[btn.dataset.id]=true;persist('orders/'+btn.dataset.id);render();return}
   if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
@@ -1423,6 +1466,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
     else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
     else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
+    else if(kind==='invl'){const [j,li]=x.split('.').map(Number);const iv=S.orders[id]?.inv?.[j];if(iv&&iv.lines){iv.lines.splice(li,1);persist('orders/'+id)}}
     else if(kind==='inv'){const f=S.orders[id].inv[+x]?.invFile;if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{});S.orders[id].inv.splice(+x,1);persist('orders/'+id)}
     else if(kind==='isub'){const d=ensureTask(id);const [j,q]=x.split('.').map(Number);const it=d.items[j];if(it&&it.subs){it.subs.splice(q,1);if(!it.subs.length)delete it.subs}persist('tasks/'+id)}
     else if(kind==='item'){S.tasks[id].items.splice(+x,1);persist('tasks/'+id)}
