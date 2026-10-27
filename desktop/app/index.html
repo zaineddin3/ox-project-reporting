@@ -770,6 +770,46 @@ function buPanel(id,v){
     </div></div>`;
 }
 let downloads=null;
+function pdfHeader(doc,title){
+  const W=210;try{doc.addImage(LOGO,'PNG',14,10,20,24)}catch(e){}
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(0);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
+  doc.setDrawColor(176,84,28);doc.setLineWidth(.6);doc.line(14,38,W-14,38);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text(title,14,47);
+}
+async function claimPdf(){
+  if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  const d=claimDoc(),h=d.hdr,T=claimTotals();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+  const no=h.claimNo||String(d.hist.length+1);
+  pdfHeader(doc,'Progress claim '+no);
+  doc.setFontSize(9.5);
+  const proj=[S.info.job,PROJ[PID]?.name||S.info.name].filter(Boolean).join(' ');
+  const meta=[['Project',proj||'—'],['Claim date',fmtDate(h.claimDate)||fmtDate(todayISO())],['PO no.',h.poNo||'—'],['Invoice no.',h.invoiceNo||'—'],['Claim no.',no],['Invoice date',fmtDate(h.invoiceDate)||'—']];
+  let y=55;meta.forEach(([a,b],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(a+':',x,y);doc.setFont('helvetica','normal');doc.text(String(b),x+24,y)});
+  y+=8;
+  const gst=T.all.this*0.1;
+  doc.autoTable({startY:y,theme:'plain',styles:{fontSize:9.5,cellPadding:1.5},columnStyles:{0:{cellWidth:110},1:{halign:'right',cellWidth:40}},margin:{left:14},
+    body:[['Original contract value',money(T.c.sum)],['Approved variations',money(T.a.sum)],['Revised contract value',money(T.c.sum+T.a.sum)],['',''],
+      ['Contract works completed to date',money(T.c.claimed)],['Approved variation works to date',money(T.a.claimed)],['Pending variation works to date',money(T.p.claimed)],['Total claimed to date',money(T.all.claimed)],['Less previously approved',money(-T.all.prev)]],
+    foot:[['This claim (ex GST)',money(T.all.this)],['GST (10%)',money(gst)],['Amount due (incl. GST)',money(T.all.this+gst)]],
+    footStyles:{fontStyle:'bold',textColor:[28,39,50]},didParseCell:dt=>{if(dt.column.index===1)dt.cell.styles.halign='right';if(dt.section==='body'&&[2,7].includes(dt.row.index))dt.cell.styles.fontStyle='bold'}});
+  y=doc.lastAutoTable.finalY+8;
+  const head=[['Item','Description','Contract sum','% complete','Claimed to date','Prev. approved','This claim']];
+  const row=(a,b,l)=>{const x=pcLine(l);return [a,b,money(x.sum),pct(x.sum?x.claimed/x.sum:0,1),money(x.claimed),money(x.prev),money(x.this)]};
+  const tbl=(title,body,tot)=>{if(y>250){doc.addPage();y=20}doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(title,14,y);
+    doc.autoTable({startY:y+2,head,body,foot:[['','Total',money(tot.sum),pct(tot.sum?tot.claimed/tot.sum:0,1),money(tot.claimed),money(tot.prev),money(tot.this)]],theme:'grid',
+      styles:{fontSize:8,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255},footStyles:{fillColor:[233,235,230],textColor:[28,39,50],fontStyle:'bold'},
+      columnStyles:{0:{cellWidth:16},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:24},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:22}},margin:{left:14,right:14}});
+    y=doc.lastAutoTable.finalY+8};
+  const cw=[];d.secs.forEach(sc=>{cw.push([{content:sc.name||'Section',colSpan:7,styles:{fontStyle:'bold',fillColor:[246,247,244]}}]);sc.lines.forEach(l=>cw.push(row(l.item||'',l.desc||'',l)))});
+  tbl('Contract works',cw,T.c);
+  if(d.av.length)tbl('Approved variations',d.av.map(l=>row(l.ref||'',l.desc||'',l)),T.a);
+  if(d.pv.length)tbl('Pending variations',d.pv.map(l=>row(l.ref||'',l.desc||'',l)),T.p);
+  doc.setFontSize(8);doc.setTextColor(90);doc.text('All amounts exclude GST unless shown.',14,Math.min(y,287));
+  const blob=doc.output('blob');const name=`${(S.info.job||'Project').replace(/[^\w.-]+/g,'_')} - Progress claim ${no}.pdf`;
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
+}
 async function sellPdf(id){
   const v=S.vars[id];if(!v)return;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
@@ -791,9 +831,9 @@ async function sellPdf(id){
     styles:{fontSize:8.5,cellPadding:1.8,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:52},1:{halign:'right',cellWidth:16},2:{halign:'right',cellWidth:20},3:{cellWidth:12},4:{halign:'right',cellWidth:22},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{cellWidth:'auto'}},margin:{left:14,right:14}});
   y=doc.lastAutoTable.finalY+6;if(y>240){doc.addPage();y=20}
-  const tot=[['Material total','',money(X.sell.mat)],[`Mark-up ${num(bu.mark)}%`,'',money(X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
+  const tot=[['Material total','',money(X.sell.mat)],['Mark-up','',money(X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
   doc.autoTable({startY:y,body:tot,foot:[['Total variation (ex GST)','',money(X.sell.total)]],theme:'plain',styles:{fontSize:9.5,cellPadding:1.6},
-    columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},margin:{left:W-14-150}});
+    columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},didParseCell:dt=>{if(dt.column.index===2)dt.cell.styles.halign='right'},margin:{left:W-14-150}});
   y=doc.lastAutoTable.finalY+8;doc.setFontSize(8);doc.setTextColor(90);doc.text('All prices exclude GST.',14,Math.min(y,285));
   const blob=doc.output('blob');
   const name=`${(v.ref||'Variation').replace(/[^\w.-]+/g,'_')} - Sell.pdf`;
@@ -1057,7 +1097,7 @@ V.claim=()=>{
   const armed=UI.armed==='roll';
   const gst=T.all.pay*0.1;
   const maxRet=(T.c.sum+T.a.sum)*num(d.retMax)/100;
-  return `<div class="stack">${head('Progress claim','Contract works by section, approved and pending variations, the payment summary and claim history, as in the workbook. All amounts ex GST unless shown.',`<button class="btn ${armed?'armed':''}" data-act="roll">${armed?'Confirm: log this claim and start the next':'Start next claim'}</button>`)}
+  return `<div class="stack">${head('Progress claim','Contract works by section, approved and pending variations, the payment summary and claim history, as in the workbook. All amounts ex GST unless shown. Submit claim logs this claim, downloads it as a PDF and starts the next one.',`<button class="btn ${armed?'armed':''}" data-act="roll">${armed?'Confirm: submit claim '+esc(d.hdr.claimNo||String(d.hist.length+1))+' and download PDF':'Submit claim'}</button>`)}
   <div class="panel"><h3>Claim details</h3><div class="form">
     <label>Project<input class="f" value="${esc(PROJ[PID]?.name||S.info.name||'')}" disabled placeholder="Set in Project details"></label>
     ${hf('poNo','PO number')}${hf('claimNo','Progress claim no.',{num:1})}${hf('claimDate','Claim date',{type:'date'})}
@@ -1252,7 +1292,7 @@ viewEl.addEventListener('input',e=>{
   apply(b.split('|'),t.type==='checkbox'?t.checked:t.value);
   scheduleRender(t.tagName==='SELECT'||t.type==='checkbox'||t.type==='date'||t.type==='month'?0:450);
 });
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
   if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge')UI.armed=null;
@@ -1308,6 +1348,7 @@ document.addEventListener('click',e=>{
   if(act==='roll'){
     if(UI.armed!=='roll'){UI.armed='roll';render();setTimeout(()=>{if(UI.armed==='roll'){UI.armed=null;render()}},5000);return}
     UI.armed=null;const d=claimDoc();const T=claimTotals();
+    try{await claimPdf()}catch(e){console.error(e);setSave('error','Claim PDF failed; the claim was still submitted')}
     const allL=[...d.secs.flatMap(x=>x.lines),...d.av,...d.pv];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
     const keep=d.hdr.keep||{};delete d.hdr.keep;const snap={hdr:clone(d.hdr),lines:Object.fromEntries(allL.map(l=>[l.id,{prev:l.prev??'',apct:l.apct??'',pct:l.pct??''}]))};
     const cur=String(d.hdr.claimNo||d.hist.length+1);d.hist.push({snap,status:'Submitted',no:cur,date:d.hdr.claimDate||todayISO(),submitted:String(Math.round(T.all.this*100)/100),approved:String(Math.round(T.all.pay*100)/100),ret:keep.ret||'',cost:keep.cost||'',status:keep.ret!==undefined?'Reassessed':'Submitted'});
@@ -1317,7 +1358,7 @@ document.addEventListener('click',e=>{
   if(act==='pc-reopen'){
     if(UI.armed!=='reopen'){UI.armed='reopen';render();setTimeout(()=>{if(UI.armed==='reopen'){UI.armed=null;render()}},5000);return}
     UI.armed=null;const d=claimDoc();const h=d.hist[d.hist.length-1];if(!h||!h.snap)return;
-    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct}}
+    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
     d.hdr={...h.snap.hdr,keep:{ret:h.ret||'',cost:h.cost||''}};d.hist.pop();persist('project/claim');render();return}
   if(act==='isplit'){const t=UI.task;const d=ensureTask(t);const it=d.items[+btn.dataset.v];if(!it)return;
     it.subs=[{id:uid('q'),desc:it.desc||'',unit:it.unit||'',qty:it.qty||'',pct:it.pct||'',estHrs:it.estHrs||'',spentHrs:it.spentHrs||'',itpFile:null},{id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''}];
