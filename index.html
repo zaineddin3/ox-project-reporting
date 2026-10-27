@@ -211,6 +211,7 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .markups{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .mk-list{display:flex;flex-wrap:wrap;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400}
 .mk-item{display:inline-flex;align-items:center;gap:2px}
+.pdfval{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;padding:4px 2px}
 .extmsg{font-size:12.5px;padding:6px 10px;border-radius:6px;margin-left:2px}
 .extmsg.busy{background:var(--warn-soft);color:var(--warn)}.extmsg.ok{background:var(--good-soft);color:var(--good)}.extmsg.err{background:var(--bad-soft);color:var(--bad)}
 .invbox{display:flex;flex-direction:column;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line)}
@@ -938,8 +939,8 @@ ${images.length?'The invoice is attached as page images (it has no readable text
     const lines=(Array.isArray(out&&out.lines)?out.lines:[]).filter(l=>l&&(l.mat||l.rate)).map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
     if(!lines.length){EXT[key]={err:'No material lines were found on this invoice. Add them by hand.'};render();return}
     x.lines=replace||!invLines(x).length?lines:invLines(x).concat(lines);
-    const tx=num(out.totalExGst);x.amount=String(Math.round((tx||linesSum(x))*100)/100);
-    if(!x.ref&&out.invoiceNo)x.ref=String(out.invoiceNo).slice(0,60);
+    const tx=num(out.totalExGst);x.amount=String(Math.round((tx||linesSum(x))*100)/100);x.amountFromPdf=true;
+    if(out.invoiceNo){x.ref=String(out.invoiceNo).slice(0,60);x.refFromPdf=true}
     if((!x.date||x.date===todayISO())&&/^\d{4}-\d{2}-\d{2}$/.test(out.date||''))x.date=out.date;
     persist('orders/'+oid);UI.open['invm'+oid+'_'+j]=true;
     const sum=linesSum(x),tot=num(out.totalExGst);
@@ -1013,7 +1014,7 @@ V.orders=()=>{
     <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
     ${open?`<tr class="sel"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
-        return `<div class="invbox"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}<div><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
+        return `<div class="invbox"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
           <button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}</span>${delBtn('inv',id,String(j))}</div>
         ${(()=>{const e=EXT[id+'_'+j];return e?`<div class="extmsg ${e.err?'err':e.ok?'ok':'busy'}">${esc(e.busy||e.ok||e.err)}</div>`:''})()}
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
@@ -1396,7 +1397,7 @@ function apply(parts,v){
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;persist('variations/'+a)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
-  if(kind==='inv'){const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
+  if(kind==='inv'){const iv=S.orders[a]?.inv?.[+b];if(iv&&((c==='amount'&&iv.amountFromPdf)||(c==='ref'&&iv.refFromPdf)))return;const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
   if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
   if(kind==='pc'){claimDoc().hdr[a]=v;persist('project/claim');return}
