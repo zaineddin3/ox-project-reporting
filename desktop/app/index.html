@@ -201,6 +201,10 @@ tr.subadd td{padding:2px 8px 6px;background:color-mix(in srgb,var(--soft) 45%,tr
 tr.revrow.revcur td{background:var(--accent-soft)}
 tr.bmrow td{padding-top:0}
 tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size:13px}
+.form .btn{text-transform:none;letter-spacing:0}
+.markups{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mk-list{display:flex;flex-wrap:wrap;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400}
+.mk-item{display:inline-flex;align-items:center;gap:2px}
 .extmsg{font-size:12.5px;padding:6px 10px;border-radius:6px;margin-left:2px}
 .extmsg.busy{background:var(--warn-soft);color:var(--warn)}.extmsg.ok{background:var(--good-soft);color:var(--good)}.extmsg.err{background:var(--bad-soft);color:var(--bad)}
 .invbox{display:flex;flex-direction:column;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line)}
@@ -784,6 +788,9 @@ function buPanel(id,v,ri){
       <div class="toolbar">${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
     <div class="form">
       <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}</div></label>
+      <div class="wide markups"><div class="mk-h">Mark-ups <span class="hint">· marked-up drawings, sketches or photos (PDF, PNG or JPG)</span></div>
+        <div class="mk-list">${(bu.markups||[]).map((m,mi)=>`<span class="mk-item"><a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(m.id)}" data-file="${esc(m.id)}" target="_blank" rel="noopener" title="${esc(m.name)}">${esc((m.name||'Mark-up').slice(0,40))}</a>${ro||!assets?'':delBtn('vmk',id,String(mi),'✕')}</span>`).join('')||'<span class="hint">None attached yet.</span>'}
+        ${ro?'':assets?(UP['vmk'+id]?'<span class="hint">Uploading…</span>':`<label class="btn itp-up" for="vmk_${id}">+ Attach mark-up</label><input type="file" id="vmk_${id}" data-markup="${id}" accept="application/pdf,.pdf,image/png,image/jpeg" multiple hidden>`):''}</div></div>
       <label class="wide">Description for the quote<textarea class="f" id="vbu_${id}_longDesc" data-b="${k}longDesc" placeholder="Scope of the variation as it should appear on the sell sheet">${esc(bu.longDesc||'')}</textarea></label>
     </div>
     <div class="tw" style="margin-top:14px"><table style="min-width:1250px"><thead><tr><th></th><th>Item</th><th>Type</th><th class="n">Quantity</th><th class="n">Material</th><th>Per</th><th class="n">Extension</th><th class="n">Labour hrs</th><th class="n">Lab extension</th><th>Comments</th></tr></thead><tbody>
@@ -925,11 +932,12 @@ ${images.length?'The invoice is attached as page images (it has no readable text
     const lines=(Array.isArray(out&&out.lines)?out.lines:[]).filter(l=>l&&(l.mat||l.rate)).map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
     if(!lines.length){EXT[key]={err:'No material lines were found on this invoice. Add them by hand.'};render();return}
     x.lines=replace||!invLines(x).length?lines:invLines(x).concat(lines);
+    const tx=num(out.totalExGst);x.amount=String(Math.round((tx||linesSum(x))*100)/100);
     if(!x.ref&&out.invoiceNo)x.ref=String(out.invoiceNo).slice(0,60);
     if((!x.date||x.date===todayISO())&&/^\d{4}-\d{2}-\d{2}$/.test(out.date||''))x.date=out.date;
     persist('orders/'+oid);UI.open['invm'+oid+'_'+j]=true;
-    const sum=invAmt(x),tot=num(out.totalExGst);
-    EXT[key]={ok:`Read ${lines.length} material line${lines.length===1?'':'s'} from the PDF. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
+    const sum=linesSum(x),tot=num(out.totalExGst);
+    EXT[key]={ok:`Read ${lines.length} material line${lines.length===1?'':'s'} and a total of ${money2(invAmt(x))} ex GST from the PDF, added to the invoiced total. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
   }catch(e){console.error(e);EXT[key]={err:e&&e.code==='not_granted'?'Reading needs your permission to use Claude. Click “Read PDF” to try again and allow it.':e&&e.code==='rate_limited'?'Too many requests just now. Try again in a minute.':e&&e.code==='invalid_json'?'Couldn’t make sense of this invoice. Try again, or add the materials by hand.':'Couldn’t read this PDF. Add the materials by hand.'}}
   render();
 }
@@ -981,7 +989,8 @@ function extraAdj(o){const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x
 const money2=n=>(n<0?'−$':'$')+Math.abs(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
 const invLines=x=>Array.isArray(x.lines)?x.lines:[];
 const lineEx=l=>num(l.qty===''||l.qty==null?1:l.qty)*num(l.rate);
-const invAmt=x=>invLines(x).length?invLines(x).reduce((a,l)=>a+lineEx(l),0):num(x.amount);
+const linesSum=x=>invLines(x).reduce((a,l)=>a+lineEx(l),0);
+const invAmt=x=>(x.amount!==''&&x.amount!=null)?num(x.amount):linesSum(x);
 function delBtn(kind,id,extra='',label=''){const a=UI.armed===kind+id+extra;return `<button class="btn ${a?'armed':'ghost'}" data-act="del" data-kind="${kind}" data-id="${id}" data-x="${extra}" aria-label="${label||'Delete'}" style="white-space:nowrap">${a?'Confirm':(label||'✕')}</button>`}
 
 V.orders=()=>{
@@ -998,7 +1007,7 @@ V.orders=()=>{
     <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
     ${open?`<tr class="sel"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
-        return `<div class="invbox"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${L.length?`<div class="n money" title="Total of the material lines, ex GST"><b>${money(invAmt(x))}</b> <span class="hint">ex GST</span></div>`:`<div class="cur">${inp(kb+'amount',x.amount,{num:1,label:'Amount ex GST',ph:'0'})}</div>`}<div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
+        return `<div class="invbox"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}<div><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
           <button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}</span>${delBtn('inv',id,String(j))}</div>
         ${(()=>{const e=EXT[id+'_'+j];return e?`<div class="extmsg ${e.err?'err':e.ok?'ok':'busy'}">${esc(e.busy||e.ok||e.err)}</div>`:''})()}
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
@@ -1406,7 +1415,15 @@ function apply(parts,v){
     if(k==='itp')st.itp[id]=!!v;else st.s[id]=num(v);
     d.units[b]=st;(aptQueue[a]=aptQueue[a]||new Set()).add(b);persist('apartments/'+a);return}
 }
-viewEl.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.itp&&t.files&&t.files[0]){uploadItp(t.dataset.itp,t.files[0]);t.value=''}});
+viewEl.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.itp&&t.files&&t.files[0]){uploadItp(t.dataset.itp,t.files[0]);t.value=''}
+  if(t.dataset&&t.dataset.markup&&t.files&&t.files.length){uploadMarkups(t.dataset.markup,[...t.files]);t.value=''}});
+async function uploadMarkups(id,files){
+  const v=S.vars[id];if(!v||!assets)return;v.bu=v.bu||VBU_DEF();UP['vmk'+id]=true;render();
+  for(const f of files){const type=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name)?'application/pdf':/png$/i.test(f.type)||/\.png$/i.test(f.name)?'image/png':/jpe?g$/i.test(f.type)||/\.jpe?g$/i.test(f.name)?'image/jpeg':'';
+    if(!type){setSave('error',f.name+' isn’t a PDF, PNG or JPG');continue}if(f.size>20*1024*1024){setSave('error',f.name+' is over 20 MB');continue}
+    try{const r=await assets.upload(f,{type});(v.bu.markups=v.bu.markups||[]).push({id:r.id,name:f.name,type})}catch(e){console.error(e);setSave('error','Couldn’t upload '+f.name)}}
+  delete UP['vmk'+id];persist('variations/'+id);render();
+}
 viewEl.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
@@ -1513,6 +1530,7 @@ document.addEventListener('click',async e=>{
     if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},4000);return}
     UI.armed=null;const {kind,id,x}=btn.dataset;
     if(kind==='var'){delete S.vars[id];removeDoc('variations/'+id);syncClaimVar(id)}
+    else if(kind==='vmk'){const v=S.vars[id];const m=v?.bu?.markups?.[+x];if(m){v.bu.markups.splice(+x,1);if(assets&&!(v.revs||[]).some(r=>(r.bu?.markups||[]).some(z=>z.id===m.id)))assets.delete(m.id).catch(()=>{});persist('variations/'+id)}}
     else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
     else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
     else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
