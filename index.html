@@ -832,12 +832,13 @@ async function sellPdf(id){
   y+=8;doc.setFont('helvetica','bold');doc.text('Description:',14,y);doc.setFont('helvetica','normal');
   const dl=doc.splitTextToSize(bu.longDesc||v.desc||'—',W-28-24);doc.text(dl,38,y);y+=Math.max(6,dl.length*4.6)+3;
   const f2=n=>n?Number(n).toLocaleString('en-AU',{maximumFractionDigits:2}):'';
-  const body=(bu.lines||[]).filter(l=>l.item||num(l.qty)).map(l=>{const q=num(l.qty);return [l.item||'',f2(q),num(l.mat)?money(num(l.mat)):'',l.per||'',q*num(l.mat)?money(q*num(l.mat)):'',f2(num(l.hrs)),f2(q*num(l.hrs)),l.comments||'']});
+  const mk=1+num(bu.mark)/100;const m2=n=>'$'+n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const body=(bu.lines||[]).filter(l=>l.item||num(l.qty)).map(l=>{const q=num(l.qty);const um=num(l.mat)*mk;return [l.item||'',f2(q),um?m2(um):'',l.per||'',q*um?m2(q*um):'',f2(num(l.hrs)),f2(q*num(l.hrs)),l.comments||'']});
   doc.autoTable({startY:y,head:[['Item','Quantity','Material','Per','Extension','Labour','Lab ext.','Comments']],body,theme:'grid',
     styles:{fontSize:8.5,cellPadding:1.8,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:52},1:{halign:'right',cellWidth:16},2:{halign:'right',cellWidth:20},3:{cellWidth:12},4:{halign:'right',cellWidth:22},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{cellWidth:'auto'}},margin:{left:14,right:14}});
   y=doc.lastAutoTable.finalY+6;if(y>240){doc.addPage();y=20}
-  const tot=[['Material total','',money(X.sell.mat)],['Mark-up','',money(X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
+  const tot=[['Material','',money(X.sell.mat+X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
   doc.autoTable({startY:y,body:tot,foot:[['Total variation (ex GST)','',money(X.sell.total)]],theme:'plain',styles:{fontSize:9.5,cellPadding:1.6},
     columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},didParseCell:dt=>{if(dt.column.index===2)dt.cell.styles.halign='right'},margin:{left:W-14-150}});
   y=doc.lastAutoTable.finalY+8;doc.setFontSize(8);doc.setTextColor(90);doc.text('All prices exclude GST.',14,Math.min(y,285));
