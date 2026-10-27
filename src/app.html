@@ -56,6 +56,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .addproj{all:unset;cursor:pointer;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--accent);font-weight:600}
 .addproj:hover{background:color-mix(in srgb,var(--rail-ink) 10%,transparent)}
 .projsel{display:none}
+.pgroup.shut .nav{display:none}
+.pcaret{all:unset;cursor:pointer;width:22px;height:30px;display:grid;place-items:center;color:var(--rail-ink);font-size:11px;border-radius:5px;flex:0 0 22px}
+.pcaret:hover{background:color-mix(in srgb,var(--rail-ink) 12%,transparent)}
+.pcaret:focus-visible{outline:2px solid var(--accent)}
+.proj.cur .pn{color:var(--rail-hi)}
+.pgroup:not(.active) .proj{font-weight:500;opacity:.85}
+.pgroup.open:not(.active){background:color-mix(in srgb,var(--rail-ink) 3%,transparent)}
 .prow{display:flex;align-items:center;gap:2px;min-width:0}
 .prow .proj{flex:1;min-width:0}
 .pacts{display:none}
@@ -266,7 +273,8 @@ tr.sel td{background:var(--accent-soft)}
   .nav button{white-space:nowrap;padding:7px 10px}
   .nav button .n{display:none}
   .ptree{flex-direction:row;align-items:center;gap:8px}
-  .plabel,.addproj,.pgroup:not(.open),.pgroup.open .proj{display:none}
+  .plabel,.addproj,.pgroup:not(.active),.pgroup .prow{display:none}
+  .pgroup.shut .nav{display:flex!important}
   .pgroup.open{background:none;padding:0}
   .pgroup .nav{padding-left:0}
   .projsel{display:block;order:-1;background:var(--rail);color:var(--rail-hi);border:1px solid color-mix(in srgb,var(--rail-ink) 30%,transparent);border-radius:6px;padding:6px 8px;max-width:160px}
@@ -1203,19 +1211,22 @@ let rTimer=null;
 function scheduleRender(ms=60){clearTimeout(rTimer);rTimer=setTimeout(render,ms)}
 function projList(){const ids=new Set(['main',...Object.keys(PROJ)]);ids.add(PID);
   return [...ids].filter(id=>!(PROJ[id]&&PROJ[id].removed)).map(id=>({id,name:projName(id),created:PROJ[id]?.created||(id==='main'?1:Date.now())})).sort((a,b)=>a.created-b.created)}
+let PEXP;try{PEXP=JSON.parse(localStorage.getItem('ox_pexp')||'null')}catch(e){}if(!PEXP||typeof PEXP!=='object')PEXP={};
+function savePexp(){try{localStorage.setItem('ox_pexp',JSON.stringify(PEXP))}catch(e){}}
+const isOpenProj=id=>PEXP[id]!==undefined?PEXP[id]:id===PID;
 function renderChrome(){
-  const nav=(HOSTED&&window.__me?[...VIEWS_LIST,['team','Team & users']]:VIEWS_LIST).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" aria-current="${UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
+  const navFor=pid=>(HOSTED&&window.__me?[...VIEWS_LIST,['team','Team & users']]:VIEWS_LIST).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" data-pid="${pid}" aria-current="${pid===PID&&UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
   const list=projList();
   const one=list.length<2;
-  const headRow=x=>{const open=x.id===PID;
+  const headRow=x=>{const open=isOpenProj(x.id);
     if(UI.renaming===x.id)return `<div class="prow"><input class="prename" id="prename_${x.id}" data-pid="${x.id}" value="${esc(x.name)}" aria-label="Project name"><button class="pact" data-act="proj-rename-ok" data-v="${x.id}" title="Save name" aria-label="Save name">✓</button></div>`;
     if(UI.armed==='proj'+x.id)return `<div class="prow confirm"><span class="pn">Remove ${esc(x.name)}?</span><button class="pact danger" data-act="proj-remove" data-v="${x.id}">Remove</button><button class="pact" data-act="proj-cancel">Cancel</button></div>`;
-    return `<div class="prow"><button class="proj" data-act="proj" data-v="${x.id}" aria-expanded="${open}"><span class="caret">${open?'▾':'▸'}</span><span class="pn">${esc(x.name)}</span></button><span class="pacts"><button class="pact" data-act="proj-rename" data-v="${x.id}" title="Rename project" aria-label="Rename ${esc(x.name)}">✎</button>${one?'':`<button class="pact" data-act="proj-remove" data-v="${x.id}" title="Remove project" aria-label="Remove ${esc(x.name)}">✕</button>`}</span></div>`};
+    return `<div class="prow"><button class="pcaret" data-act="ptog" data-v="${x.id}" aria-expanded="${open}" aria-label="${open?'Minimise':'Expand'} ${esc(x.name)}" title="${open?'Minimise':'Expand'}">${open?'▾':'▸'}</button><button class="proj${x.id===PID?' cur':''}" data-act="proj" data-v="${x.id}"><span class="pn">${esc(x.name)}</span></button><span class="pacts"><button class="pact" data-act="proj-rename" data-v="${x.id}" title="Rename project" aria-label="Rename ${esc(x.name)}">✎</button>${one?'':`<button class="pact" data-act="proj-remove" data-v="${x.id}" title="Remove project" aria-label="Remove ${esc(x.name)}">✕</button>`}</span></div>`};
   const tree=document.getElementById('ptree');const keepRename=UI.renaming&&tree.querySelector('.prename');
   if(keepRename)return renderHeader();
-  tree.innerHTML=`<div class="plabel">Projects</div>`+list.map(x=>x.id===PID
-    ?`<div class="pgroup open">${headRow(x)}<nav class="nav">${nav}</nav></div>`
-    :`<div class="pgroup">${headRow(x)}</div>`).join('')+
+  tree.innerHTML=`<div class="plabel">Projects</div>`+list.map(x=>isOpenProj(x.id)
+    ?`<div class="pgroup open${x.id===PID?' active':''}">${headRow(x)}<nav class="nav">${navFor(x.id)}</nav></div>`
+    :`<div class="pgroup${x.id===PID?' active shut':''}">${headRow(x)}${x.id===PID?`<nav class="nav">${navFor(x.id)}</nav>`:''}</div>`).join('')+
     `<button class="addproj" data-act="add-proj">+ Add project</button>`+
     `<select class="projsel" id="projsel" aria-label="Project">${list.map(x=>`<option value="${x.id}"${x.id===PID?' selected':''}>${esc(x.name)}</option>`).join('')}<option value="__new">+ Add project</option></select>`;
   renderHeader();
@@ -1285,14 +1296,15 @@ document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
   if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge')UI.armed=null;
-  if(act==='proj'){switchProject(btn.dataset.v);return}
+  if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
   if(act==='proj-cancel'){UI.armed=null;renderChrome();return}
   if(act==='proj-remove'){const id=btn.dataset.v;if(UI.armed!=='proj'+id){UI.armed='proj'+id;renderChrome();setTimeout(()=>{if(UI.armed==='proj'+id){UI.armed=null;renderChrome()}},6000);return}
     UI.armed=null;removeProject(id);return}
   if(act==='add-proj'){addProject();return}
-  if(act==='nav'){UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
+  if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
+  if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
