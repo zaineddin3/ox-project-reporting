@@ -260,6 +260,17 @@ tr.pg-empty td{color:var(--muted)}
 .pg-bar{display:flex;align-items:center;gap:8px;min-width:120px}.pg-bar .bar{flex:1}.pg-bar .money{width:40px;text-align:right;font-size:12.5px}
 .pg-in{display:flex;align-items:center;gap:6px}.pg-in input.f{width:80px;flex:0 0 80px;border-color:var(--line)}.pg-in .pg-bar{flex:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.mstpl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.mscard{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.mscard:hover{border-color:var(--accent)}.mscard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mscard b{font-size:15px}.mscard span{font-size:13px;color:var(--muted);line-height:1.45}
+.chiptag{font-weight:500;font-size:11px;opacity:.7;margin-left:4px}
+.mstable th.msgrp{text-align:center;border-left:1px solid var(--line)}
+.mstable th.msgrp .f{text-align:center;font-weight:600}
+td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
+.msloc{display:flex;gap:4px;align-items:center}.msloc .f{min-width:70px}
+.mspaste{width:100%;font-family:var(--f-mono);font-size:12.5px;border-color:var(--line);resize:vertical}
+
 .chip{all:unset;cursor:pointer;padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-weight:600;font-size:13px}
 .chip:hover{border-color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
@@ -349,7 +360,7 @@ tr.sel td{background:var(--accent-soft)}
 const UNITS_RAW={"E": "0101:2,0102:2,0103:2,0104:3,0105:3,0106:3,0107:3,0108:3,0109:3,0201:2,0202:2,0203:2,0301:2,0302:2,0303:2,0304:2,0305:2,0306:2,0307:2,0308:2,0309:2,0310:2,0311:2,0401:2,0402:2,0403:2,0404:2,0405:2,0406:2,0407:2,0408:2,0409:2,0410:2,0411:2,0501:2,0502:2,0503:2,0504:1,0505:2,0506:2,0507:2,0508:2,0509:2,0510:2,0601:2,0602:2,0603:1,0604:2,0605:2,0606:2,0607:2,0608:2,0701:2,0702:2,0703:1,0704:2,0705:2,0706:2,0707:2,0708:2,0801:2,0802:2,0803:1,0804:2,0805:2,0806:2,0807:2,0808:2,0901:2,0902:2,0903:1,0904:2,0905:2,0906:2,0907:2,0908:2,1001:2,1002:2,1003:1,1004:2,1005:2,1006:2,1007:2,1008:2,1101:2,1102:2,1103:1,1104:2,1105:2,1106:2,1107:2,1108:2,1201:2,1202:2,1203:1,1204:2,1205:5,1206:2,1207:2,1208:2,1301:2,1302:2,1303:1,1304:2,1305:5,1306:2,1307:2,1308:2,1401:2,1402:2,1403:1,1404:2,1405:5,1406:2,1407:2,1408:2,1501:2,1502:2,1503:1,1504:2,1505:2,1506:2,1507:2,1508:2,1601:2,1602:2,1603:1,1604:2,1605:2,1606:2,1607:2,1608:2,1701:2,1702:2,1703:1,1704:2,1705:2,1706:2,1707:2,1708:2,1801:2,1802:2,1803:1,1804:2,1805:2,1806:2,1807:2,1808:2,1901:2,1902:2,1903:1,1904:2,1905:2,1906:2,1907:2,1908:2,2001:2,2002:2,2003:1,2004:2,2005:2,2006:2,2007:2,2008:2,2101:2,2102:2,2103:1,2104:2,2105:2,2106:2,2107:2,2108:2,2201:2,2202:2,2203:1,2204:2,2205:2,2206:2,2207:2,2208:2,2301:2,2302:2,2303:1,2304:2,2305:2,2306:2,2307:2,2308:2,2401:2,2402:2,2403:1,2404:2,2405:2,2406:2,2407:2,2408:2,2501:2,2502:2,2503:1,2504:2,2505:2,2506:2,2507:2,2508:2,2601:2,2602:2,2603:1,2604:2,2605:2,2606:2,2607:2,2608:2,2701:2,2702:2,2703:1,2704:2,2705:2,2706:2,2707:2,2708:2,2801:2,2802:2,2803:1,2804:2,2805:2,2806:2,2901:2,2902:2,2903:1,2904:2,2905:2,3001:2,3002:2,3003:1,3004:4,3101:2,3102:2,3103:1,3104:3,3105:4,3201:2,3202:2,3203:1,3204:3,3205:4,3301:2,3302:2,3303:1,3304:3,3305:4,3401:2,3402:2,3403:1,3404:3,3405:4,3501:2,3502:2,3503:1,3504:3,3505:4,3601:2,3602:2,3603:1,3604:3,3605:4,3701:2,3702:2,3703:1,3704:3,3705:4,3801:2,3802:2,3803:1,3804:3,3805:4,3901:2,3902:2,3903:1,3904:3,3905:4", "F": "0312:2,0313:2,0314:2,0315:2,0316:2,0412:2,0413:2,0414:2,0415:2,0416:2,0511:2,0512:2,0513:2,0514:2,0609:2,0610:2,0611:2,0612:2,0613:2,0614:1,0615:2,0616:2,0709:2,0710:2,0711:2,0712:2,0713:2,0714:1,0715:2,0716:2,0809:2,0810:2,0811:2,0812:2,0813:1,0814:1,0815:2,0816:2,0909:2,0910:2,0911:2,0912:2,0913:2,0914:1,0915:2,0916:2,1009:2,1010:2,1011:2,1012:2,1013:2,1014:1,1015:2,1016:1,1109:2,1110:2,1111:2,1112:2,1113:2,1114:1,1115:2,1116:2,1209:2,1210:2,1211:2,1212:2,1213:2,1214:1,1215:2,1216:2,1309:2,1310:2,1311:2,1312:2,1313:2,1314:1,1315:2,1316:2,1409:2,1410:2,1411:2,1412:2,1413:2,1414:1,1415:2,1416:2,1509:2,1510:2,1511:2,1512:2,1513:2,1514:1,1515:2,1516:2,1609:2,1610:2,1611:2,1612:2,1613:2,1614:1,1615:2,1616:1,1709:2,1710:2,1711:2,1712:2,1713:2,1714:1,1715:2,1716:2,1809:2,1810:2,1811:2,1812:2,1813:2,1814:1,1815:2,1816:2,1909:2,1910:2,1911:2,1912:2,1913:2,1914:1,1915:2,1916:2,2009:2,2010:2,2011:2,2012:2,2013:2,2014:1,2015:2,2016:2,2109:2,2110:2,2111:2,2112:2,2113:2,2114:1,2115:2,2116:2,2209:2,2210:2,2211:2,2212:2,2213:2,2214:1,2215:2,2216:2,2309:2,2310:2,2311:1,2312:2,2313:2,2409:2,2410:2,2411:1,2412:2,2413:2,2509:2,2510:2,2511:3,2512:1,2513:2,2514:2,2609:2,2610:2,2611:3,2612:1,2613:2,2614:2,2709:2,2710:2,2711:3,2712:1,2713:2,2714:2,2809:2,2810:2,2811:3,2812:1,2813:2,2814:2,2906:2,2907:2,2908:3,2909:1,2910:2,2911:2,3006:2,3007:2,3008:3,3009:1,3010:2,3011:2,3106:2,3107:2,3108:3,3109:1,3110:2,3111:2,3206:2,3207:2,3208:3,3209:1,3210:2,3211:2"};
 const VIEWS_LIST=[
   ['overview','Overview'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
-  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Bill of Quantity']
+  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Bill of Quantity'],['msod','MSOD']
 ];
 const TASKS=["Temporary works","Deck work","Rough in","Fit off","Common containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
 const TASK_IDS=TASKS.map((_,i)=>'t'+String(i+1).padStart(2,'0'));
@@ -393,7 +404,7 @@ const inp=(b,val,o={})=>`<input class="f${o.num?' num':''}" id="${esc(b.replace(
 const sel=(b,val,opts,o={})=>`<select class="f${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" aria-label="${esc(o.label||'')}">${opts.map(x=>{const [v,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(t)}</option>`}).join('')}</select>`;
 
 /* ---------- state ---------- */
-const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},tasks:{},apt:{},claim:null};
+const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},tasks:{},apt:{},claim:null};
 const UI={view:'overview',bld:'E',level:'all',q:'',task:'t01',open:{},armed:null,bulkStage:'',bulkPct:'100',setup:false};
 const crewRows=()=>S.crew.rows||CREW_DEFAULT;
 function unitSections(bld){
@@ -446,7 +457,7 @@ function dataFor(p){
   const [c,id]=p.split('/');
   if(c==='projects')return PROJ[id];
   if(c==='project'){if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
-  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];
+  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];
   if(c==='tasks')return taskDoc(id);
 }
 function persist(p){
@@ -472,7 +483,7 @@ async function flush(p){
     inflight[p]--;return;
   }
   inflight[p]--;
-  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/'))applyDoc(p,latest[p]);
+  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/')&&!p.startsWith('msod/'))applyDoc(p,latest[p]);
   if(!Object.keys(pending).length&&!Object.values(inflight).some(Boolean))setSave('saved');
   scheduleRender();
 }
@@ -488,7 +499,7 @@ function applyDoc(p,data){
   else if(c==='tasks'){S.tasks[id]={items:d.items||[],sections:d.sections||[]}}
 }
 function onColl(name,snap){
-  const mapKey={variations:'vars',orders:'orders',procurement:'procs'}[name];
+  const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods'}[name];
   const seen=new Set();
   const next={};
   for(const d of snap.docs){
@@ -1342,6 +1353,184 @@ V.labour=()=>{
   </tbody><tfoot><tr><td colspan="5">Blended crew rate</td><td class="n money">${hrs(rows.reduce((a,r)=>a+num(r.qty)*num(r.hrs),0))}</td><td class="n money">${money(crewRate())}/hr</td></tr></tfoot></table></div></div></div>`;
 };
 
+/* ---------- MSOD (material schedule of delivery) ---------- */
+const MS_COLS={
+  general:[['type','Type',120],['desc','Description',240],['details','Details',160],['cat','Cat number',120]],
+  submain:[['from','From',110],['to','To',110],['cable','Cable ID',100],['n','No. of cables',80,1],['config','Config',90],['size','Cable size',90],['cond','Conductor type',100],['ins','Insulation',90],['run','Run length (m)',90,1]]
+};
+const MS_LABEL={general:'General materials',submain:'Submains'};
+const MS_APPR=[['pm','Project Manager / Supervisor'],['hse','HSE Manager'],['est','Estimating Manager'],['ops','Operations Manager'],['div','Division Manager'],['gm','General Manager']];
+const msItem=()=>({id:uid('i'),q:{},r:[]});
+function msNew(type){
+  const n=type==='submain'?4:6;
+  return {created:Date.now(),type,name:'',title:'',suppliers:Array(n).fill(''),
+    locs:[1,2,3].map(i=>({id:uid('L'),name:'PS'+i})),items:Array.from({length:5},msItem),
+    hdr:{jobName:PROJ[PID]?.name||S.info.name||'',jobNo:S.info.job||''},appr:{},dockets:[],proposed:''};
+}
+const msIds=()=>Object.keys(S.msods).sort((a,b)=>(S.msods[a].created||0)-(S.msods[b].created||0));
+const msName=m=>{if(m.name)return m.name;const same=msIds().map(x=>S.msods[x]).filter(x=>x.type===m.type);const k=same.indexOf(m);return (MS_LABEL[m.type]||'MSOD')+' MSOD'+(k>=0?' '+(k+1):'')};
+function msDesc(m,it){
+  if(m.type==='submain'){const a=[it.cable,[it.from,it.to].filter(Boolean).join(' → '),[it.n?it.n+' ×':'',it.size,it.config,it.cond,it.ins].filter(Boolean).join(' ')].filter(Boolean);return a.join(' · ')}
+  return [it.type,it.desc,it.details].filter(Boolean).join(' – ');
+}
+const msCat=(m,it)=>m.type==='submain'?(it.cable||''):(it.cat||'');
+function msQty(m,it){
+  const has=m.locs.some(l=>it.q&&it.q[l.id]!==undefined&&it.q[l.id]!=='');
+  if(has)return {qty:m.locs.reduce((a,l)=>a+num(it.q[l.id]),0),src:'takeoff'};
+  if(m.type==='submain'&&it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!=='')return {qty:num(it.n)*num(it.run),src:'cable'};
+  return {qty:num(it.qty),src:'manual'};
+}
+function msLow(m,it){let lo=0;for(let i=0;i<m.suppliers.length;i++){const r=num((it.r||[])[i]);if(r>0&&(!lo||r<lo))lo=r}return lo}
+function msCalc(m){
+  const ns=m.suppliers.length;const sup=Array(ns).fill(0);let sel=0,bud=0,val=0,dval=0,qty=0,dq=0;
+  const rows=m.items.map(it=>{const {qty:q,src}=msQty(m,it);const lo=msLow(m,it);const explicit=it.sel!==undefined&&it.sel!==''&&it.sel!==null;const rate=explicit?num(it.sel):lo;
+    for(let i=0;i<ns;i++)sup[i]+=q*num((it.r||[])[i]);
+    let del=0;for(const d of m.dockets)del+=num(d.q?.[it.id]);
+    const x={it,q,src,lo,rate,explicit,total:q*rate,bud:q*num(it.budget),del,bal:q-del};
+    sel+=x.total;bud+=x.bud;dval+=del*rate;qty+=q;dq+=Math.min(del,q);return x});
+  const proposed=m.proposed!==''&&m.proposed!=null?num(m.proposed):sel;
+  return {rows,sup,sel,bud,proposed,gain:bud-proposed,gp:bud?(bud-proposed)/bud:0,dval,pctDel:sel?dval/sel:(qty?dq/qty:0)};
+}
+function msDelivered(m,it,upto){let s=0;for(let k=0;k<upto;k++)s+=num(m.dockets[k].q?.[it.id]);return s}
+
+V.msod=()=>{
+  const ids=msIds();if(!ids.includes(UI.ms))UI.ms=ids[0]||'';
+  const id=UI.ms;const m=S.msods[id];
+  const chooser=`<div class="panel"><h3>Choose an MSOD template</h3><p class="hint" style="margin:-6px 0 12px">Each template matches one of your MSOD workbooks.</p>
+    <div class="mstpl"><button class="mscard" data-act="ms-new" data-v="general"><b>General materials</b><span>Item, type, description, details and cat number. Six supplier quotes. Based on <i>OX – PROJXX – MSOD</i>.</span></button>
+    <button class="mscard" data-act="ms-new" data-v="submain"><b>Submains</b><span>From, to, cable ID, number of cables, config, size, conductor, insulation and run length. Four supplier quotes. Based on <i>MOSD Blank Submain</i>.</span></button></div>
+    ${ids.length?'<div style="margin-top:12px"><button class="btn ghost" data-act="ms-newpick">Cancel</button></div>':''}</div>`;
+  if(!m)return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.')}${chooser}</div>`;
+  const C=msCalc(m);const tab=UI.mst||'items';const armed=UI.armed==='msod'+id;
+  const chips=`<div class="chips" role="group" aria-label="MSOD">${ids.map((x,i)=>`<button class="chip" data-act="ms-pick" data-v="${x}" aria-pressed="${x===id}">${esc(msName(S.msods[x],i))} <span class="chiptag">${MS_LABEL[S.msods[x].type]||''}</span></button>`).join('')}<button class="chip add" data-act="ms-newpick">+ New MSOD</button></div>`;
+  const tabs=[['details','Details'],['items','Item schedule'],['takeoff','Take off'],['deliv','Deliveries'],['sched','Delivery schedule']];
+  const body=tab==='details'?msDetails(id,m):tab==='takeoff'?msTakeoff(id,m,C):tab==='deliv'?msDeliveries(id,m,C):tab==='sched'?msSchedule(id,m,C):msItems(id,m,C);
+  return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.',`<button class="btn ${armed?'armed':''}" data-act="del" data-kind="msod" data-id="${id}" data-x="">${armed?'Confirm: remove '+esc(msName(m,ids.indexOf(id))):'Remove MSOD'}</button>`)}
+  ${chips}${UI.msNew?chooser:''}
+  <div class="kpis"><div class="kpi"><span class="l">${esc(MS_LABEL[m.type]||'')}</span><span class="v">${m.items.length} items</span><span class="d">${esc(m.title||'Add what this MSOD is for under Details')}</span></div>
+    <div class="kpi"><span class="l">Order value</span><span class="v">${money(C.sel)}</span><span class="d">Qty × selected rate</span></div>
+    <div class="kpi"><span class="l">Budget</span><span class="v">${money(C.bud)}</span><span class="d ${C.gain<0?'neg':''}">${C.bud?(C.gain<0?money(-C.gain)+' over':money(C.gain)+' under')+' ('+pct(C.gp)+')':'Add budget rates'}</span></div>
+    <div class="kpi"><span class="l">Delivered</span><span class="v">${pct(C.pctDel)}</span><span class="d">${money(C.dval)} across ${m.dockets.length} deliver${m.dockets.length===1?'y':'ies'}</span></div></div>
+  <div class="seg" role="group" aria-label="MSOD section">${tabs.map(([k,l])=>`<button data-act="ms-tab" data-v="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>
+  ${body}</div>`;
+};
+function msDetails(id,m){
+  const h=m.hdr||{};const k='msh|'+id+'|';
+  const F=(f,l,o={})=>`<label${o.wide?' class="wide"':''}>${l}${inp(k+f,h[f]||'',{label:l,type:o.type})}</label>`;
+  return `<div class="panel"><h3>MSOD</h3><div class="form">
+    <label>Name${inp('ms|'+id+'|name',m.name||'',{label:'MSOD name',ph:msName(m)})}</label>
+    <label class="wide">Project and what this MSOD is used for${inp('ms|'+id+'|title',m.title||'',{label:'What this MSOD is for',ph:'e.g. Arncliffe apartments submains'})}</label></div></div>
+  <div class="panel"><h3>Delivery request header</h3><p class="hint" style="margin:-6px 0 12px">Printed at the top of every delivery request for this MSOD.</p><div class="form">
+    ${F('supplier','Supplier')}${F('attention','Attention')}${F('phone','Phone no.')}${F('supplierRef','Supplier ref')}${F('orderNo','Order no.')}
+    ${F('jobName','Job name')}${F('jobNo','Job no.')}${F('contact','Site contact')}${F('address','Delivery address',{wide:1})}</div></div>`;
+}
+function msItems(id,m,C){
+  const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;
+  const fillOpts=[['low','Lowest quote'],...m.suppliers.map((s,i)=>[String(i),s||'Supplier '+(i+1)])];
+  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><span style="flex:1"></span>
+    <label class="hint">Fill selected rates from ${`<select class="f" style="width:auto;border-color:var(--line)" data-ui="msFill" aria-label="Fill selected rates from">${fillOpts.map(([v,t])=>`<option value="${v}"${(UI.msFill||'low')===v?' selected':''}>${esc(t)}</option>`).join('')}</select>`}</label><button class="btn" data-act="ms-selfill">Apply</button></div>`;
+  const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
+    <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
+    <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
+  const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
+    const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='takeoff'?'from take off':'cables × run'}</span>`;
+    return `<tr><td class="hint">${i+1}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
+      <td class="n" style="min-width:90px">${qcell}</td>
+      <td style="min-width:100px">${inp(k+'sel',it.sel??'',{num:1,label:'Selected rate line '+(i+1),ph:x.lo?String(x.lo):''})}</td><td class="n money"><b>${x.total?money2(x.total):'—'}</b></td>
+      ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;return `<td style="min-width:90px" class="${best?'msbest':''}">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:(s||'Supplier '+(si+1))+' rate line '+(i+1)})}</td><td class="n money hint">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
+      <td class="n money">${x.lo?money2(x.lo):'—'}</td><td style="min-width:90px">${inp(k+'budget',it.budget||'',{num:1,label:'Budget rate line '+(i+1)})}</td><td class="n money">${x.bud?money2(x.bud):'—'}</td>
+      <td>${delBtn('msi',id,String(i))}</td></tr>`}).join('');
+  const span=cols.length+2;
+  const table=`<div class="tw tall"><table class="mstable"><thead>
+    <tr><th colspan="${span}"></th><th colspan="2" class="msgrp">Selected</th>${m.suppliers.map((s,si)=>`<th colspan="2" class="msgrp">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}</th>`).join('')}<th></th><th colspan="2" class="msgrp">Budget</th><th></th></tr>
+    <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th><th class="n">Rate</th><th class="n">Total</th>${m.suppliers.map(()=>'<th class="n">Rate</th><th class="n">Price</th>').join('')}<th class="n">Lowest rate</th><th class="n">Rate</th><th class="n">Total</th><th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="${span+2*ns+7}" class="hint">No lines yet.</td></tr>`}</tbody>
+    <tfoot><tr><td colspan="${span+1}">Total</td><td class="n money">${money2(C.sel)}</td>${C.sup.map(v=>`<td></td><td class="n money">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td><td class="n money">${money2(C.bud)}</td><td></td></tr></tfoot></table></div>`;
+  const a=m.appr||{};const ka='msa|'+id+'|';
+  const summary=`<div class="grid2"><div class="panel"><h3>Budget vs order</h3><table class="kv"><tbody>
+    <tr><td>Budget</td><td class="n money">${money2(C.bud)}</td></tr>
+    <tr><td>Proposed order value</td><td style="width:160px">${inp('ms|'+id+'|proposed',m.proposed??'',{num:1,label:'Proposed order value',ph:String(Math.round(C.sel*100)/100)})}</td></tr>
+    <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${money2(C.gain)}</b></td></tr>
+    <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud?pct(C.gp):'—'}</td></tr></tbody></table>
+    <p class="hint" style="margin-top:8px">The proposed order value defaults to the selected total. A blank selected rate uses the lowest quote.</p></div>
+    <div class="panel"><h3>Evaluation & approvals</h3><div class="form">
+    <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
+    ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
+    <label class="wide">Comments${inp(ka+'comments',a.comments||'',{label:'Comments'})}</label></div></div></div>`;
+  return `<div class="panel" style="padding:12px 14px">${tool}</div>${paste}${table}${summary}`;
+}
+function msTakeoff(id,m,C){
+  const rows=C.rows.map((x,i)=>{const it=x.it;
+    return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">Describe this line in the item schedule</span>'}</td>
+    ${m.type==='submain'?`<td class="n money hint">${it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!==''?(num(it.n)*num(it.run)).toLocaleString('en-AU',{maximumFractionDigits:2}):'—'}</td>`:''}
+    ${m.locs.map(l=>`<td style="min-width:80px">${inp('msq|'+id+'|'+i+'|'+l.id,it.q?.[l.id]??'',{num:1,label:(l.name||'Location')+' qty line '+(i+1)})}</td>`).join('')}
+    <td class="n money"><b>${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
+  return `<div class="panel" style="padding:12px 14px"><div class="toolbar"><p class="hint" style="margin:0;flex:1">Enter quantities by location. When a line has take-off quantities, their total becomes its qty in the item schedule${m.type==='submain'?'. Otherwise it uses number of cables × run length':''}.</p><button class="btn primary" data-act="ms-add-loc">+ Add location</button></div></div>
+  <div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th>${m.type==='submain'?'<th class="n">Cables × run (m)</th>':''}${m.locs.map((l,li)=>`<th><div class="msloc">${inp('msloc|'+id+'|'+li,l.name,{label:'Location '+(li+1)+' name',ph:'Location'})}${delBtn('msloc',id,String(li))}</div></th>`).join('')}<th class="n">Total qty</th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="${m.locs.length+3}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
+  <tfoot><tr><td colspan="${m.type==='submain'?3:2}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>a+num(it.q?.[l.id]),0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
+}
+function msDeliveries(id,m,C){
+  const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
+  const chips=`<div class="chips" role="group" aria-label="Delivery request">${m.dockets.map((d,k)=>`<button class="chip" data-act="ms-dk" data-v="${k}" aria-pressed="${k===di}">MOSD ${k+1}${d.delivery?' · '+fmtDate(d.delivery):''}</button>`).join('')}<button class="chip add" data-act="ms-add-dk">+ New delivery request</button></div>`;
+  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it.</div>`;
+  const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
+  let tq=0;
+  const rows=C.rows.map((x,i)=>{const it=x.it;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
+    if(out&&!(x.q-prev>0)&&!num(th))return '';
+    return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
+    <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
+  return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button>${delBtn('msdk',id,String(di),'Remove request')}</div></div>
+    <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label><label class="wide">Notes${inp(k+'notes',d.notes||'',{label:'Notes'})}</label></div></div>
+  <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
+  <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="7" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
+}
+function msSchedule(id,m,C){
+  const D=m.dockets;let tv=0,dv=0;
+  const rows=C.rows.map((x,i)=>{const it=x.it;tv+=x.total;dv+=x.del*x.rate;
+    return `<tr><td class="hint">${i+1}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
+    <td class="n money">${x.rate?money2(x.rate):'—'}</td><td class="n money">${money2(x.total)}</td><td class="n money">${money2(x.del*x.rate)}</td><td class="n money">${money2(x.bal*x.rate)}</td>
+    ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
+  return `<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price</th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
+  <tbody>${rows}</tbody><tfoot><tr><td colspan="6">Total</td><td class="n money">${money2(tv)}</td><td class="n money">${money2(dv)}</td><td class="n money">${money2(tv-dv)}</td>${D.map(d=>`<td class="n money">${money2(C.rows.reduce((a,x)=>a+num(d.q?.[x.it.id])*x.rate,0))}</td>`).join('')}</tr></tfoot></table></div>`;
+}
+async function msPdf(id,di){
+  const m=S.msods[id];const d=m&&m.dockets[di];if(!d)return;
+  if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;const h={...(m.hdr||{})};h.jobName=h.jobName||PROJ[PID]?.name||S.info.name||'';h.jobNo=h.jobNo||S.info.job||'';
+  pdfHeader(doc,'Material delivery request');
+  doc.setFontSize(9.5);
+  const L=[['Supplier',h.supplier],['Attention',h.attention],['Supplier ref',h.supplierRef],['Order no.',h.orderNo],['Job name',h.jobName],['Delivery address',h.address],['Site contact',h.contact]];
+  const R=[['Date',fmtDate(d.date)||fmtDate(todayISO())],['Phone no.',h.phone],['Request no.',String(di+1)],['Job no.',h.jobNo],['Delivery date',fmtDate(d.delivery)]];
+  let y=55;L.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',14,y+i*5.5);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(b||'—'),80)[0],48,y+i*5.5)});
+  R.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',128,y+i*5.5);doc.setFont('helvetica','normal');doc.text(String(b||'—'),158,y+i*5.5)});
+  y+=L.length*5.5+2;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=6}
+  if(d.notes){doc.setFont('helvetica','normal');const t=doc.splitTextToSize('Notes: '+d.notes,W-28);doc.text(t,14,y);y+=t.length*4.6+2}
+  const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
+  const C=msCalc(m);
+  const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.q||r.th||msDesc(m,r.x.it))
+    .map(({i,x,prev,th})=>[String(i+1),msDesc(m,x.it),msCat(m,x.it),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)]);
+  doc.autoTable({startY:y+2,head:[['Item','Description',m.type==='submain'?'Cable ID':'Cat number','Original order','Delivered to date','This delivery','Balance outstanding']],body,theme:'grid',
+    styles:{fontSize:8.5,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:11},1:{cellWidth:'auto'},2:{cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:19},5:{halign:'right',cellWidth:18,fontStyle:'bold'},6:{halign:'right',cellWidth:20}},
+    didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=3)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
+  y=doc.lastAutoTable.finalY+14;if(y>265){doc.addPage();y=30}
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Received by: ______________________________',14,y);doc.text('Date: ______________',140,y);
+  const blob=doc.output('blob');
+  const name=`${(h.jobNo||'MSOD').replace(/[^\w.-]+/g,'_')} ${msName(m).replace(/[^\w.-]+/g,'_')} - MOSD ${di+1}.pdf`;
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
+}
+function msPasteRows(id){
+  const m=S.msods[id];if(!m)return 0;const cols=(MS_COLS[m.type]||MS_COLS.general).map(c=>c[0]);if(m.type!=='submain')cols.push('qty');
+  const blank=it=>!cols.some(c=>it[c])&&!Object.values(it.q||{}).some(v=>v!=='')&&!(it.r||[]).some(v=>v!=='');
+  const lines=String(UI.msPasteTxt||'').split(/\r?\n/).filter(l=>l.trim());let n=0;
+  for(const l of lines){const cells=l.split('\t');const it=msItem();cols.forEach((c,i)=>{const v=(cells[i]||'').trim();if(v)it[c]=v});
+    if(cols.some(c=>it[c])){if(!n)m.items=m.items.filter(x=>!blank(x));m.items.push(it);n++}}
+  return n;
+}
+
 /* ---------- rendering ---------- */
 const viewEl=document.getElementById('view');
 let rTimer=null;
@@ -1398,6 +1587,16 @@ function apply(parts,v){
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
   if(kind==='inv'){const iv=S.orders[a]?.inv?.[+b];if(iv&&((c==='amount'&&iv.amountFromPdf)||(c==='ref'&&iv.refFromPdf)))return;const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
+  if(kind.startsWith('ms')){const m=S.msods[a];if(!m)return;
+    if(kind==='ms')m[b]=v;else if(kind==='msh'){m.hdr=m.hdr||{};m.hdr[b]=v}else if(kind==='msa'){m.appr=m.appr||{};m.appr[b]=v}
+    else if(kind==='msi'){const it=m.items[+b];if(!it)return;it[c]=v}
+    else if(kind==='msq'){const it=m.items[+b];if(!it)return;it.q=it.q||{};it.q[c]=v}
+    else if(kind==='msr'){const it=m.items[+b];if(!it)return;it.r=it.r||[];while(it.r.length<m.suppliers.length)it.r.push('');it.r[+c]=v}
+    else if(kind==='mssup')m.suppliers[+b]=v;else if(kind==='msloc'){if(m.locs[+b])m.locs[+b].name=v}
+    else if(kind==='msdk'){const d=m.dockets[+b];if(d)d[c]=v}
+    else if(kind==='msdq'){const d=m.dockets[+b];if(!d)return;d.q=d.q||{};d.q[c]=v}
+    else return;
+    persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
   if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
   if(kind==='pc'){claimDoc().hdr[a]=v;persist('project/claim');return}
@@ -1433,6 +1632,7 @@ async function uploadMarkups(id,files){
 }
 viewEl.addEventListener('input',e=>{
   const t=e.target;
+  if(t.dataset.uiCheck){UI[t.dataset.uiCheck]=t.checked;scheduleRender(0);return}
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
   const b=t.dataset.b;if(!b)return;
   apply(b.split('|'),t.type==='checkbox'?t.checked:t.value);
@@ -1453,6 +1653,21 @@ document.addEventListener('click',async e=>{
   if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
+  if(act==='ms-pick'){UI.ms=btn.dataset.v;UI.msd=null;UI.msNew=false;render();return}
+  if(act==='ms-newpick'){UI.msNew=!UI.msNew;render();return}
+  if(act==='ms-new'){const id=uid('m');S.msods[id]=msNew(btn.dataset.v);UI.ms=id;UI.msNew=false;UI.mst='details';UI.msd=null;persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('ms_'+id+'_name');if(el)el.focus()},60);return}
+  if(act==='ms-tab'){UI.mst=btn.dataset.v;render();return}
+  if(act==='ms-dk'){UI.msd=+btn.dataset.v;render();return}
+  if(act==='ms-paste'){UI.msPaste=!UI.msPaste;render();if(UI.msPaste)setTimeout(()=>{const el=document.getElementById('ms_paste');if(el)el.focus()},60);return}
+  if(act.startsWith('ms-')){const id=UI.ms;const m=S.msods[id];if(!m)return;
+    if(act==='ms-add-line'){m.items.push(msItem());persist('msod/'+id);render();setTimeout(()=>{const f=(MS_COLS[m.type]||MS_COLS.general)[0][0];const el=document.getElementById('msi_'+id+'_'+(m.items.length-1)+'_'+f);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+    if(act==='ms-paste-ok'){const n=msPasteRows(id);if(n){UI.msPaste=false;UI.msPasteTxt='';persist('msod/'+id)}render();return}
+    if(act==='ms-add-loc'){m.locs.push({id:uid('L'),name:'PS'+(m.locs.length+1)});persist('msod/'+id);render();return}
+    if(act==='ms-add-dk'){m.dockets.push({id:uid('d'),date:todayISO(),delivery:'',q:{}});UI.msd=m.dockets.length-1;persist('msod/'+id);render();return}
+    if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
+    if(act==='ms-pdf'){msPdf(id,UI.msd);return}
+    if(act==='ms-selfill'){const src=UI.msFill||'low';for(const it of m.items){const r=src==='low'?msLow(m,it):num((it.r||[])[+src]);if(r>0)it.sel=String(r)}persist('msod/'+id);render();return}
+  }
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
   if(act==='add-sec'){const t=btn.dataset.id;const d=aptDoc(t);d.sections.push({id:uid('S'),name:'',lines:[newLine()]});structDirty.add(t);UI.level='all';UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tsec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='add-line'){const t=btn.dataset.id,si=+btn.dataset.s;const d=aptDoc(t);d.sections[si].lines.push(newLine());structDirty.add(t);UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tline_'+t+'_'+si+'_'+(d.sections[si].lines.length-1)+'_name');if(el)el.focus()},60);return}
@@ -1541,6 +1756,10 @@ document.addEventListener('click',async e=>{
     else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
     else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
     else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
+    else if(kind==='msod'){delete S.msods[id];removeDoc('msod/'+id);UI.ms='';UI.msd=null}
+    else if(kind==='msi'){const m=S.msods[id];if(m){const it=m.items.splice(+x,1)[0];if(it)for(const d of m.dockets)if(d.q)delete d.q[it.id];persist('msod/'+id)}}
+    else if(kind==='msloc'){const m=S.msods[id];if(m){const l=m.locs.splice(+x,1)[0];if(l)for(const it of m.items)if(it.q)delete it.q[l.id];persist('msod/'+id)}}
+    else if(kind==='msdk'){const m=S.msods[id];if(m){m.dockets.splice(+x,1);UI.msd=null;persist('msod/'+id)}}
     else if(kind==='invl'){const [j,li]=x.split('.').map(Number);const iv=S.orders[id]?.inv?.[j];if(iv&&iv.lines){iv.lines.splice(li,1);persist('orders/'+id)}}
     else if(kind==='inv'){const f=S.orders[id].inv[+x]?.invFile;if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{});S.orders[id].inv.splice(+x,1);persist('orders/'+id)}
     else if(kind==='isub'){const d=ensureTask(id);const [j,q]=x.split('.').map(Number);const it=d.items[j];if(it&&it.subs){it.subs.splice(q,1);if(!it.subs.length)delete it.subs}persist('tasks/'+id)}
@@ -1563,12 +1782,12 @@ document.addEventListener('click',async e=>{
 
 /* ---------- projects ---------- */
 let unsubs=[];
-function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},tasks:{},apt:{},claim:null})}
+function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},tasks:{},apt:{},claim:null})}
 async function flushAll(){const keys=Object.keys(pending);await Promise.all(keys.map(k=>{clearTimeout(pending[k]);return flush(k)}))}
 function subscribe(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
   if(!db)return;const err=e=>{console.error(e)};
-  for(const name of ['project','variations','orders','procurement','tasks','apartments'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
+  for(const name of ['project','variations','orders','procurement','msod','tasks','apartments'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
 }
 async function switchProject(id){
   if(id===PID)return;
