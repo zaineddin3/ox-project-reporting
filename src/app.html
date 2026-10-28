@@ -1613,18 +1613,26 @@ function withLinked(x){if(x.lk)return x.lk;const c=CALC_LIB.cats[x.catId];const 
   let hrs=0,n=0;const parts=[];for(const k in rows){const r=rows[k];if(!r[8])continue;const v=q(k);if(v){const u=num(r[6])*(num(r[7])||1);hrs+=v*u;n++;parts.push({code:r[1],desc:r[2],qty:Math.round(v*1e4)/1e4,unit:u,hrs:Math.round(v*u*1e4)/1e4,lib:Math.round(num(r[4])*(1-num(r[5]))*1e4)/1e4})}}
   return x.lk={hrs,n,parts}}
 function partsMat(l){return (l.hrsParts||[]).reduce((a,x)=>a+num(x.qty)*num(x.mat),0)}
-function vpartsRow(l,id,li){const P=l.hrsParts;const tot=P.reduce((a,x)=>a+num(x.hrs),0);const mt=partsMat(l);const changed=l.hrsPick!==undefined&&String(l.hrs)!==String(l.hrsPick);const ro=id==null;
-  return `<tr class="vparts"><td></td><td colspan="10"><div class="vparts-box"><table><thead><tr><th>What’s in this line (per unit)</th><th>Code</th><th class="n">Qty</th><th class="n">Hrs each</th><th class="n">Hrs</th><th class="n">Material $ each</th><th class="n">Material $</th></tr></thead><tbody>
-  ${P.map((x,pi)=>`<tr${x.main?' class="vmain"':''}><td>${x.main?'<b>'+esc(x.desc)+'</b>':'<span class="hint">↳</span> '+esc(x.desc)}</td><td class="mono hint">${esc(x.code)}</td><td class="n money">${fmtH(x.qty)}</td><td class="n money">${fmtH(x.unit)}</td><td class="n money">${fmtH(x.hrs)}</td>
-    <td style="width:110px">${ro?`<span class="money">${x.mat!==undefined&&x.mat!==''?money2(num(x.mat)):'—'}</span>`:`<div class="cur">${inp('vpart|'+id+'|'+li+'|'+pi,x.mat??'',{num:1,label:'Material each for '+x.desc,ph:x.lib?String(x.lib):'0'})}</div>`}</td><td class="n money">${num(x.mat)?money2(num(x.qty)*num(x.mat)):''}</td></tr>`).join('')}
-  </tbody><tfoot><tr><td colspan="4">Per unit</td><td class="n money">${fmtH(tot)} hrs</td><td></td><td class="n money">${money2(mt)}</td></tr></tfoot></table>
-  <p class="hint" style="margin:6px 0 0">Material you enter here adds up into this line’s Material. Greyed figures are the calculator’s library prices, for reference.${changed?' Labour hrs on this line have been changed by hand since the item was picked.':''}</p></div></td></tr>`}
+function partsRecalc(l){const P=l.hrsParts||[];let h=0;for(const x of P){x.hrs=Math.round(num(x.qty)*num(x.unit)*1e4)/1e4;h+=x.hrs}
+  l.hrs=String(Math.round(h*1e4)/1e4);l.hrsPick=l.hrs;const anyM=P.some(z=>z.mat!==undefined&&z.mat!=='');
+  if(anyM){l.mat=String(Math.round(partsMat(l)*1e4)/1e4);l.matFromParts=true}else if(l.matFromParts){l.mat='';delete l.matFromParts}
+  const m=P.find(z=>z.main)||P[0];l.hrsSrc=P.length?(m?m.desc+(m.code?' ('+m.code+')':''):'')+(P.length>1?' + '+(P.length-1)+' more':''):'';if(!P.length){delete l.hrsParts;l.hrsSrc=''}}
+function vpartsRow(l,id,li){const P=l.hrsParts;const tot=P.reduce((a,x)=>a+num(x.hrs),0);const mt=partsMat(l);const changed=l.hrsPick!==undefined&&String(l.hrs)!==String(l.hrsPick);const ro=id==null;const kp=pi=>'|'+id+'|'+li+'|'+pi;
+  return `<tr class="vparts"><td></td><td colspan="10"><div class="vparts-box"><table><thead><tr><th>What’s in this line (per unit)</th><th>Code</th><th class="n">Qty</th><th class="n">Hrs each</th><th class="n">Hrs</th><th class="n">Material $ each</th><th class="n">Material $</th>${ro?'':'<th></th>'}</tr></thead><tbody>
+  ${P.map((x,pi)=>`<tr${x.main?' class="vmain"':''}><td>${!ro&&x.custom?inp('vpartd'+kp(pi),x.desc||'',{label:'Item description',ph:'Item description'}):(x.main?'<b>'+esc(x.desc)+'</b>':'<span class="hint">↳</span> '+esc(x.desc))}</td><td class="mono hint">${esc(x.code||'')}</td>
+    <td class="n" style="width:70px">${ro?`<span class="money">${fmtH(x.qty)}</span>`:inp('vpartq'+kp(pi),x.qty,{num:1,label:'Qty for '+(x.desc||'item'),ph:'1'})}</td>
+    <td class="n" style="width:80px">${!ro&&x.custom?inp('vpartu'+kp(pi),x.unit??'',{num:1,label:'Hours each',ph:'0'}):`<span class="money">${fmtH(x.unit)}</span>`}</td><td class="n money">${fmtH(x.hrs)}</td>
+    <td style="width:110px">${ro?`<span class="money">${x.mat!==undefined&&x.mat!==''?money2(num(x.mat)):'—'}</span>`:`<div class="cur">${inp('vpart'+kp(pi),x.mat??'',{num:1,label:'Material each for '+x.desc,ph:x.lib?String(x.lib):'0'})}</div>`}</td><td class="n money">${num(x.mat)?money2(num(x.qty)*num(x.mat)):''}</td>
+    ${ro?'':`<td>${delBtn('vpart',id,li+'.'+pi)}</td>`}</tr>`).join('')}
+  </tbody><tfoot><tr><td colspan="4">Per unit</td><td class="n money">${fmtH(tot)} hrs</td><td></td><td class="n money">${money2(mt)}</td>${ro?'':'<td></td>'}</tr></tfoot></table>
+  ${ro?'':`<div class="toolbar" style="margin-top:8px"><button class="btn" data-act="vcalc" data-id="${id}" data-x="${li}" data-add="1">+ Add from calculator</button><button class="btn" data-act="vpart-add" data-id="${id}" data-x="${li}">+ Add custom item</button></div>`}
+  <p class="hint" style="margin:6px 0 0">The hours and material here add up into this line’s Labour hrs and Material. Greyed figures are the calculator’s library prices, for reference.${changed?' Labour hrs on this line have been changed by hand since.':''}</p></div></td></tr>`}
 function vpickHtml(){const P=UI.vpick;if(!P)return '';const L=calcLib();const q=(UI.vpq||'').trim().toLowerCase();const cat=UI.vpc||'';
   const cats=[...new Map(L.map(x=>[x.catId,x.cat])).entries()];
   const words=q.split(/\s+/).filter(Boolean);const raw=(q.length>=2||cat)?L.filter(x=>(!cat||x.catId===cat)&&!x.linked&&words.every(w=>x.txt.includes(w))):[];const G=new Map();for(const x of raw.slice(0,3000)){const lk=withLinked(x);const k=x.code+'|'+x.desc+'|'+Math.round((x.own+lk.hrs)*1e4);if(!G.has(k))G.set(k,{...x,lk,idx:L.indexOf(x),n:0});G.get(k).n++}const hits=[...G.values()];
   const v=S.vars[P.id];const l=v?.bu?.lines?.[P.li];
   return `<div class="vpick-ov" data-act="vpick-close"><div class="vpick" role="dialog" aria-modal="true" aria-label="Pick labour hours" data-stop="1">
-    <div class="sec-head"><div><h3>Pick labour hours</h3><p class="hint">From the Labour Hours and Material Calculator library. Only the hours per unit, including the item’s linked items (lock nuts, washers, markers and so on), go into line ${P.li+1}${l&&l.item?' ('+esc(l.item)+')':''}. The item description is left as it is.</p></div><button class="btn" data-act="vpick-close">Close</button></div>
+    <div class="sec-head"><div><h3>${P.add?'Add to what’s in this line':'Pick labour hours'}</h3><p class="hint">From the Labour Hours and Material Calculator library. ${P.add?'The item and its linked items are added to line '+(P.li+1)+'’s breakdown, and their hours add to its Labour hrs.':'Only the hours per unit, including the item’s linked items (lock nuts, washers, markers and so on), go into line '+(P.li+1)+(l&&l.item?' ('+esc(l.item)+')':'')+'. The item description is left as it is.'}</p></div><button class="btn" data-act="vpick-close">Close</button></div>
     <div class="toolbar"><input class="f" id="vpick_q" data-ui="vpq" value="${esc(UI.vpq||'')}" placeholder="Search, e.g. 20mm gland, GPO, conduit" style="flex:1;min-width:200px;border-color:var(--line)">
       <select class="f" data-ui="vpc" style="width:auto;max-width:260px;border-color:var(--line)" aria-label="Category"><option value="">All categories</option>${cats.map(([id,n])=>`<option value="${esc(id)}"${cat===id?' selected':''}>${esc(n)}</option>`).join('')}</select></div>
     <div class="vpick-list">${hits.length?hits.slice(0,200).map(x=>`<div class="vpk"><div class="vpkd"><b>${esc(x.desc)}</b><div class="hint">${esc(x.cat)}${x.head?' · '+esc(x.head):''}${x.n>1?' · and '+(x.n-1)+' more':''} · <span class="mono">${esc(x.code)}</span></div></div>${(()=>{const k=x.lk;return `<span class="money" style="white-space:nowrap;text-align:right"><b>${fmtH(x.own+k.hrs)} hrs/unit</b>${k.n?`<br><span class="hint">${fmtH(x.own)} item + ${fmtH(k.hrs)} for ${k.n} linked</span>`:''}</span>`})()}<button class="btn primary" data-act="vpick-use" data-v="${x.idx}">Use</button></div>`).join('')+(hits.length>200?`<p class="hint">Showing 200 of ${hits.length}. Narrow the search.</p>`:'')
@@ -1700,7 +1708,7 @@ function apply(parts,v){
   if(kind==='var'){if(S.vars[a]){S.vars[a][b]=v;persist('variations/'+a);if(b==='status')syncClaimVar(a)}return}
   if(kind==='vbu'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();if(b.startsWith('r_')){x.bu.rates=x.bu.rates||{};x.bu.rates[b.slice(2)]=v}else x.bu[b]=v;persist('variations/'+a);return}
   if(kind==='vq'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();x.bu.quoteFile=v;persist('variations/'+a);return}
-  if(kind==='vpart'){const x=S.vars[a];const l=x?.bu?.lines?.[+b];const pt=l?.hrsParts?.[+c];if(!pt)return;pt.mat=v;const anyM=l.hrsParts.some(z=>z.mat!==undefined&&z.mat!=='');if(anyM){l.mat=String(Math.round(partsMat(l)*1e4)/1e4);l.matFromParts=true}else if(l.matFromParts){l.mat='';delete l.matFromParts}persist('variations/'+a);return}
+  if(kind==='vpart'||kind==='vpartq'||kind==='vpartu'||kind==='vpartd'){const x=S.vars[a];const l=x?.bu?.lines?.[+b];const pt=l?.hrsParts?.[+c];if(!pt)return;pt[{vpart:'mat',vpartq:'qty',vpartu:'unit',vpartd:'desc'}[kind]]=v;partsRecalc(l);persist('variations/'+a);return}
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;if(c==='mat')delete l.matFromParts;persist('variations/'+a)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
@@ -1778,10 +1786,13 @@ document.addEventListener('click',async e=>{
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
   if(act==='vparts'){const k=btn.dataset.v;UI.vpo=UI.vpo||{};UI.vpo[k]=!UI.vpo[k];render();return}
-  if(act==='vcalc'){UI.vpick={id:btn.dataset.id,li:+btn.dataset.x};UI.vpq='';render();setTimeout(()=>{const el=document.getElementById('vpick_q');if(el)el.focus()},40);return}
+  if(act==='vpart-add'){const v=S.vars[btn.dataset.id];const l=v?.bu?.lines?.[+btn.dataset.x];if(!l)return;l.hrsParts=l.hrsParts||[];l.hrsParts.push({custom:true,desc:'',code:'',qty:'1',unit:'',hrs:0,main:!l.hrsParts.length});partsRecalc(l);persist('variations/'+btn.dataset.id);render();
+    setTimeout(()=>{const el=document.getElementById('vpartd_'+btn.dataset.id+'_'+btn.dataset.x+'_'+(l.hrsParts.length-1));if(el)el.focus()},40);return}
+  if(act==='vcalc'){UI.vpick={id:btn.dataset.id,li:+btn.dataset.x,add:btn.dataset.add==='1'};UI.vpq='';render();setTimeout(()=>{const el=document.getElementById('vpick_q');if(el)el.focus()},40);return}
   if(act==='vpick-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=vpick-close]'))return;UI.vpick=null;render();return}
   if(act==='vpick-use'){const P=UI.vpick;const x=calcLib()[+btn.dataset.v];const v=P&&S.vars[P.id];const l=v?.bu?.lines?.[P.li];
-    if(l&&x){const k=withLinked(x);l.hrs=String(Math.round((x.own+k.hrs)*10000)/10000);l.hrsSrc=x.desc+' ('+x.code+')'+(k.n?' incl. '+k.n+' linked':'');l.hrsParts=[{code:x.code,desc:x.desc,qty:1,unit:x.own,hrs:x.own,main:true,lib:x.lib},...k.parts.map(z=>({...z}))];l.hrsPick=l.hrs;UI.vpo=UI.vpo||{};UI.vpo[l.id]=true;persist('variations/'+P.id)}UI.vpick=null;render();return}
+    if(l&&x&&P.add){const k=withLinked(x);l.hrsParts=l.hrsParts||[];l.hrsParts.push({code:x.code,desc:x.desc,qty:1,unit:x.own,hrs:x.own,lib:x.lib,main:!l.hrsParts.length},...k.parts.map(z=>({...z})));partsRecalc(l);persist('variations/'+P.id);UI.vpo=UI.vpo||{};UI.vpo[l.id]=true}
+    else if(l&&x){const k=withLinked(x);l.hrs=String(Math.round((x.own+k.hrs)*10000)/10000);l.hrsSrc=x.desc+' ('+x.code+')'+(k.n?' incl. '+k.n+' linked':'');l.hrsParts=[{code:x.code,desc:x.desc,qty:1,unit:x.own,hrs:x.own,main:true,lib:x.lib},...k.parts.map(z=>({...z}))];l.hrsPick=l.hrs;UI.vpo=UI.vpo||{};UI.vpo[l.id]=true;persist('variations/'+P.id)}UI.vpick=null;render();return}
   if(act==='ms-pick'){UI.ms=btn.dataset.v;UI.msd=null;UI.msNew=false;render();return}
   if(act==='ms-newpick'){UI.msNew=!UI.msNew;render();return}
   if(act==='ms-new'){const id=uid('m');S.msods[id]=msNew(btn.dataset.v);UI.ms=id;UI.msNew=false;UI.mst='details';UI.msd=null;persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('ms_'+id+'_name');if(el)el.focus()},60);return}
@@ -1914,6 +1925,7 @@ document.addEventListener('click',async e=>{
     UI.armed=null;const {kind,id,x}=btn.dataset;
     if(kind==='var'){delete S.vars[id];removeDoc('variations/'+id);syncClaimVar(id)}
     else if(kind==='vmk'){const v=S.vars[id];const m=v?.bu?.markups?.[+x];if(m){v.bu.markups.splice(+x,1);if(assets&&!(v.revs||[]).some(r=>(r.bu?.markups||[]).some(z=>z.id===m.id)))assets.delete(m.id).catch(()=>{});persist('variations/'+id)}}
+    else if(kind==='vpart'){const v=S.vars[id];const [li,pi]=x.split('.').map(Number);const l=v?.bu?.lines?.[li];if(l&&l.hrsParts){l.hrsParts.splice(pi,1);if(l.hrsParts.length&&!l.hrsParts.some(z=>z.main))l.hrsParts[0].main=true;partsRecalc(l);persist('variations/'+id)}}
     else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
     else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
     else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
