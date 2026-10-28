@@ -1430,12 +1430,12 @@ const msChosen=m=>{const c=m.chosen;return c!==undefined&&c!==null&&c!==''&&+c<m
 const msSupName=(m,i)=>i<0?'':(m.suppliers[i]||'Supplier '+(i+1));
 function msCalc(m){
   const ns=m.suppliers.length;const sup=Array(ns).fill(0);const ch=msChosen(m);let sel=0,dval=0,qty=0,dq=0;
-  const rows=m.items.map(it=>{const {qty:q,src}=msQty(m,it);const lo=msLow(m,it);const rate=ch<0?0:num((it.r||[])[ch]);
+  const rows=m.items.map(it=>{const {qty:q,src}=msQty(m,it);const lo=msLow(m,it);const rate=ch<0?lo:num((it.r||[])[ch]);
     for(let i=0;i<ns;i++)sup[i]+=q*num((it.r||[])[i]);
     let del=0;for(const d of m.dockets)del+=num(d.q?.[it.id]);
     const x={it,q,src,lo,rate,total:q*rate,del,bal:q-del};
     sel+=x.total;dval+=del*rate;qty+=q;dq+=Math.min(del,q);return x});
-  const bud=num(m.budget);const proposed=sel;
+  const bud=num(m.budget);const proposed=ch<0?0:sel;
   return {rows,sup,ch,sel,bud,proposed,gain:bud-proposed,gp:bud?(bud-proposed)/bud:0,dval,pctDel:sel?dval/sel:(qty?dq/qty:0)};
 }
 function msNotes(d){if(!Array.isArray(d.notesList)){d.notesList=d.notes?[{id:uid('n'),date:d.date||'',text:d.notes}]:[]}return d.notesList}
@@ -1484,7 +1484,7 @@ function msItems(id,m,C){
     const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='takeoff'?'from take off':'cables × run'}</span>`;
     return `<tr><td class="hint">${i+1}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
-      ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
+      ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}"><div class="cur">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</div></td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
       <td class="n money">${x.lo?money2(x.lo):'—'}</td>
       <td>${delBtn('msi',id,String(i))}</td></tr>`}).join('');
   const span=cols.length+2;
@@ -1498,9 +1498,9 @@ function msItems(id,m,C){
     <tr><td>Budget</td><td style="width:170px">${inp('ms|'+id+'|budget',m.budget??'',{num:1,label:'Budget',ph:'0'})}</td></tr>
     <tr><td>Supplier</td><td style="width:170px">${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier for order'})}</td></tr>
     <tr><td>Proposed order value</td><td class="n money"><b>${ch<0?'—':money2(C.proposed)}</b></td></tr>
-    <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${ch<0&&!C.bud?'—':money2(C.gain)}</b></td></tr>
-    <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud?pct(C.gp):'—'}</td></tr></tbody></table>
-    <p class="hint" style="margin-top:8px">${ch<0?'Choose a supplier to set the proposed order value. Their rates are also used in the delivery schedule.':'The proposed order value is '+esc(msSupName(m,ch))+'’s total. Their rates are also used in the delivery schedule.'}</p></div>
+    <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${ch<0?'—':money2(C.gain)}</b></td></tr>
+    <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud&&ch>=0?pct(C.gp):'—'}</td></tr></tbody></table>
+    <p class="hint" style="margin-top:8px">${ch<0?'Choose a supplier to set the proposed order value. Their rates are also used in the delivery schedule, which uses each line’s lowest quote until then.':'The proposed order value is '+esc(msSupName(m,ch))+'’s total. Their rates are also used in the delivery schedule.'}</p></div>
     <div class="panel"><h3>Evaluation & approvals</h3><div class="form">
     <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
     ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
@@ -1542,7 +1542,7 @@ function msSchedule(id,m,C){
     return `<tr><td class="hint">${i+1}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
     <td class="n money">${x.rate?money2(x.rate):'—'}</td><td class="n money">${money2(x.total)}</td><td class="n money">${money2(x.del*x.rate)}</td><td class="n money">${money2(x.bal*x.rate)}</td>
     ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
-  return `${C.ch<0?'<div class="panel" style="padding:10px 14px"><span class="hint">Choose a supplier in the item schedule to price this schedule.</span></div>':''}<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price${C.ch<0?'':'<br><span class="hint" style="font-weight:400">'+esc(msSupName(m,C.ch))+'</span>'}</th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
+  return `${C.ch<0?'<div class="panel" style="padding:10px 14px"><span class="hint">No supplier chosen yet, so each line is priced at its lowest quote. Choose a supplier in the item schedule to use their rates.</span></div>':''}<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price<br><span class="hint" style="font-weight:400">${C.ch<0?'Lowest quote':esc(msSupName(m,C.ch))}</span></th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
   <tbody>${rows}</tbody><tfoot><tr><td colspan="6">Total</td><td class="n money">${money2(tv)}</td><td class="n money">${money2(dv)}</td><td class="n money">${money2(tv-dv)}</td>${D.map(d=>`<td class="n money">${money2(C.rows.reduce((a,x)=>a+num(d.q?.[x.it.id])*x.rate,0))}</td>`).join('')}</tr></tfoot></table></div>`;
 }
 async function msPdf(id,di){
