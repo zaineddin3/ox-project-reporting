@@ -242,6 +242,7 @@ tr.pg-empty td{color:var(--muted)}
 .pg-bar{display:flex;align-items:center;gap:8px;min-width:120px}.pg-bar .bar{flex:1}.pg-bar .money{width:40px;text-align:right;font-size:12.5px}
 .pg-in{display:flex;align-items:center;gap:6px}.pg-in input.f{width:80px;flex:0 0 80px;border-color:var(--line)}.pg-in .pg-bar{flex:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.secname{display:flex;align-items:center;gap:6px}.secname .f{flex:1}
 .mstpl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
 .mscard{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
 .mscard:hover{border-color:var(--accent)}.mscard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -1076,8 +1077,9 @@ V.subcontractors=()=>{
     const lines=x.lines.map((l,li)=>({l,li})).filter(o=>lineMatch(o.l,q));
     if(q&&!lines.length)return '';
     const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
-    return `<tr class="secrow"><td colspan="3">${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</td><td colspan="${ncol-6}" class="hint">${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
-    lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
+    const shut=COLL.has('sec'+x.id)&&!q;
+    return `<tr class="secrow"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
       const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
       if(l.subs&&l.subs.length){
         let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
@@ -1099,7 +1101,7 @@ V.subcontractors=()=>{
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
       ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
-      <td class="n money">${money(v)}</td><td class="n money">${money(uc)}</td><td class="n">${v?pct(uc/v,0):'—'}</td></tr>`}).join('')+(q?'':`<tr class="addrow"><td colspan="${ncol}"><button class="btn" data-act="add-line" data-id="${t}" data-s="${si}">+ Add line to ${esc(x.name||'this section')}</button></td></tr>`);
+      <td class="n money">${money(v)}</td><td class="n money">${money(uc)}</td><td class="n">${v?pct(uc/v,0):'—'}</td></tr>`}).join(''))+(q||shut?'':`<tr class="addrow"><td colspan="${ncol}"><button class="btn" data-act="add-line" data-id="${t}" data-s="${si}">+ Add line to ${esc(x.name||'this section')}</button></td></tr>`);
   }).join('');
   return `<div class="stack">${hd}${chips}
   ${UI.setup?setupPanel(t,d):''}
@@ -1117,6 +1119,7 @@ V.subcontractors=()=>{
     <label>Section <select id="apt_level" data-ui="level"><option value="all">All sections</option>${d.sections.map(x=>`<option value="${x.id}"${UI.level===x.id?' selected':''}>${esc(x.name||'Untitled section')}</option>`).join('')}</select></label>
     <label>Find <input id="apt_q" data-ui="q" value="${esc(UI.q)}" placeholder="Line or description" style="width:150px"></label>
     <span class="hint">${nLines} lines shown</span>
+    ${d.sections.length>1?`<button class="btn" data-act="sec-all" data-v="1">Minimise all sections</button><button class="btn" data-act="sec-all" data-v="0">Expand all sections</button>`:''}
     ${d.sections.some(x=>x.lines.some(l=>l.subs&&l.subs.length))?`<button class="btn" data-act="coll-all" data-v="1">Minimise all sub-lines</button><button class="btn" data-act="coll-all" data-v="0">Expand all</button>`:''}
     <span style="flex:1"></span>
     ${d.stages.length?`<label>Set <select id="apt_bs" data-ui="bulkStage">${d.stages.map(x=>`<option value="${x.id}"${UI.bulkStage===x.id?' selected':''}>${esc(x.name||'Unnamed stage')}</option>`).join('')}</select></label>
@@ -1677,6 +1680,12 @@ document.addEventListener('click',async e=>{
     structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='tog-sub'){const id=btn.dataset.v;if(COLL.has(id))COLL.delete(id);else COLL.add(id);saveColl();render();return}
   if(act==='pg-all'){for(const t of TASK_IDS){if(btn.dataset.v==='1')COLL.add('pg'+t);else COLL.delete('pg'+t)}saveColl();render();return}
+  if(act==='sec-all'){const d=aptDoc(UI.bld);for(const x of d.sections){if(btn.dataset.v==='1')COLL.add('sec'+x.id);else COLL.delete('sec'+x.id)}saveColl();render();return}
+  if(act==='sec-clone'){const t=btn.dataset.id,si=+btn.dataset.x;const d=aptDoc(t);const src=d.sections[si];if(!src)return;
+    const c=clone(src);c.id=uid('S');c.name=(src.name||'Section '+(si+1))+' (copy)';
+    c.lines=(c.lines||[]).map(l=>{l.id=uid('l');delete l.itpFile;if(Array.isArray(l.subs))l.subs=l.subs.map(sb=>({...sb,id:uid('q'),pct:'',itpFile:null}));return l});
+    d.sections.splice(si+1,0,c);structDirty.add(t);UI.q='';persist('apartments/'+t);render();
+    setTimeout(()=>{const el=document.getElementById('tsec_'+t+'_'+(si+1)+'_name');if(el){el.focus();el.select();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='coll-all'){const d=aptDoc(UI.bld);for(const x of d.sections)for(const l of x.lines)if(l.subs&&l.subs.length){if(btn.dataset.v==='1')COLL.add(l.id);else COLL.delete(l.id)}saveColl();render();return}
   if(act==='add-sub'){const t=btn.dataset.id;const [si,li]=btn.dataset.x.split('.').map(Number);const d=aptDoc(t);const l=d.sections[si].lines[li];(l.subs=l.subs||[]).push({id:uid('j'),task:'',desc:'',qty:'1',rate:'',pct:''});structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='unsplit'){const t=btn.dataset.id;const key='unsplit'+t+btn.dataset.x;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
