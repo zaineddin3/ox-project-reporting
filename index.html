@@ -272,6 +272,10 @@ td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
 .mspick{all:unset;cursor:pointer;display:block;margin:4px auto 0;font-size:11.5px;font-weight:600;color:var(--accent);padding:2px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
 .mspick[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .mspick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.msnotes{display:flex;flex-direction:column;gap:10px}
+.msnote{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.msnote-h{display:flex;align-items:center;gap:8px}
+.msnote textarea{width:100%;border-color:var(--line);resize:vertical;font:inherit}
 .msloc{display:flex;gap:4px;align-items:center}.msloc .f{min-width:70px}
 .mspaste{width:100%;font-family:var(--f-mono);font-size:12.5px;border-color:var(--line);resize:vertical}
 
@@ -1397,6 +1401,7 @@ function msCalc(m){
   const bud=num(m.budget);const proposed=sel;
   return {rows,sup,ch,sel,bud,proposed,gain:bud-proposed,gp:bud?(bud-proposed)/bud:0,dval,pctDel:sel?dval/sel:(qty?dq/qty:0)};
 }
+function msNotes(d){if(!Array.isArray(d.notesList)){d.notesList=d.notes?[{id:uid('n'),date:d.date||'',text:d.notes}]:[]}return d.notesList}
 function msDelivered(m,it,upto){let s=0;for(let k=0;k<upto;k++)s+=num(m.dockets[k].q?.[it.id]);return s}
 
 V.msod=()=>{
@@ -1428,7 +1433,7 @@ function msDetails(id,m){
     <label class="wide">Project and what this MSOD is used for${inp('ms|'+id+'|title',m.title||'',{label:'What this MSOD is for',ph:'e.g. Arncliffe apartments submains'})}</label></div></div>
   <div class="panel"><h3>Delivery request header</h3><p class="hint" style="margin:-6px 0 12px">Printed at the top of every delivery request for this MSOD.</p><div class="form">
     ${F('supplier','Supplier')}${F('attention','Attention')}${F('phone','Phone no.')}${F('supplierRef','Supplier ref')}${F('orderNo','Order no.')}
-    ${F('jobName','Job name')}${F('jobNo','Job no.')}${F('contact','Site contact')}${F('address','Delivery address',{wide:1})}</div></div>`;
+    ${F('jobName','Job name')}${F('jobNo','Job no.')}${F('contact','Site contact')}${F('contactPhone','Site contact phone')}${F('address','Delivery address',{wide:1})}</div></div>`;
 }
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
@@ -1487,7 +1492,9 @@ function msDeliveries(id,m,C){
     return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
     <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
   return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button>${delBtn('msdk',id,String(di),'Remove request')}</div></div>
-    <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label><label class="wide">Notes${inp(k+'notes',d.notes||'',{label:'Notes'})}</label></div></div>
+    <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label></div></div>
+  <div class="panel"><div class="sec-head"><div><h3>Notes</h3><p class="hint">Delivery instructions, access, missing or damaged items. Notes print on the delivery request PDF.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
+  ${msNotes(d).length?`<div class="msnotes">${msNotes(d).map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msnt|'+id+'|'+di+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msnt',id,di+'.'+ni,'Remove note')}</div><textarea class="f" id="msnt_${id}_${di}_${ni}_text" data-b="msnt|${id}|${di}|${ni}|text" rows="3" aria-label="Note ${ni+1}" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>
   <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
   <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
   <tbody>${rows||'<tr><td colspan="7" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
@@ -1508,11 +1515,11 @@ async function msPdf(id,di){
   pdfHeader(doc,'Material delivery request');
   doc.setFontSize(9.5);
   const L=[['Supplier',h.supplier],['Attention',h.attention],['Supplier ref',h.supplierRef],['Order no.',h.orderNo],['Job name',h.jobName],['Delivery address',h.address],['Site contact',h.contact]];
-  const R=[['Date',fmtDate(d.date)||fmtDate(todayISO())],['Phone no.',h.phone],['Request no.',String(di+1)],['Job no.',h.jobNo],['Delivery date',fmtDate(d.delivery)]];
+  const R=[['Date',fmtDate(d.date)||fmtDate(todayISO())],['Phone no.',h.phone],['Request no.',String(di+1)],['Job no.',h.jobNo],['Delivery date',fmtDate(d.delivery)],['Site contact ph.',h.contactPhone]];
   let y=55;L.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',14,y+i*5.5);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(b||'—'),80)[0],48,y+i*5.5)});
   R.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',128,y+i*5.5);doc.setFont('helvetica','normal');doc.text(String(b||'—'),158,y+i*5.5)});
   y+=L.length*5.5+2;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=6}
-  if(d.notes){doc.setFont('helvetica','normal');const t=doc.splitTextToSize('Notes: '+d.notes,W-28);doc.text(t,14,y);y+=t.length*4.6+2}
+  const NL=msNotes(d).filter(n=>(n.text||'').trim());
   const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
   const C=msCalc(m);
   const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.q||r.th||msDesc(m,r.x.it))
@@ -1521,7 +1528,10 @@ async function msPdf(id,di){
     styles:{fontSize:8.5,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:11},1:{cellWidth:'auto'},2:{cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:19},5:{halign:'right',cellWidth:18,fontStyle:'bold'},6:{halign:'right',cellWidth:20}},
     didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=3)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
-  y=doc.lastAutoTable.finalY+14;if(y>265){doc.addPage();y=30}
+  y=doc.lastAutoTable.finalY+8;
+  if(NL.length){if(y>250){doc.addPage();y=20}doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Notes',14,y);y+=5;doc.setFontSize(9);
+    for(const n of NL){const t=doc.splitTextToSize((n.date?fmtDate(n.date)+' – ':'')+n.text.trim(),W-28);if(y+t.length*4.4>280){doc.addPage();y=20}doc.setFont('helvetica','normal');doc.text(t,14,y);y+=t.length*4.4+2}}
+  y+=6;if(y>265){doc.addPage();y=30}
   doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Received by: ______________________________',14,y);doc.text('Date: ______________',140,y);
   const blob=doc.output('blob');
   const name=`${(h.jobNo||'MSOD').replace(/[^\w.-]+/g,'_')} ${msName(m).replace(/[^\w.-]+/g,'_')} - MOSD ${di+1}.pdf`;
@@ -1600,6 +1610,7 @@ function apply(parts,v){
     else if(kind==='msr'){const it=m.items[+b];if(!it)return;it.r=it.r||[];while(it.r.length<m.suppliers.length)it.r.push('');it.r[+c]=v}
     else if(kind==='mssup')m.suppliers[+b]=v;else if(kind==='msloc'){if(m.locs[+b])m.locs[+b].name=v}
     else if(kind==='msdk'){const d=m.dockets[+b];if(d)d[c]=v}
+    else if(kind==='msnt'){const d=m.dockets[+b];const n=d&&msNotes(d)[+c];if(!n)return;n[parts[4]]=v;if(d.notes!==undefined)delete d.notes}
     else if(kind==='msdq'){const d=m.dockets[+b];if(!d)return;d.q=d.q||{};d.q[c]=v}
     else return;
     persist('msod/'+a);return}
@@ -1671,6 +1682,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-add-loc'){m.locs.push({id:uid('L'),name:'PS'+(m.locs.length+1)});persist('msod/'+id);render();return}
     if(act==='ms-add-dk'){m.dockets.push({id:uid('d'),date:todayISO(),delivery:'',q:{}});UI.msd=m.dockets.length-1;persist('msod/'+id);render();return}
     if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
+    if(act==='ms-add-note'){const d=m.dockets[UI.msd];if(!d)return;const L=msNotes(d);delete d.notes;L.push({id:uid('n'),date:todayISO(),text:''});persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('msnt_'+id+'_'+UI.msd+'_'+(L.length-1)+'_text');if(el)el.focus()},60);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-choose'){const v=btn.dataset.v;m.chosen=String(m.chosen)===v?'':v;persist('msod/'+id);render();return}
   }
@@ -1765,6 +1777,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='msod'){delete S.msods[id];removeDoc('msod/'+id);UI.ms='';UI.msd=null}
     else if(kind==='msi'){const m=S.msods[id];if(m){const it=m.items.splice(+x,1)[0];if(it)for(const d of m.dockets)if(d.q)delete d.q[it.id];persist('msod/'+id)}}
     else if(kind==='msloc'){const m=S.msods[id];if(m){const l=m.locs.splice(+x,1)[0];if(l)for(const it of m.items)if(it.q)delete it.q[l.id];persist('msod/'+id)}}
+    else if(kind==='msnt'){const m=S.msods[id];const [a,b]=x.split('.').map(Number);const d=m&&m.dockets[a];if(d){msNotes(d).splice(b,1);delete d.notes;persist('msod/'+id)}}
     else if(kind==='msdk'){const m=S.msods[id];if(m){m.dockets.splice(+x,1);UI.msd=null;persist('msod/'+id)}}
     else if(kind==='invl'){const [j,li]=x.split('.').map(Number);const iv=S.orders[id]?.inv?.[j];if(iv&&iv.lines){iv.lines.splice(li,1);persist('orders/'+id)}}
     else if(kind==='inv'){const f=S.orders[id].inv[+x]?.invFile;if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{});S.orders[id].inv.splice(+x,1);persist('orders/'+id)}
