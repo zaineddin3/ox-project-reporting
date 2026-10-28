@@ -96,6 +96,8 @@ main{min-width:0;padding-block:22px 60px;padding-left:max(16px,min(4vw,40px));pa
 .calcframe{display:block;width:100%;height:calc(100vh - 190px);min-height:640px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:14px}
 .vplus{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;font-weight:700;font-size:15px;margin-right:6px;vertical-align:middle}.vplus:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .vplus-gap{display:inline-block;width:22px;margin-right:6px}
+.vsrc-tog{all:unset;cursor:pointer;display:block;color:var(--accent);font-size:10.5px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}.vsrc-tog:focus-visible{outline:2px solid var(--accent)}
+tr.vparts>td{background:var(--soft);padding-top:4px;padding-bottom:10px}.vparts-box{max-width:720px}.vparts-box table{width:100%;font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:8px}.vparts-box th,.vparts-box td{padding:5px 8px}.vparts-box tr.vmain td{background:color-mix(in srgb,var(--accent) 6%,transparent)}
 .vsrc{font-size:10.5px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 td.vov .f{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .vpick-ov{position:fixed;inset:0;z-index:50;background:color-mix(in srgb,#000 35%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
@@ -813,7 +815,7 @@ function buMini(v){
     ${bu.lines.map(l=>{const q=num(l.qty);return `<tr><td>${esc(l.item||'—')}</td><td class="hint">${KN[kindOf(l)]}</td><td class="n money">${f2(q)}</td><td class="n money">${num(l.mat)?money(num(l.mat)):''}</td><td class="hint">${esc(l.per||'')}</td><td class="n money">${q*num(l.mat)?money(q*num(l.mat)):''}</td><td class="n money">${f2(num(l.hrs))}</td><td class="n money">${f2(q*num(l.hrs))}</td><td class="hint">${esc(l.comments||'')}</td></tr>`}).join('')}
     </tbody></table>
     <div class="bumini-sum"><span>Material <b>${money(X.mat)}</b></span><span>Mark-up ${num(bu.mark)}% <b>${money(X.sell.extra)}</b></span><span>Labour ${f2(X.lh)} h @ ${money(num(r.sl))} <b>${money(X.sell.lab)}</b></span><span>Supervision ${f2(X.sh)} h <b>${money(X.sell.sup)}</b></span><span>PM ${f2(X.ph)} h <b>${money(X.sell.pm)}</b></span><span class="tot">Cost <b>${money(X.cost.total)}</b></span><span class="tot">Sell <b>${money(X.sell.total)}</b></span><span class="tot">Margin <b class="${X.margin<0?'neg':''}">${money(X.margin)} · ${X.sell.total?pct(X.margin/X.sell.total,1):'—'}</b></span></div>
-    ${bu.longDesc?`<div class="hint" style="margin-top:6px"><b>Quote description:</b> ${esc(bu.longDesc)}</div>`:''}</div>`;
+    ${bu.longDesc?`<div class="hint" style="margin-top:6px"><b>Quote description:</b> ${esc(bu.longDesc)}</div>`:''}${bu.excl?`<div class="hint" style="margin-top:4px;white-space:pre-line"><b>Exclusions and notes:</b> ${esc(bu.excl)}</div>`:''}</div>`;
 }
 function buPanel(id,v,ri){
   const ro=ri!=null;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};const k='vbu|'+id+'|';
@@ -824,21 +826,22 @@ function buPanel(id,v,ri){
     <td style="width:110px"><div class="cur">${inp(kl+'mat',l.mat,{num:1,label:'Material',ph:'0'})}</div></td>
     <td style="width:70px">${inp(kl+'per',l.per,{label:'Per',ph:'ea'})}</td>
     <td class="n money">${money(q*num(l.mat))}</td>
-    <td style="width:90px">${inp(kl+'hrs',l.hrs,{num:1,label:'Labour hours each',ph:'0'})}${l.hrsSrc?`<div class="hint vsrc" title="${esc(l.hrsSrc)}">${esc(l.hrsSrc)}</div>`:''}</td>
+    <td style="width:90px">${inp(kl+'hrs',l.hrs,{num:1,label:'Labour hours each',ph:'0'})}${l.hrsSrc?(l.hrsParts&&l.hrsParts.length?`<button class="vsrc vsrc-tog" data-act="vparts" data-v="${esc(l.id||'')}" aria-expanded="${!!(UI.vpo&&UI.vpo[l.id])}" title="${esc(l.hrsSrc)}">${UI.vpo&&UI.vpo[l.id]?'▾':'▸'} ${esc(l.hrsSrc)}</button>`:`<div class="hint vsrc" title="${esc(l.hrsSrc)}">${esc(l.hrsSrc)}</div>`):''}</td>
     <td style="width:90px" class="${l.hrsOv!==undefined&&l.hrsOv!==null&&l.hrsOv!==''?'vov':''}">${inp(kl+'hrsOv',l.hrsOv??'',{num:1,label:'Hours override each',ph:'—'})}</td>
     <td class="n money">${(q*effH(l)).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
-    <td style="min-width:180px">${inp(kl+'comments',l.comments,{label:'Comments'})}</td></tr>`}).join('');
+    <td style="min-width:180px">${inp(kl+'comments',l.comments,{label:'Comments'})}</td></tr>`+(l.hrsParts&&l.hrsParts.length&&UI.vpo&&UI.vpo[l.id]?vpartsRow(l):'')}).join('');
   const L=(lbl,c,sv,cls='')=>`<tr class="${cls}"><td>${lbl}</td><td class="money">${money(c)}</td><td class="money">${money(sv)}</td></tr>`;
   const html=`<div class="bupanel">
     ${ro?`<div class="banner" style="margin:0 0 6px">Viewing <b>Rev ${num(v.rev)}</b>, superseded ${fmtDate(v.supersededOn)}. This is a read-only copy; the current revision is Rev ${num(S.vars[id].rev)}.</div>`:''}
     <div class="sec-head"><div><h3>Variation build-up · ${esc(v.ref||'')} Rev ${num(v.rev)}${v.desc?' · '+esc(v.desc):''}</h3><p class="hint">Price it like the variation sheet: quantity × material and quantity × labour hours. Labour, supervision and project management each have their own cost and sell rates.</p></div>
-      <div class="toolbar"><label class="toolbar hint" style="gap:6px;cursor:pointer"><input type="checkbox" data-ui-check="pdfHideLab" ${UI.pdfHideLab?'checked':''}> Hide labour columns on PDF</label>${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
+      <div class="toolbar"><label class="toolbar hint" style="gap:6px;cursor:pointer"><input type="checkbox" data-ui-check="pdfHideLab" ${UI.pdfHideLab?'checked':''}> Hide labour hrs column on PDF</label>${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
     <div class="form">
       <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}</div></label>
       <div class="wide markups"><div class="mk-h">Mark-ups <span class="hint">· marked-up drawings, sketches or photos (PDF, PNG or JPG)</span></div>
         <div class="mk-list">${(bu.markups||[]).map((m,mi)=>`<span class="mk-item"><a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(m.id)}" data-file="${esc(m.id)}" target="_blank" rel="noopener" title="${esc(m.name)}">${esc((m.name||'Mark-up').slice(0,40))}</a>${ro||!assets?'':delBtn('vmk',id,String(mi),'✕')}</span>`).join('')||'<span class="hint">None attached yet.</span>'}
         ${ro?'':assets?(UP['vmk'+id]?'<span class="hint">Uploading…</span>':`<label class="btn itp-up" for="vmk_${id}">+ Attach mark-up</label><input type="file" id="vmk_${id}" data-markup="${id}" accept="application/pdf,.pdf,image/png,image/jpeg" multiple hidden>`):''}</div></div>
       <label class="wide">Description for the quote<textarea class="f" id="vbu_${id}_longDesc" data-b="${k}longDesc" placeholder="Scope of the variation as it should appear on the sell sheet">${esc(bu.longDesc||'')}</textarea></label>
+      <label class="wide">Exclusions and notes<textarea class="f" id="vbu_${id}_excl" data-b="${k}excl" rows="4" placeholder="e.g. Excludes after-hours work, builder’s works and making good. Price valid for 30 days.">${esc(bu.excl||'')}</textarea></label>
     </div>
     <div class="tw" style="margin-top:14px"><table style="min-width:1250px"><thead><tr><th></th><th>Item</th><th>Type</th><th class="n">Quantity</th><th class="n">Material</th><th>Per</th><th class="n">Extension</th><th class="n">Labour hrs</th><th class="n" title="Replaces the labour hours when filled in">Hrs override</th><th class="n">Lab extension</th><th>Comments</th></tr></thead><tbody>
     ${rows||'<tr><td colspan="10" class="empty">No lines yet.</td></tr>'}
@@ -920,7 +923,7 @@ async function sellPdf(id,ri){
   const body=(bu.lines||[]).filter(l=>l.item||num(l.qty)).map(l=>{const q=num(l.qty);const um=num(l.mat)*mk;return [l.item||'',f2(q),um?m2(um):'',l.per||'',q*um?m2(q*um):'',f2(effH(l)),f2(q*effH(l)),l.comments||'']});
   const hideLab=!!UI.pdfHideLab;const HEAD=['Item','Quantity','Material','Per','Extension','Labour','Lab ext.','Comments'];
   const CS={0:{cellWidth:52},1:{halign:'right',cellWidth:16},2:{halign:'right',cellWidth:20},3:{cellWidth:12},4:{halign:'right',cellWidth:22},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{cellWidth:'auto'}};
-  const keep=hideLab?[0,1,2,3,4,7]:[0,1,2,3,4,5,6,7];const cs={};keep.forEach((k,i)=>cs[i]=CS[k]);if(hideLab)cs[0]={cellWidth:62};
+  const keep=hideLab?[0,1,2,3,4,6,7]:[0,1,2,3,4,5,6,7];const cs={};keep.forEach((k,i)=>cs[i]=CS[k]);if(hideLab)cs[0]={cellWidth:60};
   doc.autoTable({startY:y,head:[keep.map(k=>HEAD[k])],body:body.map(r=>keep.map(k=>r[k])),theme:'grid',
     styles:{fontSize:8.5,cellPadding:1.8,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:cs,margin:{left:14,right:14}});
@@ -928,7 +931,10 @@ async function sellPdf(id,ri){
   const tot=[['Material','',money(X.sell.mat+X.sell.extra)],['Labour total',`${f2(X.lh)} hrs @ ${money(num(r.sl))}`,money(X.sell.lab)],['Supervision',`${f2(X.sh)} hrs @ ${money(num(r.ss))}`,money(X.sell.sup)],['Project management',`${f2(X.ph)} hrs @ ${money(num(rateOf(r,'sp')))}`,money(X.sell.pm)]];
   doc.autoTable({startY:y,body:tot,foot:[['Total variation (ex GST)','',money(X.sell.total)]],theme:'plain',styles:{fontSize:9.5,cellPadding:1.6},
     columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},didParseCell:dt=>{if(dt.column.index===2)dt.cell.styles.halign='right'},margin:{left:W-14-150}});
-  y=doc.lastAutoTable.finalY+8;doc.setFontSize(8);doc.setTextColor(90);doc.text('All prices exclude GST.',14,Math.min(y,285));
+  y=doc.lastAutoTable.finalY+8;
+  if((bu.excl||'').trim()){const t=doc.splitTextToSize(bu.excl.trim(),W-28);if(y+8+t.length*4.4>285){doc.addPage();y=20}doc.setTextColor(0);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Exclusions and notes',14,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9);
+    for(const ln of t){if(y>285){doc.addPage();y=20}doc.text(ln,14,y);y+=4.4}y+=4}
+  doc.setFontSize(8);doc.setTextColor(90);if(y>287){doc.addPage();y=20}doc.text('All prices exclude GST.',14,Math.min(y,287));
   const blob=doc.output('blob');
   const name=`${(v.ref||'Variation').replace(/[^\w.-]+/g,'_')} Rev ${num(v.rev)} - Sell.pdf`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
@@ -1616,8 +1622,12 @@ function withLinked(x){if(x.lk)return x.lk;const c=CALC_LIB.cats[x.catId];const 
   const fn={};const memo={};const busy={};
   const q=n=>{n=+n;if(n===x.row)return 1;if(n in memo)return memo[n];const r=rows[n];if(!r||!r[8]||busy[n])return 0;busy[n]=1;let v=0;
     try{if(!fn[n])fn[n]=new Function('Q','R','UP','return ('+r[8]+')');v=+fn[n](q,()=>0,a=>a)||0}catch(e){v=0}delete busy[n];return memo[n]=v};
-  let hrs=0,n=0;for(const k in rows){const r=rows[k];if(!r[8])continue;const v=q(k);if(v){hrs+=v*num(r[6])*(num(r[7])||1);n++}}
-  return x.lk={hrs,n}}
+  let hrs=0,n=0;const parts=[];for(const k in rows){const r=rows[k];if(!r[8])continue;const v=q(k);if(v){const u=num(r[6])*(num(r[7])||1);hrs+=v*u;n++;parts.push({code:r[1],desc:r[2],qty:Math.round(v*1e4)/1e4,unit:u,hrs:Math.round(v*u*1e4)/1e4})}}
+  return x.lk={hrs,n,parts}}
+function vpartsRow(l){const P=l.hrsParts;const tot=P.reduce((a,x)=>a+num(x.hrs),0);const changed=l.hrsPick!==undefined&&String(l.hrs)!==String(l.hrsPick);
+  return `<tr class="vparts"><td></td><td colspan="10"><div class="vparts-box"><table><thead><tr><th>What’s in this line (per unit)</th><th>Code</th><th class="n">Qty</th><th class="n">Hrs each</th><th class="n">Hrs</th></tr></thead><tbody>
+  ${P.map(x=>`<tr${x.main?' class="vmain"':''}><td>${x.main?'<b>'+esc(x.desc)+'</b>':'<span class="hint">↳</span> '+esc(x.desc)}</td><td class="mono hint">${esc(x.code)}</td><td class="n money">${fmtH(x.qty)}</td><td class="n money">${fmtH(x.unit)}</td><td class="n money">${fmtH(x.hrs)}</td></tr>`).join('')}
+  </tbody><tfoot><tr><td colspan="4">Labour hrs per unit</td><td class="n money">${fmtH(tot)}</td></tr></tfoot></table>${changed?'<p class="hint" style="margin:6px 0 0">Labour hrs on this line have been changed by hand since the item was picked.</p>':''}</div></td></tr>`}
 function vpickHtml(){const P=UI.vpick;if(!P)return '';const L=calcLib();const q=(UI.vpq||'').trim().toLowerCase();const cat=UI.vpc||'';
   const cats=[...new Map(L.map(x=>[x.catId,x.cat])).entries()];
   const words=q.split(/\s+/).filter(Boolean);const raw=(q.length>=2||cat)?L.filter(x=>(!cat||x.catId===cat)&&!x.linked&&words.every(w=>x.txt.includes(w))):[];const G=new Map();for(const x of raw.slice(0,3000)){const lk=withLinked(x);const k=x.code+'|'+x.desc+'|'+Math.round((x.own+lk.hrs)*1e4);if(!G.has(k))G.set(k,{...x,lk,idx:L.indexOf(x),n:0});G.get(k).n++}const hits=[...G.values()];
@@ -1775,10 +1785,11 @@ document.addEventListener('click',async e=>{
   if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
+  if(act==='vparts'){const k=btn.dataset.v;UI.vpo=UI.vpo||{};UI.vpo[k]=!UI.vpo[k];render();return}
   if(act==='vcalc'){UI.vpick={id:btn.dataset.id,li:+btn.dataset.x};UI.vpq='';render();setTimeout(()=>{const el=document.getElementById('vpick_q');if(el)el.focus()},40);return}
   if(act==='vpick-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=vpick-close]'))return;UI.vpick=null;render();return}
   if(act==='vpick-use'){const P=UI.vpick;const x=calcLib()[+btn.dataset.v];const v=P&&S.vars[P.id];const l=v?.bu?.lines?.[P.li];
-    if(l&&x){const k=withLinked(x);l.hrs=String(Math.round((x.own+k.hrs)*10000)/10000);l.hrsSrc=x.desc+' ('+x.code+')'+(k.n?' incl. '+k.n+' linked':'');persist('variations/'+P.id)}UI.vpick=null;render();return}
+    if(l&&x){const k=withLinked(x);l.hrs=String(Math.round((x.own+k.hrs)*10000)/10000);l.hrsSrc=x.desc+' ('+x.code+')'+(k.n?' incl. '+k.n+' linked':'');l.hrsParts=[{code:x.code,desc:x.desc,qty:1,unit:x.own,hrs:x.own,main:true},...k.parts];l.hrsPick=l.hrs;UI.vpo=UI.vpo||{};UI.vpo[l.id]=true;persist('variations/'+P.id)}UI.vpick=null;render();return}
   if(act==='ms-pick'){UI.ms=btn.dataset.v;UI.msd=null;UI.msNew=false;render();return}
   if(act==='ms-newpick'){UI.msNew=!UI.msNew;render();return}
   if(act==='ms-new'){const id=uid('m');S.msods[id]=msNew(btn.dataset.v);UI.ms=id;UI.msNew=false;UI.mst='details';UI.msd=null;persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('ms_'+id+'_name');if(el)el.focus()},60);return}
@@ -1965,7 +1976,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;const now=undoSnap();UND
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
   const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)&&t.type!=='checkbox')return;
