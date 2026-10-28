@@ -265,6 +265,7 @@ td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
 .msnote{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .msnote-h{display:flex;align-items:center;gap:8px}
 .msnote textarea{width:100%;border-color:var(--line);resize:vertical;font:inherit}
+.msquote{margin-top:6px;display:flex;justify-content:center;font-weight:400;text-transform:none;letter-spacing:0}.msquote .itp{justify-content:center}
 .msloc{display:flex;gap:4px;align-items:center}.msloc .f{min-width:70px}
 .mspaste{width:100%;font-family:var(--f-mono);font-size:12.5px;border-color:var(--line);resize:vertical}
 
@@ -915,7 +916,7 @@ function itpCell(key,f,L='ITP'){
   return assets?`<label class="btn itp-up" for="${eid}">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
 }
 function setItp(key,v){const parts=key.split('|');parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
-function getItp(key){const [k,a,b,c]=key.split('|');if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return taskDoc(a).items[+b]?.subs?.[+c]?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return taskDoc(a).items[+b]?.subs?.[+c]?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
@@ -1476,7 +1477,7 @@ function msItems(id,m,C){
       <td>${delBtn('msi',id,String(i))}</td></tr>`}).join('');
   const span=cols.length+2;
   const table=`<div class="tw tall"><table class="mstable"><thead>
-    <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''}">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button></th>`}).join('')}<th></th><th></th></tr>
+    <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''}">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button><div class="msquote">${itpCell('msqf|'+id+'|'+si,(m.quotes||[])[si],'Quote')}</div></th>`}).join('')}<th></th><th></th></tr>
     <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th>${m.suppliers.map((_,si)=>`<th class="n${si===ch?' mson':''}">Rate</th><th class="n${si===ch?' mson':''}">Price</th>`).join('')}<th class="n">Lowest rate</th><th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${span+2*ns+2}" class="hint">No lines yet.</td></tr>`}</tbody>
     <tfoot><tr><td colspan="${span}">Total</td>${C.sup.map((v,si)=>`<td class="${si===ch?'mson':''}"></td><td class="n money${si===ch?' mson':''}">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>`;
@@ -1635,6 +1636,7 @@ function apply(parts,v){
     else if(kind==='mssup')m.suppliers[+b]=v;else if(kind==='msloc'){if(m.locs[+b])m.locs[+b].name=v}
     else if(kind==='msdk'){const d=m.dockets[+b];if(d)d[c]=v}
     else if(kind==='msnt'){const d=m.dockets[+b];const n=d&&msNotes(d)[+c];if(!n)return;n[parts[4]]=v;if(d.notes!==undefined)delete d.notes}
+    else if(kind==='msqf'){m.quotes=m.quotes||[];while(m.quotes.length<m.suppliers.length)m.quotes.push(null);m.quotes[+b]=v}
     else if(kind==='msdq'){const d=m.dockets[+b];if(!d)return;d.q=d.q||{};d.q[c]=v}
     else return;
     persist('msod/'+a);return}
