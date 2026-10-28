@@ -242,6 +242,10 @@ tr.pg-empty td{color:var(--muted)}
 .pg-bar{display:flex;align-items:center;gap:8px;min-width:120px}.pg-bar .bar{flex:1}.pg-bar .money{width:40px;text-align:right;font-size:12.5px}
 .pg-in{display:flex;align-items:center;gap:6px}.pg-in input.f{width:80px;flex:0 0 80px;border-color:var(--line)}.pg-in .pg-bar{flex:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.btn:disabled{opacity:.45;cursor:default;pointer-events:none}
+.instov{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:84px}.instov .f{text-align:right;width:84px}.instov .hint{font-size:10.5px;white-space:nowrap}.instov.on .f{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.pg-last{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:4px;font-size:11.5px}.pg-retract{padding:1px 8px!important;font-size:11.5px!important}
+.pg-submit{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}.pg-submit h3{margin:0 0 4px}.pg-submit p{margin:0;max-width:640px}
 .secname{display:flex;align-items:center;gap:6px}.secname .f{flex:1}
 .mstpl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
 .mscard{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
@@ -522,14 +526,17 @@ function taskCalc(t){
 }
 function itemOne(it){
   const e=num(it.estHrs),s=num(it.spentHrs),p=Math.min(Math.max(num(it.pct),0),100)/100,q=num(it.qty);
-  const ftc=p>0?s*(1-p)/p:e;
-  return {est:e,spent:s,qty:q,pct:p,installed:q*p,earned:e*p,ftc,fc:s+ftc,varHrs:e-(s+ftc),rateEst:q?e/q:0,rateAct:q*p?s/(q*p):0};
+  const ftc=p>0?s*(1-p)/p:e;const ov=it.instOv!==undefined&&it.instOv!==null&&it.instOv!=='';
+  const ins=ov?num(it.instOv):q*p;
+  return {est:e,spent:s,qty:q,pct:p,installed:ins,instCalc:q*p,instOv:ov,earned:e*p,ftc,fc:s+ftc,varHrs:e-(s+ftc),rateEst:q?e/q:0,rateAct:ins?s/ins:0};
 }
+function instCell(key,o,x){const f=v=>(Math.round(v*10)/10).toLocaleString('en-AU',{maximumFractionDigits:1});
+  return `<div class="instov${x.instOv?' on':''}">${inp(key,o.instOv??'',{num:1,label:'Installed quantity override',ph:f(x.instCalc)})}<span class="hint">${x.instOv?`Override · calc ${f(x.instCalc)}`:'Qty × %'}</span></div>`}
 function itemCalc(it){
   if(!(it.subs&&it.subs.length))return itemOne(it);
   const t={est:0,spent:0,qty:0,installed:0,earned:0,ftc:0,fc:0};
   for(const sb of it.subs){const x=itemOne(sb);for(const k in t)t[k]+=x[k]}
-  t.pct=t.est?t.earned/t.est:0;t.varHrs=t.est-t.fc;t.rateEst=t.qty?t.est/t.qty:0;t.rateAct=t.installed?t.spent/t.installed:0;t.split=true;return t;
+  t.pct=t.est?t.earned/t.est:0;t.varHrs=t.est-t.fc;t.rateEst=t.qty?t.est/t.qty:0;t.rateAct=t.installed?t.spent/t.installed:0;t.split=true;t.instOv=it.subs.some(sb=>sb.instOv!==undefined&&sb.instOv!==null&&sb.instOv!=='');return t;
 }
 function subRate(d,sb){const sg=d.stages.find(z=>z.id===sb.task);return sb.rate!==''&&sb.rate!=null?num(sb.rate):(sg?num(sg.rate):0)}
 function subCalc(d,sb){const v=subRate(d,sb)*lineQty(sb);const p=Math.min(Math.max(num(sb.pct),0),100)/100;return {v,p,c:v*p}}
@@ -1246,7 +1253,7 @@ function taskEditor(t){
     let e=0,ea=0;rows.forEach(o=>{const x=itemCalc(o.it);e+=x.est;ea+=x.earned});
     return `<tr class="secrow"><td colspan="3">${inp('tksec|'+t+'|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Level 3'})}</td><td colspan="${NC-4}" class="hint">${rows.length} line${rows.length===1?'':'s'} · ${hrs(ea)} of ${hrs(e)} hrs earned · ${pct(e?ea/e:0,0)}</td><td style="text-align:right">${delBtn('tksec',t,sc.id,'Remove section')}</td></tr>`+
     rows.map(({it,j})=>{const k='item|'+t+'|'+j+'|';const x=itemCalc(it);
-      const tail=`<td class="n money">${x.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.ftc)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td class="n money">${x.rateEst.toFixed(2)} · ${x.rateAct?x.rateAct.toFixed(2):'—'}</td>`;
+      const tail=`<td class="n money">${x.split?`<b>${x.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</b>${x.instOv?'<br><span class="hint" style="font-size:11px">incl. overrides</span>':''}`:instCell(k+'instOv',it,x)}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.ftc)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td class="n money">${x.rateEst.toFixed(2)} · ${x.rateAct?x.rateAct.toFixed(2):'—'}</td>`;
       if(x.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);const armed=UI.armed==='imerge'+t+j;
         return `<tr class="parentrow"><td style="width:110px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button>${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td>${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}${splitChips(it)}</td>${showItp?`<td style="width:150px"></td>`:''}
         <td class="hint" style="white-space:nowrap">${cl?'<span class="tag acc">Minimised</span>':''} ${it.subs.length} sub-lines</td><td class="n money"><b>${x.qty.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td><td class="n money"><b>${pct(x.pct,0)}</b></td><td class="n money"><b>${hrs(x.est)}</b></td><td class="n money"><b>${hrs(x.spent)}</b></td>${tail}
@@ -1254,7 +1261,7 @@ function taskEditor(t){
         (cl?'':it.subs.map((sb,q)=>{const ks='isub|'+t+'|'+j+'|'+q+'|';const y=itemOne(sb);
           return `<tr class="subrow"><td>${delBtn('isub',t,j+'.'+q,'Remove')}</td><td class="mono hint" style="padding-left:18px">${esc(it.wbs||'')}${it.wbs?'.':''}${q+1}</td><td>${inp(ks+'desc',sb.desc,{label:'Sub-line description',ph:'Sub-line description'})}</td>${showItp?`<td>${itpCell('isub|'+t+'|'+j+'|'+q,sb.itpFile)}</td>`:''}
           <td>${inp(ks+'unit',sb.unit,{label:'Unit',ph:it.unit||'m'})}</td><td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity'})}</td><td class="n money ro" title="Update on the Progress tab">${pct(y.pct,0)}</td><td>${inp(ks+'estHrs',sb.estHrs,{num:1,label:'Estimated hours'})}</td><td class="n money ro" title="Update on the Progress tab">${hrs(y.spent)}</td>
-          <td class="n money">${y.installed.toLocaleString('en-AU',{maximumFractionDigits:1})}</td><td class="n money">${hrs(y.earned)}</td><td class="n money">${hrs(y.ftc)}</td><td class="n money ${y.varHrs<0?'neg':''}">${hrs(y.varHrs)}</td><td class="n money">${y.rateEst.toFixed(2)} · ${y.rateAct?y.rateAct.toFixed(2):'—'}</td><td></td></tr>`}).join('')+
+          <td class="n money">${instCell(ks+'instOv',sb,y)}</td><td class="n money">${hrs(y.earned)}</td><td class="n money">${hrs(y.ftc)}</td><td class="n money ${y.varHrs<0?'neg':''}">${hrs(y.varHrs)}</td><td class="n money">${y.rateEst.toFixed(2)} · ${y.rateAct?y.rateAct.toFixed(2):'—'}</td><td></td></tr>`}).join('')+
           `<tr class="subadd"><td></td><td colspan="${NC-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="isub-add" data-v="${j}">+ Add sub-line to ${esc(it.desc||'this line')}</button></td></tr>`);
       }
       return `<tr><td style="width:86px">${delBtn('item',t,String(j),'Remove')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td><div class="subtask">${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}<button class="btn ghost splitbtn" data-act="isplit" data-v="${j}" title="Split this line into sub-lines">Split</button></div></td>${showItp?`<td style="width:150px">${itpCell('item|'+t+'|'+j,it.itpFile)}</td>`:''}<td style="width:70px">${inp(k+'unit',it.unit,{label:'Unit',ph:'m'})}</td>
@@ -1264,6 +1271,28 @@ function taskEditor(t){
   }).join('');
   return `<div class="tw"><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th>Unit</th><th class="n">Qty</th><th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Hrs spent</th><th class="n">Installed</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n">+/− hrs</th><th class="n">Hrs / unit (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
+const fmtH=n=>(Math.round((n||0)*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
+const pendOf=it=>(it.subs&&it.subs.length?it.subs.reduce((a,sb)=>a+num(sb.newHrs),0):num(it.newHrs));
+const pctChanged=o=>o.subPct!==undefined&&num(o.subPct)!==num(o.pct);
+function eachLine(fn){for(const t of TASK_IDS){const d=taskDoc(t);d.items.forEach((it,j)=>{if(it.subs&&it.subs.length)it.subs.forEach((sb,k)=>fn(sb,t,j,k));else fn(it,t,j,-1)})}}
+function pendTotal(){let h=0,n=0;eachLine(o=>{if(num(o.newHrs)||pctChanged(o)){h+=num(o.newHrs);n++}});return {hrs:h,lines:n}}
+function submitHours(){
+  const P=pendTotal();if(!P.lines)return;const r2=v=>String(Math.round(v*100)/100);const sid=uid('h');const date=todayISO();const touched=new Set();
+  eachLine((o,t)=>{const h=num(o.newHrs);const pc=pctChanged(o);
+    if(h||pc){(o.hist=o.hist||[]).push({sid,date,hrs:h,pctFrom:o.subPct===undefined?(o.pct||''):o.subPct,pctTo:o.pct||''});if(h)o.spentHrs=r2(num(o.spentHrs)+h);touched.add(t)}
+    if(o.newHrs!==undefined&&o.newHrs!==''){o.newHrs='';touched.add(t)}
+    if(o.subPct!==undefined){delete o.subPct;touched.add(t)}});
+  for(const t of touched){S.tasks[t]=taskDoc(t);persist('tasks/'+t)}
+  S.info.hrsSubs=[...(S.info.hrsSubs||[]),{sid,date,hrs:Math.round(P.hrs*100)/100,lines:P.lines}];persist('project/info');
+}
+function lineAt(t,j,k){const it=taskDoc(t).items[+j];if(!it)return null;return +k>=0?it.subs?.[+k]:it}
+function retractLine(t,o){const e=(o.hist||[]).pop();if(!e)return;
+  o.spentHrs=String(Math.max(0,Math.round((num(o.spentHrs)-num(e.hrs))*100)/100));o.pct=e.pctFrom;delete o.subPct;if(!o.hist.length)delete o.hist;
+  const L=S.info.hrsSubs||[];const g=L.find(x=>x.sid===e.sid);if(g){g.hrs=Math.round((num(g.hrs)-num(e.hrs))*100)/100;g.lines=(g.lines||1)-1;if(g.lines<=0)S.info.hrsSubs=L.filter(x=>x!==g)}
+  S.tasks[t]=taskDoc(t);persist('tasks/'+t);persist('project/info')}
+function retractSubmission(sid){eachLine((o,t)=>{const h=o.hist;if(h&&h.length&&h[h.length-1].sid===sid)retractLine(t,o)});S.info.hrsSubs=(S.info.hrsSubs||[]).filter(x=>x.sid!==sid);persist('project/info')}
+function lastSubCell(o,t,j,k){const e=(o.hist||[]).slice(-1)[0];if(!e)return '';const key='pgr'+t+'_'+j+'_'+k;const armed=UI.armed===key;
+  return `<div class="pg-last"><span class="hint">Last submitted ${fmtDate(e.date)}: +${fmtH(e.hrs)} hrs${num(e.pctFrom)!==num(e.pctTo)?` · ${fmtH(num(e.pctFrom))}% → ${fmtH(num(e.pctTo))}%`:''}</span><button class="btn ${armed?'armed':'ghost'} pg-retract" data-act="pg-retract" data-v="${t}|${j}|${k}">${armed?'Confirm retract':'Retract'}</button></div>`}
 V.progress=()=>{
   const c=calc();const q=(UI.pq||'').trim().toLowerCase();
   const tasks=TASK_IDS.map((t,ti)=>({t,ti,d:taskDoc(t),x:taskCalc(t)})).filter(o=>o.d.items.length);
@@ -1279,16 +1308,20 @@ V.progress=()=>{
       return `<tr class="secrow"><td>${esc(sc.name||'Untitled section')}</td><td>${bar(e?ea/e:0)}</td><td class="n money hint">${hrs(sp)} / ${hrs(e)}</td></tr>`+
       rows.map(({it,j})=>{const y=itemCalc(it);
         if(y.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);
-          return `<tr class="parentrow"><td><div style="display:flex;align-items:flex-start;gap:6px"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button><div><b>${esc(it.desc||'Untitled line')}</b>${cl?' <span class="tag acc">Minimised</span>':''}${splitChips(it)}</div></div></td><td>${bar(y.pct)}</td><td class="n money"><b>${hrs(y.spent)}</b> <span class="hint">/ ${hrs(y.est)}</span></td></tr>`+
-          (cl?'':it.subs.map((sb,k)=>{const z=itemOne(sb);return `<tr class="subrow"><td style="padding-left:34px">${esc(sb.desc||'Sub-line '+(k+1))}</td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${bar(z.pct)}</div></td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|spentHrs',sb.spentHrs,(sb.desc||'Sub-line')+' hours')}<span class="hint">/ ${hrs(z.est)} hrs</span></div></td></tr>`}).join(''));}
-        return `<tr><td>${esc(it.desc||'Untitled line')}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|pct',it.pct,(it.desc||'Line')+' % complete')}<span class="hint">%</span>${bar(y.pct)}</div></td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|spentHrs',it.spentHrs,(it.desc||'Line')+' hours')}<span class="hint">/ ${hrs(y.est)} hrs</span></div></td></tr>`}).join('');
+          return `<tr class="parentrow"><td><div style="display:flex;align-items:flex-start;gap:6px"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button><div><b>${esc(it.desc||'Untitled line')}</b>${cl?' <span class="tag acc">Minimised</span>':''}${splitChips(it)}</div></div></td><td>${bar(y.pct)}</td><td class="n money">${pendOf(it)?`<span class="tag acc" style="margin-right:4px">+${fmtH(pendOf(it))} to submit</span>`:''}<b>${hrs(y.spent)}</b> <span class="hint">/ ${hrs(y.est)}</span></td></tr>`+
+          (cl?'':it.subs.map((sb,k)=>{const z=itemOne(sb);return `<tr class="subrow"><td style="padding-left:34px">${esc(sb.desc||'Sub-line '+(k+1))}</td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${bar(z.pct)}</div></td><td><div class="pg-in">${pcIn('isub|'+t+'|'+j+'|'+k+'|newHrs',sb.newHrs,(sb.desc||'Sub-line')+' hours this period')}<span class="hint">${hrs(z.spent)} / ${hrs(z.est)} hrs</span></div>${lastSubCell(sb,t,j,k)}</td></tr>`}).join(''));}
+        return `<tr><td>${esc(it.desc||'Untitled line')}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|pct',it.pct,(it.desc||'Line')+' % complete')}<span class="hint">%</span>${bar(y.pct)}</div></td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|newHrs',it.newHrs,(it.desc||'Line')+' hours this period')}<span class="hint">${hrs(y.spent)} / ${hrs(y.est)} hrs</span></div>${lastSubCell(it,t,j,-1)}</td></tr>`}).join('');
     }).join('');
     if(q&&!secHtml)return '';
     return `<div class="panel pg-task"><button class="pg-head" data-act="tog-sub" data-v="pg${t}" aria-expanded="${open}"><span class="caret">${open?'▾':'▸'}</span><span class="pg-name">${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</span><span class="pg-sum">${bar(x.pct)}<span class="money hint">${hrs(x.spent)} / ${hrs(x.est)} hrs</span></span></button>
-      ${open?`<div class="tw" style="margin-top:10px"><table><thead><tr><th style="min-width:260px">Description</th><th style="width:34%">% complete</th><th class="n" style="width:24%">Hours spent / estimated</th></tr></thead><tbody>${secHtml}</tbody></table></div>`:''}</div>`;
+      ${open?`<div class="tw" style="margin-top:10px"><table><thead><tr><th style="min-width:260px">Description</th><th style="width:34%">% complete</th><th class="n" style="width:28%">Hours this period · spent / estimated</th></tr></thead><tbody>${secHtml}</tbody></table></div>`:''}</div>`;
   }).join('');
-  return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. Changes here update Labour & tasks straight away, and new sections and lines appear here automatically.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
+  const P=pendTotal();const armedS=UI.armed==='pg-submit';const last=(S.info.hrsSubs||[]).slice(-1)[0];const armedR=last&&UI.armed==='pgrs'+last.sid;
+  const submitBar=`<div class="panel pg-submit"><div><h3>Hours this period</h3><p class="hint">Enter hours against each line below, then submit. Submitting adds them to hours spent in Labour & tasks and clears these fields. % complete stays as entered. Made a mistake? Retract a line’s last submission, or the whole submission.${last?` Last submitted ${fmtDate(last.date)}: ${fmtH(last.hrs)} hrs on ${last.lines} line${last.lines===1?'':'s'}.`:''}</p></div>
+    <div class="toolbar">${last&&last.sid?`<button class="btn ${armedR?'armed':''}" data-act="pg-retract-all" data-v="${last.sid}">${armedR?'Confirm: retract '+fmtH(last.hrs)+' hrs':'Retract last submission'}</button>`:''}<span class="money"><b>${fmtH(P.hrs)}</b> hrs on ${P.lines} line${P.lines===1?'':'s'}</span><button class="btn ${armedS?'armed':'primary'}" data-act="pg-submit" ${P.lines?'':'disabled'}>${armedS?'Confirm: submit '+fmtH(P.hrs)+' hrs':'Submit hours'}</button></div></div>`;
+  return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. % complete updates Labour & tasks straight away. Hours are added to Labour & tasks when you submit them.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
   <div class="kpis"><div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours</span></div><div class="kpi"><span class="l">Hours spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">of ${hrs(c.lEst)} estimated</span></div><div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div></div>
+  ${submitBar}
   <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Overall completion by task</h3><p class="hint">All tasks, by hours earned against estimated hours.</p></div></div>
   <div class="tw" style="border:0"><table><thead><tr><th>Task</th><th style="width:40%">% complete</th><th class="n">Hours spent / estimated</th><th class="n">Forecast</th></tr></thead><tbody>
   ${TASK_IDS.map((t,ti)=>{const x=taskCalc(t);return `<tr class="${x.est?'':'pg-empty'}"><td>${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</td><td>${x.est?bar(x.pct):'<span class="hint">No lines yet</span>'}</td><td class="n money">${hrs(x.spent)} / ${hrs(x.est)}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.fc)}</td></tr>`}).join('')}
@@ -1611,8 +1644,8 @@ function apply(parts,v){
     persist('project/claim');return}
   if(kind==='pch'){const d=claimDoc();if(d.hist[+a]){d.hist[+a][b]=v;persist('project/claim')}return}
   if(kind==='tksec'){const d=ensureTask(a);if(d.sections[+b]){d.sections[+b][c]=v;persist('tasks/'+a)}return}
-  if(kind==='isub'){const d=ensureTask(a);const sb=d.items[+b]?.subs?.[+c];if(sb){sb[parts[4]]=v;persist('tasks/'+a)}return}
-  if(kind==='item'){const t=S.tasks[a]=taskDoc(a);if(t.items[+b]){t.items[+b][c]=v;persist('tasks/'+a)}return}
+  if(kind==='isub'){const d=ensureTask(a);const sb=d.items[+b]?.subs?.[+c];if(sb){if(parts[4]==='pct'&&sb.subPct===undefined)sb.subPct=sb.pct||'';sb[parts[4]]=v;persist('tasks/'+a)}return}
+  if(kind==='item'){const t=S.tasks[a]=taskDoc(a);const it=t.items[+b];if(it){if(c==='pct'&&it.subPct===undefined)it.subPct=it.pct||'';it[c]=v;persist('tasks/'+a)}return}
   if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
   if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
@@ -1643,7 +1676,7 @@ viewEl.addEventListener('input',e=>{
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
-  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read')UI.armed=null;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all')UI.armed=null;
   if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
@@ -1679,6 +1712,9 @@ document.addEventListener('click',async e=>{
     l.subs=d.stages.length?d.stages.map(z=>({id:uid('j'),task:z.id,desc:'',qty:l.qty||'1',rate:f===1?'':String(Math.round(num(z.rate)*f*100)/100),pct:String(num(st.s?.[z.id]))})):[{id:uid('j'),task:'',desc:'',qty:l.qty||'1',rate:'',pct:''}];
     structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='tog-sub'){const id=btn.dataset.v;if(COLL.has(id))COLL.delete(id);else COLL.add(id);saveColl();render();return}
+  if(act==='pg-submit'){if(UI.armed!=='pg-submit'){UI.armed='pg-submit';render();setTimeout(()=>{if(UI.armed==='pg-submit'){UI.armed=null;render()}},5000);return}UI.armed=null;submitHours();render();return}
+  if(act==='pg-retract'){const [t,j,k]=btn.dataset.v.split('|');const key='pgr'+t+'_'+j+'_'+k;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}UI.armed=null;const o=lineAt(t,j,k);if(o)retractLine(t,o);render();return}
+  if(act==='pg-retract-all'){const sid=btn.dataset.v;const key='pgrs'+sid;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}UI.armed=null;retractSubmission(sid);render();return}
   if(act==='pg-all'){for(const t of TASK_IDS){if(btn.dataset.v==='1')COLL.add('pg'+t);else COLL.delete('pg'+t)}saveColl();render();return}
   if(act==='sec-all'){const d=aptDoc(UI.bld);for(const x of d.sections){if(btn.dataset.v==='1')COLL.add('sec'+x.id);else COLL.delete('sec'+x.id)}saveColl();render();return}
   if(act==='sec-clone'){const t=btn.dataset.id,si=+btn.dataset.x;const d=aptDoc(t);const src=d.sections[si];if(!src)return;
@@ -1745,12 +1781,12 @@ document.addEventListener('click',async e=>{
     for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
     d.hdr={...h.snap.hdr,keep:{ret:h.ret||'',cost:h.cost||''}};d.hist.pop();persist('project/claim');render();return}
   if(act==='isplit'){const t=UI.task;const d=ensureTask(t);const it=d.items[+btn.dataset.v];if(!it)return;
-    it.subs=[{id:uid('q'),desc:it.desc||'',unit:it.unit||'',qty:it.qty||'',pct:it.pct||'',estHrs:it.estHrs||'',spentHrs:it.spentHrs||'',itpFile:null},{id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''}];
+    it.subs=[{id:uid('q'),desc:it.desc||'',unit:it.unit||'',qty:it.qty||'',pct:it.pct||'',estHrs:it.estHrs||'',spentHrs:it.spentHrs||'',newHrs:it.newHrs||'',hist:it.hist,itpFile:null},{id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''}];delete it.hist;
     persist('tasks/'+t);render();return}
   if(act==='isub-add'){const t=UI.task;const d=ensureTask(t);const it=d.items[+btn.dataset.v];(it.subs=it.subs||[]).push({id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''});persist('tasks/'+t);render();return}
   if(act==='imerge'){const t=UI.task;const key='imerge'+t+btn.dataset.v;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
     UI.armed=null;const d=ensureTask(t);const it=d.items[+btn.dataset.v];const x=itemCalc(it);
-    Object.assign(it,{qty:String(Math.round(x.qty*100)/100),estHrs:String(Math.round(x.est*100)/100),spentHrs:String(Math.round(x.spent*100)/100),pct:String(Math.round(x.pct*1000)/10)});delete it.subs;persist('tasks/'+t);render();return}
+    Object.assign(it,{qty:String(Math.round(x.qty*100)/100),estHrs:String(Math.round(x.est*100)/100),spentHrs:String(Math.round(x.spent*100)/100),newHrs:(()=>{const n=it.subs.reduce((a,sb)=>a+num(sb.newHrs),0);return n?String(Math.round(n*100)/100):''})(),pct:String(Math.round(x.pct*1000)/10)});delete it.subs;delete it.hist;delete it.subPct;persist('tasks/'+t);render();return}
   if(act==='add-tsec'){const t=UI.task;const d=ensureTask(t);const id=uid('S');d.sections.push({id,name:''});d.items.push(newItem(id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('tksec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='bulk'){
     const t=UI.bld;if(!t)return;const d=S.apt[t]=aptDoc(t);const q=UI.q.trim().toUpperCase();const v=num(UI.bulkPct);const Q=aptQueue[t]=aptQueue[t]||new Set();
