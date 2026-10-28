@@ -250,6 +250,10 @@ tr.pg-empty td{color:var(--muted)}
 .mstable th.msgrp{text-align:center;border-left:1px solid var(--line)}
 .mstable th.msgrp .f{text-align:center;font-weight:600}
 td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
+.mstable .mson{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.mspick{all:unset;cursor:pointer;display:block;margin:4px auto 0;font-size:11.5px;font-weight:600;color:var(--accent);padding:2px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.mspick[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mspick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .msloc{display:flex;gap:4px;align-items:center}.msloc .f{min-width:70px}
 .mspaste{width:100%;font-family:var(--f-mono);font-size:12.5px;border-color:var(--line);resize:vertical}
 
@@ -1347,7 +1351,7 @@ function msNew(type){
   const n=type==='submain'?4:6;
   return {created:Date.now(),type,name:'',title:'',suppliers:Array(n).fill(''),
     locs:[1,2,3].map(i=>({id:uid('L'),name:'PS'+i})),items:Array.from({length:5},msItem),
-    hdr:{jobName:PROJ[PID]?.name||S.info.name||'',jobNo:S.info.job||''},appr:{},dockets:[],proposed:''};
+    hdr:{jobName:PROJ[PID]?.name||S.info.name||'',jobNo:S.info.job||''},appr:{},dockets:[],budget:'',chosen:''};
 }
 const msIds=()=>Object.keys(S.msods).sort((a,b)=>(S.msods[a].created||0)-(S.msods[b].created||0));
 const msName=m=>{if(m.name)return m.name;const same=msIds().map(x=>S.msods[x]).filter(x=>x.type===m.type);const k=same.indexOf(m);return (MS_LABEL[m.type]||'MSOD')+' MSOD'+(k>=0?' '+(k+1):'')};
@@ -1363,15 +1367,17 @@ function msQty(m,it){
   return {qty:num(it.qty),src:'manual'};
 }
 function msLow(m,it){let lo=0;for(let i=0;i<m.suppliers.length;i++){const r=num((it.r||[])[i]);if(r>0&&(!lo||r<lo))lo=r}return lo}
+const msChosen=m=>{const c=m.chosen;return c!==undefined&&c!==null&&c!==''&&+c<m.suppliers.length?+c:-1};
+const msSupName=(m,i)=>i<0?'':(m.suppliers[i]||'Supplier '+(i+1));
 function msCalc(m){
-  const ns=m.suppliers.length;const sup=Array(ns).fill(0);let sel=0,bud=0,val=0,dval=0,qty=0,dq=0;
-  const rows=m.items.map(it=>{const {qty:q,src}=msQty(m,it);const lo=msLow(m,it);const explicit=it.sel!==undefined&&it.sel!==''&&it.sel!==null;const rate=explicit?num(it.sel):lo;
+  const ns=m.suppliers.length;const sup=Array(ns).fill(0);const ch=msChosen(m);let sel=0,dval=0,qty=0,dq=0;
+  const rows=m.items.map(it=>{const {qty:q,src}=msQty(m,it);const lo=msLow(m,it);const rate=ch<0?0:num((it.r||[])[ch]);
     for(let i=0;i<ns;i++)sup[i]+=q*num((it.r||[])[i]);
     let del=0;for(const d of m.dockets)del+=num(d.q?.[it.id]);
-    const x={it,q,src,lo,rate,explicit,total:q*rate,bud:q*num(it.budget),del,bal:q-del};
-    sel+=x.total;bud+=x.bud;dval+=del*rate;qty+=q;dq+=Math.min(del,q);return x});
-  const proposed=m.proposed!==''&&m.proposed!=null?num(m.proposed):sel;
-  return {rows,sup,sel,bud,proposed,gain:bud-proposed,gp:bud?(bud-proposed)/bud:0,dval,pctDel:sel?dval/sel:(qty?dq/qty:0)};
+    const x={it,q,src,lo,rate,total:q*rate,del,bal:q-del};
+    sel+=x.total;dval+=del*rate;qty+=q;dq+=Math.min(del,q);return x});
+  const bud=num(m.budget);const proposed=sel;
+  return {rows,sup,ch,sel,bud,proposed,gain:bud-proposed,gp:bud?(bud-proposed)/bud:0,dval,pctDel:sel?dval/sel:(qty?dq/qty:0)};
 }
 function msDelivered(m,it,upto){let s=0;for(let k=0;k<upto;k++)s+=num(m.dockets[k].q?.[it.id]);return s}
 
@@ -1390,8 +1396,8 @@ V.msod=()=>{
   return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.',`<button class="btn ${armed?'armed':''}" data-act="del" data-kind="msod" data-id="${id}" data-x="">${armed?'Confirm: remove '+esc(msName(m,ids.indexOf(id))):'Remove MSOD'}</button>`)}
   ${chips}${UI.msNew?chooser:''}
   <div class="kpis"><div class="kpi"><span class="l">${esc(MS_LABEL[m.type]||'')}</span><span class="v">${m.items.length} items</span><span class="d">${esc(m.title||'Add what this MSOD is for under Details')}</span></div>
-    <div class="kpi"><span class="l">Order value</span><span class="v">${money(C.sel)}</span><span class="d">Qty × selected rate</span></div>
-    <div class="kpi"><span class="l">Budget</span><span class="v">${money(C.bud)}</span><span class="d ${C.gain<0?'neg':''}">${C.bud?(C.gain<0?money(-C.gain)+' over':money(C.gain)+' under')+' ('+pct(C.gp)+')':'Add budget rates'}</span></div>
+    <div class="kpi"><span class="l">Proposed order value</span><span class="v">${C.ch<0?'—':money(C.proposed)}</span><span class="d">${C.ch<0?'Choose a supplier in the item schedule':esc(msSupName(m,C.ch))}</span></div>
+    <div class="kpi"><span class="l">Budget</span><span class="v">${money(C.bud)}</span><span class="d ${C.gain<0?'neg':''}">${C.bud?(C.ch<0?'Choose a supplier to compare':(C.gain<0?money(-C.gain)+' over':money(C.gain)+' under')+' ('+pct(C.gp)+')'):'Add the budget in the item schedule'}</span></div>
     <div class="kpi"><span class="l">Delivered</span><span class="v">${pct(C.pctDel)}</span><span class="d">${money(C.dval)} across ${m.dockets.length} deliver${m.dockets.length===1?'y':'ies'}</span></div></div>
   <div class="seg" role="group" aria-label="MSOD section">${tabs.map(([k,l])=>`<button data-act="ms-tab" data-v="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>
   ${body}</div>`;
@@ -1407,10 +1413,10 @@ function msDetails(id,m){
     ${F('jobName','Job name')}${F('jobNo','Job no.')}${F('contact','Site contact')}${F('address','Delivery address',{wide:1})}</div></div>`;
 }
 function msItems(id,m,C){
-  const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;
-  const fillOpts=[['low','Lowest quote'],...m.suppliers.map((s,i)=>[String(i),s||'Supplier '+(i+1)])];
+  const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
+  const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
   const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><span style="flex:1"></span>
-    <label class="hint">Fill selected rates from ${`<select class="f" style="width:auto;border-color:var(--line)" data-ui="msFill" aria-label="Fill selected rates from">${fillOpts.map(([v,t])=>`<option value="${v}"${(UI.msFill||'low')===v?' selected':''}>${esc(t)}</option>`).join('')}</select>`}</label><button class="btn" data-act="ms-selfill">Apply</button></div>`;
+    <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label></div>`;
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
     <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
@@ -1418,23 +1424,23 @@ function msItems(id,m,C){
     const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='takeoff'?'from take off':'cables × run'}</span>`;
     return `<tr><td class="hint">${i+1}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
-      <td style="min-width:100px">${inp(k+'sel',it.sel??'',{num:1,label:'Selected rate line '+(i+1),ph:x.lo?String(x.lo):''})}</td><td class="n money"><b>${x.total?money2(x.total):'—'}</b></td>
-      ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;return `<td style="min-width:90px" class="${best?'msbest':''}">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:(s||'Supplier '+(si+1))+' rate line '+(i+1)})}</td><td class="n money hint">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
-      <td class="n money">${x.lo?money2(x.lo):'—'}</td><td style="min-width:90px">${inp(k+'budget',it.budget||'',{num:1,label:'Budget rate line '+(i+1)})}</td><td class="n money">${x.bud?money2(x.bud):'—'}</td>
+      ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
+      <td class="n money">${x.lo?money2(x.lo):'—'}</td>
       <td>${delBtn('msi',id,String(i))}</td></tr>`}).join('');
   const span=cols.length+2;
   const table=`<div class="tw tall"><table class="mstable"><thead>
-    <tr><th colspan="${span}"></th><th colspan="2" class="msgrp">Selected</th>${m.suppliers.map((s,si)=>`<th colspan="2" class="msgrp">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}</th>`).join('')}<th></th><th colspan="2" class="msgrp">Budget</th><th></th></tr>
-    <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th><th class="n">Rate</th><th class="n">Total</th>${m.suppliers.map(()=>'<th class="n">Rate</th><th class="n">Price</th>').join('')}<th class="n">Lowest rate</th><th class="n">Rate</th><th class="n">Total</th><th></th></tr></thead>
-    <tbody>${rows||`<tr><td colspan="${span+2*ns+7}" class="hint">No lines yet.</td></tr>`}</tbody>
-    <tfoot><tr><td colspan="${span+1}">Total</td><td class="n money">${money2(C.sel)}</td>${C.sup.map(v=>`<td></td><td class="n money">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td><td class="n money">${money2(C.bud)}</td><td></td></tr></tfoot></table></div>`;
+    <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''}">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button></th>`}).join('')}<th></th><th></th></tr>
+    <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th>${m.suppliers.map((_,si)=>`<th class="n${si===ch?' mson':''}">Rate</th><th class="n${si===ch?' mson':''}">Price</th>`).join('')}<th class="n">Lowest rate</th><th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="${span+2*ns+2}" class="hint">No lines yet.</td></tr>`}</tbody>
+    <tfoot><tr><td colspan="${span}">Total</td>${C.sup.map((v,si)=>`<td class="${si===ch?'mson':''}"></td><td class="n money${si===ch?' mson':''}">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>`;
   const a=m.appr||{};const ka='msa|'+id+'|';
   const summary=`<div class="grid2"><div class="panel"><h3>Budget vs order</h3><table class="kv"><tbody>
-    <tr><td>Budget</td><td class="n money">${money2(C.bud)}</td></tr>
-    <tr><td>Proposed order value</td><td style="width:160px">${inp('ms|'+id+'|proposed',m.proposed??'',{num:1,label:'Proposed order value',ph:String(Math.round(C.sel*100)/100)})}</td></tr>
-    <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${money2(C.gain)}</b></td></tr>
+    <tr><td>Budget</td><td style="width:170px">${inp('ms|'+id+'|budget',m.budget??'',{num:1,label:'Budget',ph:'0'})}</td></tr>
+    <tr><td>Supplier</td><td style="width:170px">${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier for order'})}</td></tr>
+    <tr><td>Proposed order value</td><td class="n money"><b>${ch<0?'—':money2(C.proposed)}</b></td></tr>
+    <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${ch<0&&!C.bud?'—':money2(C.gain)}</b></td></tr>
     <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud?pct(C.gp):'—'}</td></tr></tbody></table>
-    <p class="hint" style="margin-top:8px">The proposed order value defaults to the selected total. A blank selected rate uses the lowest quote.</p></div>
+    <p class="hint" style="margin-top:8px">${ch<0?'Choose a supplier to set the proposed order value. Their rates are also used in the delivery schedule.':'The proposed order value is '+esc(msSupName(m,ch))+'’s total. Their rates are also used in the delivery schedule.'}</p></div>
     <div class="panel"><h3>Evaluation & approvals</h3><div class="form">
     <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
     ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
@@ -1474,13 +1480,13 @@ function msSchedule(id,m,C){
     return `<tr><td class="hint">${i+1}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
     <td class="n money">${x.rate?money2(x.rate):'—'}</td><td class="n money">${money2(x.total)}</td><td class="n money">${money2(x.del*x.rate)}</td><td class="n money">${money2(x.bal*x.rate)}</td>
     ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
-  return `<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price</th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
+  return `${C.ch<0?'<div class="panel" style="padding:10px 14px"><span class="hint">Choose a supplier in the item schedule to price this schedule.</span></div>':''}<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price${C.ch<0?'':'<br><span class="hint" style="font-weight:400">'+esc(msSupName(m,C.ch))+'</span>'}</th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
   <tbody>${rows}</tbody><tfoot><tr><td colspan="6">Total</td><td class="n money">${money2(tv)}</td><td class="n money">${money2(dv)}</td><td class="n money">${money2(tv-dv)}</td>${D.map(d=>`<td class="n money">${money2(C.rows.reduce((a,x)=>a+num(d.q?.[x.it.id])*x.rate,0))}</td>`).join('')}</tr></tfoot></table></div>`;
 }
 async function msPdf(id,di){
   const m=S.msods[id];const d=m&&m.dockets[di];if(!d)return;
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;const h={...(m.hdr||{})};h.jobName=h.jobName||PROJ[PID]?.name||S.info.name||'';h.jobNo=h.jobNo||S.info.job||'';
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;const h={...(m.hdr||{})};h.supplier=h.supplier||msSupName(m,msChosen(m));h.jobName=h.jobName||PROJ[PID]?.name||S.info.name||'';h.jobNo=h.jobNo||S.info.job||'';
   pdfHeader(doc,'Material delivery request');
   doc.setFontSize(9.5);
   const L=[['Supplier',h.supplier],['Attention',h.attention],['Supplier ref',h.supplierRef],['Order no.',h.orderNo],['Job name',h.jobName],['Delivery address',h.address],['Site contact',h.contact]];
@@ -1648,7 +1654,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-add-dk'){m.dockets.push({id:uid('d'),date:todayISO(),delivery:'',q:{}});UI.msd=m.dockets.length-1;persist('msod/'+id);render();return}
     if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
-    if(act==='ms-selfill'){const src=UI.msFill||'low';for(const it of m.items){const r=src==='low'?msLow(m,it):num((it.r||[])[+src]);if(r>0)it.sel=String(r)}persist('msod/'+id);render();return}
+    if(act==='ms-choose'){const v=btn.dataset.v;m.chosen=String(m.chosen)===v?'':v;persist('msod/'+id);render();return}
   }
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
   if(act==='add-sec'){const t=btn.dataset.id;const d=aptDoc(t);d.sections.push({id:uid('S'),name:'',lines:[newLine()]});structDirty.add(t);UI.level='all';UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tsec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
