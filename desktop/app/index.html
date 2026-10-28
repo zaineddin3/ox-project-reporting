@@ -1053,7 +1053,7 @@ V.subcontractors=()=>{
   const ids=tradeIds();if(!ids.includes(UI.bld))UI.bld=ids[0]||'';
   const t=UI.bld;
   const chips=`<div class="chips" role="group" aria-label="Trade">${ids.map(x=>`<button class="chip" data-act="bld" data-v="${x}" aria-pressed="${t===x}">${esc(aptDoc(x).name||'Untitled trade')}</button>`).join('')}<button class="chip add" data-act="add-trade">+ Add trade</button></div>`;
-  const hd=head('Subcontractors','Build each trade’s claim from your own sections and lines. A line with no rate uses the trade’s standard rate from its claim stages.',t?`<button class="btn" data-act="setup" aria-expanded="${UI.setup}">${UI.setup?'Close setup':'Edit trade setup'}</button>`:'');
+  const hd=head('Subcontractors','Build each trade’s claim from your own sections and lines. A line with no rate uses the trade’s standard rate from its claim stages.',t?`<button class="btn ${UI.armed==='trade'+t?'armed':''}" data-act="del" data-kind="trade" data-id="${t}" data-x="">${UI.armed==='trade'+t?'Confirm: remove '+esc(aptDoc(t).name||'this trade'):'Remove trade'}</button> <button class="btn" data-act="setup" aria-expanded="${UI.setup}">${UI.setup?'Close setup':'Edit trade setup'}</button>`:'');
   if(!t)return `<div class="stack">${hd}${chips}<div class="panel empty"><b>No trades yet</b>Add a trade to track a subcontractor's progress line by line.</div></div>`;
   const d=aptDoc(t),a=aptCalc(t);
   if(UI.level!=='all'&&!d.sections.some(x=>x.id===UI.level))UI.level='all';
