@@ -1413,7 +1413,7 @@ const MS_LABEL={general:'General materials',submain:'Submains'};
 const MS_APPR=[['pm','Project Manager / Supervisor'],['hse','HSE Manager'],['est','Estimating Manager'],['ops','Operations Manager'],['div','Division Manager'],['gm','General Manager']];
 const msItem=()=>({id:uid('i'),q:{},r:[]});
 function msNew(type){
-  const n=type==='submain'?4:6;
+  const n=6;
   return {created:Date.now(),type,name:'',title:'',suppliers:Array(n).fill(''),
     locs:[1,2,3].map(i=>({id:uid('L'),name:'PS'+i})),items:Array.from({length:5},msItem),
     hdr:{jobName:PROJ[PID]?.name||S.info.name||'',jobNo:S.info.job||''},appr:{},dockets:[],budget:'',chosen:''};
@@ -1450,9 +1450,10 @@ function msDelivered(m,it,upto){let s=0;for(let k=0;k<upto;k++)s+=num(m.dockets[
 V.msod=()=>{
   const ids=msIds();if(!ids.includes(UI.ms))UI.ms=ids[0]||'';
   const id=UI.ms;const m=S.msods[id];
+  if(m&&Array.isArray(m.suppliers)&&m.suppliers.length<6){while(m.suppliers.length<6)m.suppliers.push('');persist('msod/'+id)}
   const chooser=`<div class="panel"><h3>Choose an MSOD template</h3><p class="hint" style="margin:-6px 0 12px">Each template matches one of your MSOD workbooks.</p>
     <div class="mstpl"><button class="mscard" data-act="ms-new" data-v="general"><b>General materials</b><span>Item, type, description, details and cat number. Six supplier quotes. Based on <i>OX – PROJXX – MSOD</i>.</span></button>
-    <button class="mscard" data-act="ms-new" data-v="submain"><b>Submains</b><span>From, to, cable ID, number of cables, config, size, conductor, insulation and run length. Four supplier quotes. Based on <i>MOSD Blank Submain</i>.</span></button></div>
+    <button class="mscard" data-act="ms-new" data-v="submain"><b>Submains</b><span>From, to, cable ID, number of cables, config, size, conductor, insulation and run length. Six supplier quotes. Based on <i>MOSD Blank Submain</i>.</span></button></div>
     ${ids.length?'<div style="margin-top:12px"><button class="btn ghost" data-act="ms-newpick">Cancel</button></div>':''}</div>`;
   if(!m)return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.')}${chooser}</div>`;
   const C=msCalc(m);const tab=UI.mst||'items';const armed=UI.armed==='msod'+id;
