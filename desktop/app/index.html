@@ -1350,12 +1350,14 @@ const allBud=()=>TASK_IDS.reduce((a,t)=>a+taskBud(t),0);
 const budTxt=(sp,bd,unit)=>bd?`<span class="${sp>bd?'neg':''}">${hrs(sp)} / ${hrs(bd)}${unit?' budget hrs':''}</span>`:`${hrs(sp)}${unit?' hrs':''} <span class="hint">· no budget</span>`;
 V.progress=()=>{
   const c=calc();const q=(UI.pq||'').trim().toLowerCase();
-  const tasks=TASK_IDS.map((t,ti)=>({t,ti,d:taskDoc(t),x:taskCalc(t)})).filter(o=>o.d.items.length);
+  const allT=TASK_IDS.map((t,ti)=>({t,ti,d:taskDoc(t),x:taskCalc(t)})).filter(o=>o.d.items.length);
+  if(!allT.some(o=>o.t===UI.pgSel))UI.pgSel=allT[0]?.t||'';const single=!UI.pgAll&&!q;
+  const tasks=single?allT.filter(o=>o.t===UI.pgSel):allT;
   const pcIn=(key,val,lbl)=>`<input class="f num" id="${key.replace(/\|/g,'_')}" data-b="${key}" inputmode="decimal" value="${esc(val??'')}" placeholder="0" aria-label="${esc(lbl)}">`;
   const bar=p=>`<div class="pg-bar"><div class="bar"><i style="width:${Math.min(Math.max(p,0),1)*100}%"></i></div><span class="money">${pct(p,0)}</span></div>`;
   const match=it=>!q||(it.desc||'').toLowerCase().includes(q)||(it.subs||[]).some(sb=>(sb.desc||'').toLowerCase().includes(q));
   const body=tasks.map(({t,ti,d,x})=>{
-    const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(z=>z.id));const open=!COLL.has('pg'+t);
+    const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(z=>z.id));const open=single||!COLL.has('pg'+t);
     const secHtml=secs.map(sc=>{
       const rows=d.items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id&&match(o.it));
       if(!rows.length)return '';
@@ -1377,11 +1379,11 @@ V.progress=()=>{
   return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. % complete updates Labour & tasks straight away. Hours are added to Labour & tasks when you submit them.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
   <div class="kpis"><div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours</span></div><div class="kpi"><span class="l">Hours spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">of ${allBud()?hrs(allBud())+' budget':'no budget set'}</span></div><div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div></div>
   ${submitBar}
-  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Overall completion by task</h3><p class="hint">All tasks, by hours earned against estimated hours.</p></div></div>
+  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Overall completion by task</h3><p class="hint">All tasks, by hours earned against estimated hours. Click a task to update its progress below.</p></div></div>
   <div class="tw" style="border:0"><table><thead><tr><th>Task</th><th style="width:40%">% complete</th><th class="n">Hours spent / budget</th><th class="n">Forecast</th></tr></thead><tbody>
-  ${TASK_IDS.map((t,ti)=>{const x=taskCalc(t);return `<tr class="${x.est?'':'pg-empty'}"><td>${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</td><td>${x.est?bar(x.pct):'<span class="hint">No lines yet</span>'}</td><td class="n money">${budTxt(x.spent,taskBud(t))}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.fc)}</td></tr>`}).join('')}
+  ${TASK_IDS.map((t,ti)=>{const x=taskCalc(t);const has=taskDoc(t).items.length;const lbl=String(ti+1).padStart(3,'0')+' · '+esc(TASKS[ti]);return `<tr class="${x.est||has?'':'pg-empty'}${single&&t===UI.pgSel?' sel':''}"><td>${has?`<button class="rowlink" data-act="pgsel" data-v="${t}">${lbl}</button>`:lbl}</td><td>${x.est?bar(x.pct):'<span class="hint">No lines yet</span>'}</td><td class="n money">${budTxt(x.spent,taskBud(t))}</td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.fc)}</td></tr>`}).join('')}
   </tbody><tfoot><tr><td>All tasks</td><td>${bar(c.lEst?c.lEarned/c.lEst:0)}</td><td class="n money">${budTxt(c.lSpent,allBud())}</td><td class="n money">${hrs(c.lFc)}</td></tr></tfoot></table></div></div>
-  <div class="toolbar"><button class="btn" data-act="pg-all" data-v="0">Expand all</button><button class="btn" data-act="pg-all" data-v="1">Collapse all</button></div>
+  <div class="toolbar"><div class="seg" role="group" aria-label="Tasks shown"><button data-act="pgmode" data-v="" aria-pressed="${!UI.pgAll}">Selected task</button><button data-act="pgmode" data-v="1" aria-pressed="${!!UI.pgAll}">All tasks</button></div>${UI.pgAll?'<button class="btn" data-act="pg-all" data-v="0">Expand all</button><button class="btn" data-act="pg-all" data-v="1">Collapse all</button>':''}${q&&!UI.pgAll?'<span class="hint">Searching all tasks</span>':''}</div>
   ${body||`<div class="panel empty"><b>${q?'No lines match':'No task lines yet'}</b>${q?'Try a different search.':'Add sections and lines under Labour & tasks and they’ll appear here.'}</div>`}</div>`;
 };
 V.boq=()=>{
@@ -1912,6 +1914,8 @@ document.addEventListener('click',async e=>{
   if(act==='pg-submit'){if(UI.armed!=='pg-submit'){UI.armed='pg-submit';render();setTimeout(()=>{if(UI.armed==='pg-submit'){UI.armed=null;render()}},5000);return}UI.armed=null;submitHours();render();return}
   if(act==='pg-retract'){const [t,j,k]=btn.dataset.v.split('|');const key='pgr'+t+'_'+j+'_'+k;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}UI.armed=null;const o=lineAt(t,j,k);if(o)retractLine(t,o);render();return}
   if(act==='pg-retract-all'){const sid=btn.dataset.v;const key='pgrs'+sid;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}UI.armed=null;retractSubmission(sid);render();return}
+  if(act==='pgsel'){UI.pgSel=btn.dataset.v;UI.pgAll=false;render();setTimeout(()=>{const el=document.querySelector('.pg-task');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},30);return}
+  if(act==='pgmode'){UI.pgAll=!!btn.dataset.v;render();return}
   if(act==='pg-all'){for(const t of TASK_IDS){if(btn.dataset.v==='1')COLL.add('pg'+t);else COLL.delete('pg'+t)}saveColl();render();return}
   if(act==='sec-all'){const d=aptDoc(UI.bld);for(const x of d.sections){if(btn.dataset.v==='1')COLL.add('sec'+x.id);else COLL.delete('sec'+x.id)}saveColl();render();return}
   if(act==='sec-clone'){const t=btn.dataset.id,si=+btn.dataset.x;const d=aptDoc(t);const src=d.sections[si];if(!src)return;
@@ -2073,7 +2077,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;const now=undoSnap();UND
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
   const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)&&t.type!=='checkbox')return;
