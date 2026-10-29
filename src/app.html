@@ -1273,7 +1273,7 @@ V.claim=()=>{
   <div class="statgrid" style="margin-top:14px"><div class="mini"><span class="l">Margin claimed to date</span><span class="v ${T.ha-T.cost<0?'neg':''}">${money(T.ha-T.cost)}</span></div><div class="mini"><span class="l">Max retention</span><span class="v">${money(maxRet)}</span></div><div class="mini"><span class="l">Retention remaining</span><span class="v">${money(maxRet-T.ret)}</span></div></div>
   </div></div>`;
 };
-function splitChips(it){return `<div class="splitsum"><span class="hint">Split into ${it.subs.length}:</span>${it.subs.map((sb,k)=>{const z=itemOne(sb);return `<span class="schip ${z.pct>=1?'done':z.pct>0?'part':''}"><b>${esc(sb.desc||'Sub-line '+(k+1))}</b> ${pct(z.pct,0)} · ${hrs(z.spent)}/${num(sb.budHrs)?hrs(num(sb.budHrs))+' budget':hrs(z.est)} h</span>`}).join('')}</div>`}
+function splitChips(it){const n=it.subs.length;return `<div class="splitsum"><span class="schip">Split into ${n} sub-line${n===1?'':'s'}</span></div>`}
 function taskEditor(t){
   const td=taskDoc(t);const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));
   const showItp=!NO_ITP.has(t);const NC=showItp?14:13;
