@@ -624,10 +624,10 @@ function calc(){
   const labAct=lSpent*rate,labFc=lFc*rate;
   const other=num(S.info.otherCost);
   const fcCost=matFc+labFc+other;
-  const CT=claimTotals();const hasHistCost=claimDoc().hist.some(h=>h.cost!==''&&h.cost!=null);const costCalc=matInv+labAct+num(S.info.otherCostToDate);const costToDate=hasHistCost?CT.cost:costCalc;
+  const CT=claimTotals();const LT=(S.llog&&S.llog.rows)?logTotals():{total:0};const labLog=LT.total;const labCostToDate=labLog||labAct;const otherToDate=num(S.info.otherCostToDate);const costToDate=labCostToDate+matInv+otherToDate;
   const invoiced=CT.ha,retention=CT.ret;
   const gp=revised-fcCost;const TR=tradeIds().map(aptCalc);const subTotal=TR.reduce((a,x)=>a+x.total,0),subClaimed=TR.reduce((a,x)=>a+x.claimed,0);
-  return {contract,pcSum,vApp,vUn,vRej,vProfit,vCount,revised,poTotal,matInv,matAnt,matFc,ret,rate,lEst,lSpent,lFc,lEarned,labAct,labFc,other,fcCost,costToDate,
+  return {contract,pcSum,vApp,vUn,vRej,vProfit,vCount,revised,poTotal,matInv,matAnt,matFc,ret,rate,lEst,lSpent,lFc,lEarned,labAct,labFc,other,fcCost,costToDate,labLog,labCostToDate,otherToDate,
     invoiced,retention,gp,gpPct:revised?gp/revised:0,leftInvoice:revised-invoiced,leftSpend:Math.max(lFc-lSpent,0)*rate+leftPO+matAnt,labHrsToGo:Math.max(lFc-lSpent,0),leftPO,marginToDate:invoiced-costToDate,pctInv:revised?invoiced/revised:0,
     trades:TR,subTotal,subClaimed,pctCost:fcCost?costToDate/fcCost:0,pctHrs:lEst?lEarned/lEst:0,pctSub:subTotal?subClaimed/subTotal:0};
 }
@@ -651,7 +651,7 @@ V.overview=()=>{
   return `<div class="stack">
   <div class="kpis">
     <div class="kpi"><span class="l">Revised contract</span><span class="v">${kmoney(c.revised)}</span><span class="d">${money(c.contract)} original + ${money(c.vApp)} approved variations</span></div>
-    <div class="kpi"><span class="l">Forecast cost</span><span class="v">${kmoney(c.fcCost)}</span><span class="d">${money(c.costToDate)} spent to date</span></div>
+    <div class="kpi"><span class="l">Forecast cost</span><span class="v">${kmoney(c.fcCost)}</span><span class="d">${money(c.costToDate)} cost to date (labour ${money(c.labCostToDate)} + invoiced ${money(c.matInv)})</span></div>
     <div class="kpi"><span class="l">Forecast margin</span><span class="v ${c.gp<0?'neg':''}">${pct(c.gpPct)}</span><span class="d">${money(c.gp)} gross profit</span></div>
     <div class="kpi"><span class="l">Invoiced</span><span class="v">${pct(c.pctInv)}</span><span class="d">${money(c.invoiced)} of revised contract</span></div>
     <div class="kpi"><span class="l">Overall complete</span><span class="v">${overallPct().v}</span><span class="d">${overallPct().l}</span></div>
@@ -743,7 +743,7 @@ function ledger(c){
     ${r('Total forecast cost',c.fcCost)}
     ${r('Forecast gross profit',c.gp,'total')}
     <tr><td>Forecast margin</td><td class="money ${c.gp<0?'neg':''}">${pct(c.gpPct)}</td></tr>
-    ${r('Invoiced to date',c.invoiced)}${r('Retention held to date',c.retention,'sub')}${r('Cost to date',c.costToDate)}${r('Margin to date',c.marginToDate)}
+    ${r('Invoiced to date',c.invoiced)}${r('Retention held to date',c.retention,'sub')}${r('Labour cost to date'+(c.labLog?' (labour cost log)':' (estimated from hours)'),c.labCostToDate,'sub')}${r('Invoiced from orders & invoices',c.matInv,'sub')}${c.otherToDate?r('Other costs to date',c.otherToDate,'sub'):''}${r('Cost to date',c.costToDate)}${r('Margin to date',c.marginToDate)}
     ${r('Left to invoice',c.leftInvoice)}${r('Left to spend',c.leftSpend)}
   </tbody></table>`;
 }
@@ -790,13 +790,13 @@ V.details=()=>{
 V.cost=()=>{
   const c=calc();
   const ords=Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
-  return `<div class="stack">${head('Cost to complete','Materials come from the order tracker; labour from task hours at '+money(c.rate)+'/hr ('+labourRateSrc().split(' (')[0].toLowerCase()+'). Left to spend is labour hours to go at that rate, plus what is left on POs, plus extras outside POs.')}
+  return `<div class="stack">${head('Cost to complete','Materials come from the order tracker; labour forecast from task hours at '+money(c.rate)+'/hr ('+labourRateSrc().split(' (')[0].toLowerCase()+'). Cost to date is the labour cost log total (Oxford + subcontractor + labour hire) plus everything invoiced in Orders & invoices. Left to spend is labour hours to go at that rate, plus what is left on POs, plus extras outside POs.')}
   <div class="grid2"><div class="panel"><h3>Summary</h3>${ledger(c)}</div>
   <div class="panel"><h3>Labour</h3><table class="ledger"><tbody>
     <tr><td>Estimated hours</td><td class="money">${hrs(c.lEst)}</td></tr><tr><td>Hours spent</td><td class="money">${hrs(c.lSpent)}</td></tr>
     <tr><td>Hours earned</td><td class="money">${hrs(c.lEarned)}</td></tr><tr><td>Forecast total hours</td><td class="money">${hrs(c.lFc)}</td></tr>
     <tr><td>Hours over (−) / under (+)</td><td class="money ${c.lEst-c.lFc<0?'neg':'pos'}">${hrs(c.lEst-c.lFc)}</td></tr>
-    <tr class="total"><td>Labour cost to date</td><td class="money">${money(c.labAct)}</td></tr><tr><td>Labour forecast at completion</td><td class="money">${money(c.labFc)}</td></tr>
+    <tr class="total"><td>Labour cost to date${c.labLog?' <span class="hint">(labour cost log)</span>':''}</td><td class="money">${money(c.labCostToDate)}</td></tr><tr><td>Labour forecast at completion</td><td class="money">${money(c.labFc)}</td></tr>
   </tbody></table></div></div>
   <div><h3 style="margin-bottom:10px">Materials and subcontractors</h3>
   ${ords.length?`<div class="tw"><table><thead><tr><th>Supplier / subcontractor</th><th>PO</th><th class="n">Committed</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">Extra outside PO</th><th class="n">Forecast total</th></tr></thead><tbody>
