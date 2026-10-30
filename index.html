@@ -561,7 +561,7 @@ function crewRate(){
   let c=0,h=0;for(const r of crewRows()){c+=num(r.qty)*num(r.rate)*num(r.hrs);h+=num(r.qty)*num(r.hrs)}
   return h?c/h:0;
 }
-function logTotals(){let h=0,o=0,c=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);c+=num(r.cost)}return {hire:h,ox:o,hrs:h+o,cost:c,rate:(h+o)?c/(h+o):0}}
+function logTotals(){let h=0,o=0,c=0,hc=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);c+=num(r.cost);hc+=num(r.hireCost)}return {hire:h,ox:o,hrs:h+o,cost:c,hireCost:hc,total:c+hc,rate:(h+o)?(c+hc)/(h+o):0}}
 function labourRateSrc(){if(num(S.info.labourRate))return 'Override set in project details';if(logTotals().rate)return 'Average from labour cost log';if(num(S.info.tenderRate))return 'Tendered rate (no labour cost log entries yet)';return 'Blended crew rate (add rows to the labour cost log to use actual costs)'}
 function labourRate(){return num(S.info.labourRate)||logTotals().rate||num(S.info.tenderRate)||crewRate()}
 function taskCalc(t){
@@ -1221,12 +1221,12 @@ function setupPanel(t,d){
 
 function labourLogPanel(){
   const T=logTotals();
-  return `<div class="panel"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by date. Total cost divided by total hours gives the average labour rate used for the labour forecast.</p></div>
+  return `<div class="panel"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by date. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
     <div style="text-align:right"><div class="kpi" style="padding:0;background:none"><span class="l">Average labour rate</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${T.hrs?'$'+T.rate.toFixed(2)+'/hr':'—'}</div></div></div>
-  <div class="tw"><table style="min-width:760px"><thead><tr><th></th><th>Date</th><th class="n">Labour hire hours</th><th class="n">Oxford hours</th><th class="n">Total hours</th><th class="n">Oxford + subcontractor cost</th><th class="n">Rate $/hr</th></tr></thead><tbody>
-  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Date'})}</td><td style="min-width:110px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire hours',ph:'0'})}</td><td style="min-width:110px">${inp(k+'ox',r.ox,{num:1,label:'Oxford hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:150px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Total cost',ph:'0'})}</div></td><td class="n money">${h?money(num(r.cost)/h):'—'}</td></tr>`}).join('')||'<tr><td colspan="7" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
-  <tr class="addrow"><td colspan="7"><button class="btn" data-act="llog-add">+ Add row</button></td></tr>
-  </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${hrs(T.hire)}</td><td class="n money">${hrs(T.ox)}</td><td class="n money">${hrs(T.hrs)}</td><td class="n money">${money(T.cost)}</td><td class="n money">${T.hrs?'$'+T.rate.toFixed(2):'—'}</td></tr></tfoot></table></div></div>`;
+  <div class="tw"><table style="min-width:760px"><thead><tr><th></th><th>Date</th><th class="n">Labour hire hours</th><th class="n">Oxford hours</th><th class="n">Total hours</th><th class="n" style="white-space:normal">Oxford + subcontractor cost</th><th class="n" style="white-space:normal">Labour hire cost</th><th class="n" title="(Oxford + subcontractor cost + labour hire cost) ÷ total hours">Rate $/hr<br><span style="font-weight:500;text-transform:none;letter-spacing:0">incl. labour hire</span></th></tr></thead><tbody>
+  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Date'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire hours',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
+  <tr class="addrow"><td colspan="8"><button class="btn" data-act="llog-add">+ Add row</button></td></tr>
+  </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${hrs(T.hire)}</td><td class="n money">${hrs(T.ox)}</td><td class="n money">${hrs(T.hrs)}</td><td class="n money">${money(T.cost)}</td><td class="n money">${money(T.hireCost)}</td><td class="n money">${T.hrs?'$'+T.rate.toFixed(2):'—'}</td></tr></tfoot></table></div></div>`;
 }
 function allLinesPanel(){
   const rows=[];let E=0,Sp=0,Ea=0,F=0;
