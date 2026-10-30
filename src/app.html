@@ -722,6 +722,12 @@ function completionPanel(){
   <div class="grid2" style="margin-top:20px"><div><h3 style="margin-bottom:10px">By trade</h3>${tradeBars(c)}</div>
   <div><div class="ct" style="margin-bottom:10px"><h3>Labour & tasks</h3><span class="money" style="font-size:14px"><b>${pct(c.pctHrs)}</b> overall · ${hrs(c.lEarned)} / ${hrs(c.lEst)} hrs</span></div><div class="bar" style="height:12px;margin-bottom:16px"><i style="width:${Math.min(c.pctHrs*100,100).toFixed(1)}%"></i></div>${tasks.length?tasks.map(x=>`<div class="ct"><span>${esc(TASKS[x.i])}</span><span class="money">${pct(x.c.pct,0)}</span></div><div class="bar" style="margin-bottom:10px"><i style="width:${Math.min(x.c.pct*100,100).toFixed(1)}%"></i></div>`).join(''):'<p class="hint" style="margin:0">No task estimates yet. Add line items under Labour & tasks.</p>'}</div></div></div>`;
 }
+function ctdTiles(c){return `<div class="kpis">
+    <div class="kpi"><span class="l">Cost to date</span><span class="v">${money(c.costToDate)}</span><span class="d">${pct(c.pctCost)} of ${money(c.fcCost)} forecast cost</span></div>
+    <div class="kpi"><span class="l">Labour cost to date</span><span class="v">${money(c.labCostToDate)}</span><span class="d">${c.labLog?'Labour cost log: Oxford + subcontractor + labour hire':'Estimated from hours spent (labour cost log is empty)'}</span></div>
+    <div class="kpi"><span class="l">Invoiced from orders</span><span class="v">${money(c.matInv)}</span><span class="d">Orders & invoices, ${money(c.poTotal)} committed</span></div>
+    ${c.otherToDate?`<div class="kpi"><span class="l">Other costs to date</span><span class="v">${money(c.otherToDate)}</span><span class="d">From Project details</span></div>`:''}
+  </div>`}
 function ledger(c){
   const r=(l,v,cls='')=>`<tr class="${cls}"><td>${l}</td><td class="money ${v<0?'neg':''}">${money(v)}</td></tr>`;
   return `<table class="ledger"><tbody>
@@ -759,6 +765,7 @@ V.details=()=>{
   const i=S.info,cs=i.cs||{};
   const f=(k,l,o={})=>`<label class="${o.wide?'wide':''}">${l}${o.area?`<textarea class="f" id="info_${k}" data-b="info|${k}" placeholder="${esc(o.ph||'')}">${esc(i[k]||'')}</textarea>`:inp('info|'+k,i[k]||'',{num:o.num,ph:o.ph,type:o.type})}</label>`;
   return `<div class="stack">${head('Project details','The cover page of the monthly significant project report.')}
+  ${ctdTiles(calc())}
   ${completionPanel()}
   <div class="panel"><h3>Project</h3><div class="form">
     <label>Project name${inp('info|name',PROJ[PID]?.name||S.info.name||'',{ph:'e.g. Sanctuary Stage 4'})}</label>${f('job','Job number',{ph:'OX-'})}${f('period','Period ending',{type:'date'})}
@@ -779,6 +786,7 @@ V.cost=()=>{
   const c=calc();
   const ords=Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
   return `<div class="stack">${head('Cost to complete','Materials come from the order tracker; labour forecast from task hours at '+money(c.rate)+'/hr ('+labourRateSrc().split(' (')[0].toLowerCase()+'). Cost to date is the labour cost log total (Oxford + subcontractor + labour hire) plus everything invoiced in Orders & invoices. Left to spend is labour hours to go at that rate, plus what is left on POs, plus extras outside POs.')}
+  ${ctdTiles(c)}
   <div class="grid2"><div class="panel"><h3>Summary</h3>${ledger(c)}</div>
   <div class="panel"><h3>Labour</h3><table class="ledger"><tbody>
     <tr><td>Estimated hours</td><td class="money">${hrs(c.lEst)}</td></tr><tr><td>Hours spent</td><td class="money">${hrs(c.lSpent)}</td></tr>
