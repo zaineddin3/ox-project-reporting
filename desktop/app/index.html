@@ -272,6 +272,11 @@ tr.pg-empty td{color:var(--muted)}
 .pctin{position:relative}.pctin::after{content:"%";position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-family:var(--f-mono);font-size:12.5px;pointer-events:none}.pctin input.f{padding-right:20px}
 .lundo{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:4px;border-radius:5px;color:var(--accent);font-size:14px;font-weight:700;vertical-align:middle}.lundo:hover{background:var(--soft)}.lundo:focus-visible{outline:2px solid var(--accent)}
 tr.subparent td{background:color-mix(in srgb,var(--soft) 70%,var(--surface))}
+.colrz{position:absolute;top:0;right:0;bottom:0;width:8px;cursor:col-resize;z-index:3;touch-action:none}
+.colrz::after{content:"";position:absolute;top:20%;bottom:20%;right:0;width:1px;background:var(--line)}
+.colrz:hover::after,body.col-resizing .colrz::after{background:var(--accent);width:2px;top:0;bottom:0}
+body.col-resizing{cursor:col-resize;user-select:none}
+th[style*="max-width"]{overflow:hidden;text-overflow:ellipsis}
 .pg-last{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:4px;font-size:11.5px}.pg-retract{padding:1px 8px!important;font-size:11.5px!important}
 .pg-submit{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}.pg-submit h3{margin:0 0 4px}.pg-submit p{margin:0;max-width:640px}
 .secname{display:flex;align-items:center;gap:6px}.secname .f{flex:1}
@@ -1814,10 +1819,32 @@ function render(){
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
-  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml();calcHost();
+  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml();calcHost();try{applyColWidths()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
+
+
+/* ---------- resizable table columns (drag the right edge of a heading; double-click to reset) ---------- */
+let COLW={};try{COLW=JSON.parse(localStorage.getItem('ox_colw')||'{}')||{}}catch(e){COLW={}}
+function saveColW(){try{localStorage.setItem('ox_colw',JSON.stringify(COLW))}catch(e){}}
+function colKey(tbl,ti){const hr=tbl.tHead&&tbl.tHead.rows[tbl.tHead.rows.length-1];const sig=hr?[...hr.cells].map(c=>(c.textContent||'').trim().slice(0,14)).join('|'):'';return UI.view+'#'+ti+'#'+sig}
+function setColW(th,w){th.style.width=w+'px';th.style.minWidth=w+'px';th.style.maxWidth=w+'px'}
+function applyColWidths(){
+  const tbls=[...viewEl.querySelectorAll('table')].filter(t=>t.tHead&&t.tHead.rows.length);
+  tbls.forEach((tbl,ti)=>{const key=colKey(tbl,ti);const W=COLW[key]||{};const hr=tbl.tHead.rows[tbl.tHead.rows.length-1];
+    [...hr.cells].forEach((th,i)=>{if(!th.querySelector(':scope > .colrz')){const h=document.createElement('span');h.className='colrz';h.title='Drag to resize · double-click to reset';h.dataset.ci=i;th.appendChild(h)}
+      if(W[i])setColW(th,W[i])});
+    tbl.dataset.colkey=key});
+}
+let CRZ=null;
+viewEl.addEventListener('pointerdown',e=>{const h=e.target.closest('.colrz');if(!h)return;e.preventDefault();e.stopPropagation();const th=h.parentElement;const tbl=th.closest('table');
+  CRZ={th,key:tbl.dataset.colkey,i:+h.dataset.ci,x:e.clientX,w:th.getBoundingClientRect().width};h.setPointerCapture&&h.setPointerCapture(e.pointerId);document.body.classList.add('col-resizing')});
+viewEl.addEventListener('pointermove',e=>{if(!CRZ)return;const w=Math.max(36,Math.round(CRZ.w+e.clientX-CRZ.x));setColW(CRZ.th,w);CRZ.nw=w});
+const endCRZ=()=>{if(!CRZ)return;if(CRZ.nw){(COLW[CRZ.key]=COLW[CRZ.key]||{})[CRZ.i]=CRZ.nw;saveColW()}CRZ=null;document.body.classList.remove('col-resizing')};
+viewEl.addEventListener('pointerup',endCRZ);viewEl.addEventListener('pointercancel',endCRZ);
+viewEl.addEventListener('dblclick',e=>{const h=e.target.closest('.colrz');if(!h)return;const th=h.parentElement;const key=th.closest('table').dataset.colkey;if(COLW[key]){delete COLW[key][+h.dataset.ci];saveColW()}th.style.width=th.style.minWidth=th.style.maxWidth=''});
+viewEl.addEventListener('click',e=>{if(e.target.closest('.colrz')){e.stopPropagation();e.preventDefault()}},true);
 
 /* ---------- editing ---------- */
 function apply(parts,v){
