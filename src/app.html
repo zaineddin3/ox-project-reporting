@@ -1143,7 +1143,7 @@ V.subcontractors=()=>{
         let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
         const nS=d.stages.length;
         return `<tr class="parentrow"><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
-        <td colspan="${2+nS+d.itps.length}" class="hint">${COLL.has(l.id)?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}Split into ${l.subs.length} task${l.subs.length===1?'':'s'} · <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="unsplit" data-id="${t}" data-x="${si}.${li}">${UI.armed==='unsplit'+t+si+'.'+li?'Confirm merge (tasks without a stage are dropped)':'Merge back'}</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line and its tasks">Clone</button></td>
+        <td colspan="${2+nS+d.itps.length}" class="hint">${COLL.has(l.id)?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}Split into ${l.subs.length} task${l.subs.length===1?'':'s'} · <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="unsplit" data-id="${t}" data-x="${si}.${li}">${UI.armed==='unsplit'+t+si+'.'+li?'Confirm merge (tasks without a stage are dropped)':'Merge back'}</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line and its tasks">Clone</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></td>
         <td class="n money"><b>${money(v)}</b></td><td class="n money"><b>${money(uc)}</b></td><td class="n"><b>${v?pct(uc/v,0):'—'}</b></td></tr>`+
         (COLL.has(l.id)?'':l.subs.map((sb,ji)=>{const x=xs[ji];const ks='tsub|'+t+'|'+si+'|'+li+'|'+ji+'|';const sg=d.stages.find(z=>z.id===sb.task);
           return `<tr class="subrow"><td style="width:86px">${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
@@ -1155,7 +1155,7 @@ V.subcontractors=()=>{
         `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
       }
       const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
-      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button><button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button><button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
       ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
@@ -1727,6 +1727,12 @@ function partsRecalc(l){const P=l.hrsParts||[];let h=0;for(const x of P){x.hrs=M
   if(anyM){l.mat=String(Math.round(partsMat(l)*1e4)/1e4);l.matFromParts=true}else if(l.matFromParts){l.mat='';delete l.matFromParts}
   const m=P.find(z=>z.main)||P[0];l.hrsSrc=P.length?(m?m.desc+(m.code?' ('+m.code+')':''):'')+(P.length>1?' + '+(P.length-1)+' more':''):'';if(!P.length){delete l.hrsParts;l.hrsSrc=''}}
 const freshLine=o=>{const c=clone(o);c.pct='';c.spentHrs='';c.newHrs='';delete c.hist;delete c.subPct;delete c.instOv;c.itpFile=null;c.id=uid('q');if(Array.isArray(c.subs))c.subs=c.subs.map(freshLine);return c};
+function tmvHtml(){const M=UI.tmv;if(!M||UI.view!=='subcontractors')return '';const d=aptDoc(M.t);const l=d.sections[M.si]?.lines?.[M.li];if(!l){UI.tmv=null;return ''}
+  const to=M.to??String(M.si);
+  return `<div class="vpick-ov" data-act="tmv-close"><div class="vpick" style="width:min(480px,100%)" role="dialog" aria-modal="true" aria-label="Move line" data-stop="1">
+    <div class="sec-head"><div><h3>Move “${esc(l.desc||l.name||'line')}”</h3><p class="hint">Moves the line${l.subs&&l.subs.length?' and its tasks':''} with its quantities, rates, progress and ITPs to another section of ${esc(d.name||'this trade')}.</p></div></div>
+    <div class="form"><label>Section<select class="f" data-ui="tmvTo" aria-label="Section">${d.sections.map((z,i)=>`<option value="${i}"${String(i)===to?' selected':''}>${esc(z.name||'Section '+(i+1))}${i===M.si?' (current)':''}</option>`).join('')}<option value="__new"${to==='__new'?' selected':''}>+ New section</option></select></label></div>
+    <div class="toolbar" style="justify-content:flex-end"><button class="btn" data-act="tmv-close">Cancel</button><button class="btn primary" data-act="tmv-go">Move</button></div></div></div>`}
 function mvtoHtml(){const M=UI.mvto;if(!M||UI.view!=='labour')return '';const src=nodeAt(ensureTask(M.t),M.path);if(!src){UI.mvto=null;return ''}
   const tt=M.to||M.t;const secs=taskSecs(tt);const sec=M.sec||'';
   return `<div class="vpick-ov" data-act="mvto-close"><div class="vpick" style="width:min(520px,100%)" role="dialog" aria-modal="true" aria-label="Move line" data-stop="1">
@@ -1809,7 +1815,7 @@ function render(){
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
-  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml();calcHost();try{applyColWidths()}catch(e){}
+  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+tmvHtml();calcHost();try{applyColWidths()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
@@ -1953,6 +1959,7 @@ async function uploadMarkups(id,files){
 viewEl.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.uiCheck){UI[t.dataset.uiCheck]=t.checked;if(t.dataset.uiCheck==='pdfHideLab'){try{localStorage.setItem('ox_pdfhidelab',t.checked?'1':'0')}catch(e){}}scheduleRender(0);return}
+  if(t.dataset.ui==='tmvTo'&&UI.tmv){UI.tmv.to=t.value;return}
   if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;return}
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
@@ -2007,6 +2014,13 @@ document.addEventListener('click',async e=>{
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
   if(act==='add-sec'){const t=btn.dataset.id;const d=aptDoc(t);d.sections.push({id:uid('S'),name:'',lines:[newLine()]});structDirty.add(t);UI.level='all';UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tsec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='add-line'){const t=btn.dataset.id,si=+btn.dataset.s;const d=aptDoc(t);d.sections[si].lines.push(newLine());structDirty.add(t);UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tline_'+t+'_'+si+'_'+(d.sections[si].lines.length-1)+'_name');if(el)el.focus()},60);return}
+  if(act==='tmv'){const [si,li]=btn.dataset.x.split('.').map(Number);UI.tmv={t:btn.dataset.id,si,li,to:String(si)};render();return}
+  if(act==='tmv-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=tmv-close]'))return;UI.tmv=null;render();return}
+  if(act==='tmv-go'){const M=UI.tmv;if(!M)return;const d=aptDoc(M.t);const L=d.sections[M.si]?.lines;const l=L&&L[M.li];if(!l){UI.tmv=null;render();return}
+    let ti;if(M.to==='__new'){d.sections.push({id:uid('S'),name:'New section',lines:[]});ti=d.sections.length-1}else ti=+M.to;
+    if(ti===M.si){UI.tmv=null;render();return}
+    L.splice(M.li,1);d.sections[ti].lines.push(l);structDirty.add(M.t);UI.q='';UI.level='all';COLL.delete('sec'+d.sections[ti].id);saveColl();persist('apartments/'+M.t);UI.tmv=null;render();
+    setTimeout(()=>{const el=document.getElementById('tline_'+M.t+'_'+ti+'_'+(d.sections[ti].lines.length-1)+'_desc');if(el){el.scrollIntoView({block:'center'});el.focus()}},60);return}
   if(act==='tline-clone'){const t=btn.dataset.id;const [si,li]=btn.dataset.x.split('.').map(Number);const d=aptDoc(t);const L=d.sections[si]?.lines;const l=L&&L[li];if(!l)return;
     const c=clone(l);c.id=uid('l');delete c.itpFile;if(c.desc)c.desc=c.desc+' (copy)';else if(c.name)c.name=c.name+' (copy)';if(Array.isArray(c.subs))c.subs=c.subs.map(sb=>({...sb,id:uid('q'),pct:'',itpFile:null}));
     L.splice(li+1,0,c);structDirty.add(t);UI.q='';persist('apartments/'+t);render();setTimeout(()=>{const el=document.getElementById('tline_'+t+'_'+si+'_'+(li+1)+'_desc');if(el){el.focus();el.select()}},60);return}
@@ -2195,8 +2209,8 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;const now=undoSnap();UND
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}});
+const UNDO_SKIP=new Set(['tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
   const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)&&t.type!=='checkbox')return;
   e.preventDefault();if(k==='y'||e.shiftKey)doRedo();else doUndo()});
