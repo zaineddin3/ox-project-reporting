@@ -109,6 +109,63 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:22px}
 .bw{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:color-mix(in srgb,var(--accent) 4%,var(--surface))}.bw-q{display:flex;flex-direction:column;gap:6px;font-weight:500;max-width:420px}.bw-act{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}.bw-sum{margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap}.bw-all{display:flex;gap:8px;align-items:center;margin:0 0 8px;flex-wrap:wrap}.bw-tab td{padding:4px 6px}.bw-all .f{border:1px solid var(--line);background:var(--surface)}
 .complete .jtile{margin-top:16px;border:1px solid var(--line);border-radius:10px}.kpi.jtile .v{color:var(--good)}
+.to-drop.dropping{outline:2px dashed var(--accent);outline-offset:-6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.to-dropin{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#toHost{margin-top:14px}
+.to-wrap{display:flex;flex-direction:column;gap:14px}
+.to-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;position:sticky;top:0;z-index:4}
+.to-title{display:flex;flex-direction:column;line-height:1.2;min-width:120px;max-width:260px}.to-title b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.to-grp{display:flex;align-items:center;gap:4px}.to-grp .btn{padding:4px 9px}
+.to-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}
+.seg-b{all:unset;cursor:pointer;padding:5px 10px;font-weight:600;font-size:12.5px;white-space:nowrap;border-right:1px solid var(--line)}.seg-b:last-child{border-right:0}
+.seg-b.on{background:var(--ink);color:var(--surface)}.seg-b:disabled{opacity:.4;cursor:default}.seg-b:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.to-main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.to-stage{position:relative;height:calc(100vh - 230px);min-height:480px;overflow:auto;background:color-mix(in srgb,var(--ink) 8%,var(--bg));border:1px solid var(--line);border-radius:10px;padding:12px}
+.to-page{position:relative;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);margin:0 auto}
+.to-page canvas{display:block}
+.to-page svg{position:absolute;inset:0;overflow:visible}
+.to-page svg[data-tool="take"],.to-page svg[data-tool="cal"],.to-page svg[data-tool="zone"]{cursor:crosshair}
+.to-page svg[data-tool="pan"]{cursor:grab}
+.to-load{position:absolute;inset:12px;display:grid;place-items:center;color:var(--muted);font-size:13px;pointer-events:none}
+.to-mk.dim{opacity:.35}.to-mk.sel{filter:drop-shadow(0 0 3px #000)}
+svg[data-tool="sel"] .to-mk,svg[data-tool="sel"] .to-zone{cursor:pointer}
+.to-zone rect{fill:rgba(56,106,150,.05);stroke:#386a96}.to-zone.on rect{fill:rgba(56,106,150,.02);stroke:#1c7ed6}.to-zone.sel rect{stroke:#e03131}
+.to-zone text{fill:#386a96;font-family:var(--f-body);font-weight:600}
+.to-dim{fill:rgba(20,26,32,.45);pointer-events:none}
+.to-side{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;max-height:calc(100vh - 230px);overflow:auto}
+.to-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}.to-h h3{font-size:15px}
+.to-list{display:flex;flex-direction:column;gap:4px}
+.to-it{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto 26px;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;cursor:pointer}
+.to-it.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.to-it .f{padding:3px 5px}.to-it .btn.ghost{padding:2px 4px}
+.to-q{font-size:12px;white-space:nowrap}
+.to-col{width:22px;height:22px;border:0;padding:0;background:none;cursor:pointer}
+.to-zsw{width:14px;height:14px;border:2px dashed #386a96;border-radius:2px;margin-left:4px}
+.to-it:has(.to-zsw){grid-template-columns:22px minmax(0,1fr) auto 26px}
+.to-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.to-box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 12px;background:var(--soft);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.to-box .f{border-color:var(--line);background:var(--surface)}
+.to-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.warn-t{color:var(--warn)}
+@media (max-width:1000px){.to-main{grid-template-columns:minmax(0,1fr)}.to-side{max-height:none}.to-stage{height:70vh}}
+.to-ac{fill:rgba(245,159,0,.12);stroke:#f59f00;cursor:pointer}.to-ac.off{fill:none;stroke:#adb5bd}
+.to-acl{fill:none;stroke:#f59f00;stroke-opacity:.85;stroke-linecap:round;cursor:pointer}.to-acl.off{stroke:#adb5bd;stroke-opacity:.6}
+.to-snap{fill:none;stroke:#e8590c}
+.to-tag text{font-family:var(--f-mono);font-weight:500}
+.to-auto{background:color-mix(in srgb,#f59f00 8%,var(--surface));border-color:color-mix(in srgb,#f59f00 40%,var(--line))}
+.to-spin{display:inline-block;width:10px;height:10px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin-right:6px;vertical-align:-1px;animation:tospin .8s linear infinite}@keyframes tospin{to{transform:rotate(360deg)}}
+.to-page svg[data-tool="auto"]{cursor:crosshair}
+.to-hd{fill:#fff;stroke:#1c7ed6;cursor:move}.to-hm{fill:#1c7ed6;fill-opacity:.55;stroke:#fff;cursor:copy}
+.to-auto .to-seg{flex-wrap:wrap}.to-autotag{background:color-mix(in srgb,#f59f00 18%,var(--surface));color:#8a5a00}
+.to-snaps{display:flex;flex-direction:column;gap:6px;align-self:stretch}
+.to-snapc{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:6px;background:var(--surface)}
+.to-snapc img{width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;flex:0 0 56px}
+.to-thumb{width:22px;height:22px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px;vertical-align:middle;margin-right:8px}
+.to-colimg{position:relative;display:inline-block;border:2px solid;border-radius:4px;overflow:hidden;width:22px;height:22px}.to-colimg img{width:100%;height:100%;object-fit:contain;background:#fff;display:block}.to-colimg input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.to-applied{background:var(--good-soft);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+.to-mini{width:100%;font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:6px}.to-mini td,.to-mini th{padding:4px 8px}.to-mini th{position:static;font-size:10.5px}
+tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weight:600}
+.to-page svg[data-tool="snapl"]{cursor:crosshair}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -384,7 +441,7 @@ const CALC_HTML="<!doctype html><html><head><script>window.claude={use:function(
 const UNITS_RAW={"E": "0101:2,0102:2,0103:2,0104:3,0105:3,0106:3,0107:3,0108:3,0109:3,0201:2,0202:2,0203:2,0301:2,0302:2,0303:2,0304:2,0305:2,0306:2,0307:2,0308:2,0309:2,0310:2,0311:2,0401:2,0402:2,0403:2,0404:2,0405:2,0406:2,0407:2,0408:2,0409:2,0410:2,0411:2,0501:2,0502:2,0503:2,0504:1,0505:2,0506:2,0507:2,0508:2,0509:2,0510:2,0601:2,0602:2,0603:1,0604:2,0605:2,0606:2,0607:2,0608:2,0701:2,0702:2,0703:1,0704:2,0705:2,0706:2,0707:2,0708:2,0801:2,0802:2,0803:1,0804:2,0805:2,0806:2,0807:2,0808:2,0901:2,0902:2,0903:1,0904:2,0905:2,0906:2,0907:2,0908:2,1001:2,1002:2,1003:1,1004:2,1005:2,1006:2,1007:2,1008:2,1101:2,1102:2,1103:1,1104:2,1105:2,1106:2,1107:2,1108:2,1201:2,1202:2,1203:1,1204:2,1205:5,1206:2,1207:2,1208:2,1301:2,1302:2,1303:1,1304:2,1305:5,1306:2,1307:2,1308:2,1401:2,1402:2,1403:1,1404:2,1405:5,1406:2,1407:2,1408:2,1501:2,1502:2,1503:1,1504:2,1505:2,1506:2,1507:2,1508:2,1601:2,1602:2,1603:1,1604:2,1605:2,1606:2,1607:2,1608:2,1701:2,1702:2,1703:1,1704:2,1705:2,1706:2,1707:2,1708:2,1801:2,1802:2,1803:1,1804:2,1805:2,1806:2,1807:2,1808:2,1901:2,1902:2,1903:1,1904:2,1905:2,1906:2,1907:2,1908:2,2001:2,2002:2,2003:1,2004:2,2005:2,2006:2,2007:2,2008:2,2101:2,2102:2,2103:1,2104:2,2105:2,2106:2,2107:2,2108:2,2201:2,2202:2,2203:1,2204:2,2205:2,2206:2,2207:2,2208:2,2301:2,2302:2,2303:1,2304:2,2305:2,2306:2,2307:2,2308:2,2401:2,2402:2,2403:1,2404:2,2405:2,2406:2,2407:2,2408:2,2501:2,2502:2,2503:1,2504:2,2505:2,2506:2,2507:2,2508:2,2601:2,2602:2,2603:1,2604:2,2605:2,2606:2,2607:2,2608:2,2701:2,2702:2,2703:1,2704:2,2705:2,2706:2,2707:2,2708:2,2801:2,2802:2,2803:1,2804:2,2805:2,2806:2,2901:2,2902:2,2903:1,2904:2,2905:2,3001:2,3002:2,3003:1,3004:4,3101:2,3102:2,3103:1,3104:3,3105:4,3201:2,3202:2,3203:1,3204:3,3205:4,3301:2,3302:2,3303:1,3304:3,3305:4,3401:2,3402:2,3403:1,3404:3,3405:4,3501:2,3502:2,3503:1,3504:3,3505:4,3601:2,3602:2,3603:1,3604:3,3605:4,3701:2,3702:2,3703:1,3704:3,3705:4,3801:2,3802:2,3803:1,3804:3,3805:4,3901:2,3902:2,3903:1,3904:3,3905:4", "F": "0312:2,0313:2,0314:2,0315:2,0316:2,0412:2,0413:2,0414:2,0415:2,0416:2,0511:2,0512:2,0513:2,0514:2,0609:2,0610:2,0611:2,0612:2,0613:2,0614:1,0615:2,0616:2,0709:2,0710:2,0711:2,0712:2,0713:2,0714:1,0715:2,0716:2,0809:2,0810:2,0811:2,0812:2,0813:1,0814:1,0815:2,0816:2,0909:2,0910:2,0911:2,0912:2,0913:2,0914:1,0915:2,0916:2,1009:2,1010:2,1011:2,1012:2,1013:2,1014:1,1015:2,1016:1,1109:2,1110:2,1111:2,1112:2,1113:2,1114:1,1115:2,1116:2,1209:2,1210:2,1211:2,1212:2,1213:2,1214:1,1215:2,1216:2,1309:2,1310:2,1311:2,1312:2,1313:2,1314:1,1315:2,1316:2,1409:2,1410:2,1411:2,1412:2,1413:2,1414:1,1415:2,1416:2,1509:2,1510:2,1511:2,1512:2,1513:2,1514:1,1515:2,1516:2,1609:2,1610:2,1611:2,1612:2,1613:2,1614:1,1615:2,1616:1,1709:2,1710:2,1711:2,1712:2,1713:2,1714:1,1715:2,1716:2,1809:2,1810:2,1811:2,1812:2,1813:2,1814:1,1815:2,1816:2,1909:2,1910:2,1911:2,1912:2,1913:2,1914:1,1915:2,1916:2,2009:2,2010:2,2011:2,2012:2,2013:2,2014:1,2015:2,2016:2,2109:2,2110:2,2111:2,2112:2,2113:2,2114:1,2115:2,2116:2,2209:2,2210:2,2211:2,2212:2,2213:2,2214:1,2215:2,2216:2,2309:2,2310:2,2311:1,2312:2,2313:2,2409:2,2410:2,2411:1,2412:2,2413:2,2509:2,2510:2,2511:3,2512:1,2513:2,2514:2,2609:2,2610:2,2611:3,2612:1,2613:2,2614:2,2709:2,2710:2,2711:3,2712:1,2713:2,2714:2,2809:2,2810:2,2811:3,2812:1,2813:2,2814:2,2906:2,2907:2,2908:3,2909:1,2910:2,2911:2,3006:2,3007:2,3008:3,3009:1,3010:2,3011:2,3106:2,3107:2,3108:3,3109:1,3110:2,3111:2,3206:2,3207:2,3208:3,3209:1,3210:2,3211:2"};
 const VIEWS_LIST=[
   ['overview','Overview'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
-  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Order Costing Summary'],['msod','MSOD'],['calc','Labour Hours and Material Calculator']
+  ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Order Costing Summary'],['takeoff','Take off'],['msod','MSOD'],['calc','Labour Hours and Material Calculator']
 ];
 const TASKS=["Temporary works","Deck work","Rough in","Fit off","Containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
 const TASK_IDS=TASKS.map((_,i)=>'t'+String(i+1).padStart(2,'0'));
@@ -428,7 +485,7 @@ const inp=(b,val,o={})=>`<input class="f${o.num?' num':''}" id="${esc(b.replace(
 const sel=(b,val,opts,o={})=>`<select class="f${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" aria-label="${esc(o.label||'')}">${opts.map(x=>{const [v,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(t)}</option>`}).join('')}</select>`;
 
 /* ---------- state ---------- */
-const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},claim:null};
+const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},claim:null};
 let UI_PDFLAB=false;try{UI_PDFLAB=localStorage.getItem('ox_pdfhidelab')==='1'}catch(e){}
 const UI={view:'overview',bld:'E',level:'all',q:'',task:'t01',open:{},armed:null,bulkStage:'',bulkPct:'100',setup:false,pdfHideLab:UI_PDFLAB};
 const crewRows=()=>S.crew.rows||CREW_DEFAULT;
@@ -482,7 +539,7 @@ function dataFor(p){
   const [c,id]=p.split('/');
   if(c==='projects')return PROJ[id];
   if(c==='project'){if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
-  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];if(c==='estimates')return S.ests[id];
+  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];if(c==='drawings')return S.dwgs[id];if(c==='estimates')return S.ests[id];
   if(c==='tasks')return taskDoc(id);
 }
 function persist(p){
@@ -524,7 +581,7 @@ function applyDoc(p,data){
   else if(c==='tasks'){S.tasks[id]={items:d.items||[],sections:d.sections||[]}}
 }
 function onColl(name,snap){
-  const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests'}[name];if(name==='estimates')CALC.loaded=true;
+  const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs'}[name];if(name==='estimates')CALC.loaded=true;
   const seen=new Set();
   const next={};
   for(const d of snap.docs){
@@ -1810,6 +1867,509 @@ function calcHost(){
   host.hidden=false;
   if(!CALC.frame||CALC.pid!==PID){host.innerHTML='';const f=document.createElement('iframe');f.className='calcframe';f.title='Labour Hours and Material Calculator';f.srcdoc=CALC_HTML;host.appendChild(f);CALC.frame=f;CALC.pid=PID}
 }
+/* ---------- Take off (PDF drawings) ---------- */
+const TO_COLORS=['#d9480f','#1c7ed6','#2f9e44','#ae3ec9','#f08c00','#0c8599','#e03131','#5f3dc4','#66a80f','#c2255c'];
+const TO_UNIT={count:'ea',length:'m',area:'m²'};
+const TO_TYPE={count:'Count',length:'Length',area:'Area'};
+const DWG_BLOB={};const PDFC={};
+const TO={id:null,page:1,zoom:0,tool:'pan',item:null,mode:'all',zone:null,draft:[],cal:null,sel:null,hover:null,vp:null,rt:null,drag:null,msg:''};
+function dwgDoc(id){const d=S.dwgs[id];if(!d)return null;d.items=d.items||[];d.marks=d.marks||[];d.zones=d.zones||[];d.scale=d.scale||{};return d}
+const PT_M=0.0254/72; // metres per PDF point on paper
+function toScale(d,pg){const s=d.scale[pg];return s&&num(s.mpu)>0?s:null}
+function toFmt(type,v){if(v==null)return '—';if(type==='count')return String(Math.round(v))+' ea';return (Math.round(v*100)/100).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+TO_UNIT[type]}
+function toInRect(p,r){return p[0]>=r[0]&&p[0]<=r[0]+r[2]&&p[1]>=r[1]&&p[1]<=r[1]+r[3]}
+function toClipSeg(a,b,r){let t0=0,t1=1;const dx=b[0]-a[0],dy=b[1]-a[1];const P=[-dx,dx,-dy,dy],Q=[a[0]-r[0],r[0]+r[2]-a[0],a[1]-r[1],r[1]+r[3]-a[1]];
+  for(let i=0;i<4;i++){if(P[i]===0){if(Q[i]<0)return 0}else{const t=Q[i]/P[i];if(P[i]<0){if(t>t1)return 0;if(t>t0)t0=t}else{if(t<t0)return 0;if(t<t1)t1=t}}}
+  return Math.hypot(dx,dy)*(t1-t0)}
+function toClipPoly(pts,r){let out=pts;const edges=[[p=>p[0]>=r[0],(a,b)=>{const t=(r[0]-a[0])/(b[0]-a[0]);return [r[0],a[1]+t*(b[1]-a[1])]}],[p=>p[0]<=r[0]+r[2],(a,b)=>{const X=r[0]+r[2],t=(X-a[0])/(b[0]-a[0]);return [X,a[1]+t*(b[1]-a[1])]}],
+  [p=>p[1]>=r[1],(a,b)=>{const t=(r[1]-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),r[1]]}],[p=>p[1]<=r[1]+r[3],(a,b)=>{const Y=r[1]+r[3],t=(Y-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),Y]}]];
+  for(const [ins,cut] of edges){const inp=out;out=[];for(let i=0;i<inp.length;i++){const cur=inp[i],prev=inp[(i+inp.length-1)%inp.length];if(ins(cur)){if(!ins(prev))out.push(cut(prev,cur));out.push(cur)}else if(ins(prev))out.push(cut(prev,cur))}if(!out.length)break}
+  return out}
+function toPolyArea(p){let a=0;for(let i=0;i<p.length;i++){const q=p[i],w=p[(i+1)%p.length];a+=q[0]*w[1]-w[0]*q[1]}return Math.abs(a)/2}
+function toLen(p){let l=0;for(let i=1;i<p.length;i++)l+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return l}
+/* quantity of one mark, optionally only the part inside a section; null when the page has no scale */
+function toMarkQty(d,it,m,z){
+  if(z&&z.pg!==m.pg)return 0;
+  if(it.type==='count')return !z||toInRect(m.pts[0],z.r)?1:0;
+  const sc=toScale(d,m.pg);if(!sc)return null;const k=num(sc.mpu);
+  if(it.type==='length'){if(!z)return toLen(m.pts)*k;let l=0;for(let i=1;i<m.pts.length;i++)l+=toClipSeg(m.pts[i-1],m.pts[i],z.r);return l*k}
+  const poly=z?toClipPoly(m.pts,z.r):m.pts;return poly.length>2?toPolyArea(poly)*k*k:0}
+function toItemQty(d,it,z){let t=0,miss=false;for(const m of d.marks)if(m.it===it.id){const q=toMarkQty(d,it,m,z);if(q==null)miss=true;else t+=q}return miss&&it.type!=='count'?{v:t,miss}:{v:t}}
+function toCurZone(d){return TO.mode==='sec'?d.zones.find(z=>z.id===TO.zone)||null:null}
+
+/* ---------- drawings list ---------- */
+V.takeoff=()=>{
+  if(TO.id&&S.dwgs[TO.id])return `<div class="stack">${head('Take off','Count, measure lengths and areas on a drawing. Take off the entire drawing, or draw sections on it and see quantities per section.')}</div>`;
+  const ds=Object.entries(S.dwgs).map(([id,d])=>[id,dwgDoc(id)]).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+  const busy=Object.keys(UP).filter(k=>k.startsWith('dwgup')).length;
+  const rows=ds.map(([id,d],i)=>{const n=d.items.length,mk=d.marks.length;return `<tr>
+    <td class="hint">${i+1}</td>
+    <td style="min-width:240px">${inp('dwg|'+id+'|name',d.name||'',{label:'Drawing name',ph:'Drawing name'})}</td>
+    <td style="width:130px">${inp('dwg|'+id+'|no',d.no||'',{label:'Drawing number',ph:'e.g. E-101'})}</td>
+    <td style="width:80px">${inp('dwg|'+id+'|rev',d.rev||'',{label:'Revision',ph:'A'})}</td>
+    <td class="n">${d.pages||'—'}</td>
+    <td>${n?`${n} item${n===1?'':'s'} · ${mk} mark${mk===1?'':'s'}${d.zones.length?` · ${d.zones.length} section${d.zones.length===1?'':'s'}`:''}`:'<span class="hint">Not started</span>'}</td>
+    <td class="hint" style="white-space:nowrap">${d.created?fmtDate(new Date(d.created).toISOString().slice(0,10)):''}</td>
+    <td style="white-space:nowrap;text-align:right">${d.file?.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(d.file.id)}" data-file="${esc(d.file.id)}" target="_blank" rel="noopener" title="${esc(d.file.name||'')}">PDF</a> `:''}<button class="btn primary" data-act="to-open" data-id="${id}">Take off</button> ${delBtn('dwg',id,'','Remove')}</td></tr>`}).join('');
+  return `<div class="stack">${head('Take off','Upload PDF drawings. Each drawing gets its own line; open one to count, measure lengths and areas, for the entire drawing or for sections you draw on it.')}
+  <div class="panel to-drop" id="to_drop"><div class="to-dropin"><div><b>Upload drawings</b><p class="hint" style="margin:2px 0 0">Drop PDF drawings here, or choose files. You can add several at once.</p></div>
+    <label class="btn primary" for="to_file" style="cursor:pointer">Choose PDFs</label><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
+    ${busy?`<p class="hint" style="margin:10px 0 0">Uploading ${busy} drawing${busy===1?'':'s'}…</p>`:''}${UI.toMsg?`<p class="${UI.toMsg.err?'neg':'hint'}" style="margin:10px 0 0">${esc(UI.toMsg.t)}</p>`:''}</div>
+  <div class="tw"><table><thead><tr><th style="width:40px">#</th><th>Drawing</th><th>Drawing no.</th><th>Rev</th><th class="n">Pages</th><th>Take off</th><th>Uploaded</th><th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="8" class="empty"><b>No drawings yet</b>Upload PDF drawings above to start a take off.</td></tr>`}</tbody></table></div>${toAllSummary()}</div>`;
+};
+async function toUpload(files){
+  const list=[...files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));
+  if(!list.length){UI.toMsg={t:'Only PDF drawings can be uploaded.',err:1};render();return}
+  UI.toMsg=null;let bad=[];
+  for(const f of list){const k='dwgup'+uid('u');UP[k]=true;render();
+    try{let pages=0;try{const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false}).promise;pages=doc.numPages;doc.destroy&&doc.destroy()}catch(e){throw Object.assign(new Error('not a readable PDF'),{code:'bad_pdf'})}
+      let file={name:f.name,size:f.size};
+      if(assets){const r=await assets.upload(f,{type:'application/pdf'});file.id=r.id}else file.id='local-'+uid('f');
+      DWG_BLOB[file.id]=f;
+      const id=uid('D');S.dwgs[id]={name:f.name.replace(/\.pdf$/i,''),no:(f.name.match(/^([A-Z]{1,3}[-\s]?\d{2,4}[A-Z]?)/i)||[])[1]||'',rev:'',file,pages,created:Date.now(),items:[],marks:[],zones:[],scale:{}};persist('drawings/'+id)}
+    catch(e){console.error(e);bad.push(f.name+(e&&e.code==='too_large'?' (too large)':e&&e.code==='bad_pdf'?' (not a readable PDF)':''))}
+    delete UP[k]}
+  UI.toMsg=bad.length?{t:'Could not upload: '+bad.join(', '),err:1}:{t:`Added ${list.length} drawing${list.length===1?'':'s'}.`};
+  if(!assets&&!bad.length)UI.toMsg.t+=' This view can’t store files, so the PDFs are only kept until you close the page.';
+  render()}
+async function toBytes(fid){
+  if(DWG_BLOB[fid])return new Uint8Array(await DWG_BLOB[fid].arrayBuffer());
+  if(HOSTED&&window.__sb){const {data,error}=await window.__sb.storage.from('files').download(fid);if(error)throw error;DWG_BLOB[fid]=data;return new Uint8Array(await data.arrayBuffer())}
+  const r=await fetch('/_blob/'+encodeURIComponent(fid));if(!r.ok)throw new Error('fetch '+r.status);const b=await r.blob();DWG_BLOB[fid]=b;return new Uint8Array(await b.arrayBuffer())}
+function toPdf(fid){if(!PDFC[fid])PDFC[fid]=(async()=>{const lib=await pdfLib();return lib.getDocument({data:await toBytes(fid),isEvalSupported:false}).promise})();PDFC[fid].catch(()=>delete PDFC[fid]);return PDFC[fid]}
+
+/* ---------- viewer ---------- */
+function toHostEl(){let h=document.getElementById('toHost');if(!h){h=document.createElement('div');h.id='toHost';h.hidden=true;viewEl.after(h);toWire(h)}return h}
+function toOpen(id){const d=dwgDoc(id);if(!d)return;Object.assign(TO,{id,page:1,zoom:0,tool:d.items.length?'take':'pan',item:d.items[0]?.id||null,mode:'all',zone:null,draft:[],cal:null,sel:null,vp:null,msg:''});Object.assign(TO.auto,{res:null,all:null,tpl:null,busy:'',note:''});TO.applied=null;TO.snapHit=null;
+  const h=toHostEl();h.innerHTML=`<div class="to-wrap"><div class="to-bar" id="toBar"></div><div class="to-main"><div class="to-stage" id="toStage"><div class="to-page" id="toPage"><canvas id="toCv"></canvas><svg id="toSvg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="to-load" id="toLoad">Loading drawing…</div></div><aside class="to-side" id="toSide"></aside></div><div class="panel" id="toSum"></div></div>`;
+  render();toLoadPage()}
+function toClose(){TO.id=null;TO.vp=null;const h=document.getElementById('toHost');if(h){h.hidden=true;h.innerHTML=''}render()}
+async function toLoadPage(){const d=dwgDoc(TO.id);if(!d)return;const ld=document.getElementById('toLoad');if(ld){ld.style.display='';ld.textContent='Loading drawing…'}
+  try{const pdf=await toPdf(d.file.id);if(!TO.id)return;TO.pages=pdf.numPages;const pg=await pdf.getPage(TO.page);TO.pg=pg;const vp=pg.getViewport({scale:1});TO.vp={w:vp.width,h:vp.height};
+    if(!TO.zoom){const st=document.getElementById('toStage');TO.zoom=Math.max(.1,((st?.clientWidth||900)-24)/vp.width)}
+    await toPaint();if(ld)ld.style.display='none';toSync();toSnapPrep(d)}
+  catch(e){console.error(e);if(ld){ld.style.display='';ld.textContent='Could not load this drawing. '+(HOSTED?'Check your connection.':'Open the page from claude.ai to load stored drawings.')}}}
+async function toPaint(){const pg=TO.pg;if(!pg)return;const cv=document.getElementById('toCv');if(!cv)return;const s=TO.zoom;const dpr=window.devicePixelRatio||1;
+  let r=s*dpr;const maxPx=24e6;if(TO.vp.w*TO.vp.h*r*r>maxPx)r=Math.sqrt(maxPx/(TO.vp.w*TO.vp.h));r=Math.min(r,8192/Math.max(TO.vp.w,TO.vp.h));
+  const vp=pg.getViewport({scale:r});const off=document.createElement('canvas');off.width=Math.floor(vp.width);off.height=Math.floor(vp.height);
+  if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render({canvasContext:off.getContext('2d'),viewport:vp});TO.rt=task;
+  try{await task.promise}catch(e){if(e&&e.name==='RenderingCancelledException')return;throw e}
+  TO.rt=null;cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);
+  const W=TO.vp.w*s,H=TO.vp.h*s;cv.style.width=W+'px';cv.style.height=H+'px';const pe=document.getElementById('toPage');pe.style.width=W+'px';pe.style.height=H+'px';
+  const sv=document.getElementById('toSvg');sv.setAttribute('viewBox',`0 0 ${TO.vp.w} ${TO.vp.h}`);sv.style.width=W+'px';sv.style.height=H+'px';toDraw()}
+function toSetZoom(z,cx,cy){const st=document.getElementById('toStage');if(!st||!TO.vp)return;z=Math.min(8,Math.max(.1,z));
+  const ox=cx??st.clientWidth/2,oy=cy??st.clientHeight/2;const px=(st.scrollLeft+ox)/TO.zoom,py=(st.scrollTop+oy)/TO.zoom;TO.zoom=z;
+  const W=TO.vp.w*z,H=TO.vp.h*z;['toCv','toSvg','toPage'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.width=W+'px';e.style.height=H+'px'}});
+  st.scrollLeft=px*z-ox;st.scrollTop=py*z-oy;toDraw();toBar();clearTimeout(TO.zt);TO.zt=setTimeout(toPaint,160)}
+function toFit(){const st=document.getElementById('toStage');if(!st||!TO.vp)return;TO.zoom=Math.max(.1,Math.min((st.clientWidth-24)/TO.vp.w,(st.clientHeight-24)/TO.vp.h));st.scrollLeft=0;st.scrollTop=0;toPaint();toBar()}
+function toFocusZone(z){const st=document.getElementById('toStage');if(!st||!TO.vp)return;const go=()=>{const zm=Math.max(.1,Math.min(6,Math.min((st.clientWidth-40)/z.r[2],(st.clientHeight-40)/z.r[3])));TO.zoom=zm;toPaint().then(()=>{st.scrollLeft=z.r[0]*zm-(st.clientWidth-z.r[2]*zm)/2;st.scrollTop=z.r[1]*zm-(st.clientHeight-z.r[3]*zm)/2});toBar()};
+  if(z.pg!==TO.page){TO.page=z.pg;toLoadPage().then(go)}else go()}
+function toSync(){const h=document.getElementById('toHost');if(!h)return;const on=UI.view==='takeoff'&&TO.id&&S.dwgs[TO.id];h.hidden=!on;if(!on)return;
+  const a=document.activeElement;const fid=a&&h.contains(a)?a.id:null;let s0,s1;try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
+  const d=dwgDoc(TO.id);if(TO.item&&!d.items.some(i=>i.id===TO.item))TO.item=null;if(TO.zone&&!d.zones.some(z=>z.id===TO.zone))TO.zone=null;
+  toBar();toSide();toSum();toDraw();
+  if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s1)}catch(e){}}}}
+function toBar(){const el=document.getElementById('toBar');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const sc=toScale(d,TO.page);const it=d.items.find(i=>i.id===TO.item);
+  const tb=(t,l,dis,ttl)=>`<button class="seg-b${TO.tool===t?' on':''}" data-ta="tool" data-v="${t}" ${dis?'disabled':''} title="${esc(ttl||'')}">${l}</button>`;
+  el.innerHTML=`<button class="btn" data-ta="close">← Drawings</button>
+    <div class="to-title"><b>${esc(d.name||'Drawing')}</b><span class="hint">${esc([d.no,d.rev?'Rev '+d.rev:''].filter(Boolean).join(' · '))}</span></div>
+    <div class="to-grp">${(TO.pages||d.pages)>1?`<button class="btn" data-ta="pg" data-v="-1" ${TO.page<=1?'disabled':''} aria-label="Previous page">‹</button><span class="hint">Page ${TO.page} of ${TO.pages||d.pages}</span><button class="btn" data-ta="pg" data-v="1" ${TO.page>=(TO.pages||d.pages)?'disabled':''} aria-label="Next page">›</button>`:'<span class="hint">1 page</span>'}</div>
+    <div class="to-grp"><button class="btn" data-ta="zoom" data-v="0.8" aria-label="Zoom out">−</button><span class="money" style="min-width:46px;text-align:center">${Math.round(TO.zoom*100)}%</span><button class="btn" data-ta="zoom" data-v="1.25" aria-label="Zoom in">+</button><button class="btn" data-ta="fit">Fit</button></div>
+    <div class="to-seg">${tb('pan','✋ Move')}${tb('take',it?`✚ ${esc(TO_TYPE[it.type])}`:'✚ Take off',!it,'Add to the selected item')}${tb('sel','Select')}${tb('zone','▭ Section')}${tb('auto','✨ Auto')}${tb('snapl','📷 Snapshot')}${tb('cal','📏 Scale')}</div><div class="to-seg"><button class="seg-b${TO.snap?' on':''}" data-ta="snap" aria-pressed="${TO.snap}" title="Snap to line ends and lines on the drawing">🧲 Snap ${TO.snap?'on':'off'}</button><button class="seg-b${TO.lbl?' on':''}" data-ta="lbl" aria-pressed="${TO.lbl}" title="Show lengths and areas on the drawing">Show measurements</button></div>
+    <div class="to-seg">${['all','sec'].map(m=>`<button class="seg-b${TO.mode===m?' on':''}" data-ta="mode" data-v="${m}">${m==='all'?'Entire drawing':'By section'}</button>`).join('')}</div>
+    <span class="tag ${sc?'good':'warn'}" title="Scale for this page">${sc?esc(sc.label||'Scale set'):'No scale on this page'}</span>`}
+function toSide(){const el=document.getElementById('toSide');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const z=toCurZone(d);const sc=toScale(d,TO.page);
+  const hints={auto:'',snapl:'',pan:'Drag to move around the drawing. Ctrl + scroll to zoom.',take:'',sel:'Click a mark or section to select it, then press Delete or use the button below.',zone:'Drag a box over the part of the drawing you want as a section.',cal:'Click two points a known distance apart, then type the real length.'};
+  const it=d.items.find(i=>i.id===TO.item);
+  if(it)hints.take=it.type==='count'?`Click each ${esc(it.name||'item')} on the drawing to count it.`:`Click points along the ${it.type==='area'?'area outline':'run'}. Double-click or press Enter to finish, Backspace removes the last point, Esc cancels. Hold Shift for straight lines.`;
+  const scope=z?`Section: ${esc(z.name||'Unnamed')}`:TO.mode==='sec'?'Choose a section':'Entire drawing';
+  const items=d.items.map(i=>{const q=TO.mode==='sec'&&!z?null:toItemQty(d,i,z);return `<div class="to-it${TO.item===i.id?' on':''}" data-ta="item" data-v="${i.id}">
+    ${i.img?`<label class="to-col to-colimg" style="border-color:${esc(i.color)}" title="Change colour"><img src="${i.img}" alt=""><input type="color" value="${esc(i.color)}" data-tk="icol|${i.id}" aria-label="Colour"></label>`:`<input type="color" value="${esc(i.color)}" data-tk="icol|${i.id}" aria-label="Colour" class="to-col">`}
+    <input class="f" id="to_in_${i.id}" value="${esc(i.name||'')}" data-tk="iname|${i.id}" placeholder="${TO_TYPE[i.type]} item" aria-label="Item name">
+    <span class="tag${i.src?' to-autotag':''}" title="${esc(i.src||'')}">${i.src?'✨ ':''}${TO_TYPE[i.type]}</span>
+    <span class="money to-q" title="${q&&q.miss?'Some marks are on a page with no scale':''}">${q?toFmt(i.type,q.v)+(q.miss?' *':''):'—'}</span>
+    <button class="btn ghost" data-ta="idel" data-v="${i.id}" aria-label="Delete item" title="Delete item and its marks">✕</button></div>`}).join('');
+  const zones=d.zones.map(zz=>`<div class="to-it${TO.zone===zz.id?' on':''}" data-ta="zone" data-v="${zz.id}"><span class="to-zsw"></span><input class="f" id="to_zn_${zz.id}" value="${esc(zz.name||'')}" data-tk="zname|${zz.id}" placeholder="Section name" aria-label="Section name"><span class="hint">p${zz.pg}</span><button class="btn ghost" data-ta="zdel" data-v="${zz.id}" aria-label="Delete section">✕</button></div>`).join('');
+  const sel=TO.sel?toSelBox(d):'';
+  const draft=TO.draft.length?`<div class="to-box"><b>${TO.draft.length} point${TO.draft.length===1?'':'s'}</b>${it&&it.type!=='count'&&sc?` · ${it.type==='length'?toFmt('length',toLen(TO.draft)*num(sc.mpu)):toFmt('area',toPolyArea(TO.draft)*num(sc.mpu)**2)}`:''} <button class="btn primary" data-ta="finish" ${TO.draft.length<(it&&it.type==='area'?3:2)?'disabled':''}>Finish</button> <button class="btn" data-ta="cancel">Cancel</button></div>`:'';
+  const cal=TO.tool==='cal'?`<div class="to-box"><b>Scale for page ${TO.page}</b>
+    <div class="to-row"><span class="hint">Drawing scale 1 :</span><input class="f num" id="to_ratio" data-tk="ratio" value="${esc(sc&&sc.ratio?sc.ratio:'')}" placeholder="100" style="width:90px"><button class="btn" data-ta="ratio">Set</button></div>
+    <p class="hint" style="margin:4px 0">Use the ratio if the PDF is at its printed size, or calibrate: ${TO.cal&&TO.cal.length===2?'':'click two points on the drawing a known distance apart.'}</p>
+    ${TO.cal&&TO.cal.length===2?`<div class="to-row"><span class="hint">Real length</span><input class="f num" id="to_callen" placeholder="e.g. 6.0" style="width:90px"><span class="hint">m</span><button class="btn primary" data-ta="calset">Apply</button></div>`:TO.cal&&TO.cal.length===1?'<p class="hint" style="margin:0">Now click the second point.</p>':''}
+    ${Object.keys(d.scale).length?`<button class="btn" data-ta="calall" style="margin-top:6px">Use this page’s scale on all pages</button>`:''}</div>`:'';
+  el.innerHTML=`${toAppliedBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toAutoBox(d):''}${sel}${draft}${cal}
+    <div class="to-h"><h3>Items</h3><span class="hint">${scope}</span></div>
+    <div class="to-list">${items||'<p class="hint" style="margin:0">Add what you want to take off, e.g. downlights (count), cable tray (length), ceiling (area).</p>'}</div>
+    <div class="to-row" style="margin:8px 0 18px">${['count','length','area'].map(t=>`<button class="btn" data-ta="iadd" data-v="${t}">+ ${TO_TYPE[t]}</button>`).join('')}</div>
+    <div class="to-h"><h3>Sections</h3>${d.zones.length?`<span class="hint">${d.zones.length}</span>`:''}</div>
+    <div class="to-list">${zones||'<p class="hint" style="margin:0">No sections yet. Use ▭ Section to draw one, e.g. a unit, a level or a zone.</p>'}</div>
+    <div class="to-row" style="margin-top:8px"><button class="btn" data-ta="tool" data-v="zone">+ Draw section</button></div>
+    ${!sc&&d.items.some(i=>i.type!=='count')?`<p class="hint warn-t" style="margin-top:14px">Set the scale (📏) on this page so lengths and areas can be measured.</p>`:''}`}
+function toSum(){const el=document.getElementById('toSum');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;
+  const shut=COLL.has('tosum');if(shut){const n=d.items.length;el.innerHTML=`<div class="sec-head" style="margin:0"><h3><button class="tog" data-ta="sumtog" data-v="tosum" aria-expanded="${!COLL.has('tosum')}" aria-label="${COLL.has('tosum')?'Show':'Hide'} summary">${COLL.has('tosum')?'▸':'▾'}</button>Take off summary <span class="hint" style="font-weight:400;font-family:var(--f-body);font-size:12.5px">${n} item${n===1?'':'s'}${d.zones.length?` · ${d.zones.length} section${d.zones.length===1?'':'s'}`:''}</span></h3></div>`;return}
+  if(!d.items.length){el.innerHTML='<h3>Take off summary</h3><p class="hint" style="margin:0">Add items and mark them on the drawing to see quantities here.</p>';return}
+  const cols=[{n:'Entire drawing',z:null},...d.zones.map(z=>({n:z.name||'Unnamed section',z}))];
+  const cell=(i,z)=>{const q=toItemQty(d,i,z);return `<td class="n money">${toFmt(i.type,q.v)}${q.miss?' *':''}</td>`};
+  const miss=d.items.some(i=>toItemQty(d,i,null).miss);
+  el.innerHTML=`<div class="sec-head" style="margin-bottom:8px"><h3><button class="tog" data-ta="sumtog" data-v="tosum" aria-expanded="${!COLL.has('tosum')}" aria-label="${COLL.has('tosum')?'Show':'Hide'} summary">${COLL.has('tosum')?'▸':'▾'}</button>Take off summary</h3><button class="btn" data-ta="csv">Download CSV</button></div>
+    <div class="tw"><table><thead><tr><th>Item</th><th>Type</th>${cols.map((c,ci)=>`<th class="n${ci===0?'':' to-zc'}">${esc(c.n)}</th>`).join('')}${d.zones.length?'<th class="n">Outside sections</th>':''}</tr></thead>
+    <tbody>${d.items.map(i=>{const all=toItemQty(d,i,null).v,inz=d.zones.reduce((a,z)=>a+toItemQty(d,i,z).v,0);return `<tr><td>${i.img?`<img src="${i.img}" alt="" class="to-thumb">`:`<span class="to-dot" style="background:${esc(i.color)}"></span>`}${esc(i.name||TO_TYPE[i.type]+' item')}</td><td class="hint">${TO_TYPE[i.type]}</td>${cols.map(c=>cell(i,c.z)).join('')}${d.zones.length?`<td class="n money">${toFmt(i.type,Math.max(0,all-inz))}</td>`:''}</tr>`}).join('')}</tbody></table></div>
+    ${miss?'<p class="hint" style="margin:6px 0 0">* Some marks are on a page with no scale and are not included.</p>':''}${d.zones.length?'<p class="hint" style="margin:6px 0 0">Lengths and areas that cross a section edge are split at the edge. If sections overlap, a mark counts in each.</p>':''}`}
+function toDraw(){const sv=document.getElementById('toSvg');if(!sv||!TO.vp)return;const d=dwgDoc(TO.id);if(!d)return;const s=TO.zoom||1;const u=1/s;const z=toCurZone(d);const pg=TO.page;
+  const byId={};d.items.forEach(i=>byId[i.id]=i);let h='';
+  for(const zz of d.zones)if(zz.pg===pg){const on=TO.zone===zz.id;h+=`<g data-zn="${zz.id}" class="to-zone${on?' on':''}${TO.sel&&TO.sel.id===zz.id?' sel':''}"><rect x="${zz.r[0]}" y="${zz.r[1]}" width="${zz.r[2]}" height="${zz.r[3]}" stroke-width="${(on?2.5:1.5)*u}" stroke-dasharray="${6*u} ${4*u}"/><text x="${zz.r[0]+4*u}" y="${zz.r[1]+14*u}" font-size="${12*u}">${esc(zz.name||'Section')}</text></g>`}
+  if(z&&z.pg===pg)h=`<path class="to-dim" fill-rule="evenodd" d="M0 0H${TO.vp.w}V${TO.vp.h}H0Z M${z.r[0]} ${z.r[1]}h${z.r[2]}v${z.r[3]}h${-z.r[2]}Z"/>`+h;
+  for(const m of d.marks){if(m.pg!==pg)continue;const it=byId[m.it];if(!it)continue;const c=esc(it.color);const sel=TO.sel&&TO.sel.id===m.id;const dim=(TO.item&&TO.item!==it.id)?' dim':'';
+    if(it.type==='count'){const p=m.pts[0];h+=`<g data-mk="${m.id}" class="to-mk${dim}${sel?' sel':''}"><circle cx="${p[0]}" cy="${p[1]}" r="${9*u}" fill="${c}" fill-opacity=".4" stroke="${c}" stroke-width="${2.5*u}"/><circle cx="${p[0]}" cy="${p[1]}" r="${1.6*u}" fill="${c}"/></g>`}
+    else if(it.type==='length')h+=`<polyline data-mk="${m.id}" class="to-mk${dim}${sel?' sel':''}" points="${m.pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="${3*u}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    else h+=`<polygon data-mk="${m.id}" class="to-mk${dim}${sel?' sel':''}" points="${m.pts.map(p=>p.join(',')).join(' ')}" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="${2*u}"/>`}
+  const it=byId[TO.item];
+  if(TO.draft.length&&it){const pts=[...TO.draft,...(TO.hover?[TO.hover]:[])];const c=esc(it.color);
+    h+=it.type==='area'&&pts.length>2?`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${c}" fill-opacity=".15" stroke="${c}" stroke-width="${2*u}" stroke-dasharray="${5*u} ${3*u}"/>`:`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="${3*u}" stroke-dasharray="${5*u} ${3*u}"/>`;
+    h+=TO.draft.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${3*u}" fill="#fff" stroke="${c}" stroke-width="${1.5*u}"/>`).join('')}
+  if(TO.cal&&TO.cal.length){const pts=[...TO.cal,...(TO.cal.length===1&&TO.hover?[TO.hover]:[])];h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#e8590c" stroke-width="${2*u}"/>`+TO.cal.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${4*u}" fill="#e8590c"/>`).join('')}
+  if(TO.drag&&TO.drag.k==='zone'){const r=toRectOf(TO.drag.a,TO.drag.b);h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="rgba(56,106,150,.12)" stroke="#386a96" stroke-width="${2*u}" stroke-dasharray="${6*u} ${4*u}"/>`}
+  h+=toLabels(d,u)+toAutoDraw(u)+toHandles(d,u)+toSnapDraw(u);sv.innerHTML=h;sv.dataset.tool=TO.tool}
+function toRectOf(a,b){return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])]}
+function toPt(e,snap){const pe=document.getElementById('toPage');const r=pe.getBoundingClientRect();let p=[(e.clientX-r.left)/TO.zoom,(e.clientY-r.top)/TO.zoom];
+  const last=snap&&e.shiftKey&&snap[snap.length-1];if(last){if(Math.abs(p[0]-last[0])>Math.abs(p[1]-last[1]))p[1]=last[1];else p[0]=last[0]}return p.map(v=>Math.round(v*100)/100)}
+function toSave(){persist('drawings/'+TO.id);toSide();toSum();toDraw()}
+function toFinish(){const d=dwgDoc(TO.id);const it=d&&d.items.find(i=>i.id===TO.item);if(!it){TO.draft=[];return}
+  const need=it.type==='area'?3:2;if(TO.draft.length>=need){undoRecord&&undoRecord();d.marks.push({id:uid('m'),it:it.id,pg:TO.page,pts:TO.draft});TO.draft=[];toSave()}else{TO.draft=[];toSide();toDraw()}}
+function toWire(h){
+  h.addEventListener('click',e=>{const b=e.target.closest('[data-ta]');if(!b||!h.contains(b))return;const a=b.dataset.ta,v=b.dataset.v;const d=dwgDoc(TO.id);if(!d)return;
+    if(e.target.closest('input')&&(a==='item'||a==='zone')){const row=b;if(a==='item'){if(TO.item!==v){TO.item=v;TO.tool='take';TO.draft=[]}}else TO.zone=v;
+      row.parentElement.querySelectorAll('.to-it').forEach(x=>x.classList.toggle('on',x===row));toBar();toDraw();return}
+    if(a==='close')return toClose();
+    if(a==='pg'){TO.page=Math.min(Math.max(1,TO.page+ +v),TO.pages||d.pages||1);TO.draft=[];TO.cal=null;TO.sel=null;toLoadPage();toSync();return}
+    if(a==='zoom')return toSetZoom(TO.zoom*+v);
+    if(a==='fit')return toFit();
+    if(a==='tool'){if(v==='auto'){const ci=d.items.find(i=>i.id===TO.item);TO.auto.tgt=ci&&ci.type===toAutoNeed(TO.auto.m)&&!ci.src?ci.id:(ci&&ci.src&&ci.type===toAutoNeed(TO.auto.m)?ci.id:'new')}TO.tool=v;TO.draft=[];TO.cal=null;TO.sel=null;toSync();return}
+    if(a==='mode'){TO.mode=v;if(v==='sec'&&!TO.zone&&d.zones[0])TO.zone=d.zones[0].id;toSync();const z=toCurZone(d);if(z)toFocusZone(z);return}
+    if(a==='item'){TO.item=v;TO.tool='take';TO.draft=[];toSync();return}
+    if(a==='zone'){TO.zone=v;if(TO.mode!=='sec')TO.mode='sec';toSync();const z=toCurZone(d);if(z)toFocusZone(z);return}
+    if(a==='iadd'){undoRecord();const n=d.items.filter(i=>i.type===v).length+1;const it={id:uid('i'),name:'',type:v,color:TO_COLORS[d.items.length%TO_COLORS.length]};d.items.push(it);TO.item=it.id;TO.tool='take';TO.draft=[];persist('drawings/'+TO.id);toSync();setTimeout(()=>{const n=document.getElementById('to_in_'+it.id);if(n)n.focus()},30);return}
+    if(a==='idel'){undoRecord();d.items=d.items.filter(i=>i.id!==v);d.marks=d.marks.filter(m=>m.it!==v);if(TO.item===v)TO.item=null;persist('drawings/'+TO.id);toSync();return}
+    if(a==='zdel'){undoRecord();d.zones=d.zones.filter(z=>z.id!==v);if(TO.zone===v)TO.zone=null;persist('drawings/'+TO.id);toSync();return}
+    if(a==='finish')return toFinish();
+    if(a==='cancel'){TO.draft=[];toSide();toDraw();return}
+    if(a==='selcont'){const o=toSelObj(d);if(o){undoRecord();d.marks=d.marks.filter(m=>m.id!==o.id);TO.item=o.it;TO.tool='take';TO.draft=o.pts.map(q=>q.slice());TO.sel=null;if(o.pg!==TO.page){TO.page=o.pg;toLoadPage()}persist('drawings/'+TO.id);toSync()}return}
+    if(a==='selnone'){TO.sel=null;toSide();toDraw();return}
+    if(a==='seldel'){undoRecord();if(TO.sel.k==='m')d.marks=d.marks.filter(m=>m.id!==TO.sel.id);else d.zones=d.zones.filter(z=>z.id!==TO.sel.id);TO.sel=null;persist('drawings/'+TO.id);toSync();return}
+    if(a==='ratio'){const r=num(document.getElementById('to_ratio')?.value);if(r>0){undoRecord();d.scale[TO.page]={mpu:PT_M*r,label:'1:'+r,ratio:String(r)};persist('drawings/'+TO.id);toSync()}return}
+    if(a==='calset'){const L=num(document.getElementById('to_callen')?.value);const pl=TO.cal&&TO.cal.length===2?Math.hypot(TO.cal[1][0]-TO.cal[0][0],TO.cal[1][1]-TO.cal[0][1]):0;if(L>0&&pl>0){undoRecord();const mpu=L/pl;d.scale[TO.page]={mpu,label:'Calibrated (1:'+Math.round(mpu/PT_M)+')',ratio:''};TO.cal=null;persist('drawings/'+TO.id);toSync()}return}
+    if(a==='calall'){const sc=d.scale[TO.page]||Object.values(d.scale)[0];if(sc){undoRecord();for(let p=1;p<=(TO.pages||d.pages||1);p++)d.scale[p]={...sc};persist('drawings/'+TO.id);toSync()}return}
+    if(a==='csv')return toCsv(d);
+    if(a==='snap'){TO.snap=!TO.snap;try{localStorage.setItem('ox_tosnap',TO.snap?'1':'0')}catch(e){}if(TO.snap)toSnapPrep(d);TO.snapHit=null;toBar();toDraw();return}
+    if(a==='lbl'){TO.lbl=!TO.lbl;try{localStorage.setItem('ox_tolbl',TO.lbl?'1':'0')}catch(e){}toBar();toDraw();return}
+    if(a==='am'){Object.assign(TO.auto,{m:v,name:null,tgt:'new',res:null,all:null,tpl:null,note:'',busy:''});toSide();toDraw();if(v==='label')setTimeout(()=>document.getElementById('to_aq')?.focus(),20);return}
+    if(a==='apg'){TO.auto.pages=v;TO.auto.res=null;TO.auto.all=null;toSide();toDraw();return}
+    if(a==='afind'){TO.auto.q=document.getElementById('to_aq')?.value||TO.auto.q;TO.auto.name=null;return toFindLabel(d)}
+    if(a==='aadd')return toAutoAdd(d);
+    if(a==='snapply'){const [did,sid]=v.split('|');return toSnapApply(d,did,sid)}
+    if(a==='sndel'){undoRecord();d.snaps=(d.snaps||[]).filter(x=>x.id!==v);persist('drawings/'+TO.id);toSync();return}
+    if(a==='sumtog'){COLL.has(v)?COLL.delete(v):COLL.add(v);saveColl();toSum();return}
+    if(a==='appx'){TO.applied=null;toSide();return}
+    if(a==='sumgo'){if(COLL.has('tosum')){COLL.delete('tosum');saveColl();toSum()}document.getElementById('toSum')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+    if(a==='aclear'){Object.assign(TO.auto,{res:null,all:null,tpl:null,note:''});toSide();toDraw();return}
+  });
+  h.addEventListener('input',e=>{const t=e.target.dataset&&e.target.dataset.tk;if(!t)return;const [k,id]=t.split('|');const d=dwgDoc(TO.id);if(!d)return;
+    if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum()}}
+    if(k==='zname'){const z=d.zones.find(x=>x.id===id);if(z){z.name=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}
+    if(k==='aq'){TO.auto.q=e.target.value;return}
+    if(k==='sname'){const sn=(d.snaps||[]).find(x=>x.id===id);if(sn){sn.name=e.target.value;persist('drawings/'+TO.id)}return}
+    if(k==='aname'){TO.auto.name=e.target.value;const b=document.querySelector('#toHost [data-ta="aadd"]');if(b)b.textContent=b.textContent.replace(/“.*”$/,'“'+(e.target.value.trim()||toAutoDefName())+'”');return}
+    if(k==='atgt'){TO.auto.tgt=e.target.value;toSide();return}
+    if(k==='acs'){TO.auto.cs=e.target.checked;return}
+    if(k==='arot'){TO.auto.rot=e.target.checked;return}
+    if(k==='athr'){TO.auto.thr=+e.target.value/100;toAutoThr();const sp=e.target.nextElementSibling;if(sp)sp.textContent=Math.round(TO.auto.thr*100)+'%';clearTimeout(TO.athrT);TO.athrT=setTimeout(()=>{toSide();toDraw()},120);toDraw();return}
+    if(k==='icol'){const it=d.items.find(i=>i.id===id);if(it){it.color=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}});
+  h.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&/^(iname|zname|sname)\|/.test(e.target.dataset.tk||'')){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&e.target.id==='to_ratio'){e.preventDefault();h.querySelector('[data-ta="ratio"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_aq'){e.preventDefault();h.querySelector('[data-ta="afind"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_callen'){e.preventDefault();h.querySelector('[data-ta="calset"]')?.click()}});
+  h.addEventListener('pointerdown',e=>{const pe=e.target.closest('#toPage');const st=e.target.closest('#toStage');if(!st||e.button>1)return;
+    TO.noClick=false;const ae=document.activeElement;if(ae&&h.contains(ae)&&ae.tagName==='INPUT')ae.blur();
+    if(TO.tool==='pan'||e.button===1||!pe){TO.drag={k:'pan',x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};st.setPointerCapture(e.pointerId);e.preventDefault();return}
+    if(toEditDown(e,st))return;
+    if(TO.tool==='snapl'){TO.drag={k:'snap',a:toPt(e),b:toPt(e)};st.setPointerCapture(e.pointerId);e.preventDefault();return}
+    if(TO.tool==='zone'){TO.drag={k:'zone',a:toPt(e),b:toPt(e)};st.setPointerCapture(e.pointerId);e.preventDefault()}
+    if(TO.tool==='auto'&&TO.auto.m==='symbol'&&toAutoHit(e)<0&&!TO.auto.busy){TO.drag={k:'tpl',a:toPt(e),b:toPt(e)};st.setPointerCapture(e.pointerId);e.preventDefault()}});
+  h.addEventListener('pointermove',e=>{const st=document.getElementById('toStage');if(!st)return;
+    if(TO.drag&&TO.drag.k==='pan'){st.scrollLeft=TO.drag.l-(e.clientX-TO.drag.x);st.scrollTop=TO.drag.t-(e.clientY-TO.drag.y);return}
+    if(TO.drag&&(TO.drag.k==='zone'||TO.drag.k==='tpl'||TO.drag.k==='snap')){TO.drag.b=toPt(e);toDraw();return}
+    if(TO.drag&&/^(vtx|mmove|zmove|zrs)$/.test(TO.drag.k)){toEditMove(e);return}
+    if(!e.target.closest('#toPage'))return;
+    const d=dwgDoc(TO.id);const it=d&&d.items.find(i=>i.id===TO.item);const snapT=(TO.tool==='take'&&it&&it.type!=='count')||TO.tool==='cal';
+    if(snapT){const prev=TO.snapHit;const p=toSnapAt(e,TO.tool==='take'?TO.draft:TO.cal);if(TO.draft.length||(TO.cal&&TO.cal.length===1)){TO.hover=p;toDraw()}else if(prev||TO.snapHit)toDraw()}});
+  h.addEventListener('pointerup',e=>{const dr=TO.drag;TO.drag=null;if(!dr)return;
+    if(/^(vtx|mmove|zmove|zrs)$/.test(dr.k))return toEditUp(dr);
+    if(dr.k==='snap'){const r=toRectOf(dr.a,dr.b);TO.noClick=Date.now();if(r[2]*TO.zoom>5&&r[3]*TO.zoom>5)toSnapCapture(dwgDoc(TO.id),r);else toDraw();return}
+    if(dr.k==='tpl'){const r=toRectOf(dr.a,dr.b);if(r[2]*TO.zoom>5&&r[3]*TO.zoom>5){TO.noClick=Date.now();toFindSymbol(dwgDoc(TO.id),r)}else toDraw();return}
+    if(dr.k==='zone'){const r=toRectOf(dr.a,dr.b);if(r[2]*TO.zoom>8&&r[3]*TO.zoom>8){const d=dwgDoc(TO.id);undoRecord();const zz={id:uid('z'),name:'Section '+(d.zones.length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100)};d.zones.push(zz);TO.zone=zz.id;TO.tool='sel';persist('drawings/'+TO.id);toSync();setTimeout(()=>{const n=document.getElementById('to_zn_'+zz.id);if(n){n.focus();n.select()}},30)}else toDraw()}});
+  h.addEventListener('click',e=>{if(!e.target.closest('#toPage'))return;const d=dwgDoc(TO.id);if(!d)return;
+    if(TO.noClick&&Date.now()-TO.noClick<400){TO.noClick=0;return}
+    if(TO.tool==='auto'){const A=TO.auto;const i=toAutoHit(e);if(i>=0&&A.res){A.res[i].on=!A.res[i].on;toSide();toDraw();return}if(A.m==='line'&&!A.busy)toPickLine(d,toPt(e));return}
+    if(TO.tool==='take'){const it=d.items.find(i=>i.id===TO.item);if(!it)return;const p=it.type==='count'?toPt(e):toSnapAt(e,TO.draft);
+      if(it.type==='count'){undoRecord();d.marks.push({id:uid('m'),it:it.id,pg:TO.page,pts:[p]});toSave();return}
+      if(e.detail>1)return;TO.draft.push(p);toSide();toDraw();return}
+    if(TO.tool==='cal'){const p=toSnapAt(e,TO.cal||[]);TO.cal=TO.cal&&TO.cal.length<2?[...TO.cal,p]:[p];TO.hover=null;toSide();toDraw();if(TO.cal.length===2)setTimeout(()=>document.getElementById('to_callen')?.focus(),20);return}
+    if(TO.tool==='sel'){if(e.target.closest('[data-vh],[data-mh],[data-zh]'))return;const mk=e.target.closest('[data-mk]'),zn=e.target.closest('[data-zn]');TO.sel=mk?{k:'m',id:mk.dataset.mk}:zn?{k:'z',id:zn.dataset.zn}:null;if(mk){const m=d.marks.find(x=>x.id===mk.dataset.mk);if(m)TO.item=m.it}toSide();toDraw()}});
+  h.addEventListener('dblclick',e=>{if(!e.target.closest('#toPage'))return;
+    if(TO.tool==='sel'&&TO.sel&&TO.sel.k==='m'){const vh=e.target.closest('[data-vh]');const d=dwgDoc(TO.id);const o=toSelObj(d);const it=o&&d.items.find(i=>i.id===o.it);if(vh&&it&&it.type!=='count'&&o.pts.length>(it.type==='area'?3:2)){undoRecord();o.pts.splice(+vh.dataset.vh,1);persist('drawings/'+TO.id);toSync()}return}
+    if(TO.tool!=='take')return;e.preventDefault();toFinish()});
+  h.addEventListener('wheel',e=>{if(!(e.ctrlKey||e.metaKey)||!e.target.closest('#toStage'))return;e.preventDefault();const st=document.getElementById('toStage').getBoundingClientRect();toSetZoom(TO.zoom*(e.deltaY<0?1.15:1/1.15),e.clientX-st.left,e.clientY-st.top)},{passive:false});
+}
+document.addEventListener('keydown',e=>{if(!TO.id||UI.view!=='takeoff')return;const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return;
+  if(e.key==='Enter'&&TO.draft.length){e.preventDefault();toFinish()}
+  else if(e.key==='Escape'){TO.draft=[];TO.cal=null;TO.sel=null;TO.hover=null;toSide();toDraw()}
+  else if((e.key==='Backspace'||e.key==='Delete')&&TO.draft.length){e.preventDefault();TO.draft.pop();toSide();toDraw()}
+  else if((e.key==='Backspace'||e.key==='Delete')&&TO.sel){e.preventDefault();document.querySelector('#toHost [data-ta="seldel"]')?.click()}});
+/* ---------- Take off: auto count / auto measure ---------- */
+TO.auto={m:'label',q:'',cs:false,pages:'this',rot:true,thr:0.8,res:null,busy:'',note:''};
+function toAutoItem(d){const it=d.items.find(i=>i.id===TO.item);return it||null}
+function toAutoNeed(m){return m==='line'?'length':'count'}
+function toAutoZone(d){return toCurZone(d)}
+function toAutoKeep(d,c){const z=toAutoZone(d);if(!z)return true;if(c.pg!==z.pg)return false;return c.pts.some(p=>toInRect(p,z.r))}
+/* label search in the PDF text layer */
+async function toFindLabel(d){const A=TO.auto;const q=A.q.trim();if(!q){A.note='Type the label to look for, e.g. B1.';return toSide()}
+  A.busy='Searching the drawing text…';A.res=null;A.note='';toSide();
+  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];const esc_=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const re=new RegExp('(^|[^A-Za-z0-9])('+esc_+')(?![A-Za-z0-9])',A.cs?'g':'gi');
+    const out=[];for(const p of pages){const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();
+      for(const t of tc.items){if(!t.str)continue;re.lastIndex=0;let m;while((m=re.exec(t.str))){const i0=m.index+m[1].length,L=t.str.length||1;const f=(i0+m[2].length/2)/L;
+        const [a,b,c,dd,e,ff]=t.transform;const dl=Math.hypot(a,b)||1,ul=Math.hypot(c,dd)||1;const x=e+a/dl*t.width*f+c/ul*(t.height||ul)/2,y=ff+b/dl*t.width*f+dd/ul*(t.height||ul)/2;
+        const v=vp.convertToViewportPoint(x,y);out.push({pg:p,pts:[[Math.round(v[0]*100)/100,Math.round(v[1]*100)/100]],on:true});if(!re.global)break}}}
+    A.res=out.filter(c=>toAutoKeep(d,c));A.busy='';A.note=A.res.length?'':`No “${q}” labels found${toAutoZone(d)?' in this section':''}. Labels must be text in the PDF (not part of a scanned image); try “Count by symbol” instead.`}
+  catch(e){console.error(e);A.busy='';A.note='Could not read the drawing text.'}
+  toSide();toDraw()}
+/* symbol search: template matching on a rendered page, in a worker */
+const TO_MATCH_SRC=`onmessage=e=>{const {ink,dil,W,H,tps,min}=e.data;const I=new Int32Array((W+1)*(H+1));
+for(let y=0;y<H;y++){let r=0;for(let x=0;x<W;x++){r+=ink[y*W+x];I[(y+1)*(W+1)+x+1]=I[y*(W+1)+x+1]+r}}
+const out=[];for(let ti=0;ti<tps.length;ti++){const t=tps[ti];const w=t.w,h=t.h,offs=t.offs,n=offs.length;if(!n)continue;const lo=n*0.55,hi=n*1.7;
+for(let y=0;y+h<=H;y++){for(let x=0;x+w<=W;x++){const wi=I[(y+h)*(W+1)+x+w]-I[y*(W+1)+x+w]-I[(y+h)*(W+1)+x]+I[y*(W+1)+x];if(wi<lo||wi>hi)continue;
+let ov=0;const base=y*W+x;for(let k=0;k<n;k++)ov+=dil[base+offs[k]];let s=ov/n*(2*Math.min(wi,n)/(wi+n));if(s<min)continue;const td=t.dil;let o2=0;for(let yy=0;yy<h;yy++){const r=base+yy*W,rt=yy*w;for(let xx=0;xx<w;xx++)if(ink[r+xx])o2+=td[rt+xx]}s=Math.min(s,o2/wi);if(s>=min)out.push(x,y,ti,Math.round(s*1000))}}}
+postMessage(out)}`;
+let TO_WK=null;function toWorker(){if(!TO_WK){try{TO_WK=new Worker(URL.createObjectURL(new Blob([TO_MATCH_SRC],{type:'text/javascript'})))}catch(e){TO_WK=false}}return TO_WK}
+function toMatchRun(data){return new Promise(res=>{const w=toWorker();if(w){w.onmessage=e=>res(e.data);w.onerror=()=>{TO_WK=false;res(toMatchInline(data))};w.postMessage(data)}else res(toMatchInline(data))})}
+function toMatchInline(data){let r;const g={postMessage:x=>r=x};new Function('postMessage','return '+TO_MATCH_SRC.replace('onmessage=',''))(g.postMessage)({data});return r}
+async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matching symbols…';A.res=null;A.note='';src=src||{fid:d.file.id,pg:TO.page};A.src=src;A.tpl=src.fid===d.file.id?{pg:src.pg,r:rect}:null;toSide();toDraw();
+  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];
+    let R=Math.min(3,Math.max(0.75,30/Math.min(rect[2],rect[3])));const out=[];let tplInk=null;
+    for(const p of pages){const pg=await pdf.getPage(p);const vp1=pg.getViewport({scale:1});let Rp=R;if(vp1.width*vp1.height*Rp*Rp>9e6)Rp=Math.sqrt(9e6/(vp1.width*vp1.height));
+      if(p===TO.page)R=Rp;const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+      await pg.render({canvasContext:cx,viewport:vp}).promise;const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
+      for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
+      const dil=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}
+      if(!tplInk){if(!(src.fid===d.file.id&&p===src.pg)){const pt=await (await toPdf(src.fid)).getPage(src.pg);/* template always from the page it was drawn on */const vpt=pt.getViewport({scale:Rp});const ct=document.createElement('canvas');ct.width=Math.ceil(vpt.width);ct.height=Math.ceil(vpt.height);const cc=ct.getContext('2d',{willReadFrequently:true});cc.fillStyle='#fff';cc.fillRect(0,0,ct.width,ct.height);await pt.render({canvasContext:cc,viewport:vpt}).promise;tplInk=toTplFrom(cc.getImageData(0,0,ct.width,ct.height).data,ct.width,rect,Rp)}
+        else tplInk=toTplFrom(px,W,rect,Rp)}
+      if(!tplInk.ink){A.busy='';A.note='The box is empty. Drag it tightly around one symbol.';return toSide()}
+      const tps=toTplSet(tplInk,A.rot,W);const raw=await toMatchRun({ink,dil,W,H,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil})),min:0.5});
+      const cand=[];for(let i=0;i<raw.length;i+=4){const t=tps[raw[i+2]];cand.push({x:(raw[i]+t.w/2)/Rp,y:(raw[i+1]+t.h/2)/Rp,s:raw[i+3]/1000})}
+      cand.sort((a,b)=>b.s-a.s);const rad=0.6*Math.max(rect[2],rect[3]);const keep=[];for(const c of cand){if(keep.some(k=>Math.hypot(k.x-c.x,k.y-c.y)<rad))continue;keep.push(c)}
+      for(const c of keep)out.push({pg:p,pts:[[Math.round(c.x*100)/100,Math.round(c.y*100)/100]],s:c.s,on:true});
+      A.busy=pages.length>1?`Looking for matching symbols… page ${p} of ${pages.length}`:A.busy;toSide()}
+    A.all=out.filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches. Try a lower sensitivity, or drag the box more tightly around the symbol.'}
+  catch(e){console.error(e);A.busy='';A.note='Could not search this drawing.'}
+  toSide();toDraw()}
+function toTplFrom(px,W,rect,R){const x0=Math.max(0,Math.floor(rect[0]*R)),y0=Math.max(0,Math.floor(rect[1]*R)),w=Math.max(2,Math.round(rect[2]*R)),h=Math.max(2,Math.round(rect[3]*R));const m=new Uint8Array(w*h);let ink=0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const j=((y0+y)*W+(x0+x))*4;const v=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;m[y*w+x]=v;ink+=v}
+  /* trim empty margins so the box does not need to be exact */
+  let t=h,b=-1,l=w,r=-1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(m[y*w+x]){if(y<t)t=y;if(y>b)b=y;if(x<l)l=x;if(x>r)r=x}
+  if(b<0)return {ink:0};const W2=r-l+1,H2=b-t+1,m2=new Uint8Array(W2*H2);for(let y=0;y<H2;y++)for(let x=0;x<W2;x++)m2[y*W2+x]=m[(y+t)*w+x+l];return {w:W2,h:H2,m:m2,ink}}
+function toTplSet(T,rot,W){const list=[{w:T.w,h:T.h,m:T.m}];if(rot){let c=list[0];for(let k=0;k<3;k++){const w=c.h,h=c.w,m=new Uint8Array(w*h);for(let y=0;y<c.h;y++)for(let x=0;x<c.w;x++)m[x*w+(c.h-1-y)]=c.m[y*c.w+x];c={w,h,m};list.push(c)}}
+  const seen=new Set();return list.filter(t=>{const k=t.w+'x'+t.h+':'+Array.prototype.join.call(t.m,'');if(seen.has(k))return false;seen.add(k);return true}).map(t=>{const offs=[];for(let y=0;y<t.h;y++)for(let x=0;x<t.w;x++)if(t.m[y*t.w+x])offs.push(y*W+x);const dl=new Uint8Array(t.w*t.h);for(let y=0;y<t.h;y++)for(let x=0;x<t.w;x++)if(t.m[y*t.w+x]){const i=y*t.w+x;dl[i]=1;if(x>0)dl[i-1]=1;if(x<t.w-1)dl[i+1]=1;if(y>0)dl[i-t.w]=1;if(y<t.h-1)dl[i+t.w]=1}return {w:t.w,h:t.h,offs:Int32Array.from(offs),dil:dl}})}
+function toAutoThr(){const A=TO.auto;if(!A.all)return;const off=new Set((A.res||[]).filter(c=>!c.on).map(c=>c.pts[0].join(',')));A.res=A.all.filter(c=>c.s>=A.thr).map(c=>({...c,on:!off.has(c.pts[0].join(','))}))}
+/* line-style search in the PDF vector content */
+async function toVectors(d,p){TO.vec=TO.vec||{};const k=d.file.id+'#'+p;if(TO.vec[k])return TO.vec[k];
+  const pdf=await toPdf(d.file.id);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1});const ol=await pg.getOperatorList();const O=pdfjsLib.OPS;
+  let st={m:[1,0,0,1,0,0],lw:1,col:'#000000',dash:''};const stack=[];const paths=[];let cur=null;
+  const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+  const tp=(m,x,y)=>{const v=vp.convertToViewportPoint(m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]);return [Math.round(v[0]*100)/100,Math.round(v[1]*100)/100]};
+  const hex=(r,g,b)=>'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+  for(let i=0;i<ol.fnArray.length;i++){const fn=ol.fnArray[i],a=ol.argsArray[i];
+    if(fn===O.save)stack.push({...st,m:st.m.slice()});else if(fn===O.restore){if(stack.length)st=stack.pop()}
+    else if(fn===O.transform)st.m=mul(st.m,a);else if(fn===O.setLineWidth)st.lw=a[0];
+    else if(fn===O.setDash)st.dash=(a[0]||[]).map(v=>Math.round(v*10)/10).join(' ');
+    else if(fn===O.setStrokeRGBColor)st.col=typeof a[0]==='string'?a[0]:hex(a[0],a[1],a[2]);
+    else if(fn===O.setGState){for(const [k,v] of a[0]||[]){if(k==='LW')st.lw=v;if(k==='D')st.dash=((v&&v[0])||[]).join(' ')}}
+    else if(fn===O.paintFormXObjectBegin){stack.push({...st,m:st.m.slice()});if(a[0])st.m=mul(st.m,a[0])}
+    else if(fn===O.paintFormXObjectEnd){if(stack.length)st=stack.pop()}
+    else if(fn===O.constructPath){const ops=a[0],c=a[1];let j=0;cur=cur||[];let sp=null,start=null;
+      let lx=0,ly=0;
+      for(const op of ops){if(op===O.moveTo){lx=c[j];ly=c[j+1];sp=[tp(st.m,lx,ly)];cur.push(sp);j+=2}
+        else if(op===O.lineTo){if(!sp){sp=[];cur.push(sp)}lx=c[j];ly=c[j+1];sp.push(tp(st.m,lx,ly));j+=2}
+        else if(op===O.curveTo||op===O.curveTo2||op===O.curveTo3){let x1,y1,x2,y2,x3,y3;if(op===O.curveTo){[x1,y1,x2,y2,x3,y3]=c.slice(j,j+6);j+=6}else if(op===O.curveTo2){x1=lx;y1=ly;[x2,y2,x3,y3]=c.slice(j,j+4);j+=4}else{[x1,y1,x3,y3]=c.slice(j,j+4);x2=x3;y2=y3;j+=4}
+          if(!sp){sp=[tp(st.m,lx,ly)];cur.push(sp)}for(let s=1;s<=8;s++){const t=s/8,u=1-t;sp.push(tp(st.m,u*u*u*lx+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,u*u*u*ly+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3))}lx=x3;ly=y3}
+        else if(op===O.closePath){if(sp&&sp.length)sp.push(sp[0].slice())}
+        else if(op===O.rectangle){const x=c[j],y=c[j+1],w=c[j+2],h=c[j+3];j+=4;sp=[tp(st.m,x,y),tp(st.m,x+w,y),tp(st.m,x+w,y+h),tp(st.m,x,y+h),tp(st.m,x,y)];cur.push(sp)}}}
+    else if(fn===O.stroke||fn===O.closeStroke||fn===O.fillStroke||fn===O.eoFillStroke||fn===O.closeFillStroke||fn===O.closeEOFillStroke){
+      if(cur){const sc=Math.sqrt(Math.abs(st.m[0]*st.m[3]-st.m[1]*st.m[2]))||1;const key=st.col+'|'+(Math.round(st.lw*sc*20)/20)+'|'+st.dash;for(const sp of cur)if(sp.length>1){if(fn===O.closeStroke||fn===O.closeFillStroke||fn===O.closeEOFillStroke)sp.push(sp[0].slice());paths.push({key,pts:sp})}}cur=null}
+    else if(fn===O.fill||fn===O.eoFill||fn===O.endPath)cur=null}
+  TO.vec[k]=paths;return paths}
+function toSegDist(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1];const L=dx*dx+dy*dy;let t=L?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)}
+async function toPickLine(d,p){const A=TO.auto;A.busy='Reading the drawing lines…';A.res=null;A.note='';toSide();
+  try{const paths=await toVectors(d,TO.page);let best=null,bd=8/TO.zoom;for(const ph of paths)for(let i=1;i<ph.pts.length;i++){const dd=toSegDist(p,ph.pts[i-1],ph.pts[i]);if(dd<bd){bd=dd;best=ph}}
+    if(!best){A.busy='';A.note=paths.length?'No line there. Click right on the line you want measured.':'This drawing has no vector lines to read (it may be a scanned image). Measure it with ✚ Length instead.';return toSide()}
+    let pages=[TO.page];if(A.pages==='all'){const pdf=await toPdf(d.file.id);pages=[...Array(pdf.numPages)].map((_,i)=>i+1)}
+    const out=[];for(const pg of pages){const ps=pg===TO.page?paths:await toVectors(d,pg);for(const ph of ps)if(ph.key===best.key)out.push({pg,pts:ph.pts,on:true})}
+    A.key=best.key;A.res=out.filter(c=>toAutoKeep(d,c));A.busy='';A.note=''}
+  catch(e){console.error(e);A.busy='';A.note='Could not read the drawing lines.'}
+  toSide();toDraw()}
+function toAutoTotal(d,it){const A=TO.auto;if(!A.res)return null;const on=A.res.filter(c=>c.on);if(it.type==='count')return {n:on.length,v:on.length};
+  let v=0,miss=false;const z=toAutoZone(d);for(const c of on){const q=toMarkQty(d,it,{pg:c.pg,pts:c.pts},z);if(q==null)miss=true;else v+=q}return {n:on.length,v,miss}}
+function toAutoDefName(){const A=TO.auto;return A.m==='label'?(A.q.trim()||'Label count'):A.m==='symbol'?'Symbol count':'Line run'}
+function toAutoTgt(d){const A=TO.auto;const need=toAutoNeed(A.m);if(A.tgt&&A.tgt!=='new'){const it=d.items.find(i=>i.id===A.tgt&&i.type===need);if(it)return it}return null}
+function toAutoSrc(A){return A.m==='label'?'Auto count of label “'+A.q.trim()+'”':A.m==='symbol'?'Auto count by symbol':'Auto measure by line style'}
+function toAutoAdd(d){const A=TO.auto;if(!A.res)return;const on=A.res.filter(c=>c.on);if(!on.length)return;undoRecord();let skip=0,add=0;
+  let it=toAutoTgt(d);const nm=(A.name??'').trim()||toAutoDefName();
+  if(!it){it={id:uid('i'),name:nm,type:toAutoNeed(A.m),color:TO_COLORS[d.items.length%TO_COLORS.length]};d.items.push(it)}
+  else if(!it.name)it.name=nm;
+  it.src=toAutoSrc(A);if(A.m==='label')it.label=A.q.trim();if(A.snapId&&A.m==='symbol'){it.snap=A.snapId;it.img=A.snapImg;it.src='Auto count from snapshot “'+(A.name||'')+'”'}TO.item=it.id;A.tgt=it.id;const before=toItemQty(d,it,null).v;
+  for(const c of on){if(it.type==='count'){const p=c.pts[0];if(d.marks.some(m=>m.it===it.id&&m.pg===c.pg&&Math.hypot(m.pts[0][0]-p[0],m.pts[0][1]-p[1])<4)){skip++;continue}}
+    d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:A.m});add++}
+  TO.applied={did:TO.id,it:it.id,v:toItemQty(d,it,null).v-before,n:add,skip,img:it.img||null};A.snapId=null;A.snapImg=null;A.res=null;A.all=null;A.tpl=null;A.name=null;A.note=`Added ${add} ${it.type==='count'?'':'runs '}to “${it.name}”${skip?`, skipped ${skip} already counted`:''}.`;persist('drawings/'+TO.id);toSync()}
+function toAutoBox(d){const A=TO.auto;const it=toAutoItem(d);const need=toAutoNeed(A.m);const ok=it&&it.type===need;const z=toAutoZone(d);
+  const seg=`<div class="to-seg" style="align-self:stretch">${[['label','Count label'],['symbol','Count symbol'],['line','Measure line']].map(([k,l])=>`<button class="seg-b${A.m===k?' on':''}" data-ta="am" data-v="${k}" style="flex:1;text-align:center">${l}</button>`).join('')}</div>`;
+  const pages=`<div class="to-row"><span class="hint">Search</span><div class="to-seg">${[['this','This page'],['all','All pages']].map(([k,l])=>`<button class="seg-b${A.pages===k?' on':''}" data-ta="apg" data-v="${k}">${l}</button>`).join('')}</div></div>`;
+  let body='';
+  if(A.m==='label')body=`<p class="hint" style="margin:0">Finds every text label on the drawing, e.g. <b>B1</b>, and counts one at each.</p>
+    <div class="to-row"><input class="f" id="to_aq" data-tk="aq" value="${esc(A.q)}" placeholder="Label, e.g. B1" style="width:130px"><button class="btn primary" data-ta="afind">Find</button></div>
+    <label class="to-row hint"><input type="checkbox" data-tk="acs" ${A.cs?'checked':''}> Match upper/lower case</label>${pages}`;
+  else if(A.m==='symbol')body=`<p class="hint" style="margin:0">Drag a box tightly around <b>one</b> fitting symbol on the drawing. Every matching symbol is found.</p>
+    <label class="to-row hint"><input type="checkbox" data-tk="arot" ${A.rot?'checked':''}> Include rotated symbols</label>${pages}
+    ${A.all?`<div class="to-row" style="align-self:stretch"><span class="hint">Sensitivity</span><input type="range" min="50" max="95" step="1" value="${Math.round(A.thr*100)}" data-tk="athr" style="flex:1" aria-label="Match sensitivity"><span class="money">${Math.round(A.thr*100)}%</span></div><p class="hint" style="margin:0">Lower finds more (and more false matches); higher is stricter.</p>`:''}`;
+  else body=`<p class="hint" style="margin:0">Click on one run of the line you want measured, e.g. a cable tray line. Every line drawn in the same colour, thickness and dash is measured.</p>${pages}`;
+  const tg=toAutoTgt(d);const vIt=tg||{id:'__new',type:need,name:(A.name??'').trim()||toAutoDefName()};const tot=toAutoTotal(d,vIt);
+  const opts=d.items.filter(i=>i.type===need);
+  const tgtHtml=A.res&&A.res.length?`<div class="to-row" style="align-self:stretch"><span class="hint">Add to</span><select class="f" data-tk="atgt" style="flex:1;border-color:var(--line);background:var(--surface)"><option value="new"${tg?'':' selected'}>New item</option>${opts.map(i=>`<option value="${i.id}"${tg&&tg.id===i.id?' selected':''}>${esc(i.name||TO_TYPE[i.type]+' item')}</option>`).join('')}</select></div>
+    ${tg?'':`<div class="to-row" style="align-self:stretch"><span class="hint">Item name</span><input class="f" id="to_aname" data-tk="aname" value="${esc(vIt.name)}" style="flex:1;border-color:var(--line);background:var(--surface)"></div>`}`:'';
+  const res=A.res?`<div class="to-row" style="align-self:stretch;justify-content:space-between"><b>${A.res.length?`Found ${A.res.length}`:'Nothing found'}${tot&&tot.n!==A.res.length?` · ${tot.n} selected`:''}</b>${tot&&need!=='count'?`<span class="money">${toFmt(need,tot.v)}${tot.miss?' *':''}</span>`:''}</div>
+    ${A.res.length?`<p class="hint" style="margin:0">Results are outlined in yellow. Click one on the drawing to leave it out.</p>${tgtHtml}<div class="to-row"><button class="btn primary" data-ta="aadd" ${tot&&tot.n?'':'disabled'}>Add ${tot?tot.n:0} to “${esc(vIt.name)}”</button><button class="btn" data-ta="aclear">Clear</button></div>`:''}${tot&&tot.miss?'<p class="hint warn-t" style="margin:0">* Set the scale on every page searched.</p>':''}`:'';
+  return `<div class="to-box to-auto"><b>Auto take off${z?` · in ${esc(z.name||'section')}`:''}</b>${seg}${body}${A.busy?`<p class="hint" style="margin:0"><span class="to-spin"></span>${esc(A.busy)}</p>`:''}${res}${A.note?`<p class="hint" style="margin:0">${esc(A.note)}</p>`:''}</div>`}
+function toAutoDraw(u){const A=TO.auto;let h='';
+  if(TO.tool==='snapl'){const d=dwgDoc(TO.id);for(const sn of (d&&d.snaps)||[])if(sn.pg===TO.page)h+=`<rect x="${sn.r[0]}" y="${sn.r[1]}" width="${sn.r[2]}" height="${sn.r[3]}" fill="none" stroke="#7048e8" stroke-width="${1.5*u}" stroke-dasharray="${4*u} ${2*u}"/>`;if(TO.drag&&TO.drag.k==='snap'){const r=toRectOf(TO.drag.a,TO.drag.b);h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="rgba(112,72,232,.1)" stroke="#7048e8" stroke-width="${2*u}"/>`}return h}
+  if(TO.tool!=='auto')return '';
+  if(A.tpl&&A.tpl.pg===TO.page){const r=A.tpl.r;h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="none" stroke="#f59f00" stroke-width="${2*u}"/>`}
+  if(A.res)for(let i=0;i<A.res.length;i++){const c=A.res[i];if(c.pg!==TO.page)continue;
+    if(c.pts.length===1){const p=c.pts[0];h+=`<circle data-ac="${i}" cx="${p[0]}" cy="${p[1]}" r="${11*u}" class="to-ac${c.on?'':' off'}" stroke-width="${2.5*u}" stroke-dasharray="${c.on?'none':4*u+' '+3*u}"/>`}
+    else h+=`<polyline data-ac="${i}" points="${c.pts.map(p=>p.join(',')).join(' ')}" class="to-acl${c.on?'':' off'}" stroke-width="${(c.on?5:3)*u}"/>`}
+  if(TO.drag&&(TO.drag.k==='tpl'||TO.drag.k==='snap')){const r=toRectOf(TO.drag.a,TO.drag.b);h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="rgba(245,159,0,.12)" stroke="#f59f00" stroke-width="${2*u}" stroke-dasharray="${5*u} ${3*u}"/>`}
+  return h}
+function toAutoHit(e){const t=e.target.closest&&e.target.closest('[data-ac]');if(t)return +t.dataset.ac;const A=TO.auto;if(!A.res)return -1;const p=toPt(e);let bi=-1,bd=12/TO.zoom;
+  A.res.forEach((c,i)=>{if(c.pg!==TO.page)return;const dd=c.pts.length===1?Math.hypot(c.pts[0][0]-p[0],c.pts[0][1]-p[1]):Math.min(...c.pts.slice(1).map((q,k)=>toSegDist(p,c.pts[k],q)));if(dd<bd){bd=dd;bi=i}});return bi}
+
+/* ---------- Take off: snapping and measurement labels ---------- */
+try{TO.snap=localStorage.getItem('ox_tosnap')!=='0'}catch(e){TO.snap=true}
+try{TO.lbl=localStorage.getItem('ox_tolbl')!=='0'}catch(e){TO.lbl=true}
+TO.snapHit=null;
+function toSnapIdx(d,pg){const k=d.file.id+'#'+pg;TO.sidx=TO.sidx||{};if(TO.sidx[k])return TO.sidx[k];const paths=(TO.vec||{})[k];if(!paths)return null;
+  const C=24,pts=new Map(),segs=new Map();const add=(m,x,y,v)=>{const key=Math.floor(x/C)+','+Math.floor(y/C);let a=m.get(key);if(!a)m.set(key,a=[]);a.push(v)};
+  for(const ph of paths){const P=ph.pts;for(let i=0;i<P.length;i++){add(pts,P[i][0],P[i][1],P[i]);if(i){const a=P[i-1],b=P[i];const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);
+    if((x1-x0)/C*(y1-y0)/C>400)continue;for(let gx=Math.floor(x0/C);gx<=Math.floor(x1/C);gx++)for(let gy=Math.floor(y0/C);gy<=Math.floor(y1/C);gy++){const key=gx+','+gy;let s=segs.get(key);if(!s)segs.set(key,s=[]);s.push([a,b])}}}}
+  return TO.sidx[k]={C,pts,segs}}
+function toSnapPrep(d){if(!TO.snap||!d)return;const k=d.file.id+'#'+TO.page;if(TO.vec&&TO.vec[k])return;toVectors(d,TO.page).then(()=>{TO.sidx&&delete TO.sidx[k]}).catch(()=>{})}
+function toSnapAt(e,base){const p=toPt(e,base);TO.snapHit=null;if(!TO.snap)return p;const d=dwgDoc(TO.id);if(!d)return p;
+  const R=10/TO.zoom,Rl=6/TO.zoom;let best=null,bd=R;
+  const own=[...TO.draft,...(TO.cal||[])];const dragO=TO.drag&&TO.drag.k==='vtx'&&TO.sel?TO.sel.id:null;for(const m of d.marks)if(m.pg===TO.page)m.pts.forEach((q,qi)=>{if(m.id===dragO&&qi===TO.drag.i)return;own.push(q)});
+  for(const q of own){const dd=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dd<bd){bd=dd;best=q}}
+  const I=toSnapIdx(d,TO.page);if(I){const gx=Math.floor(p[0]/I.C),gy=Math.floor(p[1]/I.C);
+    for(let x=gx-1;x<=gx+1;x++)for(let y=gy-1;y<=gy+1;y++){for(const q of I.pts.get(x+','+y)||[]){const dd=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dd<bd){bd=dd;best=q}}}
+    if(best){TO.snapHit={p:best,k:'end'};return best.slice()}
+    let bl=null,bld=Rl;for(const [a,b] of I.segs.get(gx+','+gy)||[]){const dd=toSegDist(p,a,b);if(dd<bld){bld=dd;bl=[a,b]}}
+    if(bl){const [a,b]=bl;const dx=b[0]-a[0],dy=b[1]-a[1];const L=dx*dx+dy*dy;const t=L?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L)):0;const q=[Math.round((a[0]+t*dx)*100)/100,Math.round((a[1]+t*dy)*100)/100];TO.snapHit={p:q,k:'line'};return q}}
+  else if(best){TO.snapHit={p:best,k:'end'};return best.slice()}
+  return p}
+function toSnapDraw(u){const s=TO.snapHit;if(!s||!TO.snap||!(TO.tool==='take'||TO.tool==='cal'||TO.drag&&TO.drag.k==='vtx'))return '';const p=s.p,r=6*u;
+  return s.k==='end'?`<rect x="${p[0]-r}" y="${p[1]-r}" width="${2*r}" height="${2*r}" class="to-snap" stroke-width="${2*u}"/>`:`<path d="M${p[0]-r} ${p[1]-r}L${p[0]+r} ${p[1]+r}M${p[0]-r} ${p[1]+r}L${p[0]+r} ${p[1]-r}" class="to-snap" stroke-width="${2*u}"/>`}
+function toTag(x,y,txt,u,col){const fs=11*u,w=(txt.length*6.3+10)*u,hh=16*u;return `<g class="to-tag" pointer-events="none"><rect x="${x-w/2}" y="${y-hh/2}" width="${w}" height="${hh}" rx="${3*u}" fill="#fff" fill-opacity=".92" stroke="${col}" stroke-width="${1*u}"/><text x="${x}" y="${y+fs*0.36}" font-size="${fs}" text-anchor="middle" fill="#1a232d">${esc(txt)}</text></g>`}
+function toLabels(d,u){let h='';const sc=toScale(d,TO.page);const byId={};d.items.forEach(i=>byId[i.id]=i);
+  if(TO.lbl&&sc){const k=num(sc.mpu);for(const m of d.marks){if(m.pg!==TO.page)continue;const it=byId[m.it];if(!it||it.type==='count')continue;if(TO.item&&TO.item!==it.id&&d.marks.length>60)continue;
+    if(it.type==='length'){let bi=1,bl=-1;for(let i=1;i<m.pts.length;i++){const l=Math.hypot(m.pts[i][0]-m.pts[i-1][0],m.pts[i][1]-m.pts[i-1][1]);if(l>bl){bl=l;bi=i}}if(bl*TO.zoom<30&&m.pts.length<3)continue;
+      const a=m.pts[bi-1],b=m.pts[bi];h+=toTag((a[0]+b[0])/2,(a[1]+b[1])/2-13*u,toFmt('length',toLen(m.pts)*k),u,it.color)}
+    else{const c=m.pts.reduce((s,p)=>[s[0]+p[0]/m.pts.length,s[1]+p[1]/m.pts.length],[0,0]);h+=toTag(c[0],c[1],toFmt('area',toPolyArea(m.pts)*k*k),u,it.color)}}}
+  const it=byId[TO.item];
+  if(TO.tool==='take'&&it&&it.type!=='count'&&TO.draft.length&&TO.hover){const pts=[...TO.draft,TO.hover];const last=TO.draft[TO.draft.length-1];const seg=Math.hypot(TO.hover[0]-last[0],TO.hover[1]-last[1]);
+    const txt=!sc?'Set scale to measure':it.type==='length'?`${toFmt('length',toLen(pts)*num(sc.mpu))}  ·  this leg ${toFmt('length',seg*num(sc.mpu))}`:`${toFmt('area',toPolyArea(pts)*num(sc.mpu)**2)}  ·  leg ${toFmt('length',seg*num(sc.mpu))}`;
+    h+=toTag(TO.hover[0],TO.hover[1]-22*u,txt,u,it.color)}
+  if(TO.tool==='cal'&&TO.cal&&TO.cal.length===1&&TO.hover&&sc){const a=TO.cal[0];h+=toTag(TO.hover[0],TO.hover[1]-22*u,'Current scale: '+toFmt('length',Math.hypot(TO.hover[0]-a[0],TO.hover[1]-a[1])*num(sc.mpu)),u,'#e8590c')}
+  return h}
+
+
+/* ---------- Take off: editing a selected mark or section ---------- */
+function toSelObj(d){if(!TO.sel)return null;return TO.sel.k==='m'?d.marks.find(m=>m.id===TO.sel.id):d.zones.find(z=>z.id===TO.sel.id)}
+function toSelBox(d){const o=toSelObj(d);if(!o){TO.sel=null;return ''}
+  if(TO.sel.k==='z')return `<div class="to-box"><b>Section: ${esc(o.name||'Unnamed')}</b><p class="hint" style="margin:0">Drag a corner to resize it, or drag inside it to move it.</p><div class="to-row"><button class="btn armed" data-ta="seldel">Delete</button><button class="btn" data-ta="selnone">Done</button></div></div>`;
+  const it=d.items.find(i=>i.id===o.it);if(!it)return '';const sc=toScale(d,o.pg);const q=toMarkQty(d,it,o,null);
+  const tip=it.type==='count'?'Drag it to move it.':`Drag a square to move a point. Drag a round handle to add a new point there. Double-click a square to remove that point. Drag the ${it.type==='area'?'shape':'line'} to move it all.`;
+  return `<div class="to-box"><b>${esc(it.name||TO_TYPE[it.type])}${it.type!=='count'?` · ${q==null?'no scale':toFmt(it.type,q)}`:''}</b><p class="hint" style="margin:0">${tip}</p>
+    <div class="to-row">${it.type==='length'?'<button class="btn" data-ta="selcont" title="Add more points to the end of this line">Extend line</button>':''}<button class="btn armed" data-ta="seldel">Delete</button><button class="btn" data-ta="selnone">Done</button></div></div>`}
+function toHandles(d,u){if(TO.tool!=='sel'||!TO.sel)return '';const o=toSelObj(d);if(!o||o.pg!==TO.page&&TO.sel.k==='m'||TO.sel.k==='z'&&o.pg!==TO.page)return '';const r=5*u;let h='';
+  if(TO.sel.k==='z'){const [x,y,w,hh]=o.r;[[x,y],[x+w,y],[x+w,y+hh],[x,y+hh]].forEach((p,i)=>h+=`<rect data-zh="${i}" x="${p[0]-r}" y="${p[1]-r}" width="${2*r}" height="${2*r}" class="to-hd" stroke-width="${1.5*u}"/>`);return h}
+  const it=d.items.find(i=>i.id===o.it);if(!it)return '';const P=o.pts;
+  if(it.type!=='count'){const n=it.type==='area'?P.length:P.length-1;for(let i=0;i<n;i++){const a=P[i],b=P[(i+1)%P.length];h+=`<circle data-mh="${i+1}" cx="${(a[0]+b[0])/2}" cy="${(a[1]+b[1])/2}" r="${r*0.85}" class="to-hm" stroke-width="${1.5*u}"/>`}}
+  P.forEach((p,i)=>h+=`<rect data-vh="${i}" x="${p[0]-r}" y="${p[1]-r}" width="${2*r}" height="${2*r}" class="to-hd" stroke-width="${1.5*u}"/>`);return h}
+function toEditDown(e,st){if(TO.tool!=='sel'||!TO.sel)return false;const d=dwgDoc(TO.id);const o=toSelObj(d);if(!o)return false;const t=e.target;const g=k=>t.closest&&t.closest('['+k+']');const p=toPt(e);
+  let dr=null;
+  if(TO.sel.k==='m'){const vh=g('data-vh'),mh=g('data-mh'),mk=g('data-mk');
+    if(vh){const i=+vh.dataset.vh,now=Date.now();const it=d.items.find(x=>x.id===o.it);
+      if(TO.lastVh&&TO.lastVh.id===o.id&&TO.lastVh.i===i&&now-TO.lastVh.t<400&&it&&it.type!=='count'&&o.pts.length>(it.type==='area'?3:2)){TO.lastVh=null;undoRecord();o.pts.splice(i,1);persist('drawings/'+TO.id);TO.noClick=Date.now();toSync();e.preventDefault();return true}
+      TO.lastVh={id:o.id,i,t:now};dr={k:'vtx',i}}
+    else if(mh){const i=+mh.dataset.mh;const a=o.pts[i-1],b=o.pts[i%o.pts.length];undoRecord();o.pts.splice(i,0,[(a[0]+b[0])/2,(a[1]+b[1])/2]);dr={k:'vtx',i,rec:1}}
+    else if(mk&&mk.dataset.mk===o.id)dr={k:'mmove',a:p,orig:o.pts.map(q=>q.slice())}}
+  else{const zh=g('data-zh'),zn=g('data-zn');if(zh)dr={k:'zrs',c:+zh.dataset.zh,r0:o.r.slice()};else if(zn&&zn.dataset.zn===o.id)dr={k:'zmove',a:p,r0:o.r.slice()}}
+  if(!dr)return false;if(!dr.rec)undoRecord();dr.moved=false;TO.drag=dr;st.setPointerCapture(e.pointerId);e.preventDefault();return true}
+function toEditMove(e){const dr=TO.drag;const d=dwgDoc(TO.id);const o=d&&toSelObj(d);if(!o)return;dr.moved=true;
+  if(dr.k==='vtx'){const others=o.pts.filter((_,i)=>i!==dr.i);const save=TO.draft;TO.draft=[];const p=toSnapAt(e,null);TO.draft=save;
+    /* don't snap a point onto itself */o.pts[dr.i]=p}
+  else if(dr.k==='mmove'){const p=toPt(e);const dx=p[0]-dr.a[0],dy=p[1]-dr.a[1];o.pts=dr.orig.map(q=>[Math.round((q[0]+dx)*100)/100,Math.round((q[1]+dy)*100)/100])}
+  else if(dr.k==='zmove'){const p=toPt(e);o.r=[dr.r0[0]+p[0]-dr.a[0],dr.r0[1]+p[1]-dr.a[1],dr.r0[2],dr.r0[3]].map(v=>Math.round(v*100)/100)}
+  else if(dr.k==='zrs'){const p=toPt(e);const [x,y,w,h]=dr.r0;const c=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];const opp=c[(dr.c+2)%4];o.r=toRectOf(opp,p).map(v=>Math.round(v*100)/100)}
+  toDraw();if(TO.sel.k==='m'){const b=document.querySelector('#toSide .to-box b');const it=d.items.find(i=>i.id===o.it);if(b&&it&&it.type!=='count'){const q=toMarkQty(d,it,o,null);b.textContent=(it.name||TO_TYPE[it.type])+' · '+(q==null?'no scale':toFmt(it.type,q))}}}
+function toEditUp(dr){TO.snapHit=null;if(dr.moved){TO.lastVh=null;TO.noClick=Date.now();persist('drawings/'+TO.id);toSync()}}
+
+/* ---------- Take off: snapshots (saved symbols) ---------- */
+function toSnaps(){const out=[];for(const [id,d] of Object.entries(S.dwgs))for(const sn of (d.snaps||[]))out.push({...sn,did:id,dname:d.no||d.name||'Drawing',fid:d.file&&d.file.id});return out}
+function toSnapCapture(d,r){const cv=document.getElementById('toCv');if(!cv||!TO.vp)return;const k=cv.width/TO.vp.w;const sw=r[2]*k,sh=r[3]*k;const sc=Math.min(1,120/Math.max(sw,sh));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*sc));c.height=Math.max(1,Math.round(sh*sc));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(cv,r[0]*k,r[1]*k,sw,sh,0,0,c.width,c.height);
+  undoRecord();d.snaps=d.snaps||[];const sn={id:uid('s'),name:'Snapshot '+(toSnaps().length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100),img:c.toDataURL('image/png')};d.snaps.push(sn);persist('drawings/'+TO.id);
+  TO.tool='snapl';TO.snapNew=sn.id;toSync();setTimeout(()=>{const n=document.getElementById('to_sn_'+sn.id);if(n){n.focus();n.select()}},30)}
+function toSnapBox(d){const L=toSnaps();const busy=TO.auto.busy&&TO.auto.m==='snap';
+  const list=L.map(sn=>`<div class="to-snapc${TO.snapSel===sn.id?' on':''}"><img src="${sn.img}" alt=""><div style="min-width:0;flex:1;display:flex;flex-direction:column;gap:4px">
+      ${sn.did===TO.id?`<input class="f" id="to_sn_${sn.id}" data-tk="sname|${sn.id}" value="${esc(sn.name)}" aria-label="Snapshot name">`:`<b style="font-size:13px">${esc(sn.name)}</b>`}
+      <span class="hint" style="font-size:11px">From ${esc(sn.dname)}${sn.did===TO.id?' · page '+sn.pg:''}</span>
+      <div class="to-row"><button class="btn primary" data-ta="snapply" data-v="${sn.did}|${sn.id}" ${busy?'disabled':''}>Count on ${TO.auto.pages==='all'?'all pages':'this page'}</button>${sn.did===TO.id?`<button class="btn ghost" data-ta="sndel" data-v="${sn.id}" aria-label="Delete snapshot">✕</button>`:''}</div></div></div>`).join('');
+  return `<div class="to-box to-auto"><b>Snapshots</b><p class="hint" style="margin:0">Drag a box around a fitting (for example in the legend) to save it as a snapshot. Then press <b>Count</b> to find every match on this drawing. Snapshots from your other drawings are listed too.</p>
+    <div class="to-row"><span class="hint">Search</span><div class="to-seg">${[['this','This page'],['all','All pages']].map(([k,l])=>`<button class="seg-b${TO.auto.pages===k?' on':''}" data-ta="apg" data-v="${k}">${l}</button>`).join('')}</div></div>
+    <div class="to-snaps">${list||'<p class="hint" style="margin:0">No snapshots yet.</p>'}</div></div>`}
+async function toSnapApply(d,did,sid){const sd=dwgDoc(did);const sn=sd&&(sd.snaps||[]).find(x=>x.id===sid);if(!sn)return;
+  const A=TO.auto;Object.assign(A,{m:'symbol',name:sn.name,tgt:'new',res:null,all:null});const ex=d.items.find(i=>i.snap===sid&&i.type==='count');if(ex)A.tgt=ex.id;A.snapId=sid;A.snapImg=sn.img;
+  TO.tool='auto';toSync();await toFindSymbol(d,sn.r,{fid:sd.file.id,pg:sn.pg})}
+/* ---------- Take off: summary after applying ---------- */
+function toAppliedBox(d){const F=TO.applied;if(!F||F.did!==TO.id)return '';const it=d.items.find(i=>i.id===F.it);if(!it)return '';
+  const rows=d.items.map(i=>{const q=toItemQty(d,i,null);return `<tr${i.id===it.id?' class="to-hl"':''}><td><span class="to-dot" style="background:${esc(i.color)}"></span>${esc(i.name||TO_TYPE[i.type])}</td><td class="n money">${toFmt(i.type,q.v)}</td></tr>`}).join('');
+  const zr=d.zones.length?`<p class="hint" style="margin:6px 0 2px"><b>${esc(it.name||'')}</b> by section</p><table class="to-mini"><tbody>${d.zones.map(z=>`<tr><td>${esc(z.name||'Section')}</td><td class="n money">${toFmt(it.type,toItemQty(d,it,z).v)}</td></tr>`).join('')}</tbody></table>`:'';
+  return `<div class="to-box to-applied"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>✓ Take off applied</b><button class="btn ghost" data-ta="appx" aria-label="Close summary">✕</button></div>
+    <p style="margin:0">${F.img?`<img src="${F.img}" alt="" class="to-thumb">`:''}Added <b>${toFmt(it.type,F.v)}</b>${it.type==='count'?'':` (${F.n} run${F.n===1?'':'s'})`} to <b>${esc(it.name||'')}</b>${F.skip?` · ${F.skip} already counted`:''}.</p>
+    <table class="to-mini"><thead><tr><th>Item</th><th class="n">Drawing total</th></tr></thead><tbody>${rows}</tbody></table>${zr}
+    <button class="btn" data-ta="sumgo">Full summary ↓</button></div>`}
+/* ---------- Take off: summary across all drawings ---------- */
+function toAllSummary(){const ds=Object.entries(S.dwgs).map(([id,d])=>[id,dwgDoc(id)]).filter(([,d])=>d.items.length).sort((a,b)=>(a[1].created||0)-(b[1].created||0));if(!ds.length)return '';
+  const keys=new Map();for(const [id,d] of ds)for(const i of d.items){const k=(i.name||TO_TYPE[i.type]).trim().toLowerCase()+'|'+i.type;if(!keys.has(k))keys.set(k,{name:i.name||TO_TYPE[i.type],type:i.type,color:i.color,img:i.img,v:{}});const e=keys.get(k);e.v[id]=(e.v[id]||0)+toItemQty(d,i,null).v}
+  const rows=[...keys.values()].sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name)).map(e=>{const t=Object.values(e.v).reduce((a,b)=>a+b,0);return `<tr><td>${e.img?`<img src="${e.img}" alt="" class="to-thumb">`:`<span class="to-dot" style="background:${esc(e.color)}"></span>`}${esc(e.name)}</td><td class="hint">${TO_TYPE[e.type]}</td>${ds.map(([id])=>`<td class="n money">${e.v[id]!=null?toFmt(e.type,e.v[id]):'—'}</td>`).join('')}<td class="n money"><b>${toFmt(e.type,t)}</b></td></tr>`}).join('');
+  const shut=COLL.has('tosumall');const tg=`<button class="tog" data-act="to-sumall" aria-expanded="${!shut}" aria-label="${shut?'Show':'Hide'} summary">${shut?'▸':'▾'}</button>`;
+  if(shut)return `<div class="panel"><h3>${tg}Take off summary · all drawings <span class="hint" style="font-weight:400;font-family:var(--f-body);font-size:12.5px">${keys.size} item${keys.size===1?'':'s'} across ${ds.length} drawing${ds.length===1?'':'s'}</span></h3></div>`;
+  return `<div class="panel"><div class="sec-head" style="margin-bottom:8px"><div><h3>${tg}Take off summary · all drawings</h3><p class="hint" style="margin:2px 0 0">Items with the same name and type are added together across drawings.</p></div><button class="btn" data-act="to-csvall">Download CSV</button></div>
+    <div class="tw"><table><thead><tr><th>Item</th><th>Type</th>${ds.map(([,d])=>`<th class="n">${esc(d.no||d.name||'Drawing')}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
+async function toCsvAll(){const ds=Object.entries(S.dwgs).map(([id,d])=>[id,dwgDoc(id)]).filter(([,d])=>d.items.length);const q=v=>'"'+String(v).replace(/"/g,'""')+'"';const keys=new Map();
+  for(const [id,d] of ds)for(const i of d.items){const k=(i.name||TO_TYPE[i.type]).trim().toLowerCase()+'|'+i.type;if(!keys.has(k))keys.set(k,{name:i.name||TO_TYPE[i.type],type:i.type,v:{}});const e=keys.get(k);e.v[id]=(e.v[id]||0)+toItemQty(d,i,null).v}
+  const r=v=>Math.round(v*100)/100;const rows=[['Item','Type','Unit',...ds.map(([,d])=>d.no||d.name||'Drawing'),'Total'].map(q).join(',')];
+  for(const e of keys.values())rows.push([q(e.name),q(TO_TYPE[e.type]),q(TO_UNIT[e.type]),...ds.map(([id])=>e.v[id]!=null?r(e.v[id]):''),r(Object.values(e.v).reduce((a,b)=>a+b,0))].join(','));
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:'Take off summary.csv',data:new Blob([rows.join('\r\n')],{type:'text/csv'})})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the CSV')}}
+async function toCsv(d){const cols=[{n:'Entire drawing',z:null},...d.zones.map(z=>({n:z.name||'Section',z}))];const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const rows=[['Item','Type','Unit',...cols.map(c=>c.n)].map(q).join(',')];for(const i of d.items)rows.push([q(i.name||TO_TYPE[i.type]),q(TO_TYPE[i.type]),q(TO_UNIT[i.type]),...cols.map(c=>{const v=toItemQty(d,i,c.z).v;return i.type==='count'?Math.round(v):Math.round(v*100)/100})].join(','));
+  const name=(d.no||d.name||'drawing').replace(/[^\w.-]+/g,'_')+' take off.csv';
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:new Blob([rows.join('\r\n')],{type:'text/csv'})})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the CSV')}}
+
 V.calc=()=>`<div class="stack">${head('Labour Hours and Material Calculator','Take off quantities from the item library to build labour hours, material cost and sell price. Estimates are saved with this project and shared with your team. Use Open… to switch estimates and New to start one.')}</div>`;
 
 /* ---------- rendering ---------- */
@@ -1848,7 +2408,7 @@ function render(){
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
-  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+tmvHtml();calcHost();try{applyColWidths()}catch(e){}
+  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+tmvHtml();calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
@@ -1925,6 +2485,10 @@ ${images.length?'The document is attached as page images.':'Document text (colum
 viewEl.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
 viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
 viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)llogImport(f)});
+viewEl.addEventListener('change',e=>{if(e.target.id==='to_file'&&e.target.files&&e.target.files.length){toUpload(e.target.files);e.target.value=''}});
+viewEl.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
+viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
+viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(e.dataTransfer&&e.dataTransfer.files.length)toUpload(e.dataTransfer.files)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='llog_file'&&e.target.files&&e.target.files[0]){llogImport(e.target.files[0]);e.target.value=''}});
 
 /* ---------- editing ---------- */
@@ -1940,6 +2504,7 @@ function apply(parts,v){
   if(kind==='vq'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();x.bu.quoteFile=v;persist('variations/'+a);return}
   if(kind==='vpart'||kind==='vpartq'||kind==='vpartu'||kind==='vpartd'){const x=S.vars[a];const l=x?.bu?.lines?.[+b];const pt=l?.hrsParts?.[+c];if(!pt)return;pt[{vpart:'mat',vpartq:'qty',vpartu:'unit',vpartd:'desc'}[kind]]=v;partsRecalc(l);persist('variations/'+a);return}
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;if(c==='mat')delete l.matFromParts;persist('variations/'+a)}return}
+  if(kind==='dwg'){if(S.dwgs[a]){S.dwgs[a][b]=v;persist('drawings/'+a)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
   if(kind==='inv'){const iv=S.orders[a]?.inv?.[+b];if(iv&&((c==='amount'&&iv.amountFromPdf)||(c==='ref'&&iv.refFromPdf)))return;const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
@@ -2090,6 +2655,9 @@ document.addEventListener('click',async e=>{
       const d=aptDoc(t);let nl=0;for(const x of W.secs){const k=Math.min(500,Math.max(0,Math.floor(num(x.lines))));nl+=k;d.sections.push({id:uid('S'),name:(x.name||'').trim(),lines:Array.from({length:k},()=>({...newLine(),qty:''}))})}
       structDirty.add(t);persist('apartments/'+t);UI.bw={t,step:1,name:'',n:'',secs:[],done:`Added ${W.name}: ${W.secs.length} section${W.secs.length===1?'':'s'}, ${nl} line${nl===1?'':'s'}. Name each line in the table below.`};render();return}
     render();bwFocus();return}
+  if(act==='to-open'){toOpen(btn.dataset.id);return}
+  if(act==='to-csvall'){toCsvAll();return}
+  if(act==='to-sumall'){COLL.has('tosumall')?COLL.delete('tosumall'):COLL.add('tosumall');saveColl();render();return}
   if(act==='import'){const t=btn.dataset.id;const d=aptDoc(t);const have=new Set(d.sections.flatMap(x=>x.lines.map(l=>l.id)));
     for(const sec of unitSections(UI.importBld||'E')){sec.id=uid('S');sec.lines.forEach(l=>{if(have.has(l.id))l.id=uid('l')});d.sections.push(sec)}
     structDirty.add(t);persist('apartments/'+t);render();return}
@@ -2200,6 +2768,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='vmk'){const v=S.vars[id];const m=v?.bu?.markups?.[+x];if(m){v.bu.markups.splice(+x,1);if(assets&&!(v.revs||[]).some(r=>(r.bu?.markups||[]).some(z=>z.id===m.id)))assets.delete(m.id).catch(()=>{});persist('variations/'+id)}}
     else if(kind==='vpart'){const v=S.vars[id];const [li,pi]=x.split('.').map(Number);const l=v?.bu?.lines?.[li];if(l&&l.hrsParts){l.hrsParts.splice(pi,1);if(l.hrsParts.length&&!l.hrsParts.some(z=>z.main))l.hrsParts[0].main=true;partsRecalc(l);persist('variations/'+id)}}
     else if(kind==='vline'){const v=S.vars[id];if(v&&v.bu){v.bu.lines.splice(+x,1);persist('variations/'+id)}}
+    else if(kind==='dwg'){const d=S.dwgs[id];delete S.dwgs[id];removeDoc('drawings/'+id);if(d&&d.file&&d.file.id&&assets&&!String(d.file.id).startsWith('local-'))assets.delete(d.file.id).catch(()=>{});if(TO.id===id){TO.id=null;const h=document.getElementById('toHost');if(h){h.hidden=true;h.innerHTML=''}}}
     else if(kind==='ord'){delete S.orders[id];removeDoc('orders/'+id)}
     else if(kind==='proc'){delete S.procs[id];removeDoc('procurement/'+id)}
     else if(kind==='msod'){delete S.msods[id];removeDoc('msod/'+id);UI.ms='';UI.msd=null}
@@ -2232,7 +2801,7 @@ document.addEventListener('click',async e=>{
 const UNDO={stack:[],redo:[],burstKey:null,burstAt:0};
 function undoSnap(){const o={};const add=(p,d)=>{if(d!==undefined&&d!==null)o[p]=JSON.stringify(d)};
   add('project/info',S.info);add('project/cashflow',S.cash);add('project/crew',S.crew);add('project/labourlog',S.llog);add('project/claim',S.claim);
-  for(const [c,m] of [['variations',S.vars],['orders',S.orders],['procurement',S.procs],['msod',S.msods],['tasks',S.tasks],['apartments',S.apt]])for(const k in m)add(c+'/'+k,m[k]);
+  for(const [c,m] of [['variations',S.vars],['orders',S.orders],['procurement',S.procs],['msod',S.msods],['tasks',S.tasks],['apartments',S.apt],['drawings',S.dwgs]])for(const k in m)add(c+'/'+k,m[k]);
   return o}
 const snapKey=o=>Object.keys(o).sort().map(k=>k+'='+o[k]).join('\n');
 function undoRecord(){const snap=undoSnap();const key=snapKey(snap);const top=UNDO.stack[UNDO.stack.length-1];if(top&&top.key===key)return null;
@@ -2240,7 +2809,7 @@ function undoRecord(){const snap=undoSnap();const key=snapKey(snap);const top=UN
 function undoDrop(e){if(!e)return;const i=UNDO.stack.indexOf(e);if(i<0)return;const cur=snapKey(undoSnap());if(cur===e.key){UNDO.stack.splice(i,1);if(!UNDO.redo.length)UNDO.redo=e.redoBak||[];undoButtons()}}
 function undoRestore(snap){
   const cur=undoSnap();const paths=new Set([...Object.keys(cur),...Object.keys(snap)]);
-  const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt'};
+  const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt',drawings:'dwgs'};
   for(const p of paths){if(cur[p]===snap[p])continue;const [c,id]=p.split('/');
     if(snap[p]===undefined){if(MAP[c]){delete S[MAP[c]][id];removeDoc(p)}else if(p==='project/claim'){S.claim=null}continue}
     const d=JSON.parse(snap[p]);deleted.delete(p);
@@ -2262,15 +2831,16 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
 
 /* ---------- projects ---------- */
 let unsubs=[];
-function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},claim:null})}
+function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},claim:null})}
 async function flushAll(){const keys=Object.keys(pending);await Promise.all(keys.map(k=>{clearTimeout(pending[k]);return flush(k)}))}
 function subscribe(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
   if(!db)return;const err=e=>{console.error(e)};
-  for(const name of ['project','variations','orders','procurement','msod','estimates','tasks','apartments'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
+  for(const name of ['project','variations','orders','procurement','msod','estimates','tasks','apartments','drawings'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
 }
 async function switchProject(id){
   if(id===PID)return;
+  if(TO.id){TO.id=null;const h=document.getElementById('toHost');if(h){h.hidden=true;h.innerHTML=''}}
   if(S.info.name&&!PROJ[PID]?.name){PROJ[PID]={...(PROJ[PID]||{created:PID==='main'?1:Date.now()}),name:S.info.name};persist('projects/'+PID)}
   await flushAll();
   PID=id;try{localStorage.setItem('ox_pid',id)}catch(e){}
