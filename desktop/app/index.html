@@ -183,6 +183,8 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .to-memlist{display:flex;flex-direction:column;gap:4px;align-self:stretch;max-height:240px;overflow:auto}
 .to-memi{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:13px}.to-memi .btn{padding:3px 8px;font-size:12px}.to-memi.on{border-color:#1c7ed6;background:color-mix(in srgb,#1c7ed6 8%,var(--surface))}.to-memi .f{padding:2px 5px}.to-memi .to-thumb{margin-right:0}
 .to-lsw{display:inline-block;width:22px;height:0;border-top:3px solid #333}
+.to-dropov{position:fixed;inset:0;z-index:80;background:color-mix(in srgb,var(--accent) 14%,rgba(20,26,32,.35));display:grid;place-items:center;pointer-events:none}
+.to-dropov>div{background:var(--surface);border:3px dashed var(--accent);border-radius:16px;padding:28px 40px;display:flex;flex-direction:column;gap:6px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}.to-dropov b{font-family:var(--f-display);font-size:24px}.to-dropov span{color:var(--muted)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -1929,8 +1931,8 @@ V.takeoff=()=>{
     <td class="hint" style="white-space:nowrap">${d.created?fmtDate(new Date(d.created).toISOString().slice(0,10)):''}</td>
     <td style="white-space:nowrap;text-align:right">${d.file?.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(d.file.id)}" data-file="${esc(d.file.id)}" target="_blank" rel="noopener" title="${esc(d.file.name||'')}">PDF</a> `:''}<button class="btn primary" data-act="to-open" data-id="${id}">Take off</button> ${delBtn('dwg',id,'','Remove')}</td></tr>`}).join('');
   return `<div class="stack">${head('Take off','Upload PDF drawings. Each drawing gets its own line; open one to count, measure lengths and areas, for the entire drawing or for sections you draw on it.')}
-  <div class="panel to-drop" id="to_drop"><div class="to-dropin"><div><b>Upload drawings</b><p class="hint" style="margin:2px 0 0">Drop PDF drawings here, or choose files. You can add several at once.</p></div>
-    <div class="to-row"><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-split" ${UI.toSplit!==false?'checked':''}> Split into sections automatically (e.g. each kitchen)</label><label class="btn primary" for="to_file" style="cursor:pointer">Choose PDFs</label></div><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
+  <div class="panel to-drop" id="to_drop"><div class="to-dropin"><div><b>Upload drawings</b><p class="hint" style="margin:2px 0 0">Drag PDF drawings anywhere onto this page, or choose them from your files. You can add several at once.</p></div>
+    <div class="to-row"><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-split" ${UI.toSplit!==false?'checked':''}> Split into sections automatically (e.g. each kitchen)</label><label class="btn primary" for="to_file" style="cursor:pointer">Choose from files</label></div><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
     ${busy?`<p class="hint" style="margin:10px 0 0">Uploading ${busy} drawing${busy===1?'':'s'}…</p>`:''}${UI.toMsg?`<p class="${UI.toMsg.err?'neg':'hint'}" style="margin:10px 0 0">${esc(UI.toMsg.t)}</p>`:''}</div>
   <div class="tw"><table><thead><tr><th style="width:40px">#</th><th>Drawing</th><th>Drawing no.</th><th>Rev</th><th class="n">Pages</th><th>Take off</th><th>Uploaded</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="8" class="empty"><b>No drawings yet</b>Upload PDF drawings above to start a take off.</td></tr>`}</tbody></table></div>${toAllSummary()}</div>`;
@@ -1990,7 +1992,7 @@ function toSync(){const h=document.getElementById('toHost');if(!h)return;const o
   if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s1)}catch(e){}}}}
 function toBar(){const el=document.getElementById('toBar');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const sc=toScale(d,TO.page);const it=d.items.find(i=>i.id===TO.item);
   const tb=(t,l,dis,ttl)=>`<button class="seg-b${TO.tool===t?' on':''}" data-ta="tool" data-v="${t}" ${dis?'disabled':''} title="${esc(ttl||'')}">${l}</button>`;
-  el.innerHTML=`<button class="btn" data-ta="close">← Drawings</button>
+  el.innerHTML=`<button class="btn" data-ta="close">← Drawings</button><label class="btn" for="to_file2" title="Add more PDF drawings (or drag them onto the page)" style="cursor:pointer">+ Drawings</label><input type="file" id="to_file2" accept="application/pdf,.pdf" multiple hidden>
     <div class="to-title"><b>${esc(d.name||'Drawing')}</b><span class="hint">${esc([d.no,d.rev?'Rev '+d.rev:''].filter(Boolean).join(' · '))}</span></div>
     <div class="to-grp">${(TO.pages||d.pages)>1?`<button class="btn" data-ta="pg" data-v="-1" ${TO.page<=1?'disabled':''} aria-label="Previous page">‹</button><span class="hint">Page ${TO.page} of ${TO.pages||d.pages}</span><button class="btn" data-ta="pg" data-v="1" ${TO.page>=(TO.pages||d.pages)?'disabled':''} aria-label="Next page">›</button>`:'<span class="hint">1 page</span>'}</div>
     <div class="to-grp"><button class="btn" data-ta="zoom" data-v="0.8" aria-label="Zoom out">−</button><span class="money" style="min-width:46px;text-align:center">${Math.round(TO.zoom*100)}%</span><button class="btn" data-ta="zoom" data-v="1.25" aria-label="Zoom in">+</button><button class="btn" data-ta="fit">Fit</button></div>
@@ -2122,7 +2124,7 @@ function toWire(h){
     if(k==='arot'){TO.auto.rot=e.target.checked;return}
     if(k==='athr'){TO.auto.thr=+e.target.value/100;toAutoThr();const sp=e.target.nextElementSibling;if(sp)sp.textContent=Math.round(TO.auto.thr*100)+'%';clearTimeout(TO.athrT);TO.athrT=setTimeout(()=>{toSide();toDraw()},120);toDraw();return}
     if(k==='icol'){const it=d.items.find(i=>i.id===id);if(it){it.color=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}});
-  h.addEventListener('change',e=>{if(e.target.id==='to_memfile'&&e.target.files&&e.target.files.length){toLibLoad(e.target.files);e.target.value='';return}if(e.target.id==='to_symfile'&&e.target.files&&e.target.files[0]){toSymbolFile(e.target.files[0]);e.target.value=''}});
+  h.addEventListener('change',e=>{if(e.target.id==='to_file2'&&e.target.files&&e.target.files.length){const fs=[...e.target.files];e.target.value='';toUpload(fs).then(()=>{TO.auto.note=UI.toMsg?UI.toMsg.t+' Go back to Drawings to open them.':'';toSide()});return}if(e.target.id==='to_memfile'&&e.target.files&&e.target.files.length){toLibLoad(e.target.files);e.target.value='';return}if(e.target.id==='to_symfile'&&e.target.files&&e.target.files[0]){toSymbolFile(e.target.files[0]);e.target.value=''}});
   h.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
   h.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
   h.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(!e.dataTransfer||!e.dataTransfer.files.length)return;if(z.classList.contains('to-memdrop'))return toLibLoad(e.dataTransfer.files);toSymbolFile(e.dataTransfer.files[0])});
@@ -2643,6 +2645,19 @@ function toWholeAdd(d){const O=TO.whole;if(!O.rows)return;const on=O.rows.filter
     got.push({it:it.id,v:toItemQty(d,it,null).v-before,n:add});
   }
   toLibSave();persist('drawings/'+TO.id);TO.applied={did:TO.id,multi:got,miss:[]};O.rows=null;O.hl=null;toSync()}
+
+/* ---------- Take off: drop drawings anywhere on the tab ---------- */
+const toHasFiles=e=>{const t=e.dataTransfer&&e.dataTransfer.types;return !!t&&[...t].includes('Files')};
+function toDropOv(on,txt){let o=document.getElementById('toDropOv');if(!on){if(o)o.remove();return}if(!o){o=document.createElement('div');o.id='toDropOv';o.className='to-dropov';document.body.appendChild(o)}o.innerHTML=`<div><b>Drop to add</b><span>${esc(txt)}</span></div>`}
+let toDragN=0;
+document.addEventListener('dragenter',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN++;const sym=e.target.closest&&e.target.closest('.to-symdrop');if(sym){toDropOv(false);return}toDropOv(true,'PDF drawings are added to the Take off list'+(TO.id?' (you stay on this drawing)':''))});
+document.addEventListener('dragover',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;e.preventDefault();const sym=e.target.closest&&e.target.closest('.to-symdrop');if(sym)toDropOv(false);else if(!document.getElementById('toDropOv'))toDropOv(true,'PDF drawings are added to the Take off list');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
+document.addEventListener('dragleave',e=>{if(UI.view!=='takeoff')return;toDragN=Math.max(0,toDragN-1);if(!toDragN||!e.relatedTarget)toDropOv(false)});
+document.addEventListener('drop',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN=0;toDropOv(false);if(e.target.closest&&e.target.closest('.to-symdrop'))return;e.preventDefault();
+  const fs=[...e.dataTransfer.files];const pdfs=fs.filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));const imgs=fs.filter(f=>/^image\//.test(f.type));
+  if(pdfs.length){if(TO.id){toUpload(pdfs).then(()=>{TO.msg='';const d=dwgDoc(TO.id);if(d){TO.auto.note=UI.toMsg?UI.toMsg.t+' Go back to Drawings to open them.':'';toSide()}})}else toUpload(pdfs);return}
+  if(imgs.length&&TO.id){if(TO.tool==='auto'||TO.tool==='snapl'){TO.auto.m='symbol';toSymbolFile(imgs[0])}else{TO.tool='auto';toLibLoad(imgs)}return}
+  UI.toMsg={t:'Only PDF drawings can be dropped here.',err:1};render()});
 async function toCsv(d){const cols=[{n:'Entire drawing',z:null},...d.zones.map(z=>({n:z.name||'Section',z}))];const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
   const rows=[['Item','Type','Unit',...cols.map(c=>c.n)].map(q).join(',')];for(const i of d.items)rows.push([q(i.name||TO_TYPE[i.type]),q(TO_TYPE[i.type]),q(TO_UNIT[i.type]),...cols.map(c=>{const v=toItemQty(d,i,c.z).v;return i.type==='count'?Math.round(v):Math.round(v*100)/100})].join(','));
   const name=(d.no||d.name||'drawing').replace(/[^\w.-]+/g,'_')+' take off.csv';
@@ -2765,9 +2780,6 @@ viewEl.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closes
 viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
 viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)llogImport(f)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='to_file'&&e.target.files&&e.target.files.length){toUpload(e.target.files);e.target.value=''}});
-viewEl.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
-viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
-viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('#to_drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(e.dataTransfer&&e.dataTransfer.files.length)toUpload(e.dataTransfer.files)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='llog_file'&&e.target.files&&e.target.files[0]){llogImport(e.target.files[0]);e.target.value=''}});
 
 /* ---------- editing ---------- */
