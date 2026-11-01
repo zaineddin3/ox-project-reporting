@@ -191,6 +191,14 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .to-lsw{display:inline-block;width:22px;height:0;border-top:3px solid #333}
 .to-dropov{position:fixed;inset:0;z-index:80;background:color-mix(in srgb,var(--accent) 14%,rgba(20,26,32,.35));display:grid;place-items:center;pointer-events:none}
 .to-dropov>div{background:var(--surface);border:3px dashed var(--accent);border-radius:16px;padding:28px 40px;display:flex;flex-direction:column;gap:6px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}.to-dropov b{font-family:var(--f-display);font-size:24px}.to-dropov span{color:var(--muted)}
+.to-cv2{position:absolute;display:none;pointer-events:none}
+.to-cloud{fill:rgba(224,49,49,.05);stroke:#e03131;stroke-linejoin:round}.to-cloud.on{fill:rgba(224,49,49,.1)}
+.to-revbox{background:color-mix(in srgb,#e03131 6%,var(--surface));border-color:color-mix(in srgb,#e03131 35%,var(--line))}
+.to-oldrev{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+.to-revsel{width:auto!important;flex:0 0 auto;border-color:var(--line);background:var(--surface);font-weight:600;padding:5px 8px}
+.to-ro [data-ta="iadd"],.to-ro [data-ta="idel"],.to-ro [data-ta="zdel"],.to-ro [data-ta="clrto"],.to-ro [data-ta="areafind"],.to-ro .to-bar [data-ta="tool"]:not([data-v="pan"]),.to-ro .to-bar .to-seg:has([data-ta="snap"]),.to-ro .to-row:has(>[data-ta="tool"][data-v="zone"]) [data-ta="tool"],.to-ro label[for="to_file2"]{display:none!important}
+.to-ro .to-it input,.to-ro .to-colimg{pointer-events:none}
+.to-ro .to-it{grid-template-columns:22px minmax(0,1fr) auto auto}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -1898,7 +1906,8 @@ const TO_UNIT={count:'ea',length:'m',area:'m²'};
 const TO_TYPE={count:'Count',length:'Length',area:'Area'};
 const DWG_BLOB={};const PDFC={};
 const TO={id:null,page:1,zoom:0,tool:'pan',item:null,mode:'all',zone:null,draft:[],cal:null,sel:null,hover:null,vp:null,rt:null,drag:null,msg:''};
-function dwgDoc(id){const d=S.dwgs[id];if(!d)return null;d.items=d.items||[];d.marks=d.marks||[];d.zones=d.zones||[];d.scale=d.scale||{};return d}
+function dwgDoc(id){const d0=S.dwgs[id];if(!d0)return null;let d=d0;if(TO.viewRev!=null&&id===TO.id&&(d0.revs||[])[TO.viewRev]){const r=d0.revs[TO.viewRev];TO.rvc=TO.rvc&&TO.rvc.src===r?TO.rvc:{src:r,doc:{...d0,...clone({items:r.items,marks:r.marks,zones:r.zones,scale:r.scale,excl:r.excl}),file:r.file,pages:r.pages,rev:r.rev,changes:null,revNote:null,snaps:d0.snaps}};d=TO.rvc.doc}
+  d.items=d.items||[];d.marks=d.marks||[];d.zones=d.zones||[];d.scale=d.scale||{};return d}
 const PT_M=0.0254/72; // metres per PDF point on paper
 function toScale(d,pg){const s=d.scale[pg];return s&&num(s.mpu)>0?s:null}
 function toFmt(type,v){if(v==null)return '—';if(type==='count')return String(Math.round(v))+' ea';return (Math.round(v*100)/100).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+TO_UNIT[type]}
@@ -1926,37 +1935,38 @@ function toCurZone(d){return TO.mode==='sec'?d.zones.find(z=>z.id===TO.zone)||nu
 V.takeoff=()=>{
   if(TO.id&&S.dwgs[TO.id])return `<div class="stack">${head('Take off','Count, measure lengths and areas on a drawing. Take off the entire drawing, or draw sections on it and see quantities per section.')}</div>`;
   const ds=Object.entries(S.dwgs).map(([id,d])=>[id,dwgDoc(id)]).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
-  const busy=Object.keys(UP).filter(k=>k.startsWith('dwgup')).length;
+  const busy=Object.keys(UP).filter(k=>k.startsWith('dwgup')).length;const busyRev=Object.entries(UP).some(([k,v])=>k.startsWith('dwgup')&&v==='rev');
   const rows=ds.map(([id,d],i)=>{const n=d.items.length,mk=d.marks.length;return `<tr>
     <td class="hint">${i+1}</td>
     <td style="min-width:240px">${inp('dwg|'+id+'|name',d.name||'',{label:'Drawing name',ph:'Drawing name'})}</td>
     <td style="width:130px">${inp('dwg|'+id+'|no',d.no||'',{label:'Drawing number',ph:'e.g. E-101'})}</td>
-    <td style="width:80px">${inp('dwg|'+id+'|rev',d.rev||'',{label:'Revision',ph:'A'})}</td>
+    <td style="width:100px">${inp('dwg|'+id+'|rev',d.rev||'',{label:'Revision',ph:'A'})}${(d.revs||[]).length?`<div class="hint" style="font-size:11px;white-space:nowrap" title="${esc(d.revs.map(r=>'Rev '+r.rev).join(', '))}">${d.revs.length} older rev${d.revs.length===1?'':'s'}</div>`:''}</td>
     <td class="n">${d.pages||'—'}</td>
     <td>${n?`${n} item${n===1?'':'s'} · ${mk} mark${mk===1?'':'s'}${d.zones.length?` · ${d.zones.length} section${d.zones.length===1?'':'s'}`:''}`:'<span class="hint">Not started</span>'}</td>
     <td class="hint" style="white-space:nowrap">${d.created?fmtDate(new Date(d.created).toISOString().slice(0,10)):''}</td>
     <td style="white-space:nowrap;text-align:right">${d.file?.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(d.file.id)}" data-file="${esc(d.file.id)}" target="_blank" rel="noopener" title="${esc(d.file.name||'')}">PDF</a> `:''}<button class="btn primary" data-act="to-open" data-id="${id}">Take off</button> ${delBtn('dwg',id,'','Remove')}</td></tr>`}).join('');
   return `<div class="stack">${head('Take off','Upload PDF drawings. Each drawing gets its own line; open one to count, measure lengths and areas, for the entire drawing or for sections you draw on it.')}
   <div class="panel to-drop" id="to_drop"><div class="to-dropin"><div><b>Upload drawings</b><p class="hint" style="margin:2px 0 0">Drag PDF drawings anywhere onto this page, or choose them from your files. You can add several at once.</p></div>
-    <div class="to-row"><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-split" ${UI.toSplit!==false?'checked':''}> Split into sections automatically (e.g. each kitchen)</label><label class="btn primary" for="to_file" style="cursor:pointer">Choose from files</label></div><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
-    ${busy?`<p class="hint" style="margin:10px 0 0">Uploading ${busy} drawing${busy===1?'':'s'}…</p>`:''}${UI.toMsg?`<p class="${UI.toMsg.err?'neg':'hint'}" style="margin:10px 0 0">${esc(UI.toMsg.t)}</p>`:''}</div>
+    <div class="to-row"><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-split" ${UI.toSplit!==false?'checked':''}> Split into sections automatically (e.g. each kitchen)</label><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-revs" ${UI.toRevs!==false?'checked':''}> Same drawing number = new revision</label><label class="btn primary" for="to_file" style="cursor:pointer">Choose from files</label></div><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
+    ${busy?`<p class="hint" style="margin:10px 0 0"><span class="to-spin"></span>${busyRev?'New revision found: comparing with the old one and updating the take off…':`Uploading ${busy} drawing${busy===1?'':'s'}…`}</p>`:''}${UI.toMsg?`<p class="${UI.toMsg.err?'neg':'hint'}" style="margin:10px 0 0">${esc(UI.toMsg.t)}</p>`:''}</div>
   <div class="tw"><table><thead><tr><th style="width:40px">#</th><th>Drawing</th><th>Drawing no.</th><th>Rev</th><th class="n">Pages</th><th>Take off</th><th>Uploaded</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="8" class="empty"><b>No drawings yet</b>Upload PDF drawings above to start a take off.</td></tr>`}</tbody></table></div>${toAllSummary()}</div>`;
 };
 async function toUpload(files){
   const list=[...files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));
   if(!list.length){UI.toMsg={t:'Only PDF drawings can be uploaded.',err:1};render();return}
-  UI.toMsg=null;let bad=[];const found=[];
+  UI.toMsg=null;let bad=[];const found=[];const revd=[];
   for(const f of list){const k='dwgup'+uid('u');UP[k]=true;render();
     try{let pages=0;try{const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false}).promise;pages=doc.numPages;doc.destroy&&doc.destroy()}catch(e){throw Object.assign(new Error('not a readable PDF'),{code:'bad_pdf'})}
-      let file={name:f.name,size:f.size};
+      const same=UI.toRevs!==false?toFindSame(f.name):null;let file={name:f.name,size:f.size};
       if(assets){const r=await assets.upload(f,{type:'application/pdf'});file.id=r.id}else file.id='local-'+uid('f');
       DWG_BLOB[file.id]=f;
-      const id=uid('D');const pre=true;S.dwgs[id]={name:f.name.replace(/\.pdf$/i,''),no:(f.name.match(/^([A-Z]{1,3}[-\s]?\d{2,4}[A-Z]?)/i)||[])[1]||'',rev:'',file,pages,created:Date.now(),items:[],marks:[],zones:[],scale:{}};persist('drawings/'+id);
+      if(same){const nr=toParseRev(f.name);const od=S.dwgs[same];UP[k]='rev';render();const N=await toNewRevision(same,f,file,pages,nr&&nr!==(od.rev||'').toUpperCase()?nr:'');revd.push(`${od.no||od.name} updated to Rev ${od.rev} (was Rev ${N.from})${N.areas?`, ${N.areas} changed area${N.areas===1?'':'s'}`:''}`);delete UP[k];continue}
+      const id=uid('D');const pre=true;S.dwgs[id]={name:f.name.replace(/\.pdf$/i,''),no:(f.name.match(/^([A-Z]{1,3}[-\s]?\d{2,4}[A-Z]?)/i)||[])[1]||'',rev:toParseRev(f.name),file,pages,created:Date.now(),items:[],marks:[],zones:[],scale:{}};persist('drawings/'+id);
       if(UI.toSplit!==false){try{const d=dwgDoc(id);let nz=0;for(let p=1;p<=Math.min(pages,12);p++){const A=await toFindAreas(d,p);for(const a of A){if(a.kind==='area'){d.zones.push({id:uid('z'),name:a.name,pg:p,r:a.r,auto:1});nz++}else{(d.excl=d.excl||[]).push({pg:p,r:a.r,kind:a.kind})}}}if(nz){persist('drawings/'+id);found.push(`${d.no||d.name}: ${nz} section${nz===1?'':'s'}`)}}catch(e){console.error(e)}}}
     catch(e){console.error(e);bad.push(f.name+(e&&e.code==='too_large'?' (too large)':e&&e.code==='bad_pdf'?' (not a readable PDF)':''))}
     delete UP[k]}
-  UI.toMsg=bad.length?{t:'Could not upload: '+bad.join(', '),err:1}:{t:`Added ${list.length} drawing${list.length===1?'':'s'}.`+(found.length?' Sections found: '+found.join('; ')+'.':'')};
+  UI.toMsg=bad.length?{t:'Could not upload: '+bad.join(', '),err:1}:{t:(list.length-revd.length?`Added ${list.length-revd.length} drawing${list.length-revd.length===1?'':'s'}. `:'')+(revd.length?revd.join('; ')+'. ':'')+(found.length?'Sections found: '+found.join('; ')+'.':'')};
   if(!assets&&!bad.length)UI.toMsg.t+=' This view can’t store files, so the PDFs are only kept until you close the page.';
   render()}
 async function toBytes(fid){
@@ -1967,9 +1977,9 @@ function toPdf(fid){if(!PDFC[fid])PDFC[fid]=(async()=>{const lib=await pdfLib();
 
 /* ---------- viewer ---------- */
 function toHostEl(){let h=document.getElementById('toHost');if(!h){h=document.createElement('div');h.id='toHost';h.hidden=true;viewEl.after(h);toWire(h)}return h}
-function toOpen(id){const d=dwgDoc(id);if(!d)return;Object.assign(TO,{id,page:1,zoom:0,tool:d.items.length?'take':'pan',item:d.items[0]?.id||null,mode:'all',zone:null,draft:[],cal:null,sel:null,vp:null,msg:''});Object.assign(TO.auto,{res:null,all:null,tpl:null,busy:'',note:''});TO.applied=null;TO.areas=null;Object.assign(TO.whole,{rows:null,busy:'',note:'',hl:null});TO.snapHit=null;
-  const h=toHostEl();h.innerHTML=`<div class="to-wrap"><div class="to-bar" id="toBar"></div><div class="to-main"><div class="to-stage" id="toStage"><div class="to-page" id="toPage"><canvas id="toCv"></canvas><svg id="toSvg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="to-load" id="toLoad">Loading drawing…</div></div><aside class="to-side" id="toSide"></aside></div><div class="panel" id="toSum"></div></div>`;
-  render();toLoadPage()}
+function toOpen(id){const d=dwgDoc(id);if(!d)return;Object.assign(TO,{viewRev:null,chgSel:null,id,page:1,zoom:0,tool:d.items.length?'take':'pan',item:d.items[0]?.id||null,mode:'all',zone:null,draft:[],cal:null,sel:null,vp:null,msg:''});Object.assign(TO.auto,{res:null,all:null,tpl:null,busy:'',note:''});TO.applied=null;TO.areas=null;Object.assign(TO.whole,{rows:null,busy:'',note:'',hl:null});TO.snapHit=null;
+  const h=toHostEl();h.innerHTML=`<div class="to-wrap"><div class="to-bar" id="toBar"></div><div class="to-main"><div class="to-stage" id="toStage"><div class="to-page" id="toPage"><canvas id="toCv"></canvas><canvas id="toCv2" class="to-cv2"></canvas><svg id="toSvg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="to-load" id="toLoad">Loading drawing…</div></div><aside class="to-side" id="toSide"></aside></div><div class="panel" id="toSum"></div></div>`;
+  document.getElementById('toStage').addEventListener('scroll',toDetailSoon,{passive:true});render();toLoadPage()}
 function toClose(){TO.id=null;TO.vp=null;const h=document.getElementById('toHost');if(h){h.hidden=true;h.innerHTML=''}render()}
 async function toLoadPage(){const d=dwgDoc(TO.id);if(!d)return;const ld=document.getElementById('toLoad');if(ld){ld.style.display='';ld.textContent='Loading drawing…'}
   try{const pdf=await toPdf(d.file.id);if(!TO.id)return;TO.pages=pdf.numPages;const pg=await pdf.getPage(TO.page);TO.pg=pg;const vp=pg.getViewport({scale:1});TO.vp={w:vp.width,h:vp.height};
@@ -1977,14 +1987,15 @@ async function toLoadPage(){const d=dwgDoc(TO.id);if(!d)return;const ld=document
     await toPaint();if(ld)ld.style.display='none';toSync();toSnapPrep(d)}
   catch(e){console.error(e);if(ld){ld.style.display='';ld.textContent='Could not load this drawing. '+(HOSTED?'Check your connection.':'Open the page from claude.ai to load stored drawings.')}}}
 async function toPaint(){const pg=TO.pg;if(!pg)return;const cv=document.getElementById('toCv');if(!cv)return;const s=TO.zoom;const dpr=window.devicePixelRatio||1;
-  let r=s*dpr;const maxPx=24e6;if(TO.vp.w*TO.vp.h*r*r>maxPx)r=Math.sqrt(maxPx/(TO.vp.w*TO.vp.h));r=Math.min(r,8192/Math.max(TO.vp.w,TO.vp.h));
+  let r=s*dpr;const maxPx=16e6;if(TO.vp.w*TO.vp.h*r*r>maxPx)r=Math.sqrt(maxPx/(TO.vp.w*TO.vp.h));r=Math.min(r,8192/Math.max(TO.vp.w,TO.vp.h));
   const vp=pg.getViewport({scale:r});const off=document.createElement('canvas');off.width=Math.floor(vp.width);off.height=Math.floor(vp.height);
   if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render({canvasContext:off.getContext('2d'),viewport:vp});TO.rt=task;
   try{await task.promise}catch(e){if(e&&e.name==='RenderingCancelledException')return;throw e}
-  TO.rt=null;cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);
+  TO.rt=null;TO.baseR=r;cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);
   const W=TO.vp.w*s,H=TO.vp.h*s;cv.style.width=W+'px';cv.style.height=H+'px';const pe=document.getElementById('toPage');pe.style.width=W+'px';pe.style.height=H+'px';
-  const sv=document.getElementById('toSvg');sv.setAttribute('viewBox',`0 0 ${TO.vp.w} ${TO.vp.h}`);sv.style.width=W+'px';sv.style.height=H+'px';toDraw()}
+  const sv=document.getElementById('toSvg');sv.setAttribute('viewBox',`0 0 ${TO.vp.w} ${TO.vp.h}`);sv.style.width=W+'px';sv.style.height=H+'px';toDraw();toDetail()}
 function toSetZoom(z,cx,cy){const st=document.getElementById('toStage');if(!st||!TO.vp)return;z=Math.min(8,Math.max(.1,z));
+  {const c2=document.getElementById('toCv2');if(c2)c2.style.display='none';TO.dseq=(TO.dseq||0)+1}
   const ox=cx??st.clientWidth/2,oy=cy??st.clientHeight/2;const px=(st.scrollLeft+ox)/TO.zoom,py=(st.scrollTop+oy)/TO.zoom;TO.zoom=z;
   const W=TO.vp.w*z,H=TO.vp.h*z;['toCv','toSvg','toPage'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.width=W+'px';e.style.height=H+'px'}});
   st.scrollLeft=px*z-ox;st.scrollTop=py*z-oy;toDraw();toBar();clearTimeout(TO.zt);TO.zt=setTimeout(toPaint,160)}
@@ -1994,12 +2005,14 @@ function toFocusZone(z){const st=document.getElementById('toStage');if(!st||!TO.
 function toSync(){const h=document.getElementById('toHost');if(!h)return;const on=UI.view==='takeoff'&&TO.id&&S.dwgs[TO.id];h.hidden=!on;if(!on)return;
   const a=document.activeElement;const fid=a&&h.contains(a)?a.id:null;let s0,s1;try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const d=dwgDoc(TO.id);if(TO.item&&!d.items.some(i=>i.id===TO.item))TO.item=null;if(TO.zone&&!d.zones.some(z=>z.id===TO.zone))TO.zone=null;
+  h.classList.toggle('to-ro',TO.viewRev!=null);
   toBar();toSide();toSum();toDraw();
   if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s1)}catch(e){}}}}
 function toBar(){const el=document.getElementById('toBar');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const sc=toScale(d,TO.page);const it=d.items.find(i=>i.id===TO.item);
   const tb=(t,l,dis,ttl)=>`<button class="seg-b${TO.tool===t?' on':''}" data-ta="tool" data-v="${t}" ${dis?'disabled':''} title="${esc(ttl||'')}">${l}</button>`;
   el.innerHTML=`<button class="btn" data-ta="close">← Drawings</button><label class="btn" for="to_file2" title="Add more PDF drawings (or drag them onto the page)" style="cursor:pointer">+ Drawings</label><input type="file" id="to_file2" accept="application/pdf,.pdf" multiple hidden>
-    <div class="to-title"><b>${esc(d.name||'Drawing')}</b><span class="hint">${esc([d.no,d.rev?'Rev '+d.rev:''].filter(Boolean).join(' · '))}</span></div>
+    <div class="to-title"><b>${esc(d.name||'Drawing')}</b><span class="hint">${esc(d.no||'')}</span></div>
+    ${(S.dwgs[TO.id].revs||[]).length?`<select class="f to-revsel" data-tk="revsel" aria-label="Revision">${[...S.dwgs[TO.id].revs.map((r,i)=>[i,'Rev '+r.rev+' (old)']).reverse(),['cur','Rev '+(S.dwgs[TO.id].rev||'')+' · current']].map(([v,l])=>`<option value="${v}"${(TO.viewRev==null?'cur':String(TO.viewRev))===String(v)?' selected':''}>${esc(l)}</option>`).join('')}</select>`:(d.rev?`<span class="tag">Rev ${esc(d.rev)}</span>`:'')}
     <div class="to-grp">${(TO.pages||d.pages)>1?`<button class="btn" data-ta="pg" data-v="-1" ${TO.page<=1?'disabled':''} aria-label="Previous page">‹</button><span class="hint">Page ${TO.page} of ${TO.pages||d.pages}</span><button class="btn" data-ta="pg" data-v="1" ${TO.page>=(TO.pages||d.pages)?'disabled':''} aria-label="Next page">›</button>`:'<span class="hint">1 page</span>'}</div>
     <div class="to-grp"><button class="btn" data-ta="zoom" data-v="0.8" aria-label="Zoom out">−</button><span class="money" style="min-width:46px;text-align:center">${Math.round(TO.zoom*100)}%</span><button class="btn" data-ta="zoom" data-v="1.25" aria-label="Zoom in">+</button><button class="btn" data-ta="fit">Fit</button></div>
     <div class="to-seg">${tb('pan','✋ Move')}${tb('take',it?`✚ ${esc(TO_TYPE[it.type])}`:'✚ Take off',!it,'Add to the selected item')}${tb('sel','Select')}${tb('zone','▭ Section')}${tb('auto','✨ Auto')}${tb('snapl','📷 Snapshot')}${tb('cal','📏 Scale')}</div><div class="to-seg"><button class="seg-b${TO.snap?' on':''}" data-ta="snap" aria-pressed="${TO.snap}" title="Snap to line ends and lines on the drawing">🧲 Snap ${TO.snap?'on':'off'}</button><button class="seg-b${TO.lbl?' on':''}" data-ta="lbl" aria-pressed="${TO.lbl}" title="Show lengths and areas on the drawing">Show measurements</button></div>
@@ -2024,7 +2037,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <p class="hint" style="margin:4px 0">Use the ratio if the PDF is at its printed size, or calibrate: ${TO.cal&&TO.cal.length===2?'':'click two points on the drawing a known distance apart.'}</p>
     ${TO.cal&&TO.cal.length===2?`<div class="to-row"><span class="hint">Real length</span><input class="f num" id="to_callen" placeholder="e.g. 6.0" style="width:90px"><span class="hint">m</span><button class="btn primary" data-ta="calset">Apply</button></div>`:TO.cal&&TO.cal.length===1?'<p class="hint" style="margin:0">Now click the second point.</p>':''}
     ${Object.keys(d.scale).length?`<button class="btn" data-ta="calall" style="margin-top:6px">Use this page’s scale on all pages</button>`:''}</div>`:'';
-  el.innerHTML=`${toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${sel}${draft}${cal}
+  el.innerHTML=`${toRevBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${sel}${draft}${cal}
     <div class="to-h"><h3>Items</h3><span class="hint">${scope}</span></div>
     <div class="to-list">${items||'<p class="hint" style="margin:0">Add what you want to take off, e.g. downlights (count), cable tray (length), ceiling (area).</p>'}</div>
     <div class="to-row" style="margin:8px 0 18px">${['count','length','area'].map(t=>`<button class="btn" data-ta="iadd" data-v="${t}">+ ${TO_TYPE[t]}</button>`).join('')}${d.items.length||d.marks.length?`<button class="btn ${TO.clrArm?'armed':'ghost'}" data-ta="clrto" title="Remove every item and mark on this drawing. Sections and scale are kept.">${TO.clrArm?'Confirm: clear take off':'Clear take off'}</button>`:''}</div>
@@ -2056,7 +2069,7 @@ function toDraw(){const sv=document.getElementById('toSvg');if(!sv||!TO.vp)retur
     h+=TO.draft.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${3*u}" fill="#fff" stroke="${c}" stroke-width="${1.5*u}"/>`).join('')}
   if(TO.cal&&TO.cal.length){const pts=[...TO.cal,...(TO.cal.length===1&&TO.hover?[TO.hover]:[])];h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#e8590c" stroke-width="${2*u}"/>`+TO.cal.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${4*u}" fill="#e8590c"/>`).join('')}
   if(TO.drag&&TO.drag.k==='zone'){const r=toRectOf(TO.drag.a,TO.drag.b);h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="rgba(56,106,150,.12)" stroke="#386a96" stroke-width="${2*u}" stroke-dasharray="${6*u} ${4*u}"/>`}
-  h+=toLabels(d,u)+toAutoDraw(u)+toWholeDraw(u)+toAreaDraw(u)+toHandles(d,u)+toSnapDraw(u);sv.innerHTML=h;sv.dataset.tool=TO.tool}
+  h+=toChangesDraw(d,u)+toLabels(d,u)+toAutoDraw(u)+toWholeDraw(u)+toAreaDraw(u)+toHandles(d,u)+toSnapDraw(u);sv.innerHTML=h;sv.dataset.tool=TO.tool}
 function toRectOf(a,b){return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])]}
 function toPt(e,snap){const pe=document.getElementById('toPage');const r=pe.getBoundingClientRect();let p=[(e.clientX-r.left)/TO.zoom,(e.clientY-r.top)/TO.zoom];
   const last=snap&&e.shiftKey&&snap[snap.length-1];if(last){if(Math.abs(p[0]-last[0])>Math.abs(p[1]-last[1]))p[1]=last[1];else p[0]=last[0]}return p.map(v=>Math.round(v*100)/100)}
@@ -2067,7 +2080,12 @@ function toWire(h){
   h.addEventListener('click',e=>{const b=e.target.closest('[data-ta]');if(!b||!h.contains(b))return;const a=b.dataset.ta,v=b.dataset.v;const d=dwgDoc(TO.id);if(!d)return;
     if(e.target.closest('input')&&(a==='item'||a==='zone')){const row=b;if(a==='item'){if(TO.item!==v){TO.item=v;TO.tool='take';TO.draft=[]}}else TO.zone=v;
       row.parentElement.querySelectorAll('.to-it').forEach(x=>x.classList.toggle('on',x===row));toBar();toDraw();return}
+    if(TO.viewRev!=null&&!['close','pg','zoom','fit','mode','zone','item','revcur','sumtog','csv','lbl','sumgo'].includes(a)){return}
     if(a==='close')return toClose();
+    if(a==='revcur'){TO.viewRev=null;TO.rvc=null;TO.tool='pan';TO.page=1;TO.zoom=0;toLoadPage();toSync();return}
+    if(a==='revseen'){const dd=S.dwgs[TO.id];if(dd.revNote){dd.revNote.seen=true;persist('drawings/'+TO.id)}toSide();return}
+    if(a==='chghide'){TO.hideChg=!TO.hideChg;toSide();toDraw();return}
+    if(a==='chgz'){const r=(d.changes&&d.changes[TO.page]||[])[+v];if(r){TO.chgSel=+v;TO.hideChg=false;toFocusZone({pg:TO.page,r:[r[0]-30,r[1]-30,r[2]+60,r[3]+60]})}return}
     if(a==='pg'){TO.page=Math.min(Math.max(1,TO.page+ +v),TO.pages||d.pages||1);TO.draft=[];TO.cal=null;TO.sel=null;toLoadPage();toSync();return}
     if(a==='zoom')return toSetZoom(TO.zoom*+v);
     if(a==='fit')return toFit();
@@ -2113,7 +2131,8 @@ function toWire(h){
     if(a==='sumgo'){if(COLL.has('tosum')){COLL.delete('tosum');saveColl();toSum()}document.getElementById('toSum')?.scrollIntoView({behavior:'smooth',block:'start'});return}
     if(a==='aclear'){Object.assign(TO.auto,{res:null,all:null,tpl:null,note:''});toSide();toDraw();return}
   });
-  h.addEventListener('input',e=>{const t=e.target.dataset&&e.target.dataset.tk;if(!t)return;const [k,id]=t.split('|');const d=dwgDoc(TO.id);if(!d)return;
+  h.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tk==='revsel'){const v=e.target.value;TO.viewRev=v==='cur'?null:+v;TO.rvc=null;TO.tool='pan';TO.draft=[];TO.sel=null;TO.page=1;TO.zoom=0;TO.item=null;toLoadPage();toSync()}});
+  h.addEventListener('input',e=>{const t=e.target.dataset&&e.target.dataset.tk;if(!t)return;if(TO.viewRev!=null&&!/^(revsel)$/.test(t))return;const [k,id]=t.split('|');const d=dwgDoc(TO.id);if(!d)return;
     if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum()}}
     if(k==='zname'){const z=d.zones.find(x=>x.id===id);if(z){z.name=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}
     if(k==='aq'){TO.auto.q=e.target.value;return}
@@ -2136,6 +2155,7 @@ function toWire(h){
   h.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(!e.dataTransfer||!e.dataTransfer.files.length)return;if(z.classList.contains('to-memdrop'))return toLibLoad(e.dataTransfer.files);toSymbolFile(e.dataTransfer.files[0])});
   h.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&/^(iname|zname|sname)\|/.test(e.target.dataset.tk||'')){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&e.target.id==='to_ratio'){e.preventDefault();h.querySelector('[data-ta="ratio"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_aq'){e.preventDefault();h.querySelector('[data-ta="afind"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_callen'){e.preventDefault();h.querySelector('[data-ta="calset"]')?.click()}});
   h.addEventListener('pointerdown',e=>{const pe=e.target.closest('#toPage');const st=e.target.closest('#toStage');if(!st||e.button>1)return;
+    if(TO.viewRev!=null&&TO.tool!=='pan')TO.tool='pan';
     TO.noClick=false;const ae=document.activeElement;if(ae&&h.contains(ae)&&ae.tagName==='INPUT')ae.blur();
     if(TO.tool==='pan'||e.button===1||!pe){TO.drag={k:'pan',x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};st.setPointerCapture(e.pointerId);e.preventDefault();return}
     if(toEditDown(e,st))return;
@@ -2273,10 +2293,11 @@ function toAutoAdd(d,opt={}){const A=TO.auto;if(!A.res)return;const on=A.res.fil
   let it=toAutoTgt(d);const nm=(A.name??'').trim()||toAutoDefName();
   if(!it){it={id:uid('i'),name:nm,type:toAutoNeed(A.m),color:TO_COLORS[d.items.length%TO_COLORS.length]};d.items.push(it)}
   else if(!it.name)it.name=nm;
-  it.src=toAutoSrc(A);if(A.m==='label')it.label=A.q.trim();if(A.snapId&&A.m==='symbol'){it.snap=A.snapId;it.img=A.snapImg;it.src='Auto count from snapshot “'+(A.name||'')+'”'}TO.item=it.id;A.tgt=it.id;const before=toItemQty(d,it,null).v;
+  it.src=toAutoSrc(A);if(A.m==='label'){it.label=A.q.trim();it.how={m:'label',q:A.q.trim(),cs:A.cs}}else if(A.m==='line')it.how={m:'line',key:A.key};else if(A.m==='symbol'){const sn=A.snapId&&toSnaps().find(x=>x.id===A.snapId);const le=A.snapId&&String(A.snapId).startsWith('lib_')&&toLib().find(x=>'lib_'+x.id===A.snapId);const src=(sn&&sn.kind==='img'&&sn)||le;
+    if(src&&src.src)it.how={m:'sym',src:src.src,ar:src.ar,pt:A.imgPt||src.pt,thr,rot:A.rot};else if(A.lastRect){const LR={...A.lastRect},itId=it.id,did=TO.id;toCropSrc(LR.fid,LR.pg,LR.r).then(c=>{const dd=S.dwgs[did];const ii=dd&&dd.items.find(x=>x.id===itId);if(c&&ii){ii.how={m:'sym',src:c.src,ar:c.ar,pt:c.pt,thr,rot:A.rot};persist('drawings/'+did)}}).catch(()=>{})}}if(A.snapId&&A.m==='symbol'){it.snap=A.snapId;it.img=A.snapImg;it.src='Auto count from snapshot “'+(A.name||'')+'”'}TO.item=it.id;A.tgt=it.id;const before=toItemQty(d,it,null).v;
   for(const c of on){if(it.type==='count'){const p=c.pts[0];if(d.marks.some(m=>m.it===it.id&&m.pg===c.pg&&Math.hypot(m.pts[0][0]-p[0],m.pts[0][1]-p[1])<4)){skip++;continue}}
     d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:A.m});add++}
-  if(opt.lib){it.lib=opt.lib.id;if(opt.lib.img&&!it.img)it.img=opt.lib.img;it.color=it.color;if(A.m==='symbol'&&thr>(opt.lib.thr||0)){opt.lib.thr=thr;toLibSave()}opt.lib.used=(opt.lib.used||0)+1;if(A.imgPt&&A.m==='symbol')opt.lib.pt=A.imgPt;toLibSave()}
+  if(opt.lib){it.lib=opt.lib.id;it.how={m:'sym',src:opt.lib.src,ar:opt.lib.ar,pt:A.imgPt||opt.lib.pt,thr:Math.max(thr,opt.lib.thr||0),rot:opt.lib.rot!==false};if(opt.lib.img&&!it.img)it.img=opt.lib.img;it.color=it.color;if(A.m==='symbol'&&thr>(opt.lib.thr||0)){opt.lib.thr=thr;toLibSave()}opt.lib.used=(opt.lib.used||0)+1;if(A.imgPt&&A.m==='symbol')opt.lib.pt=A.imgPt;toLibSave()}
   TO.applied={did:TO.id,it:it.id,v:toItemQty(d,it,null).v-before,n:add,skip,img:it.img||null};if(opt.memo!==false)toMemoUpd(it,mA,thr);A.snapId=null;A.snapImg=null;A.res=null;A.all=null;A.tpl=null;A.name=null;A.note=`Added ${add} ${it.type==='count'?'':'runs '}to “${it.name}”${skip?`, skipped ${skip} already counted`:''}.`;persist('drawings/'+TO.id);toSync()}
 function toAutoBox(d){const A=TO.auto;const it=toAutoItem(d);const need=toAutoNeed(A.m);const ok=it&&it.type===need;const z=toAutoZone(d);
   const seg=`<div class="to-seg" style="align-self:stretch">${[['whole','✨ Whole drawing'],['label','Count label'],['symbol','Count symbol'],['line','Measure line']].map(([k,l])=>`<button class="seg-b${A.m===k?' on':''}" data-ta="am" data-v="${k}" style="flex:1;text-align:center">${l}</button>`).join('')}</div>`;
@@ -2646,7 +2667,7 @@ function toWholeDraw(u){const O=TO.whole;if(TO.tool!=='auto'||TO.auto.m!=='whole
 function toWholeAdd(d){const O=TO.whole;if(!O.rows)return;const on=O.rows.filter(r=>r.on);if(!on.length)return;undoRecord();const got=[];
   for(const r of on){const nm=(r.name||'').trim()||(r.type==='count'?'Count':'Line');let it=d.items.find(i=>i.name.trim().toLowerCase()===nm.toLowerCase()&&i.type===r.type);
     if(!it){it={id:uid('i'),name:nm,type:r.type,color:r.kind==='line'&&r.color&&r.color!=='#000000'?r.color:TO_COLORS[d.items.length%TO_COLORS.length]};d.items.push(it)}
-    it.src='Automatic take off'+(r.kind==='sym'?' (legend symbol)':r.kind==='tag'?' (text tag '+(r.tok||'')+')':' (line style)');if(r.img&&!it.img)it.img=r.img;const before=toItemQty(d,it,null).v;let add=0;
+    it.src='Automatic take off'+(r.kind==='sym'?' (legend symbol)':r.kind==='tag'?' (text tag '+(r.tok||'')+')':' (line style)');it.how=r.kind==='line'?{m:'line',key:r.key}:r.kind==='tag'?{m:'label',q:r.tok,cs:true}:r.src&&r.src.src?{m:'sym',src:r.src.src,ar:r.src.ar,pt:r.src.pt,thr:0.8,rot:true,tag:r.confirmed?r.tok:null}:(r.lib?{m:'sym',src:r.lib.src,ar:r.lib.ar,pt:r.lib.pt,thr:r.lib.thr||0.85,rot:r.lib.rot!==false}:null);if(r.img&&!it.img)it.img=r.img;const before=toItemQty(d,it,null).v;let add=0;
     for(const c of r.cands){if(it.type==='count'){const p=c.pts[0];if(d.marks.some(m=>m.it===it.id&&m.pg===c.pg&&Math.hypot(m.pts[0][0]-p[0],m.pts[0][1]-p[1])<4))continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'whole'});add++}
     got.push({it:it.id,v:toItemQty(d,it,null).v-before,n:add});
   }
@@ -2664,6 +2685,69 @@ document.addEventListener('drop',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))retu
   if(pdfs.length){if(TO.id){toUpload(pdfs).then(()=>{TO.msg='';const d=dwgDoc(TO.id);if(d){TO.auto.note=UI.toMsg?UI.toMsg.t+' Go back to Drawings to open them.':'';toSide()}})}else toUpload(pdfs);return}
   if(imgs.length&&TO.id){if(TO.tool==='auto'||TO.tool==='snapl'){TO.auto.m='symbol';toSymbolFile(imgs[0])}else{TO.tool='auto';toLibLoad(imgs)}return}
   UI.toMsg={t:'Only PDF drawings can be dropped here.',err:1};render()});
+/* ---------- Take off: sharp rendering of the visible area ---------- */
+function toDetailSoon(){clearTimeout(TO.dt);TO.dt=setTimeout(toDetail,90)}
+async function toDetail(){const pg=TO.pg,st=document.getElementById('toStage'),pe=document.getElementById('toPage'),cv=document.getElementById('toCv2');if(!pg||!st||!pe||!cv||!TO.vp)return;
+  const dpr=window.devicePixelRatio||1,s=TO.zoom;if((TO.baseR||0)>=s*dpr*0.97){cv.style.display='none';return}
+  const sr=st.getBoundingClientRect(),pr=pe.getBoundingClientRect();const x0=Math.max(0,sr.left-pr.left),y0=Math.max(0,sr.top-pr.top),x1=Math.min(pr.width,sr.right-pr.left),y1=Math.min(pr.height,sr.bottom-pr.top);
+  if(x1<=x0||y1<=y0){cv.style.display='none';return}const w=x1-x0,h=y1-y0;const k=s*dpr;const vp=pg.getViewport({scale:k});
+  const off=document.createElement('canvas');off.width=Math.ceil(w*dpr);off.height=Math.ceil(h*dpr);const cx=off.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,off.width,off.height);
+  if(TO.drt){try{TO.drt.cancel()}catch(e){}}const my=TO.dseq=(TO.dseq||0)+1;const task=pg.render({canvasContext:cx,viewport:vp,transform:[1,0,0,1,-x0*dpr,-y0*dpr]});TO.drt=task;
+  try{await task.promise}catch(e){return}if(my!==TO.dseq||Math.abs(TO.zoom-s)>1e-9)return;TO.drt=null;
+  cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);Object.assign(cv.style,{display:'block',left:x0+'px',top:y0+'px',width:w+'px',height:h+'px'})}
+/* ---------- Take off: drawing revisions ---------- */
+function toParseRev(name){const m=name.replace(/\.pdf$/i,'').match(/(?:^|[\s._\-\[(])rev(?:ision)?[\s._\-]*([A-Z0-9]{1,3})\b|\[([A-Z0-9]{1,2})\]$|\(([A-Z0-9]{1,2})\)$/i);return m?(m[1]||m[2]||m[3]).toUpperCase():''}
+function toParseNo(name){return ((name.match(/^([A-Z]{1,3}[-\s]?\d{2,4}[A-Z]?)/i)||[])[1]||'').toUpperCase().replace(/\s/g,'-')}
+function toBaseName(name){return name.replace(/\.pdf$/i,'').replace(/(?:^|[\s._\-\[(])rev(?:ision)?[\s._\-]*[A-Z0-9]{1,3}\b.*$/i,'').replace(/[\[(][A-Z0-9]{1,2}[\])]$/i,'').replace(/[\s._-]+$/,'').trim().toLowerCase()}
+function toNextRev(r){if(!r)return 'B';if(/^\d+$/.test(r))return String(+r+1);if(/^[A-Y]$/i.test(r))return String.fromCharCode(r.toUpperCase().charCodeAt(0)+1);return r+'1'}
+function toFindSame(fname){const no=toParseNo(fname),base=toBaseName(fname);for(const [id,d] of Object.entries(S.dwgs)){const dn=(d.no||'').toUpperCase().replace(/\s/g,'-');if(no&&dn&&no===dn)return id;if(!no&&base&&toBaseName(d.name||'')===base)return id}return null}
+async function toRenderInk(fid,pg,R){const pdf=await toPdf(fid);if(pg>pdf.numPages)return null;const p=await pdf.getPage(pg);const vp=p.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await p.render({canvasContext:x,viewport:vp}).promise;
+  const px=x.getImageData(0,0,c.width,c.height).data;const ink=new Uint8Array(c.width*c.height);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<200?1:0;return {W:c.width,H:c.height,ink,vw:vp.width/R,vh:vp.height/R}}
+/* compare two revisions page by page and return the changed areas */
+async function toDiff(oldFid,newFid,pages){const out={};for(let pg=1;pg<=Math.min(pages,12);pg++){try{const pdf=await toPdf(newFid);const p=await pdf.getPage(pg);const v=p.getViewport({scale:1});const R=1800/Math.max(v.width,v.height);
+    const A=await toRenderInk(oldFid,pg,R),B=await toRenderInk(newFid,pg,R);if(!A||!B||A.W!==B.W||A.H!==B.H)continue;const W=A.W,H=A.H;
+    const dil=m=>{const o=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(m[i]){o[i]=1;if(x>0)o[i-1]=1;if(x<W-1)o[i+1]=1;if(y>0)o[i-W]=1;if(y<H-1)o[i+W]=1}}return o};const dA=dil(A.ink),dB=dil(B.ink);
+    const C=6,GW=Math.ceil(W/C),GH=Math.ceil(H/C),G=new Uint16Array(GW*GH);for(let i=0;i<W*H;i++){if((A.ink[i]&&!dB[i])||(B.ink[i]&&!dA[i])){const x=i%W,y=(i/W)|0;G[((y/C)|0)*GW+((x/C)|0)]++}}
+    const on=new Uint8Array(GW*GH);for(let i=0;i<on.length;i++)on[i]=G[i]>=2?1:0;const rad=3;const D=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){if(!on[y*GW+x])continue;for(let yy=Math.max(0,y-rad);yy<=Math.min(GH-1,y+rad);yy++)for(let xx=Math.max(0,x-rad);xx<=Math.min(GW-1,x+rad);xx++)D[yy*GW+xx]=1}
+    const lab=new Int32Array(GW*GH);let n=0;const boxes=[];for(let i=0;i<D.length;i++){if(!D[i]||lab[i])continue;n++;const st=[i];lab[i]=n;let bx0=1e9,by0=1e9,bx1=-1,by1=-1,cnt=0;
+      while(st.length){const j=st.pop();const x=j%GW,y=(j/GW)|0;cnt+=on[j];if(x<bx0)bx0=x;if(x>bx1)bx1=x;if(y<by0)by0=y;if(y>by1)by1=y;for(const q of [j-1,j+1,j-GW,j+GW]){if(q<0||q>=D.length||(q===j-1&&x===0)||(q===j+1&&x===GW-1))continue;if(D[q]&&!lab[q]){lab[q]=n;st.push(q)}}}
+      if(cnt<2)continue;const k=C/R;const pad=8;boxes.push([Math.max(0,(bx0+rad)*k-pad),Math.max(0,(by0+rad)*k-pad),(bx1-bx0+1-2*rad)*k+2*pad,(by1-by0+1-2*rad)*k+2*pad].map(v=>Math.round(v*100)/100))}
+    if(boxes.length)out[pg]=boxes.slice(0,60)}catch(e){console.error(e)}}return out}
+/* re-run automatic items on the new revision */
+async function toLabelHits(d,q,cs,pages){const pdf=await toPdf(d.file.id);const esc_=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const re=new RegExp('(^|[^A-Za-z0-9])('+esc_+')(?![A-Za-z0-9])',cs?'g':'gi');const out=[];
+  for(const p of pages){const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();for(const t of tc.items){if(!t.str)continue;re.lastIndex=0;let m;while((m=re.exec(t.str))){const i0=m.index+m[1].length,L=t.str.length||1;const f=(i0+m[2].length/2)/L;const [a,b,c,dd,e,ff]=t.transform;const dl=Math.hypot(a,b)||1,ul=Math.hypot(c,dd)||1;
+    const v=vp.convertToViewportPoint(e+a/dl*t.width*f+c/ul*(t.height||ul)/2,ff+b/dl*t.width*f+dd/ul*(t.height||ul)/2);out.push({pg:p,pts:[[Math.round(v[0]*100)/100,Math.round(v[1]*100)/100]]})}}}return out}
+async function toImgHits(d,how,pages){const im=await toImgLoad(how.src);const pdf=await toPdf(d.file.id);const out=[];
+  for(const p of pages){const P=await toPageInk(pdf,p,2);const L=Math.max(6,Math.round(how.pt*P.Rp));const w=how.ar>=1?L:Math.max(3,Math.round(L*how.ar)),h=how.ar>=1?Math.max(3,Math.round(L/how.ar)):L;const M=toMaskAt(im,w,h);if(!M.ink)continue;const tps=toTplSet(M,how.rot!==false,P.W);
+    const raw=await toMatchRun({ink:P.ink,dil:P.dil,W:P.W,H:P.H,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil})),min:Math.min(0.75,how.thr||0.8)});const c=[];for(let i=0;i<raw.length;i+=4){const t=tps[raw[i+2]];c.push({x:(raw[i]+t.w/2)/P.Rp,y:(raw[i+1]+t.h/2)/P.Rp,s:raw[i+3]/1000})}
+    c.sort((a,b)=>b.s-a.s);const keep=[];for(const x of c){if(x.s<(how.thr||0.8))break;if(keep.some(k=>Math.hypot(k.x-x.x,k.y-x.y)<0.6*how.pt))continue;keep.push(x)}for(const x of keep)out.push({pg:p,pts:[[Math.round(x.x*100)/100,Math.round(x.y*100)/100]]})}return out}
+function toConfirmTags(sym,tags,R){const used=new Set(),keep=[];for(const c of sym){let bi=-1,bd=R;tags.forEach((t,ti)=>{if(t.pg!==c.pg||used.has(ti))return;const dd=Math.hypot(t.pts[0][0]-c.pts[0][0],t.pts[0][1]-c.pts[0][1]);if(dd<bd){bd=dd;bi=ti}});if(bi>=0){used.add(bi);keep.push(c)}}tags.forEach((t,ti)=>{if(!used.has(ti))keep.push(t)});return keep}
+async function toRetake(d){const pages=[...Array(Math.min(d.pages||1,12))].map((_,i)=>i+1);const exs={};for(const p of pages)exs[p]=await toExclRegions(d,p);const res=[];
+  for(const it of d.items){const h=it.how;if(!h)continue;let c=null;try{
+    if(h.m==='label')c=await toLabelHits(d,h.q,h.cs,pages);
+    else if(h.m==='line'){c=[];for(const p of pages)for(const ph of await toVectors(d,p))if(ph.key===h.key)c.push({pg:p,pts:ph.pts})}
+    else if(h.m==='sym'&&h.src){c=await toImgHits(d,h,pages);if(h.tag){const t=await toLabelHits(d,h.tag,true,pages);c=toConfirmTags(c,t,h.pt*3)}}
+  }catch(e){console.error(e)}if(!c)continue;c=c.filter(x=>!(x.pts.length===1?toInEx(exs[x.pg]||[],x.pts[0]):x.pts.every(q=>toInEx(exs[x.pg]||[],q))));
+    d.marks=d.marks.filter(m=>!(m.it===it.id&&m.auto));for(const x of c)d.marks.push({id:uid('m'),it:it.id,pg:x.pg,pts:x.pts.map(q=>q.slice()),auto:h.m});res.push(it.id)}return res}
+async function toNewRevision(id,f,file,pages,rev){const d=dwgDoc(id);const before={};for(const it of d.items)before[it.id]=toItemQty(d,it,null).v;
+  d.revs=d.revs||[];d.revs.push({rev:d.rev||'A',file:d.file,pages:d.pages,at:d.revAt||d.created,items:clone(d.items),marks:clone(d.marks),zones:clone(d.zones),scale:clone(d.scale),excl:clone(d.excl||[])});
+  const old=d.file;d.file=file;d.pages=pages;const prevRev=d.rev;d.rev=rev||toNextRev(d.rev);d.revAt=Date.now();d.excl=[];if(TO.exAuto)for(const k in TO.exAuto)if(k.startsWith(old.id))delete TO.exAuto[k];
+  let changes={};try{changes=await toDiff(old.id,file.id,pages)}catch(e){console.error(e)}d.changes=changes;
+  /* new revision may have moved the legend/title block */
+  try{for(let p=1;p<=Math.min(pages,12);p++){const A=await toFindAreas(d,p);for(const a of A)if(a.kind!=='area')d.excl.push({pg:p,r:a.r,kind:a.kind})}}catch(e){}
+  const redone=await toRetake(d);let manual=0;for(const m of d.marks){if(m.auto)continue;const ch=changes[m.pg]||[];if(m.pts.some(q=>ch.some(r=>toInRect(q,r))))manual++}
+  d.revNote={from:prevRev||'A',to:d.rev,at:Date.now(),areas:Object.values(changes).reduce((a,x)=>a+x.length,0),manual,rows:d.items.map(it=>({it:it.id,before:before[it.id]??0,after:toItemQty(d,it,null).v,redone:redone.includes(it.id)})),seen:false};
+  persist('drawings/'+id);return d.revNote}
+function toCloud(r,u){const [x,y,w,h]=r;const s=Math.max(10*u,Math.min(w,h)/8);let p=`M${x} ${y}`;const arc=(x2,y2)=>`A${s/2} ${s/2} 0 0 1 ${x2} ${y2}`;
+  const nx=Math.max(1,Math.round(w/s)),ny=Math.max(1,Math.round(h/s));for(let i=1;i<=nx;i++)p+=arc(x+w*i/nx,y);for(let i=1;i<=ny;i++)p+=arc(x+w,y+h*i/ny);for(let i=1;i<=nx;i++)p+=arc(x+w-w*i/nx,y+h);for(let i=1;i<=ny;i++)p+=arc(x,y+h-h*i/ny);return p}
+function toChangesDraw(d,u){if(TO.viewRev!=null||!d.changes||TO.hideChg)return '';const L=d.changes[TO.page]||[];return L.map((r,i)=>`<path d="${toCloud(r,u)}" class="to-cloud${TO.chgSel===i?' on':''}" stroke-width="${(TO.chgSel===i?3.5:2.2)*u}"/>`).join('')}
+function toRevBox(d){if(TO.viewRev!=null){const r=(S.dwgs[TO.id].revs||[])[TO.viewRev];return `<div class="to-box to-oldrev"><b>Viewing Rev ${esc(r?r.rev:'')} · superseded</b><p class="hint" style="margin:0">This is the older revision with its take off as it was. It's read-only.</p><button class="btn primary" data-ta="revcur">Back to current revision</button></div>`}
+  const N=d.revNote;const chg=d.changes&&Object.values(d.changes).reduce((a,x)=>a+x.length,0);if(!N&&!chg)return '';
+  const rows=N&&!N.seen?N.rows.map(r=>{const it=d.items.find(i=>i.id===r.it);if(!it)return '';const df=r.after-r.before;return `<tr><td>${esc(it.name||TO_TYPE[it.type])}${r.redone?'':' <span class="hint" title="Not an automatic item, kept as it was">· kept</span>'}</td><td class="n money">${toFmt(it.type,r.before)}</td><td class="n money">${toFmt(it.type,r.after)}</td><td class="n money ${Math.abs(df)<1e-6?'':df>0?'pos':'neg'}">${Math.abs(df)<1e-6?'—':(df>0?'+':'')+toFmt(it.type,df).replace(/^-/,'−')}</td></tr>`}).join(''):'';
+  const pgs=d.changes?Object.keys(d.changes).map(Number):[];
+  return `<div class="to-box to-revbox"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>Rev ${esc(d.rev||'')}${N?` · updated from Rev ${esc(N.from)}`:''}</b>${N&&!N.seen?'<button class="btn ghost" data-ta="revseen" aria-label="Hide revision summary">✕</button>':''}</div>
+    ${chg?`<p class="hint" style="margin:0">${chg} changed area${chg===1?'':'s'} clouded in red${pgs.length>1||pgs[0]!==TO.page?' (pages '+pgs.join(', ')+')':''}. Click one to zoom to it.</p><div class="to-row">${(d.changes[TO.page]||[]).map((r,i)=>`<button class="btn" data-ta="chgz" data-v="${i}">${i+1}</button>`).join('')}<button class="btn ghost" data-ta="chghide">${TO.hideChg?'Show clouds':'Hide clouds'}</button></div>`:N?'<p class="hint" style="margin:0">No visible changes found between the revisions.</p>':''}
+    ${rows?`<table class="to-mini"><thead><tr><th>Item</th><th class="n">Rev ${esc(N.from)}</th><th class="n">Rev ${esc(N.to)}</th><th class="n">Change</th></tr></thead><tbody>${rows}</tbody></table><p class="hint" style="margin:0">Automatic items were taken off again on the new revision.${N.manual?` <b>${N.manual} hand-placed mark${N.manual===1?' is':'s are'} inside changed areas</b>, check ${N.manual===1?'it':'them'}.`:''}</p>`:''}</div>`}
 async function toCsv(d){const cols=[{n:'Entire drawing',z:null},...d.zones.map(z=>({n:z.name||'Section',z}))];const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
   const rows=[['Item','Type','Unit',...cols.map(c=>c.n)].map(q).join(',')];for(const i of d.items)rows.push([q(i.name||TO_TYPE[i.type]),q(TO_TYPE[i.type]),q(TO_UNIT[i.type]),...cols.map(c=>{const v=toItemQty(d,i,c.z).v;return i.type==='count'?Math.round(v):Math.round(v*100)/100})].join(','));
   const name=(d.no||d.name||'drawing').replace(/[^\w.-]+/g,'_')+' take off.csv';
@@ -2955,6 +3039,7 @@ document.addEventListener('click',async e=>{
   if(act==='to-open'){toOpen(btn.dataset.id);return}
   if(act==='to-csvall'){toCsvAll();return}
   if(act==='to-split'){UI.toSplit=btn.checked;return}
+  if(act==='to-revs'){UI.toRevs=btn.checked;return}
   if(act==='to-sumall'){COLL.has('tosumall')?COLL.delete('tosumall'):COLL.add('tosumall');saveColl();render();return}
   if(act==='import'){const t=btn.dataset.id;const d=aptDoc(t);const have=new Set(d.sections.flatMap(x=>x.lines.map(l=>l.id)));
     for(const sec of unitSections(UI.importBld||'E')){sec.id=uid('S');sec.lines.forEach(l=>{if(have.has(l.id))l.id=uid('l')});d.sections.push(sec)}
