@@ -204,6 +204,9 @@ tr.ord-dropping td{background:color-mix(in srgb,var(--accent) 10%,var(--surface)
 .pchg{font-size:11px;font-weight:600;text-align:right;margin-top:2px;white-space:nowrap}.pchg span{font-weight:400;color:var(--muted)}.pchg.up{color:var(--bad)}.pchg.dn{color:var(--good)}
 tr.p-up td{background:color-mix(in srgb,var(--bad) 7%,transparent)}tr.p-dn td{background:color-mix(in srgb,var(--good) 7%,transparent)}tr.p-up td .cur input.f{color:var(--bad);font-weight:700}tr.p-dn td .cur input.f{color:var(--good);font-weight:700}
 .ptags{display:flex;flex-direction:column;gap:2px;margin-top:2px}.ptags .tag{font-size:10.5px;padding:1px 6px}
+.ac-bar{align-self:stretch;height:6px;border-radius:3px;background:var(--line);overflow:hidden}.ac-bar i{display:block;height:100%;background:var(--accent);transition:width .2s}
+.ac-pulse{fill:none;stroke:#f59f00;animation:acp .5s ease-out forwards}@keyframes acp{from{opacity:1}to{opacity:0}}
+.to-page svg[data-tool="acount"]{cursor:crosshair}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -2061,7 +2064,7 @@ function toPdf(fid){if(!PDFC[fid])PDFC[fid]=(async()=>{const lib=await pdfLib();
 
 /* ---------- viewer ---------- */
 function toHostEl(){let h=document.getElementById('toHost');if(!h){h=document.createElement('div');h.id='toHost';h.hidden=true;viewEl.after(h);toWire(h)}return h}
-function toOpen(id){const d=dwgDoc(id);if(!d)return;Object.assign(TO,{viewRev:null,chgSel:null,id,page:1,zoom:0,tool:d.items.length?'take':'pan',item:d.items[0]?.id||null,mode:'all',zone:null,draft:[],cal:null,sel:null,vp:null,msg:''});Object.assign(TO.auto,{res:null,all:null,tpl:null,busy:'',note:''});TO.applied=null;TO.areas=null;Object.assign(TO.whole,{rows:null,busy:'',note:'',hl:null});TO.snapHit=null;
+function toOpen(id){const d=dwgDoc(id);if(!d)return;Object.assign(TO,{viewRev:null,chgSel:null,id,page:1,zoom:0,tool:d.items.length?'take':'pan',item:d.items[0]?.id||null,mode:'all',zone:null,draft:[],cal:null,sel:null,vp:null,msg:''});Object.assign(TO.auto,{res:null,all:null,tpl:null,busy:'',note:''});Object.assign(TO.ac,{busy:'',f:0,note:'',it:null,cands:null,draft:null});TO.applied=null;TO.areas=null;Object.assign(TO.whole,{rows:null,busy:'',note:'',hl:null});TO.snapHit=null;
   const h=toHostEl();h.innerHTML=`<div class="to-wrap"><div class="to-bar" id="toBar"></div><div class="to-main"><div class="to-stage" id="toStage"><div class="to-page" id="toPage"><canvas id="toCv"></canvas><canvas id="toCv2" class="to-cv2"></canvas><svg id="toSvg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="to-load" id="toLoad">Loading drawing…</div></div><aside class="to-side" id="toSide"></aside></div><div class="panel" id="toSum"></div></div>`;
   document.getElementById('toStage').addEventListener('scroll',toDetailSoon,{passive:true});render();toLoadPage()}
 function toClose(){TO.id=null;TO.vp=null;const h=document.getElementById('toHost');if(h){h.hidden=true;h.innerHTML=''}render()}
@@ -2099,11 +2102,11 @@ function toBar(){const el=document.getElementById('toBar');if(!el)return;const d
     ${(S.dwgs[TO.id].revs||[]).length?`<select class="f to-revsel" data-tk="revsel" aria-label="Revision">${[...S.dwgs[TO.id].revs.map((r,i)=>[i,'Rev '+r.rev+' (old)']).reverse(),['cur','Rev '+(S.dwgs[TO.id].rev||'')+' · current']].map(([v,l])=>`<option value="${v}"${(TO.viewRev==null?'cur':String(TO.viewRev))===String(v)?' selected':''}>${esc(l)}</option>`).join('')}</select>`:(d.rev?`<span class="tag">Rev ${esc(d.rev)}</span>`:'')}
     <div class="to-grp">${(TO.pages||d.pages)>1?`<button class="btn" data-ta="pg" data-v="-1" ${TO.page<=1?'disabled':''} aria-label="Previous page">‹</button><span class="hint">Page ${TO.page} of ${TO.pages||d.pages}</span><button class="btn" data-ta="pg" data-v="1" ${TO.page>=(TO.pages||d.pages)?'disabled':''} aria-label="Next page">›</button>`:'<span class="hint">1 page</span>'}</div>
     <div class="to-grp"><button class="btn" data-ta="zoom" data-v="0.8" aria-label="Zoom out">−</button><span class="money" style="min-width:46px;text-align:center">${Math.round(TO.zoom*100)}%</span><button class="btn" data-ta="zoom" data-v="1.25" aria-label="Zoom in">+</button><button class="btn" data-ta="fit">Fit</button></div>
-    <div class="to-seg">${tb('pan','✋ Move')}${tb('take',it?`✚ ${esc(TO_TYPE[it.type])}`:'✚ Take off',!it,'Add to the selected item')}${tb('sel','Select')}${tb('erase','⌫ Erase','','Click take off points or lines to delete them one by one')}${tb('zone','▭ Section')}${tb('auto','✨ Auto')}${tb('snapl','📷 Snapshot')}${tb('cal','📏 Scale')}</div><div class="to-seg"><button class="seg-b${TO.snap?' on':''}" data-ta="snap" aria-pressed="${TO.snap}" title="Snap to line ends and lines on the drawing">🧲 Snap ${TO.snap?'on':'off'}</button><button class="seg-b${TO.lbl?' on':''}" data-ta="lbl" aria-pressed="${TO.lbl}" title="Show lengths and areas on the drawing">Show measurements</button></div>
+    <div class="to-seg">${tb('pan','✋ Move')}${tb('take',it?`✚ ${esc(TO_TYPE[it.type])}`:'✚ Take off',!it,'Add to the selected item')}${tb('sel','Select')}${tb('erase','⌫ Erase','','Click take off points or lines to delete them one by one')}${tb('zone','▭ Section')}${tb('acount','🎯 Auto count','','Click one symbol and every matching one is counted for you')}${tb('auto','✨ Auto')}${tb('snapl','📷 Snapshot')}${tb('cal','📏 Scale')}</div><div class="to-seg"><button class="seg-b${TO.snap?' on':''}" data-ta="snap" aria-pressed="${TO.snap}" title="Snap to line ends and lines on the drawing">🧲 Snap ${TO.snap?'on':'off'}</button><button class="seg-b${TO.lbl?' on':''}" data-ta="lbl" aria-pressed="${TO.lbl}" title="Show lengths and areas on the drawing">Show measurements</button></div>
     <div class="to-seg">${['all','sec'].map(m=>`<button class="seg-b${TO.mode===m?' on':''}" data-ta="mode" data-v="${m}">${m==='all'?'Entire drawing':'By section'}</button>`).join('')}</div>
     <span class="tag ${sc?'good':'warn'}" title="Scale for this page">${sc?esc(sc.label||'Scale set'):'No scale on this page'}</span>`}
 function toSide(){const el=document.getElementById('toSide');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const z=toCurZone(d);const sc=toScale(d,TO.page);
-  const hints={erase:'Click a take off point, line or area to delete it. Each click removes one. Undo brings it back.',auto:'',snapl:'',pan:'Drag to move around the drawing. Ctrl + scroll to zoom.',take:'',sel:'Click a mark or section to select it, then press Delete or use the button below.',zone:'Drag a box over the part of the drawing you want as a section.',cal:'Click two points a known distance apart, then type the real length.'};
+  const hints={acount:'',erase:'Click a take off point, line or area to delete it. Each click removes one. Undo brings it back.',auto:'',snapl:'',pan:'Drag to move around the drawing. Ctrl + scroll to zoom.',take:'',sel:'Click a mark or section to select it, then press Delete or use the button below.',zone:'Drag a box over the part of the drawing you want as a section.',cal:'Click two points a known distance apart, then type the real length.'};
   const it=d.items.find(i=>i.id===TO.item);
   if(it)hints.take=it.type==='count'?`Click each ${esc(it.name||'item')} on the drawing to count it.`:`Click points along the ${it.type==='area'?'area outline':'run'}. Double-click or press Enter to finish, Backspace removes the last point, Esc cancels. Hold Shift for straight lines.`;
   const scope=z?`Section: ${esc(z.name||'Unnamed')}`:TO.mode==='sec'?'Choose a section':'Entire drawing';
@@ -2121,7 +2124,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <p class="hint" style="margin:4px 0">Use the ratio if the PDF is at its printed size, or calibrate: ${TO.cal&&TO.cal.length===2?'':'click two points on the drawing a known distance apart.'}</p>
     ${TO.cal&&TO.cal.length===2?`<div class="to-row"><span class="hint">Real length</span><input class="f num" id="to_callen" placeholder="e.g. 6.0" style="width:90px"><span class="hint">m</span><button class="btn primary" data-ta="calset">Apply</button></div>`:TO.cal&&TO.cal.length===1?'<p class="hint" style="margin:0">Now click the second point.</p>':''}
     ${Object.keys(d.scale).length?`<button class="btn" data-ta="calall" style="margin-top:6px">Use this page’s scale on all pages</button>`:''}</div>`:'';
-  el.innerHTML=`${toRevBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${sel}${draft}${cal}
+  el.innerHTML=`${toRevBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${TO.tool==='acount'?toAcountBox(d):''}${sel}${draft}${cal}
     <div class="to-h"><h3>Items</h3><span class="hint">${scope}</span></div>
     <div class="to-list">${items||'<p class="hint" style="margin:0">Add what you want to take off, e.g. downlights (count), cable tray (length), ceiling (area).</p>'}</div>
     <div class="to-row" style="margin:8px 0 18px">${['count','length','area'].map(t=>`<button class="btn" data-ta="iadd" data-v="${t}">+ ${TO_TYPE[t]}</button>`).join('')}${d.items.length||d.marks.length?`<button class="btn ${TO.clrArm?'armed':'ghost'}" data-ta="clrto" title="Remove every item and mark on this drawing. Sections and scale are kept.">${TO.clrArm?'Confirm: clear take off':'Clear take off'}</button>`:''}</div>
@@ -2153,7 +2156,7 @@ function toDraw(){const sv=document.getElementById('toSvg');if(!sv||!TO.vp)retur
     h+=TO.draft.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${3*u}" fill="#fff" stroke="${c}" stroke-width="${1.5*u}"/>`).join('')}
   if(TO.cal&&TO.cal.length){const pts=[...TO.cal,...(TO.cal.length===1&&TO.hover?[TO.hover]:[])];h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#e8590c" stroke-width="${2*u}"/>`+TO.cal.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${4*u}" fill="#e8590c"/>`).join('')}
   if(TO.drag&&TO.drag.k==='zone'){const r=toRectOf(TO.drag.a,TO.drag.b);h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="rgba(56,106,150,.12)" stroke="#386a96" stroke-width="${2*u}" stroke-dasharray="${6*u} ${4*u}"/>`}
-  h+=toChangesDraw(d,u)+toLabels(d,u)+toAutoDraw(u)+toWholeDraw(u)+toAreaDraw(u)+toHandles(d,u)+toSnapDraw(u);sv.innerHTML=h;sv.dataset.tool=TO.tool}
+  h+=toChangesDraw(d,u)+toLabels(d,u)+toAutoDraw(u)+toAcountDraw(u)+toWholeDraw(u)+toAreaDraw(u)+toHandles(d,u)+toSnapDraw(u);sv.innerHTML=h;sv.dataset.tool=TO.tool}
 function toRectOf(a,b){return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])]}
 function toPt(e,snap){const pe=document.getElementById('toPage');const r=pe.getBoundingClientRect();let p=[(e.clientX-r.left)/TO.zoom,(e.clientY-r.top)/TO.zoom];
   const last=snap&&e.shiftKey&&snap[snap.length-1];if(last){if(Math.abs(p[0]-last[0])>Math.abs(p[1]-last[1]))p[1]=last[1];else p[0]=last[0]}return p.map(v=>Math.round(v*100)/100)}
@@ -2173,7 +2176,7 @@ function toWire(h){
     if(a==='pg'){TO.page=Math.min(Math.max(1,TO.page+ +v),TO.pages||d.pages||1);TO.draft=[];TO.cal=null;TO.sel=null;toLoadPage();toSync();return}
     if(a==='zoom')return toSetZoom(TO.zoom*+v);
     if(a==='fit')return toFit();
-    if(a==='tool'){if(v!=='snapl')TO.sdraft=null;if(v==='auto'){const ci=d.items.find(i=>i.id===TO.item);TO.auto.tgt=ci&&ci.type===toAutoNeed(TO.auto.m)&&!ci.src?ci.id:(ci&&ci.src&&ci.type===toAutoNeed(TO.auto.m)?ci.id:'new')}TO.tool=v;TO.draft=[];TO.cal=null;TO.sel=null;toSync();return}
+    if(a==='tool'){if(v!=='snapl')TO.sdraft=null;if(v!=='acount'){TO.ac.draft=null}if(v==='acount'&&TO.ac.it&&!d.items.some(i=>i.id===TO.ac.it)){TO.ac.it=null;TO.ac.cands=null;TO.ac.note=''}if(v==='auto'){const ci=d.items.find(i=>i.id===TO.item);TO.auto.tgt=ci&&ci.type===toAutoNeed(TO.auto.m)&&!ci.src?ci.id:(ci&&ci.src&&ci.type===toAutoNeed(TO.auto.m)?ci.id:'new')}TO.tool=v;TO.draft=[];TO.cal=null;TO.sel=null;toSync();return}
     if(a==='mode'){TO.mode=v;if(v==='sec'&&!TO.zone&&d.zones[0])TO.zone=d.zones[0].id;toSync();const z=toCurZone(d);if(z)toFocusZone(z);return}
     if(a==='item'){TO.item=v;TO.tool='take';TO.draft=[];toSync();return}
     if(a==='zone'){TO.zone=v;if(TO.mode!=='sec')TO.mode='sec';toSync();const z=toCurZone(d);if(z)toFocusZone(z);return}
@@ -2209,6 +2212,10 @@ function toWire(h){
     if(a==='memtog'){COLL.has('tomem')?COLL.delete('tomem'):COLL.add('tomem');saveColl();toSide();return}
     if(a==='isize'){const sn=toSnaps().find(x=>x.id===TO.auto.imgSn);if(sn){const sd=dwgDoc(sn.did);const real=(sd.snaps||[]).find(x=>x.id===sn.id);const np=Math.round(TO.auto.imgPt*+v*10)/10;if(real){real.pt=np;persist('drawings/'+sn.did)}return toFindImg(d,{...sn,pt:np},np)}return}
     if(a==='snapply'){const [did,sid]=v.split('|');return toSnapApply(d,did,sid)}
+    if(a==='acgo'){const D=TO.ac.draft;TO.ac.draft=null;TO.sdraft=null;if(D)toAcountRun(d,D.r);return}
+    if(a==='acx'){TO.ac.draft=null;TO.sdraft=null;toSide();toDraw();return}
+    if(a==='acstop'){mwReset();TO.ac.busy='';TO.ac.note='Stopped.';toSide();return}
+    if(a==='acthr'){const A=TO.ac;A.thr=Math.min(0.97,Math.max(0.6,Math.round((A.thr+ +v)*100)/100));toAcountPlace(d,false).then(()=>{const it=d.items.find(i=>i.id===A.it);if(it&&it.how)it.how.thr=A.thr;persist('drawings/'+TO.id);const n=d.marks.filter(m=>m.it===A.it).length;A.note=`Counted ${n} at ${Math.round(A.thr*100)}% sensitivity.`;toSide()});return}
     if(a==='sdsave'){const D=TO.sdraft;TO.sdraft=null;if(D){if(D.pg!==TO.page){TO.page=D.pg;toLoadPage()}toSnapCapture(d,D.r)}return}
     if(a==='sdx'){TO.sdraft=null;toSide();toDraw();return}
     if(a==='sndel'){undoRecord();d.snaps=(d.snaps||[]).filter(x=>x.id!==v);persist('drawings/'+TO.id);toSync();return}
@@ -2245,6 +2252,9 @@ function toWire(h){
     TO.noClick=false;const ae=document.activeElement;if(ae&&h.contains(ae)&&ae.tagName==='INPUT')ae.blur();
     if(TO.tool==='pan'||e.button===1||!pe){TO.drag={k:'pan',x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};st.setPointerCapture(e.pointerId);e.preventDefault();return}
     if(toEditDown(e,st))return;
+    if(TO.tool==='acount'&&TO.ac.draft){const t=e.target;const sh=t.closest&&t.closest('[data-sh]'),sb=t.closest&&t.closest('[data-sb]');TO.sdraft=TO.ac.draft;
+      if(sh){TO.drag={k:'sdrs',c:+sh.dataset.sh,r0:TO.ac.draft.r.slice()};st.setPointerCapture(e.pointerId);e.preventDefault();return}
+      if(sb){TO.drag={k:'sdmv',a:toPt(e),r0:TO.ac.draft.r.slice()};st.setPointerCapture(e.pointerId);e.preventDefault();return}}
     if(TO.tool==='snapl'){const t=e.target;const sh=t.closest&&t.closest('[data-sh]'),sb=t.closest&&t.closest('[data-sb]');const D=TO.sdraft;
       if(D&&sh){TO.drag={k:'sdrs',c:+sh.dataset.sh,r0:D.r.slice()};st.setPointerCapture(e.pointerId);e.preventDefault();return}
       if(D&&sb){TO.drag={k:'sdmv',a:toPt(e),r0:D.r.slice()};st.setPointerCapture(e.pointerId);e.preventDefault();return}
@@ -2272,6 +2282,8 @@ function toWire(h){
       if(it.type==='count'){undoRecord();d.marks.push({id:uid('m'),it:it.id,pg:TO.page,pts:[p]});toSave();return}
       if(e.detail>1)return;TO.draft.push(p);toSide();toDraw();return}
     if(TO.tool==='cal'){const p=toSnapAt(e,TO.cal||[]);TO.cal=TO.cal&&TO.cal.length<2?[...TO.cal,p]:[p];TO.hover=null;toSide();toDraw();if(TO.cal.length===2)setTimeout(()=>document.getElementById('to_callen')?.focus(),20);return}
+    if(TO.tool==='acount'){const A=TO.ac;if(A.busy||A.draft)return;const p=toPt(e);A.busy='Finding the edges of that symbol…';A.note='';toSide();
+      toSymbolBoxAt(d,p).then(res=>{A.busy='';if(res&&res.r&&!res.small){toAcountRun(d,res.r)}else{A.draft={pg:TO.page,r:[p[0]-9,p[1]-9,18,18]};TO.sdraft=A.draft;toSide();toDraw()}}).catch(err=>{console.error(err);A.busy='';A.note=toBusyErr(err);toSide()});return}
     if(TO.tool==='erase'){const m=toEraseHit(d,e);if(m){undoRecord();d.marks=d.marks.filter(x=>x.id!==m.id);TO.erased=(TO.erased||0)+1;toSave();toBar()}return}
     if(TO.tool==='sel'){if(e.target.closest('[data-vh],[data-mh],[data-zh]'))return;const mk=e.target.closest('[data-mk]'),zn=e.target.closest('[data-zn]');TO.sel=mk?{k:'m',id:mk.dataset.mk}:zn?{k:'z',id:zn.dataset.zn}:null;if(mk){const m=d.marks.find(x=>x.id===mk.dataset.mk);if(m)TO.item=m.it}toSide();toDraw()}});
   h.addEventListener('dblclick',e=>{if(!e.target.closest('#toPage'))return;
@@ -2848,6 +2860,118 @@ function toEraseHit(d,e){const t=e.target.closest&&e.target.closest('[data-mk]')
     if(it.type==='count')dd=Math.hypot(m.pts[0][0]-p[0],m.pts[0][1]-p[1]);else{dd=1e9;const n=it.type==='area'?m.pts.length:m.pts.length-1;for(let i=0;i<n;i++)dd=Math.min(dd,toSegDist(p,m.pts[i],m.pts[(i+1)%m.pts.length]));if(it.type==='area'&&toPolyArea(m.pts)>0&&toPtInPoly(p,m.pts))dd=Math.min(dd,bd*0.9)}
     if(dd<bd){bd=dd;best=m}}return best}
 function toPtInPoly(p,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){if(((P[i][1]>p[1])!==(P[j][1]>p[1]))&&(p[0]<(P[j][0]-P[i][0])*(p[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0]))c=!c}return c}
+/* ---------- Take off: symbol matching engine (runs in a background worker, bounded memory and time) ---------- */
+const MW_SRC=`const P={},ORD=[];let cancel={};
+function prep(m){const {key,W,H}=m;const px=new Uint8Array(m.rgba);const n=W*H;const ink=new Uint8Array(n);
+  for(let i=0,j=0;i<n;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
+  const dil=new Uint8Array(n);for(let y=0;y<H;y++){const r=y*W;for(let x=0;x<W;x++){const i=r+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}}
+  const I=new Int32Array((W+1)*(H+1));for(let y=0;y<H;y++){let s=0;const r=(y+1)*(W+1),q=y*(W+1);for(let x=0;x<W;x++){s+=ink[y*W+x];I[r+x+1]=I[q+x+1]+s}}
+  P[key]={W,H,ink,dil,I};ORD.push(key);while(ORD.length>3){delete P[ORD.shift()]}}
+function match(m){const pg=P[m.key];if(!pg)return {err:'nopage'};const {W,H,ink,dil,I}=pg;const W1=W+1;const out=[];const T=m.tps;const min=m.min;let rows=0;const total=T.reduce((a,t)=>a+Math.max(0,H-t.h),0)||1;
+  for(let ti=0;ti<T.length;ti++){const t=T[ti];const w=t.w,h=t.h,offs=t.offs,n=offs.length,td=t.dil;if(!n||w>=W||h>=H)continue;const lo=n*0.55,hi=n*1.7;
+    const cell=Math.max(2,Math.floor(Math.min(w,h)/2));const GW=Math.ceil(W/cell),GH=Math.ceil(H/cell);const bs=new Float32Array(GW*GH),bp=new Int32Array(GW*GH).fill(-1);
+    const score=(x,y)=>{const wi=I[(y+h)*W1+x+w]-I[y*W1+x+w]-I[(y+h)*W1+x]+I[y*W1+x];if(wi<lo||wi>hi)return 0;let ov=0;const base=y*W+x;for(let k=0;k<n;k++)ov+=dil[base+offs[k]];let s=ov/n*(2*Math.min(wi,n)/(wi+n));if(s<min*0.9)return s;
+      let o2=0;for(let yy=0;yy<h;yy++){const r=base+yy*W,rt=yy*w;for(let xx=0;xx<w;xx++)if(ink[r+xx])o2+=td[rt+xx]}return Math.min(s,o2/wi)};
+    for(let y=0;y+h<=H;y+=2){if(cancel[m.id])return {err:'cancel'};
+      for(let x=0;x+w<=W;x+=2){const s=score(x,y);if(s<min*0.9)continue;const c=((y/cell)|0)*GW+((x/cell)|0);if(s>bs[c]){bs[c]=s;bp[c]=y*W+x}}
+      rows+=2;if((y&63)===0)postMessage({op:'prog',id:m.id,f:Math.min(1,rows/total)})}
+    for(let c=0;c<bp.length;c++){if(bp[c]<0)continue;const x0=bp[c]%W,y0=(bp[c]/W)|0;let bsv=0,bx=x0,by=y0;
+      for(let y=Math.max(0,y0-2);y<=Math.min(H-h,y0+2);y++)for(let x=Math.max(0,x0-2);x<=Math.min(W-w,x0+2);x++){const s=score(x,y);if(s>bsv){bsv=s;bx=x;by=y}}
+      if(bsv>=min)out.push(bx,by,ti,Math.round(bsv*1000))}}
+  return {out}}
+onmessage=e=>{const m=e.data;try{if(m.op==='page'){prep(m);postMessage({op:'page',id:m.id});return}
+  if(m.op==='cancel'){cancel[m.id]=1;return}
+  if(m.op==='match'){const r=match(m);postMessage({op:r.err?'err':'res',id:m.id,err:r.err,out:r.out})}}catch(err){postMessage({op:'err',id:m.id,err:String(err&&err.message||err)})}}`;
+const MWS={w:null,q:{},have:[],seq:0};
+function mwGet(){if(MWS.w)return MWS.w;try{MWS.w=new Worker(URL.createObjectURL(new Blob([MW_SRC],{type:'text/javascript'})));
+  MWS.w.onmessage=e=>{const m=e.data;const q=MWS.q[m.id];if(!q)return;if(m.op==='prog'){q.prog&&q.prog(m.f);return}delete MWS.q[m.id];clearTimeout(q.t);if(m.op==='err')q.rej(new Error(m.err));else q.res(m)};
+  MWS.w.onerror=e=>{for(const k in MWS.q){MWS.q[k].rej(new Error('worker'));clearTimeout(MWS.q[k].t)}MWS.q={};MWS.w=null;MWS.have=[]}}catch(e){MWS.w=null}return MWS.w}
+function mwCall(msg,transfer,prog,ms){const w=mwGet();if(!w)return Promise.reject(new Error('noworker'));const id='m'+(++MWS.seq);msg.id=id;
+  return new Promise((res,rej)=>{MWS.q[id]={res,rej,prog,t:setTimeout(()=>{delete MWS.q[id];mwReset();rej(new Error('timeout'))},ms||90000)};w.postMessage(msg,transfer||[])})}
+function mwReset(){try{MWS.w&&MWS.w.terminate()}catch(e){}for(const k in MWS.q){clearTimeout(MWS.q[k].t);MWS.q[k].rej(new Error('cancel'))}MWS.w=null;MWS.q={};MWS.have=[]}
+/* render a page into the worker once per scale; returns {key,W,H,R} */
+async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});let R=R0;const cap=6e6;if(v.width*v.height*R*R>cap)R=Math.sqrt(cap/(v.width*v.height));R=Math.round(R*1000)/1000;
+  const key=fid+'#'+p+'@'+R;if(MWS.have.includes(key))return {key,W:Math.ceil(v.width*R),H:Math.ceil(v.height*R),R};
+  const vp=pg.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:x,viewport:vp}).promise;const im=x.getImageData(0,0,c.width,c.height);c.width=c.height=1;
+  await mwCall({op:'page',key,W:im.width,H:im.height,rgba:im.data.buffer},[im.data.buffer]);MWS.have.push(key);while(MWS.have.length>3)MWS.have.shift();return {key,W:im.width,H:im.height,R}}
+/* template mask from a rectangle of a page, rendered at scale R */
+async function toCropMask(fid,p,rect,R){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:R});const w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.translate(-rect[0]*R,-rect[1]*R);await pg.render({canvasContext:x,viewport:vp}).promise;
+  const px=x.getImageData(0,0,w,h).data;return toTplFrom(px,w,[0,0,w/R,h/R],R)}
+/* match a template on pages; T = {w,h,m} mask at scale R; returns [{pg,x,y,s}] in page units */
+async function toMatchPages(fid,pages,mkT,Rwant,rot,min,onProg){const out=[];for(let i=0;i<pages.length;i++){const p=pages[i];const PG=await mwPage(fid,p,Rwant);const T=await mkT(PG.R);if(!T||!T.ink)continue;
+    const tps=toTplSet(T,rot,PG.W);const r=await mwCall({op:'match',key:PG.key,min,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil}))},null,f=>onProg&&onProg((i+f)/pages.length));
+    const raw=r.out||[];const cand=[];for(let k=0;k<raw.length;k+=4){const t=tps[raw[k+2]];cand.push({x:(raw[k]+t.w/2)/PG.R,y:(raw[k+1]+t.h/2)/PG.R,s:raw[k+3]/1000,r:Math.max(t.w,t.h)/PG.R})}
+    cand.sort((a,b)=>b.s-a.s);const keep=[];for(const c of cand){if(keep.some(k=>Math.hypot(k.x-c.x,k.y-c.y)<0.6*c.r))continue;keep.push(c)}for(const c of keep)out.push({pg:p,x:c.x,y:c.y,s:c.s})}
+  return out}
+const toRfor=(sz,mn)=>Math.min(4,Math.max(0.6,Math.min(30/Math.max(1,mn||sz),64/Math.max(1,sz))));
+const toBusyErr=e=>e&&e.message==='timeout'?'That took too long and was stopped. Drag a tighter box around one symbol, or search this page only.':e&&e.message==='cancel'?'Stopped.':'Could not search this drawing.';
+/* --- replacements for the older search functions, using the engine --- */
+async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matching symbols…';A.res=null;A.all=null;A.note='';src=src||{fid:d.file.id,pg:TO.page};A.src=src;A.lastRect={fid:src.fid,pg:src.pg,r:rect.slice()};A.tpl=src.fid===d.file.id?{pg:src.pg,r:rect}:null;toSide();toDraw();
+  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];
+    const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(src.fid,src.pg,rect,R),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),A.rot,0.5,f=>{A.busy=`Looking for matching symbols… ${Math.round(f*100)}%`;const el=document.querySelector('#toSide .to-auto .to-spin');if(el&&el.parentElement)el.parentElement.lastChild.textContent=A.busy});
+    A.all=hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s,on:true})).filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches. Try a lower sensitivity, or drag the box more tightly around the symbol.'}
+  catch(e){console.error(e);A.busy='';A.note=toBusyErr(e)}toSide();toDraw()}
+async function toMatchCore(d,srcPg,rect,pages,rot){const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(d.file.id,srcPg,rect,R),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),rot,0.6);return hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s}))}
+function toImgT(im,ar,ptR){const L=Math.max(6,Math.round(ptR));const w=ar>=1?L:Math.max(3,Math.round(L*ar)),h=ar>=1?Math.max(3,Math.round(L/ar)):L;return toMaskAt(im,w,h)}
+async function toImgHits(d,how,pages){const im=await toImgLoad(how.src);const hits=await toMatchPages(d.file.id,pages,R=>toImgT(im,how.ar,how.pt*R),toRfor(how.pt,how.pt*Math.min(how.ar||1,1/(how.ar||1))),how.rot!==false,Math.min(0.75,how.thr||0.8));
+  return hits.filter(h=>h.s>=(how.thr||0.8)).map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]]}))}
+async function toFindImg(d,sn,sizeOverride){const A=TO.auto;A.busy='Finding the symbol size on the drawing…';A.res=null;A.all=null;A.note='';A.tpl=null;toSide();toDraw();
+  try{const im=await toImgLoad(sn.src||sn.img);const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];const ar=sn.ar||im.naturalWidth/im.naturalHeight||1;
+    let pt=sizeOverride||sn.pt||0;
+    if(!pt){const sizes=[];for(let v=6;v<=46;v*=1.14)sizes.push(Math.round(v*10)/10);let best=null;
+      for(let i=0;i<sizes.length;i++){A.busy=`Finding the symbol size on the drawing… ${Math.round((i+1)/sizes.length*100)}%`;toSide();
+        const c=await toMatchPages(d.file.id,[TO.page],R=>toImgT(im,ar,sizes[i]*R),2,A.rot,0.6);c.sort((a,b)=>b.s-a.s);const nh=c.filter(x=>x.s>=0.85).length;
+        const top=c.slice(0,3).reduce((a,x)=>a+x.s,0)/3-0.004*Math.log2(Math.max(1,nh))-(nh>150?1:0);if(!best||top>best.top+0.005)best={pt:sizes[i],top}}
+      if(!best||best.top<0.5){A.busy='';A.note='No match found for that symbol on this page. Try a clearer image, or drag a box round one on the drawing instead.';return toSide()}
+      pt=best.pt;sn.pt=pt;if(S.dwgs[TO.id])persist('drawings/'+TO.id)}
+    A.imgPt=pt;A.imgSn=sn.id;if(!sizeOverride&&!sn.thr)A.thr=Math.max(A.thr,0.85);A.busy='Looking for matching symbols…';toSide();
+    const hits=await toMatchPages(d.file.id,pages,R=>toImgT(im,ar,pt*R),toRfor(pt,pt*Math.min(ar,1/ar)),A.rot,0.5,f=>{A.busy=`Looking for matching symbols… ${Math.round(f*100)}%`});
+    A.all=hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s,on:true})).filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches at this sensitivity. Lower it, or try Smaller / Larger.'}
+  catch(e){console.error(e);A.busy='';A.note=toBusyErr(e)}toSide();toDraw()}
+
+/* ---------- Take off: 🎯 Auto count — click one symbol, a count item is made and every match is clicked for you ---------- */
+TO.ac={busy:'',f:0,note:'',it:null,cands:null,thr:0.8,draft:null};
+async function toSymbolBoxAt(d,p){const pdf=await toPdf(d.file.id);const pg=await pdf.getPage(TO.page);const k=6,half=40;const z=[p[0]-half,p[1]-half,2*half,2*half];const vp=pg.getViewport({scale:k});
+  const W=Math.ceil(z[2]*k),H=Math.ceil(z[3]*k);const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,W,H);x.translate(-z[0]*k,-z[1]*k);await pg.render({canvasContext:x,viewport:vp}).promise;
+  const px=x.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<200?1:0;
+  /* nearest ink to the click */const cx=Math.round(half*k),cy=Math.round(half*k);let s=-1,bd=1e9;const R0=Math.round(7*k);for(let y=Math.max(0,cy-R0);y<Math.min(H,cy+R0);y++)for(let xx=Math.max(0,cx-R0);xx<Math.min(W,cx+R0);xx++){if(!ink[y*W+xx])continue;const dd=(xx-cx)**2+(y-cy)**2;if(dd<bd){bd=dd;s=y*W+xx}}
+  if(s<0)return null;const lab=new Uint8Array(W*H);const st=[s];lab[s]=1;let x0=W,y0=H,x1=0,y1=0;const g=2;/* join gaps of about 0.3 pt */
+  while(st.length){const j=st.pop();const X=j%W,Y=(j/W)|0;if(X<x0)x0=X;if(X>x1)x1=X;if(Y<y0)y0=Y;if(Y>y1)y1=Y;if(x1-x0>50*k||y1-y0>50*k)return {big:true};
+    for(let dy=-g;dy<=g;dy++)for(let dx=-g;dx<=g;dx++){const xx=X+dx,yy=Y+dy;if(xx<0||yy<0||xx>=W||yy>=H)continue;const q=yy*W+xx;if(ink[q]&&!lab[q]){lab[q]=1;st.push(q)}}}
+  if(x0<=1||y0<=1||x1>=W-2||y1>=H-2)return {big:true};const r=[z[0]+x0/k-0.6,z[1]+y0/k-0.6,(x1-x0+1)/k+1.2,(y1-y0+1)/k+1.2];if(r[2]<2||r[3]<2)return {small:true,r};return {r:r.map(v=>Math.round(v*100)/100)}}
+async function toNameNear(d,r){try{const T=await toTextLines(d,TO.page);let best=null,bd=1e9;for(const l of T.lines){const midY=(l.y0+l.y1)/2;if(midY<r[1]-2||midY>r[1]+r[3]+2)continue;const gx=l.x0-(r[0]+r[2]);if(gx<-1||gx>45)continue;if(gx<bd&&l.s.length>1){bd=gx;best=l}}if(best)return best.s.replace(/\s+/g,' ').trim().slice(0,60)}catch(e){}return ''}
+async function toAcountRun(d,rect){const A=TO.ac;if(A.busy)return;A.busy='Reading the symbol…';A.f=0;A.note='';A.draft=null;toSide();
+  try{const name=(await toNameNear(d,rect))||('Count '+(d.items.filter(i=>i.type==='count').length+1));undoRecord();
+    const it={id:uid('i'),name,type:'count',color:TO_COLORS[d.items.length%TO_COLORS.length],src:'🎯 Auto count'};d.items.push(it);TO.item=it.id;A.it=it.id;persist('drawings/'+TO.id);toSide();
+    toCropSrc(d.file.id,TO.page,rect).then(c=>{if(c){it.img=c.src;it.how={m:'sym',src:c.src,ar:c.ar,pt:c.pt,thr:A.thr,rot:true};persist('drawings/'+TO.id);toSide();toSum()}}).catch(()=>{});
+    const pages=TO.auto.pages==='all'?[...Array(TO.pages||d.pages||1)].map((_,i)=>i+1):[TO.page];A.busy=`Finding every “${name}”…`;toSide();
+    const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(d.file.id,TO.page,rect,R),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),true,0.6,f=>{A.f=f;const b=document.querySelector('#toSide .ac-bar i');if(b)b.style.width=Math.round(f*100)+'%'});
+    const ex={};for(const p of pages)ex[p]=await toExclRegions(d,p);
+    A.cands=hits.filter(h=>!toInEx(ex[h.pg]||[],[h.x,h.y])).map(h=>({pg:h.pg,pt:[Math.round(h.x*100)/100,Math.round(h.y*100)/100],s:h.s}));
+    A.thr=toAutoGap(A.cands.map(c=>c.s));A.busy='Counting…';toSide();await toAcountPlace(d,true);A.busy='';const n=d.marks.filter(m=>m.it===it.id).length;
+    A.note=n?`Counted ${n} × “${name}”.`:'No matching symbols found. Drag a box round the symbol instead.';TO.applied={did:TO.id,it:it.id,v:n,n,skip:0,img:it.img||null}}
+  catch(e){console.error(e);A.busy='';A.note=toBusyErr(e)}persist('drawings/'+TO.id);toSync()}
+/* pick the cut-off where the match scores drop sharply: real symbols score high, look-alikes lower */
+function toAutoGap(sc){const S=sc.slice().sort((a,b)=>b-a);let best=null;for(let i=0;i<S.length-1;i++){if(S[i]<0.8)break;const g=S[i]-S[i+1];if(S[i+1]<0.95&&g>=0.04&&(!best||g>best.g))best={g,t:(S[i]+S[i+1])/2}}
+  return Math.round(Math.min(0.95,Math.max(0.78,best?best.t:0.85))*1000)/1000}
+async function toAcountPlace(d,animate){const A=TO.ac;const it=d.items.find(i=>i.id===A.it);if(!it||!A.cands)return;d.marks=d.marks.filter(m=>!(m.it===it.id&&m.auto==='acount'));
+  const L=A.cands.filter(c=>c.s>=A.thr).sort((a,b)=>a.pg-b.pg||a.pt[1]-b.pt[1]||a.pt[0]-b.pt[0]);
+  if(!animate||L.length>400){for(const c of L)d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:[c.pt.slice()],auto:'acount'});toSide();toSum();toDraw();return}
+  const per=Math.max(1,Math.ceil(L.length/30));for(let i=0;i<L.length;i+=per){for(const c of L.slice(i,i+per))d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:[c.pt.slice()],auto:'acount'});TO.acPulse=L.slice(i,i+per).map(c=>c.pt);toDraw();const q=document.querySelector('#toSide [data-ac-n]');if(q)q.textContent=d.marks.filter(m=>m.it===it.id).length;await new Promise(r=>setTimeout(r,35))}
+  TO.acPulse=null;toSum();toDraw()}
+function toAcountBox(d){const A=TO.ac;const it=A.it&&d.items.find(i=>i.id===A.it);const n=it?d.marks.filter(m=>m.it===it.id).length:0;
+  const tune=it&&A.cands&&!A.busy?`<div class="to-row"><span class="hint">Too many?</span><button class="btn" data-ta="acthr" data-v="0.04">Stricter</button><span class="hint">Too few?</span><button class="btn" data-ta="acthr" data-v="-0.04">Looser</button><span class="money hint">${Math.round(A.thr*100)}%</span></div><p class="hint" style="margin:0">To remove a wrong one, use ⌫ Erase and click it. Undo removes the whole count.</p>`:'';
+  return `<div class="to-box to-auto"><b>🎯 Auto count</b><p class="hint" style="margin:0">Click once on the symbol you want counted (for example in the legend). A count item is made, named from the legend text beside it, and every matching symbol is clicked and counted for you.</p>
+    <div class="to-row"><span class="hint">Search</span><div class="to-seg">${[['this','This page'],['all','All pages']].map(([k,l])=>`<button class="seg-b${TO.auto.pages===k?' on':''}" data-ta="apg" data-v="${k}">${l}</button>`).join('')}</div></div>
+    ${A.draft?`<p class="hint warn-t" style="margin:0">Couldn't tell where that symbol ends. Adjust the box so it fits one symbol, then press Count.</p><div class="to-row"><button class="btn primary" data-ta="acgo">Count these</button><button class="btn" data-ta="acx">Cancel</button></div>`:''}
+    ${A.busy?`<p class="hint" style="margin:0"><span class="to-spin"></span>${esc(A.busy)}</p><div class="ac-bar"><i style="width:${Math.round(A.f*100)}%"></i></div><button class="btn" data-ta="acstop">Stop</button>`:''}
+    ${it&&!A.busy?`<div class="to-row" style="align-self:stretch;justify-content:space-between">${it.img?`<img src="${it.img}" alt="" class="to-thumb">`:''}<b style="flex:1">${esc(it.name)}</b><span class="money"><b data-ac-n>${n}</b> ea</span></div>`:''}
+    ${tune}${A.note?`<p class="hint" style="margin:0">${esc(A.note)}</p>`:''}</div>`}
+function toAcountDraw(u){let h='';if(TO.tool==='acount'&&TO.ac.draft&&TO.ac.draft.pg===TO.page){const [x,y,w,hh]=TO.ac.draft.r;const hr=5*u;h+=`<rect data-sb="1" x="${x}" y="${y}" width="${w}" height="${hh}" class="to-sbox" stroke-width="${2*u}"/>`+[[x,y],[x+w,y],[x+w,y+hh],[x,y+hh]].map((q,i)=>`<rect data-sh="${i}" x="${q[0]-hr}" y="${q[1]-hr}" width="${2*hr}" height="${2*hr}" class="to-sh" stroke-width="${1.5*u}"/>`).join('')}
+  if(TO.acPulse)for(const p of TO.acPulse)h+=`<circle cx="${p[0]}" cy="${p[1]}" r="${16*u}" class="ac-pulse" stroke-width="${3*u}"/>`;return h}
+
 async function toCsv(d){const cols=[{n:'Entire drawing',z:null},...d.zones.map(z=>({n:z.name||'Section',z}))];const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
   const rows=[['Item','Type','Unit',...cols.map(c=>c.n)].map(q).join(',')];for(const i of d.items)rows.push([q(i.name||TO_TYPE[i.type]),q(TO_TYPE[i.type]),q(TO_UNIT[i.type]),...cols.map(c=>{const v=toItemQty(d,i,c.z).v;return i.type==='count'?Math.round(v):Math.round(v*100)/100})].join(','));
   const name=(d.no||d.name||'drawing').replace(/[^\w.-]+/g,'_')+' take off.csv';
