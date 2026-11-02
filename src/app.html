@@ -954,7 +954,7 @@ function buPanel(id,v,ri){
   const html=`<div class="bupanel">
     ${ro?`<div class="banner" style="margin:0 0 6px">Viewing <b>Rev ${num(v.rev)}</b>, superseded ${fmtDate(v.supersededOn)}. This is a read-only copy; the current revision is Rev ${num(S.vars[id].rev)}.</div>`:''}
     <div class="sec-head"><div><h3>Variation build-up · ${esc(v.ref||'')} Rev ${num(v.rev)}${v.desc?' · '+esc(v.desc):''}</h3><p class="hint">Price it like the variation sheet: quantity × material and quantity × labour hours. Labour, supervision and project management each have their own cost and sell rates.</p></div>
-      <div class="toolbar"><label class="toolbar hint" style="gap:6px;cursor:pointer"><input type="checkbox" data-ui-check="pdfHideLab" ${UI.pdfHideLab?'checked':''}> Hide labour hrs column on PDF</label>${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" data-r="${ri}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
+      <div class="toolbar"><label class="toolbar hint" style="gap:6px;cursor:pointer"><input type="checkbox" data-ui-check="pdfHideLab" ${UI.pdfHideLab?'checked':''}> Hide labour hrs column on PDF</label>${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" data-r="${ri}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button><button class="btn" data-act="vpdf-sum" data-v="${id}" data-r="${ri}" title="Description, totals and exclusions only — no line items">Summary PDF</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button><button class="btn" data-act="vpdf-sum" data-v="${id}" title="Description, totals and exclusions only — no line items">Summary PDF</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
     <div class="form">
       <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}</div></label>
       <div class="wide markups"><div class="mk-h">Mark-ups <span class="hint">· marked-up drawings, sketches or photos (PDF, PNG or JPG)</span></div>
@@ -1023,7 +1023,7 @@ async function claimPdf(lbl){
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
 }
-async function sellPdf(id,ri,scope){
+async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=false;
   const cur=S.vars[id];if(!cur)return;const v=(ri!=null&&ri!==''&&cur.revs?.[+ri])||cur;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
@@ -1031,7 +1031,7 @@ async function sellPdf(id,ri,scope){
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
   doc.setDrawColor(176,84,28);doc.setLineWidth(.6);doc.line(14,38,W-14,38);
-  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text(scope?'Variation – scope of works':'Variation quotation',14,47);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text(scope?'Variation – scope of works':summ?'Variation quotation – summary':'Variation quotation',14,47);
   doc.setFontSize(9.5);doc.setFont('helvetica','normal');
   const proj=[S.info.job,PROJ[PID]?.name||S.info.name].filter(Boolean).join(' ');
   const meta=[['Project',proj||'—'],['Date',fmtDate(v.date)||fmtDate(todayISO())],['VQ #',(v.ref||'—')+' Rev '+num(v.rev)],['HCV #',bu.hcv||'—'],['Ref',bu.refTxt||v.clientRef||'—']];
@@ -1045,7 +1045,13 @@ async function sellPdf(id,ri,scope){
   if(scope){const sb=(bu.lines||[]).filter(l=>kindOf(l)==='L'&&(l.item||num(l.qty))).flatMap(l=>[[l.item||'',f2(num(l.qty)),l.per||'',l.comments||''],...(hasSubs(l)?l.subs.filter(x=>x.item||num(x.qty)).map(x=>['    - '+(x.item||''),f2(num(x.qty)),x.per||'',x.comments||'']):[])]);
     doc.autoTable({startY:y,head:[['Item','Quantity','Per','Comments']],body:sb.length?sb:[['—','','','']],theme:'grid',styles:{fontSize:9,cellPadding:2,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
       columnStyles:{0:{cellWidth:80},1:{halign:'right',cellWidth:22},2:{cellWidth:16},3:{cellWidth:'auto'}},didParseCell:dt=>{if(dt.section==='head'&&dt.column.index===1)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
-    y=doc.lastAutoTable.finalY+8}else{
+    y=doc.lastAutoTable.finalY+8}else if(summ){
+  const ex=X.sell.total,gst=ex*0.1;const rows=[['Material','',money(X.sell.mat+X.sell.extra)],['Labour',UI.pdfHideLab?'':`${f2(X.lh)} hrs`,money(X.sell.lab)]];
+  if(X.sell.sup)rows.push(['Supervision',UI.pdfHideLab?'':`${f2(X.sh)} hrs`,money(X.sell.sup)]);if(X.sell.pm)rows.push(['Project management',UI.pdfHideLab?'':`${f2(X.ph)} hrs`,money(X.sell.pm)]);
+  y+=2;doc.autoTable({startY:y,head:[['Summary','','Amount']],body:rows,foot:[['Total variation (ex GST)','',money(ex)],['GST (10%)','',money(gst)],['Total (inc GST)','',money(ex+gst)]],theme:'grid',
+    styles:{fontSize:10,cellPadding:2.4,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},footStyles:{fillColor:[241,242,239],textColor:[28,39,50],fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:90,fontStyle:'bold'},1:{cellWidth:40,textColor:[90,100,110]},2:{halign:'right'}},didParseCell:dt=>{if(dt.column.index===2)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
+  y=doc.lastAutoTable.finalY+8}else{
   const hideLab=!!UI.pdfHideLab;const HEAD=['Item','Quantity','Material','Per','Extension','Labour','Lab ext.','Comments'];
   const CS={0:{cellWidth:52},1:{halign:'right',cellWidth:16},2:{halign:'right',cellWidth:20},3:{cellWidth:12},4:{halign:'right',cellWidth:22},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{cellWidth:'auto'}};
   const keep=hideLab?[0,1,2,3,4,6,7]:[0,1,2,3,4,5,6,7];const cs={};keep.forEach((k,i)=>cs[i]=CS[k]);if(hideLab)cs[0]={cellWidth:60};
@@ -1059,9 +1065,9 @@ async function sellPdf(id,ri,scope){
   y=doc.lastAutoTable.finalY+8;}
   if((bu.excl||'').trim()){const t=doc.splitTextToSize(bu.excl.trim(),W-28);if(y+8+t.length*4.4>285){doc.addPage();y=20}doc.setTextColor(0);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Exclusions and notes',14,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9);
     for(const ln of t){if(y>285){doc.addPage();y=20}doc.text(ln,14,y);y+=4.4}y+=4}
-  if(!scope){doc.setFontSize(8);doc.setTextColor(90);if(y>287){doc.addPage();y=20}doc.text('All prices exclude GST.',14,Math.min(y,287))}
+  if(!scope&&!summ){doc.setFontSize(8);doc.setTextColor(90);if(y>287){doc.addPage();y=20}doc.text('All prices exclude GST.',14,Math.min(y,287))}
   const blob=doc.output('blob');
-  const name=`${(v.ref||'Variation').replace(/[^\w.-]+/g,'_')} Rev ${num(v.rev)} - ${scope?'Scope':'Sell'}.pdf`;
+  const name=`${(v.ref||'Variation').replace(/[^\w.-]+/g,'_')} Rev ${num(v.rev)} - ${scope?'Scope':summ?'Summary':'Sell'}.pdf`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
 }
@@ -3155,6 +3161,7 @@ document.addEventListener('click',async e=>{
   if(act==='vline-add'){const x=S.vars[btn.dataset.v];x.bu=x.bu||VBU_DEF();const sIdx=x.bu.lines.findIndex(l=>kindOf(l)!=='L');const nl={id:uid('x'),item:'',qty:'',mat:'',per:'',hrs:'',kind:'L',comments:''};if(sIdx>=0)x.bu.lines.splice(sIdx,0,nl);else x.bu.lines.push(nl);persist('variations/'+btn.dataset.v);render();return}
   if(act==='vpdf'){sellPdf(btn.dataset.v,btn.dataset.r);return}
   if(act==='vpdf-scope'){sellPdf(btn.dataset.v,btn.dataset.r,true);return}
+  if(act==='vpdf-sum'){sellPdf(btn.dataset.v,btn.dataset.r,'summary');return}
   if(act==='vsubmit'){const id=btn.dataset.v;const v=S.vars[id];if(!v)return;v.date=todayISO();apply(['var',id,'status'],'Submitted');render();return}
   if(act==='vresubmit'){const id=btn.dataset.v;const key='vres'+id;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
     UI.armed=null;const v=S.vars[id];if(!v)return;const snap=clone(v);delete snap.revs;snap.rev=num(v.rev);snap.supersededOn=todayISO();
