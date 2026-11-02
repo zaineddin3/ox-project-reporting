@@ -626,6 +626,7 @@ function applyDoc(p,data){
   else if(c==='tasks'){S.tasks[id]={items:d.items||[],sections:d.sections||[]}}
 }
 function onColl(name,snap){
+  if(name==='tasks'&&!onColl.tk){onColl.tk=1;setTimeout(()=>{if(UI.view==='labour'||UI.view==='progress'){collapseAllTasks(UI.view);scheduleRender(0)}},0)}
   const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs'}[name];if(name==='estimates')CALC.loaded=true;
   const seen=new Set();
   const next={};
@@ -2870,6 +2871,12 @@ function projList(){const ids=new Set(['main',...Object.keys(PROJ)]);ids.add(PID
 let PEXP;try{PEXP=JSON.parse(localStorage.getItem('ox_pexp')||'null')}catch(e){}if(!PEXP||typeof PEXP!=='object')PEXP={};
 function savePexp(){try{localStorage.setItem('ox_pexp',JSON.stringify(PEXP))}catch(e){}}
 const isOpenProj=id=>PEXP[id]!==undefined?PEXP[id]:id===PID;
+/* open Labour & tasks / Progress with every section and split line minimised */
+function collapseAllTasks(view){let ch=false;const add=k=>{if(!COLL.has(k)){COLL.add(k);ch=true}};
+  const subs=(t,node,pre)=>{(node.subs||[]).forEach((sb,q)=>{if(sb.subs&&sb.subs.length){const kp=pre?pre+'.'+q:String(q);add('t'+t+'_'+kp);subs(t,sb,kp)}})};
+  for(const t of TASK_IDS){const td=taskDoc(t);for(const sc of taskSecs(t))add((view==='progress'?'pgs':'lbs')+t+'_'+sc.id);
+    (td.items||[]).forEach((it,j)=>{if(it.subs&&it.subs.length){add('t'+t+'_'+j);subs(t,it,String(j))}})}
+  if(ch)saveColl()}
 function renderChrome(){
   const navFor=pid=>(HOSTED&&window.__me?[...VIEWS_LIST,['team','Team & users']]:VIEWS_LIST).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" data-pid="${pid}" aria-current="${pid===PID&&UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
   const list=projList();
@@ -3084,7 +3091,7 @@ document.addEventListener('click',async e=>{
     UI.armed=null;removeProject(id);return}
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
-  if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
+  if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;if(UI.view==='labour'||UI.view==='progress')collapseAllTasks(UI.view);try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
   if(act==='vparts'){const k=btn.dataset.v;UI.vpo=UI.vpo||{};UI.vpo[k]=!UI.vpo[k];render();return}
@@ -3168,7 +3175,7 @@ document.addEventListener('click',async e=>{
     structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='add-stage'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.stages.push({id:uid('s'),name:'',rate:'0'});persist('apartments/'+t);render();return}
   if(act==='add-itp'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.itps.push({id:uid('i'),name:''});persist('apartments/'+t);render();return}
-  if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;render();return}
+  if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;collapseAllTasks('labour');render();return}
   if(act==='toggle'){UI.open[btn.dataset.id]=!UI.open[btn.dataset.id];render();return}
   if(act==='yn'){const k=btn.dataset.k;const cur=(S.info.cs||{})[k]?.yn;apply(['cs',k,'yn'],cur===btn.dataset.v?'':btn.dataset.v);render();return}
   if(act==='vopen'){const id=btn.dataset.v;UI.vrev=null;UI.vopen=UI.vopen===id?null:id;const x=S.vars[id];if(x&&!x.bu){x.bu=VBU_DEF();persist('variations/'+id)}render();if(UI.vopen)setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
@@ -3372,7 +3379,7 @@ async function switchProject(id){
   PID=id;try{localStorage.setItem('ox_pid',id)}catch(e){}
   blankState();for(const k of Object.keys(aptQueue))delete aptQueue[k];exists.clear();deleted.clear();structDirty.clear();for(const k in latest)delete latest[k];
   UI.bld='';UI.level='all';UI.q='';UI.task='t01';UI.setup=false;UI.armed=null;UI.view='overview';
-  undoClear();CALC.loaded=false;subscribe();render();window.scrollTo(0,0);
+  onColl.tk=0;undoClear();CALC.loaded=false;subscribe();render();window.scrollTo(0,0);
 }
 function commitRename(id){
   const el=document.getElementById('prename_'+id);UI.renaming=null;
