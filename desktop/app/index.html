@@ -197,6 +197,7 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .pc-locked .tw input.f,.pc-locked .tw select.f{pointer-events:none;background:color-mix(in srgb,var(--soft) 60%,transparent);color:var(--muted)}.pc-locked .tw .btn,.pc-locked .sec-head .btn{opacity:.4;pointer-events:none}
 .pc-cash td:first-child{font-weight:600;white-space:nowrap}.pc-cash th{white-space:nowrap}
 .pc-chip{display:inline-block;padding:1px 7px;border-radius:999px;background:var(--soft);font-size:11.5px;font-family:var(--f-mono);white-space:nowrap}.pc-chip.ok{background:var(--good-soft);color:var(--good)}.pc-chip.amend{background:var(--warn-soft);color:var(--warn)}
+.cf-now{background:color-mix(in srgb,var(--accent) 6%,transparent)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -834,8 +835,15 @@ function ledger(c){
     ${r('Left to invoice',c.leftInvoice)}${r('Left to spend',c.leftSpend)}
   </tbody></table>`;
 }
+/* actual costs by month: labour cost log (Oxford + subcontractor + labour hire) and invoices in Orders & invoices */
+function actCosts(){const M={};const add=(k,f,v)=>{if(!/^\d{4}-\d{2}$/.test(k)||!v)return;const r=M[k]||(M[k]={lab:0,inv:0,n:0});r[f]+=v;r.n++};
+  for(const r of (S.llog.rows||[]))add(String(r.date||'').slice(0,7),'lab',num(r.cost)+num(r.hireCost));
+  for(const o of Object.values(S.orders))for(const iv of (o.inv||[]))add(String(iv.date||'').slice(0,7),'inv',invAmt(iv));
+  return M}
+const thisMonth=()=>todayISO().slice(0,7);
+function cashCostUsed(k,r,A){const a=A[k];const act=a?a.lab+a.inv:0;/* past months: actual; this month and later: actual or forecast, whichever is higher */return k<thisMonth()?act:Math.max(act,num(r.cost))}
 function cashChart(){
-  const ms=months();let cs=0,cc=0;const pts=ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=num(r.cost);return {k,cs,cc}});
+  const ms=months();let cs=0,cc=0;const A=actCosts();const tm=thisMonth();const pts=ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=cashCostUsed(k,r,A);return {k,cs,cc,past:k<tm}});
   const max=Math.max(1,...pts.map(p=>Math.max(p.cs,p.cc)));
   if(!pts.some(p=>p.cs||p.cc))return `<div class="empty"><b>No forecast entered yet</b>Add monthly claim and cost forecasts under Cash flow to see cumulative sales against cost.</div>`;
   const W=900,H=260,L=64,R=14,T=12,B=30,iw=W-L-R,ih=H-T-B;
@@ -849,9 +857,9 @@ function cashChart(){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative forecast sales and costs by month">${grid}${xl}
     <path d="${area}" fill="var(--accent)" fill-opacity=".08"/>
     <path d="${line('cs')}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
-    <path d="${line('cc')}" fill="none" stroke="var(--series2)" stroke-width="2.4" stroke-dasharray="6 4"/>
+    ${(()=>{const ip=pts.reduce((a,p,i)=>p.past?i:a,-1);const seg=(a,b)=>pts.slice(a,b+1).map((p,j)=>`${j?'L':'M'}${x(a+j).toFixed(1)},${y(p.cc).toFixed(1)}`).join('');return (ip>=0?`<path d="${seg(0,ip)}" fill="none" stroke="var(--series2)" stroke-width="2.6"/>`:'')+(ip<pts.length-1?`<path d="${seg(Math.max(0,ip),pts.length-1)}" fill="none" stroke="var(--series2)" stroke-width="2.4" stroke-dasharray="6 4"/>`:'')})()}
     <circle cx="${x(pts.length-1)}" cy="${y(last.cs)}" r="4" fill="var(--accent)"/><circle cx="${x(pts.length-1)}" cy="${y(last.cc)}" r="4" fill="var(--series2)"/>
-  </svg><div class="legend"><span><i style="background:var(--accent)"></i>Cumulative claims ${money(last.cs)}</span><span><i style="background:var(--series2)"></i>Cumulative costs ${money(last.cc)}</span><span>Net position ${money(last.cs-last.cc)}</span></div>`;
+  </svg><div class="legend"><span><i style="background:var(--accent)"></i>Cumulative claims ${money(last.cs)}</span><span><i style="background:var(--series2)"></i>Cumulative costs ${money(last.cc)} (solid: actual to date, dashed: forecast)</span><span>Net position ${money(last.cs-last.cc)}</span></div>`;
 }
 
 V.details=()=>{
@@ -1226,13 +1234,14 @@ function pcCashPanel(){const d=claimDoc();const H=d.hist;
     <tr><td></td>${cell(({i})=>`<td class="n">${del(i)}</td>`)}<td></td></tr>
   </tbody></table></div></div>`}
 V.cashflow=()=>{
-  const ms=months();let cs=0,cc=0;
-  return `<div class="stack">${head('Project cash flow','Monthly forecast of progress claims and costs, ex-GST. Thirty months from the start month.',`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label>`)}
+  const ms=months();let cs=0,cc=0;const A=actCosts();const tm=thisMonth();
+  return `<div class="stack">${head('Project cash flow','Monthly forecast of progress claims and costs, ex-GST. Thirty months from the start month. Actual costs fill in automatically from the labour cost log and the invoices in Orders & invoices, by date; cumulative costs use actuals for past months, and for this month and later the higher of actual and forecast.',`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label>`)}
   ${pcCashPanel()}
   <div class="panel chart">${cashChart()}</div>
-  <div class="tw tall"><table><thead><tr><th>Month</th><th class="n">Claims (forecast)</th><th>Progress claims</th><th class="n">Costs (forecast)</th><th class="n">Cumulative claims</th><th class="n">Cumulative costs</th><th class="n">Cumulative net</th></tr></thead><tbody>
-  ${ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=num(r.cost);return `<tr><td>${monthLabel(k)}</td><td style="width:150px">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Claims '+k,ph:'0'})}</td><td>${pcMonth(k)}</td><td style="width:150px">${inp('cash|'+k+'|cost',r.cost||'',{num:1,label:'Costs '+k,ph:'0'})}</td><td class="n money">${money(cs)}</td><td class="n money">${money(cc)}</td><td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td></tr>`}).join('')}
-  </tbody></table></div></div>`;
+  <div class="tw tall"><table><thead><tr><th>Month</th><th class="n">Claims (forecast)</th><th>Progress claims</th><th class="n">Costs (forecast)</th><th class="n">Actual costs (auto)</th><th class="n">Cumulative claims</th><th class="n">Cumulative costs</th><th class="n">Cumulative net</th></tr></thead><tbody>
+  ${ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);cc+=cashCostUsed(k,r,A);const a=A[k];return `<tr><td>${monthLabel(k)}</td><td style="width:150px">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Claims '+k,ph:'0'})}</td><td>${pcMonth(k)}</td><td style="width:150px">${inp('cash|'+k+'|cost',r.cost||'',{num:1,label:'Costs '+k,ph:'0'})}</td><td class="n money${k===tm?' cf-now':''}" title="${a?`Labour ${money(a.lab)} + invoices ${money(a.inv)}`:'No labour or invoices dated this month'}">${a?money(a.lab+a.inv):'<span class="hint">—</span>'}${a&&num(r.cost)?`<div class="hint" style="font-size:11px">${a.lab+a.inv-num(r.cost)>=0?'+':'−'}${money(Math.abs(a.lab+a.inv-num(r.cost)))} vs forecast</div>`:''}</td><td class="n money">${money(cs)}</td><td class="n money">${money(cc)}</td><td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td>Total</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).sales),0))}</td><td></td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).cost),0))}</td><td class="n money">${money(Object.entries(A).filter(([k])=>ms.includes(k)).reduce((t,[,a])=>t+a.lab+a.inv,0))}</td><td colspan="3"></td></tr></tfoot></table></div>
+  ${(()=>{const out=Object.entries(A).filter(([k])=>!ms.includes(k));return out.length?`<p class="hint" style="margin:0">${money(out.reduce((t,[,a])=>t+a.lab+a.inv,0))} of costs are dated outside these 30 months (${out.map(([k])=>monthLabel(k)).join(', ')}). Change the start month to include them.</p>`:''})()}</div>`;
 };
 
 V.subcontractors=()=>{
