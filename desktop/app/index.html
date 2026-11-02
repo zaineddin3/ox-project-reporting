@@ -1209,10 +1209,11 @@ V.procurement=()=>{
 
 function pcMonth(k){const H=claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k);if(!H.length)return '';return H.map(h=>`<span class="pc-chip ${h.status==='Approved'?'ok':h.status==='Amending'?'amend':''}" title="${esc(h.status||'')}">${esc(h.wf?pcLabel(h):'PC'+(h.no||''))} ${money(num(h.status==='Approved'?h.approved:h.submitted))}</span>`).join(' ')}
 function pcCashPanel(){const d=claimDoc();const H=d.hist;
-  const head=`<div class="sec-head" style="margin-bottom:8px"><div><h3>Progress claims</h3><p class="hint" style="margin:4px 0 0">Each claim you submit lands here. <b>Approved</b> locks it and lets you start the next claim; <b>Amend</b> opens it in Progress claim to change and re-submit as the next version (PC1-V2 and so on).</p></div><button class="btn" data-act="nav" data-v="claim">Progress claim →</button></div>`;
+  const head=`<div class="sec-head" style="margin-bottom:8px"><div><h3>Progress claims</h3><p class="hint" style="margin:4px 0 0">Each claim you submit lands here. <b>Approved</b> locks it and lets you start the next claim; <b>Amend</b> opens it in Progress claim to change and re-submit as the next version (PC1-V2 and so on). <b>Delete</b> removes the latest claim and puts the percentages back as they were before it was submitted.</p></div><button class="btn" data-act="nav" data-v="claim">Progress claim →</button></div>`;
   if(!H.length)return `<div class="panel">${head}<p class="hint" style="margin:0">No claims yet. Submit your first claim from the Progress claim tab and it will appear here as PC1.</p></div>`;
   const last=H.length-1;const cols=H.map((h,i)=>({h,i}));
   const cell=(f)=>cols.map(f).join('');
+  const del=i=>{const h=H[i];if(h.wf&&i!==last)return '';const a=UI.armed==='pcdel'+i;return `<button class="btn ${a?'armed':'ghost'}" style="padding:2px 8px;font-size:12px" data-act="pc-del" data-i="${i}" title="${h.wf?'Delete this claim and unlock the percentages as they were before it was submitted':'Delete this claim record'}">${a?'Confirm delete':'Delete'}</button>`};
   return `<div class="panel">${head}<div class="tw"><table class="pc-cash"><thead><tr><th>Progress claim</th>${cell(({h})=>`<th class="n">${esc(h.wf?pcLabel(h):'PC'+(h.no||''))}</th>`)}<th class="n">Total</th></tr></thead><tbody>
     <tr><td>Date</td>${cell(({h})=>`<td class="n">${esc(fmtDate(h.date))}</td>`)}<td></td></tr>
     <tr><td>Claimed (ex GST)</td>${cell(({h})=>`<td class="n money">${money(num(h.submitted))}</td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+num(h.submitted),0))}</b></td></tr>
@@ -1222,6 +1223,7 @@ function pcCashPanel(){const d=claimDoc();const H=d.hist;
       if(ap)return `<td class="n"><span class="tag good">🔒 Approved${h.approvedAt?' '+esc(fmtDate(h.approvedAt)):''}</span></td>`;
       if(!h.wf)return `<td class="n"><span class="tag">${esc(h.status||'Submitted')}</span><button class="btn" style="margin-left:6px;padding:3px 8px;font-size:12px" data-act="pc-approve" data-i="${i}">${UI.armed==='pcap'+i?'Confirm':'Approved'}</button></td>`;
       return `<td class="n" style="white-space:nowrap">${busy?'<span class="tag warn">Amending</span> ':''}<button class="btn ${UI.armed==='pcap'+i?'armed':'primary'}" style="padding:3px 10px;font-size:12px" data-act="pc-approve" data-i="${i}" ${busy?'disabled title="Re-submit the amended claim first"':''}>${UI.armed==='pcap'+i?'Confirm approved':'Approved'}</button> ${i===last?`<button class="btn" style="padding:3px 10px;font-size:12px" data-act="pc-amend" data-i="${i}" ${busy?'disabled':''}>Amend</button>`:''}</td>`})}<td></td></tr>
+    <tr><td></td>${cell(({i})=>`<td class="n">${del(i)}</td>`)}<td></td></tr>
   </tbody></table></div></div>`}
 V.cashflow=()=>{
   const ms=months();let cs=0,cc=0;
@@ -1372,6 +1374,11 @@ const claimDoc=()=>S.claim||(S.claim=normClaim(null));
 const pcState=()=>{const d=claimDoc();return d.state||'open'};
 const pcLocked=()=>pcState()==='submitted';
 const pcLabel=h=>'PC'+(h.no||'?')+((h.v||1)>1?'-V'+h.v:'');
+function pcDelete(i){const d=claimDoc();const h=d.hist[i];if(!h)return false;
+  if(h.wf&&i!==d.hist.length-1){setSave('error','Delete the later claims first: only the latest claim can be deleted.');return false}
+  if(h.wf&&h.snap){/* put the lines back the way they were when this claim was submitted */for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
+    d.hdr.claimNo=String(h.no);d.state='open'}
+  d.hist.splice(i,1);persist('project/claim');return true}
 const pcCurH=()=>{const d=claimDoc();const h=d.hist[d.hist.length-1];return h&&h.wf?h:null};
 function pcLine(l){const sum=num(l.sum),claimed=sum*num(l.pct)/100,prev=num(l.prev);const ap=(l.apct===''||l.apct==null)?num(l.pct):num(l.apct);const assessed=sum*ap/100;
   return {sum,claimed,prev,this:claimed-prev,ap,assessed,pay:assessed-prev,diff:(assessed-prev)-(claimed-prev)}}
@@ -2978,7 +2985,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-act]');i
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
-  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve')UI.armed=null;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del')UI.armed=null;
   if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
@@ -3124,6 +3131,8 @@ document.addEventListener('click',async e=>{
       for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.pct=String(Math.round(x.ap*1e6)/1e6);l.apct=''}
       d.hdr.claimNo=String(num(h.no)+1);d.hdr.claimDate='';d.hdr.invoiceNo='';d.hdr.invoiceDate='';d.state='open'}
     persist('project/claim');render();return}
+  if(act==='pc-del'){const i=+btn.dataset.i;if(UI.armed!=='pcdel'+i){UI.armed='pcdel'+i;render();setTimeout(()=>{if(UI.armed==='pcdel'+i){UI.armed=null;render()}},5000);return}
+    UI.armed=null;undoRecord();pcDelete(i);render();return}
   if(act==='pc-amend'){const d=claimDoc();const i=+btn.dataset.i;const h=d.hist[i];if(!h||!h.wf||h.status==='Approved'||i!==d.hist.length-1)return;
     h.status='Amending';d.state='amending';persist('project/claim');UI.view='claim';render();window.scrollTo(0,0);return}
   if(act==='pc-reopen'){
@@ -3200,7 +3209,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='isub'){const d=ensureTask(id);const P=x.split('.');const q=+P.pop();const it=nodeAt(d,P.join('.'));if(it&&it.subs){it.subs.splice(q,1);if(!it.subs.length)delete it.subs}persist('tasks/'+id)}
     else if(kind==='item'){S.tasks[id].items.splice(+x,1);persist('tasks/'+id)}
     else if((kind==='pcl'||kind==='pcsec')&&pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.')}
-    else if(kind==='pch'&&claimDoc().hist[+x]&&claimDoc().hist[+x].wf){}
+    else if(kind==='pch'&&claimDoc().hist[+x]&&claimDoc().hist[+x].wf){undoRecord();pcDelete(+x)}
     else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
     else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
