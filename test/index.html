@@ -337,7 +337,7 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .hcmp-tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);transform:translateX(-1px)}
 .hcmp-v{text-align:right;font-size:13px}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
-.pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}
+.pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
 .login{position:fixed;inset:0;z-index:100;background:var(--rail);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .login-card{background:var(--surface);color:var(--ink);border-radius:12px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
 .login-card .brand .t{color:var(--ink)}.login-card .brand .s{color:var(--muted);opacity:1}
@@ -1249,7 +1249,8 @@ V.orders=()=>{
   ${rows.length?`<div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>PO number</th><th style="min-width:200px">Supplier / subcontractor</th><th>PO date</th><th class="n">PO amount</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">% left</th><th class="n">Extra outside PO</th><th>Subbie retention</th><th></th></tr></thead><tbody>
   ${rows.map(([id,o])=>{const k='ord|'+id+'|';const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0);const open=UI.open[id];
     return `<tr class="${open?'sel':''} ord-drop" data-ord="${id}"><td><button class="btn ghost" data-act="toggle" data-id="${id}" aria-expanded="${!!open}" style="color:var(--ink)">${open?'▾':'▸'} ${(o.inv||[]).length}</button>${(()=>{const T=(o.inv||[]).reduce((a,iv,j)=>{const P=invPriceSum(PX,id,j,iv);return {up:a.up+P.up,dn:a.dn+P.dn}},{up:0,dn:0});return T.up||T.dn?`<div class="ptags">${priceTags(T)}</div>`:''})()}</td>
-    <td style="width:170px;min-width:170px">${inp(k+'poNo',o.poNo,{label:'PO number'})}${o.poFile&&o.poFile.id?`<div class="pofile">${poFileLinks(o.poFile)}${o.poFile.by||o.raisedBy?`<div class="hint">Raised by ${esc(o.poFile.by||o.raisedBy)}</div>`:''}</div>`:o.raisedBy?`<div class="hint pofile">Raised by ${esc(o.raisedBy)}</div>`:''}</td><td>${inp(k+'supplier',o.supplier,{label:'Supplier',ph:'Supplier name and scope'})}</td><td style="width:140px">${inp(k+'date',o.date,{type:'date',label:'PO date'})}</td>
+    <td style="width:170px;min-width:170px">${inp(k+'poNo',o.poNo,{label:'PO number'})}${o.poFile&&o.poFile.id?`<div class="pofile">${o.poFile.rev?`<span class="tag">Rev ${o.poFile.rev}</span>`:''}${poFileLinks(o.poFile)}${o.poFile.by||o.raisedBy?`<div class="hint">Raised by ${esc(o.poFile.by||o.raisedBy)}</div>`:''}
+      ${(o.poHist||[]).length?`<button class="rowlink" data-act="toggle" data-id="poh${id}" aria-expanded="${!!UI.open['poh'+id]}" style="color:var(--accent);font-weight:600">${UI.open['poh'+id]?'▾':'▸'} History (${o.poHist.length})</button>${UI.open['poh'+id]?`<div class="pohist">${o.poHist.slice().reverse().map(h=>`<div><b>${h.rev?'Rev '+h.rev:'Original'}</b> · ${h.date?fmtDate(h.date):h.at?fmtDate(new Date(h.at).toLocaleDateString('en-CA')):''}${h.total!=null?' · '+money(h.total):''}${h.by?' · '+esc(h.by):''}<br>${poFileLinks(h)}</div>`).join('')}</div>`:''}`:''}</div>`:o.raisedBy?`<div class="hint pofile">Raised by ${esc(o.raisedBy)}</div>`:''}</td><td>${inp(k+'supplier',o.supplier,{label:'Supplier',ph:'Supplier name and scope'})}</td><td style="width:140px">${inp(k+'date',o.date,{type:'date',label:'PO date'})}</td>
     <td style="width:120px">${inp(k+'po',o.po,{num:1,label:'PO amount'})}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n">${po?pct((po-inv)/po,0):'—'}</td>
     <td style="width:140px">${inp(k+'anticipated',o.anticipated,{num:1,label:'Anticipated extra'})}${po-inv<0&&num(o.anticipated)?`<div class="hint" style="font-size:11.5px;text-align:right;margin-top:2px">Counts as <b class="money">${money(extraAdj(o))}</b><br>(less ${money(inv-po)} over PO)</div>`:''}</td>
     <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
@@ -1767,7 +1768,8 @@ function msPoPanel(id,m,C){
   const L=poLines(m);const noRate=L.filter(x=>!x.rate).length;const sub=L.reduce((a,x)=>a+x.qty*x.rate,0);const fr=num(po.freight);const ex=sub+fr;
   const raised=(m.poLog||[]).slice().reverse();
   return `<div class="panel"><div class="sec-head"><div><h3>Purchase order · ${esc(msSupName(m,ch))}</h3><p class="hint">Makes a PDF purchase order with every line that has a quantity, priced at ${esc(msSupName(m,ch))}’s rates, adds it to Orders & invoices and saves the PDF on that order.</p></div>
-    <button class="btn primary" data-act="ms-po" ${L.length&&!UI.msPoBusy?'':'disabled'}>${UI.msPoBusy?'Raising…':'Raise purchase order (PDF)'}</button></div>
+    <button class="btn primary" data-act="ms-po" ${L.length&&!UI.msPoBusy?'':'disabled'}>${(()=>{const no=String(po.no??(m.hdr?.orderNo||'')).trim();const oid=msPoOrderId(m,no);const pf=oid&&S.orders[oid].poFile;return UI.msPoBusy?'Raising…':pf&&pf.id?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'})()}</button></div>
+    ${(()=>{const no=String(po.no??(m.hdr?.orderNo||'')).trim();const oid=msPoOrderId(m,no);const pf=oid&&S.orders[oid].poFile;return pf&&pf.id?`<p class="hint" style="margin:0 0 10px">PO ${esc(no)} is raised (${pf.rev?'Rev '+pf.rev:'original'}). Change the lines, rates or details above, then amend: a new revision PDF is made and the earlier ones are kept in the order’s history. To raise a separate PO instead, change the PO #.</p>`:''})()}
     ${UI.msPoMsg?`<div class="banner" style="margin:0 0 10px">${esc(UI.msPoMsg)}</div>`:''}
     <div class="form">
       <label>PO #${inp(k+'no',po.no??(m.hdr?.orderNo||''),{label:'PO number',ph:'e.g. '+(S.info.job||'OX63')+'-PO-001'})}</label>
@@ -1780,7 +1782,7 @@ function msPoPanel(id,m,C){
       <tr><td>Lines</td><td class="n money">${L.length}${noRate?` <span class="neg">(${noRate} with no rate)</span>`:''}</td></tr>
       <tr><td>Materials</td><td class="n money">${money2(sub)}</td></tr><tr><td>Freight</td><td class="n money">${money2(fr)}</td></tr>
       <tr><td><b>GST-ex total</b></td><td class="n money"><b>${money2(ex)}</b></td></tr><tr><td>GST</td><td class="n money">${money2(ex/10)}</td></tr><tr><td>GST-inc total</td><td class="n money">${money2(ex*1.1)}</td></tr></tbody></table>
-    ${raised.length?`<p class="hint" style="margin:12px 0 4px"><b>Raised</b></p><div class="hint">${raised.slice(0,8).map(r=>{const o=r.orderId&&S.orders[r.orderId];const pf=o&&o.poFile;return `${fmtDate(r.date)} · PO ${esc(r.no||'—')} · ${esc(r.supplier)} · ${money2(r.total)} ex GST · ${r.lines} lines${r.by?' · raised by <b>'+esc(r.by)+'</b>':''}${pf&&pf.id?' · '+poFileLinks(pf):''}${o?' · <button class="rowlink" data-act="nav" data-v="orders" style="font-weight:500;color:var(--accent)">in Orders & invoices</button>':''}`}).join('<br>')}</div>`:''}</div>`;
+    ${raised.length?`<p class="hint" style="margin:12px 0 4px"><b>Raised</b></p><div class="hint">${raised.slice(0,8).map(r=>{const o=r.orderId&&S.orders[r.orderId];const pf=o&&o.poFile;return `${fmtDate(r.date)} · PO ${esc(r.no||'—')} · ${esc(r.supplier)} · ${money2(r.total)} ex GST · ${r.lines} lines${r.rev?' · <b>Rev '+r.rev+'</b>':''}${r.by?' · raised by <b>'+esc(r.by)+'</b>':''}${pf&&pf.id?' · '+poFileLinks(pf):''}${o?' · <button class="rowlink" data-act="nav" data-v="orders" style="font-weight:500;color:var(--accent)">in Orders & invoices</button>':''}`}).join('<br>')}</div>`:''}</div>`;
 }
 function poFileLinks(pf){return `<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(pf.id)}" data-file="${esc(pf.id)}" target="_blank" rel="noopener" title="View ${esc(pf.name||'PO.pdf')}">View PO</a> <a class="rowlink" href="${HOSTED?'#':'/_blob/'+esc(pf.id)}" data-dlfile="${esc(pf.id)}" data-dlname="${esc(pf.name||'PO.pdf')}" download="${esc(pf.name||'PO.pdf')}" style="color:var(--accent);font-weight:600">Download</a>`}
 document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('a[data-dlfile]');if(!a)return;
@@ -1793,7 +1795,7 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
   doc.setDrawColor(176,84,28);doc.setLineWidth(.6);doc.line(14,38,W-14,38);
   doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text(d.sub?'SUBCONTRACT ORDER':'PURCHASE ORDER',14,47);
-  doc.setFontSize(11);doc.text('PO # '+(d.poNo||'—'),W-14,47,{align:'right'});
+  doc.setFontSize(11);doc.text('PO # '+(d.poNo||'—')+(d.rev?'  Rev '+d.rev:''),W-14,47,{align:'right'});
   doc.setFontSize(9.5);const meta=[['Supplier',d.supplier||'—'],['Date',fmtDate(d.date)||'—'],['Job no.',d.jobNo||'—'],['Project',d.project||'—'],['Order type',d.sub?'Sub contract':'Materials'],['Raised by',d.raisedBy||'—']];
   let y=55;meta.forEach(([k,v],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(k+':',x,y);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(v),70)[0],x+22,y)});
   y+=9;const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1812,23 +1814,25 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.setFont('helvetica','bold');doc.text('Date:',112,y);doc.setFont('helvetica','normal');doc.text(fmtDate(d.date)||'—',124,y);
   doc.setFontSize(8);doc.setTextColor(90);doc.text('Please quote the PO number on all delivery dockets and invoices. All prices exclude GST unless stated.',14,Math.min(y+10,287));
   return doc.output('blob')}
+function msPoOrderId(m,no){return (m.poLog||[]).filter(r=>r.no===no&&r.orderId&&S.orders[r.orderId]).map(r=>r.orderId).pop()||null}
 async function msPo(id){
   const m=S.msods[id];if(!m)return;const ch=msChosen(m);if(ch<0)return;const po=m.po=m.po||{};
   const raisedBy=poRaiser(po);if(!raisedBy){UI.msPoMsg='Enter who is raising this order under “Raised by”.';render();setTimeout(()=>document.getElementById(('mspo|'+id+'|printName').replace(/\|/g,'_'))?.focus?.(),30);return}
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   const L=poLines(m);const no=String(po.no??(m.hdr?.orderNo||'')).trim();const date=po.date||todayISO();
-  const d={supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),date,sub:!!po.sub,jobNo:m.hdr?.jobNo||S.info.job||'',project:m.hdr?.jobName||PROJ[PID]?.name||S.info.name||'',poNo:no,lines:L,freight:num(po.freight),raisedBy};
+  let oid=msPoOrderId(m,no);const prev=oid&&S.orders[oid].poFile;const rev=prev&&prev.id?(num(prev.rev)+1):0;
+  const d={supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),date,sub:!!po.sub,jobNo:m.hdr?.jobNo||S.info.job||'',project:m.hdr?.jobName||PROJ[PID]?.name||S.info.name||'',poNo:no,lines:L,freight:num(po.freight),raisedBy,rev};
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
-  const fname=`${(no||'PO').replace(/[^\w.-]+/g,'_')} - ${d.supplier.replace(/[^\w.-]+/g,'_')}.pdf`;
+  const fname=`${(no||'PO').replace(/[^\w.-]+/g,'_')}${rev?' Rev '+rev:''} - ${d.supplier.replace(/[^\w.-]+/g,'_')}.pdf`;
   UI.msPoMsg='';UI.msPoBusy=true;render();undoRecord();
   const total=L.reduce((a,x)=>a+x.qty*x.rate,0)+d.freight;
   const amt=Math.round(total*100)/100;const desc=d.supplier+' – '+msName(m)+(m.title?' ('+m.title+')':'');
-  let oid=(m.poLog||[]).filter(r=>r.no===no&&r.orderId&&S.orders[r.orderId]).map(r=>r.orderId).pop();
   if(oid){Object.assign(S.orders[oid],{poNo:no,supplier:desc,po:String(amt),date})}else{oid=uid('o');S.orders[oid]={created:Date.now(),inv:[],retention:false,date,poNo:no,supplier:desc,po:String(amt),fromMsod:id}}
   const o=S.orders[oid];o.raisedBy=raisedBy;let saved=false;
-  if(assets){try{const old=o.poFile;const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now()};saved=true;if(old&&old.id&&old.id!==r.id)assets.delete(old.id).catch(()=>{})}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
+  if(assets){try{const old=o.poFile;const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});
+    if(old&&old.id&&old.id!==r.id)o.poHist=[...(o.poHist||[]),old];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};saved=true}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
   persist('orders/'+oid);
-  m.poLog=[...(m.poLog||[]),{no,date,supplier:d.supplier,total:amt,lines:L.length,orderId:oid,by:raisedBy,pdf:saved}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}persist('msod/'+id);
+  m.poLog=[...(m.poLog||[]),{no,date,supplier:d.supplier,total:amt,lines:L.length,orderId:oid,by:raisedBy,pdf:saved,rev}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}persist('msod/'+id);
   UI.msPoBusy=false;UI.msPoDone=oid;render();
   if(!saved&&downloads){try{await downloads.save({filename:fname,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the purchase order')}}
 }
