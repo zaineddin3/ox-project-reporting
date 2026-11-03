@@ -3,5 +3,5 @@
 // The anon key is safe to publish: the database rules only let signed-in, invited users read or write.
 window.OX_CONFIG = {
   supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_ANON_KEY"
+  supabaseAnonKey: "sb_publishable_SFzyuMEhTpfPynAxt_Jtgw_tOezgQlz"
 };
