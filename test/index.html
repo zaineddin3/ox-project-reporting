@@ -337,6 +337,7 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .hcmp-tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);transform:translateX(-1px)}
 .hcmp-v{text-align:right;font-size:13px}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
+.opo{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}.opo.ord-dropping{outline:2px dashed var(--accent);outline-offset:2px}.opo-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.opo-t td{vertical-align:middle;background:var(--surface)!important}
 .pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
 .pdfv{position:fixed;inset:0;z-index:120;background:rgba(20,28,36,.72);display:flex;flex-direction:column}
 .pdfv-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line)}
@@ -1254,6 +1255,7 @@ function delBtn(kind,id,extra='',label=''){const a=UI.armed===kind+id+extra;retu
 const matKey=s=>String(s||'').toLowerCase().replace(/\(.*?\)/g,' ').replace(/[^a-z0-9.²]+/g,' ').replace(/\s+/g,' ').trim();
 function priceIndex(){const ix={};const add=(k,e)=>{if(!k)return;(ix[k]=ix[k]||[]).push(e)};
   for(const [oid,o] of Object.entries(S.orders)){
+    if(Array.isArray(o.lines))for(const L of o.lines)if(num(L.rate)&&L.desc)add(matKey(L.desc),{rate:num(L.rate),date:o.date||'',oid,po:1,src:'PO '+(o.poNo||'')});
     if(o.fromMsod&&S.msods&&S.msods[o.fromMsod]){try{for(const L of poLines(S.msods[o.fromMsod]))if(L.rate)add(matKey(L.desc),{rate:num(L.rate),date:o.date||'',oid,po:1,src:'PO '+(o.poNo||'')})}catch(e){}}
     (o.inv||[]).forEach((iv,j)=>invLines(iv).forEach((l,li)=>{if(num(l.rate))add(matKey(l.mat),{rate:num(l.rate),date:iv.date||'',oid,j,li,src:(o.poNo?o.poNo+' · ':'')+(iv.ref?'inv '+iv.ref:'invoice')})}))}
   return ix}
@@ -1266,6 +1268,69 @@ function priceFlag(c){if(!c||c.same)return '';const t=`${c.up?'▲':'▼'} ${c.u
   return `<div class="pchg ${c.up?'up':'dn'}" title="Was ${money2(c.ref.rate)} on ${esc(c.ref.src)}${c.ref.date?' · '+esc(fmtDate(c.ref.date)):''}">${t}<span> vs ${money2(c.ref.rate)} ${c.ref.po?'on the PO':'last time'}</span></div>`}
 function invPriceSum(ix,oid,j,iv){let up=0,dn=0;invLines(iv).forEach((l,li)=>{const c=priceCheck(ix,oid,j,li,l,iv.date||'');if(c&&!c.same){if(c.up)up++;else dn++}});return {up,dn}}
 const priceTags=P=>(P.up?`<span class="tag bad" title="Unit prices higher than the PO or last purchase">▲ ${P.up} dearer</span>`:'')+(P.dn?`<span class="tag good" title="Unit prices lower than the PO or last purchase">▼ ${P.dn} cheaper</span>`:'');
+/* ---------- purchase orders raised from Orders & invoices ---------- */
+function ordNextPoNo(){const job=(S.info.job||'').trim();const pre=(job?job+'-':'')+'PO-';let n=0;
+  for(const o of Object.values(S.orders)){const p=String(o&&o.poNo||'');if(p.startsWith(pre)){const v=parseInt(p.slice(pre.length),10);if(v>n)n=v}}
+  return pre+String(n+1).padStart(3,'0')}
+const ordPoLines=o=>(o.lines||[]).filter(l=>String(l.desc||'').trim()||num(l.qty)).map(l=>({desc:String(l.desc||'').trim(),unit:String(l.unit||'').trim(),qty:num(l.qty),rate:num(l.rate)}));
+function ordPoSum(o){const L=ordPoLines(o);const sub=L.reduce((a,x)=>a+x.qty*x.rate,0);const fr=num(o.poMeta&&o.poMeta.freight);return {L,sub,fr,ex:sub+fr}}
+function ordPoTotals(id){const o=S.orders[id];const el=document.getElementById('opo_tot_'+id);if(!o||!el)return;const T=ordPoSum(o);
+  el.innerHTML=`Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b>`;
+  (o.lines||[]).forEach((l,i)=>{const c=document.getElementById('opo_lt_'+id+'_'+i);if(c)c.textContent=num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''})}
+function ordPoPanel(id,o){
+  const ms=o.fromMsod&&S.msods[o.fromMsod];const pf=o.poFile&&o.poFile.id?o.poFile:null;
+  if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MSOD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MSOD</button></div></div>`;
+  const pm=o.poMeta||{};const k='opm|'+id+'|';const T=ordPoSum(o);const lines=o.lines||[];
+  const raiser=pm.printName??(window.__me?(window.__me.name||window.__me.email):'');
+  return `<div class="opo opo-drop" data-opo="${id}"><div class="opo-h"><b>Purchase order${pf?` · <span class="tag">Rev ${num(pf.rev)}</span>`:''}</b><span class="hint">Type the line items, or drop an Excel sheet (.xlsx or .csv) here with description, qty, unit and rate columns. The PO number and date are in the row above; leave the PO number blank to number it automatically.</span></div>
+    <div class="tw" style="margin:6px 0"><table class="opo-t"><thead><tr><th>#</th><th style="min-width:280px">Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate (ex GST)</th><th class="n">Total</th><th></th></tr></thead><tbody>
+    ${lines.map((l,i)=>{const kl='opl|'+id+'|'+i+'|';return `<tr><td class="hint">${i+1}</td><td>${inp(kl+'desc',l.desc||'',{label:'Description line '+(i+1),ph:'e.g. Double GPO white'})}</td><td style="width:90px">${inp(kl+'qty',l.qty??'',{num:1,label:'Qty line '+(i+1),ph:'0'})}</td><td style="width:80px">${inp(kl+'unit',l.unit||'',{label:'Unit line '+(i+1),ph:'ea'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate??'',{num:1,label:'Rate line '+(i+1),ph:'0'})}</div></td><td class="n money" id="opo_lt_${id}_${i}">${num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''}</td><td>${delBtn('opl',id,String(i),'Remove')}</td></tr>`}).join('')||`<tr><td colspan="7" class="hint">No lines yet. Add a line or drop an Excel sheet here.</td></tr>`}
+    </tbody></table></div>
+    <div class="to-row" style="flex-wrap:wrap;gap:8px"><button class="btn" data-act="opl-add" data-id="${id}">+ Add line</button><label class="btn" style="cursor:pointer">Import Excel<input type="file" accept=".xlsx,.xls,.csv" data-opoxl="${id}" hidden></label>${UI.opoMsg&&UI.opoMsg.id===id?`<span class="hint ${UI.opoMsg.err?'neg':''}">${esc(UI.opoMsg.t)}</span>`:''}</div>
+    <div class="form" style="margin-top:8px"><label>Sub contract${sel(k+'sub',pm.sub?'1':'',[['','No'],['1','Yes']],{label:'Sub contract'})}</label>
+      <label>Freight (ex GST)<div class="cur">${inp(k+'freight',pm.freight??'',{num:1,label:'Freight',ph:'0'})}</div></label>
+      <label>Raised by${inp(k+'printName',raiser,{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
+      <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label></div>
+    <p class="hint" id="opo_tot_${id}" style="margin:8px 0">Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b></p>
+    <div class="to-row"><button class="btn primary" data-act="opo-raise" data-id="${id}" ${T.L.length&&!UI.opoBusy?'':'disabled'}>${UI.opoBusy===id?'Raising…':pf?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'}</button>
+      ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
+}
+async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMeta=o.poMeta||{};
+  const say=(t,err)=>{UI.opoMsg={id,t,err};render()};
+  const raisedBy=String(pm.printName??(window.__me?(window.__me.name||window.__me.email):'')).trim();if(!raisedBy)return say('Enter who is raising this order under “Raised by”.',1);
+  const T=ordPoSum(o);if(!T.L.length)return say('Add at least one line first.',1);
+  if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  undoRecord();let no=String(o.poNo||'').trim();if(!no){no=ordNextPoNo();o.poNo=no}const date=o.date||todayISO();if(!o.date)o.date=date;
+  const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';
+  const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',poNo:no,lines:T.L,freight:T.fr,raisedBy,rev};
+  let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
+  const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
+  UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
+  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};saved=true}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
+  persist('orders/'+id);UI.opoBusy=null;UI.opoMsg={id,t:saved?`Raised PO ${no} Rev ${rev} for ${money2(amt)} ex GST.`:'PDF downloaded, but it could not be saved on the order here.'};render();
+  if(!saved&&downloads){try{await downloads.save({filename:fname,data:blob})}catch(e){}}}
+function poParseRows(rows){const clean=v=>v==null?'':String(v).trim();const isNum=v=>v!==''&&!isNaN(num(String(v).replace(/[$,\s]/g,'')));const n=v=>num(String(v).replace(/[$,\s]/g,''));
+  let hi=-1,col={};for(let r=0;r<Math.min(rows.length,20);r++){const R=(rows[r]||[]).map(x=>clean(x).toLowerCase());const c={};
+    const di=R.findIndex(h=>/desc|particular/.test(h)),ii=R.findIndex(h=>/item|material|product/.test(h)&&!/code|no\.?$|number|#/.test(h));if(di>=0)c.desc=di;else if(ii>=0)c.desc=ii;
+    R.forEach((h,i)=>{if(!h||i===c.desc)return;if(c.qty==null&&/^(qty|quantity|quan|no\. ?of|count)/.test(h))c.qty=i;else if(c.unit==null&&/^(unit|uom|units)$/.test(h))c.unit=i;else if(c.rate==null&&/rate|price|cost/.test(h)&&!/total|ext|amount|line/.test(h))c.rate=i});
+    if(c.desc!=null&&(c.qty!=null||c.rate!=null)){hi=r;col=c;break}}
+  const out=[];const body=hi>=0?rows.slice(hi+1):rows;
+  for(const R0 of body){const R=(R0||[]).map(clean);if(!R.some(x=>x))continue;let L;
+    if(hi>=0)L={desc:R[col.desc]||'',qty:col.qty!=null?R[col.qty]:'',unit:col.unit!=null?R[col.unit]:'',rate:col.rate!=null?R[col.rate]:''};
+    else{const t=R.filter(x=>x!=='');const di=R.findIndex(x=>x&&!isNum(x));if(di<0)continue;const nums=R.slice(di+1).filter(x=>x!=='');const unit=nums.find(x=>!isNum(x))||'';const nn=nums.filter(isNum);L={desc:R[di],qty:nn[0]??'',unit,rate:nn[1]??''}}
+    if(!L.desc||/^(sub ?)?total|^gst|^freight/i.test(L.desc))continue;
+    out.push({desc:L.desc,qty:isNum(L.qty)?String(n(L.qty)):'',unit:L.unit||'',rate:isNum(L.rate)?String(n(L.rate)):''})}
+  return {lines:out,matched:hi>=0}}
+async function ordPoImport(id,file){const o=S.orders[id];if(!o||!file)return;const name=file.name||'file';UI.open[id]=true;UI.opoMsg={id,t:'Reading '+name+'…'};render();
+  try{let rows=[];
+    if(/\.csv$/i.test(name)||file.type==='text/csv'){const txt=await file.text();rows=txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===','){out.push(cur);cur=''}else cur+=c}out.push(cur);return out})}
+    else{if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');const wb=new window.ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+      const ws=wb.worksheets.find(w=>w.actualRowCount>0)||wb.worksheets[0];ws.eachRow({includeEmpty:false},r=>{const a=[];r.eachCell({includeEmpty:true},(c,ci)=>{a[ci-1]=llogCell(c.value)});rows.push(a)})}
+    const P=poParseRows(rows);if(!P.lines.length){UI.opoMsg={id,err:1,t:'No line items were found in '+name+'. Use columns for description, qty, unit and rate.'};render();return}
+    undoRecord();o.lines=[...(o.lines||[]).filter(l=>String(l.desc||'').trim()||num(l.qty)),...P.lines];persist('orders/'+id);
+    UI.opoMsg={id,t:`Added ${P.lines.length} line${P.lines.length===1?'':'s'} from ${name}${P.matched?'':' (no headings found, so columns were read as description, qty, unit, rate)'}. Check them, then raise the PO.`};render()}
+  catch(e){console.error(e);UI.opoMsg={id,err:1,t:'Could not read '+name+'. Use an .xlsx or .csv file.'};render()}}
+document.addEventListener('change',e=>{const id=e.target.dataset&&e.target.dataset.opoxl;if(!id)return;const f=e.target.files&&e.target.files[0];if(f)ordPoImport(id,f);e.target.value=''});
 V.orders=()=>{
   const c=calc();const PX=priceIndex();
   const rows=Object.entries(S.orders).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
@@ -1279,7 +1344,7 @@ V.orders=()=>{
     <td style="width:120px">${inp(k+'po',o.po,{num:1,label:'PO amount'})}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n">${po?pct((po-inv)/po,0):'—'}</td>
     <td style="width:140px">${inp(k+'anticipated',o.anticipated,{num:1,label:'Anticipated extra'})}${po-inv<0&&num(o.anticipated)?`<div class="hint" style="font-size:11.5px;text-align:right;margin-top:2px">Counts as <b class="money">${money(extraAdj(o))}</b><br>(less ${money(inv-po)} over PO)</div>`:''}</td>
     <td style="text-align:center"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention"></td><td>${delBtn('ord',id)}</td></tr>
-    ${open?`<tr class="sel ord-drop" data-ord="${id}"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">
+    ${open?`<tr class="sel ord-drop" data-ord="${id}"><td></td><td colspan="10"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">${ordPoPanel(id,o)}<div class="hint" style="margin-top:4px"><b>Invoices</b></div>
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
         return `<div class="invbox inv-drop" data-inv="${id}|${j}"><div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center">${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
           <span class="to-row" style="gap:4px;flex-wrap:nowrap"><button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button>${priceTags(invPriceSum(PX,id,j,x))}</span><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}</span>${delBtn('inv',id,String(j))}</div>
@@ -1824,11 +1889,12 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.setFontSize(9.5);const meta=[['Supplier',d.supplier||'—'],['Date',fmtDate(d.date)||'—'],['Job no.',d.jobNo||'—'],['Project',d.project||'—'],['Order type',d.sub?'Sub contract':'Materials'],['Raised by',d.raisedBy||'—'],['Revision','Rev '+num(d.rev)+(num(d.rev)?'':' (original)')],['Revision date',fmtDate(d.date)||'—']];
   let y=55;meta.forEach(([k,v],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(k+':',x,y);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(v),64)[0],x+28,y)});
   y+=9;const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const body=d.lines.map((L,i)=>[String(i+1),L.desc||'',Number(L.qty).toLocaleString('en-AU',{maximumFractionDigits:2}),L.rate?m2(L.rate):'—',m2(L.qty*L.rate)]);
-  doc.autoTable({startY:y,head:[['#','Description','Qty','Rate (ex GST)','Total (ex GST)']],body:body.length?body:[['','—','','','']],theme:'grid',
+  const hu=d.lines.some(L=>L.unit);const body=d.lines.map((L,i)=>{const r=[String(i+1),L.desc||'',Number(L.qty).toLocaleString('en-AU',{maximumFractionDigits:2})];if(hu)r.push(L.unit||'');r.push(L.rate?m2(L.rate):'—',m2(L.qty*L.rate));return r});
+  const hd=hu?['#','Description','Qty','Unit','Rate (ex GST)','Total (ex GST)']:['#','Description','Qty','Rate (ex GST)','Total (ex GST)'];
+  const cs=hu?{0:{cellWidth:10},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:16},3:{cellWidth:16},4:{halign:'right',cellWidth:28},5:{halign:'right',cellWidth:30}}:{0:{cellWidth:10},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:20},3:{halign:'right',cellWidth:28},4:{halign:'right',cellWidth:30}};
+  doc.autoTable({startY:y,head:[hd],body:body.length?body:[hd.map((_,i)=>i===1?'—':'')],theme:'grid',
     styles:{fontSize:9,cellPadding:2,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:10},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:20},3:{halign:'right',cellWidth:28},4:{halign:'right',cellWidth:30}},
-    didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=2)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
+    columnStyles:cs,didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=2&&!(hu&&dt.column.index===3))dt.cell.styles.halign='right'},margin:{left:14,right:14}});
   y=doc.lastAutoTable.finalY+6;if(y>245){doc.addPage();y=20}
   const sub=d.lines.reduce((a,L)=>a+L.qty*L.rate,0),ex=sub+num(d.freight);
   doc.autoTable({startY:y,body:[['Materials',m2(sub)],['Freight',m2(d.freight)],['Total (ex GST)',m2(ex)],['GST (10%)',m2(ex/10)]],foot:[['Total (inc GST)',m2(ex*1.1)]],theme:'plain',
@@ -3241,6 +3307,7 @@ function ordMark(el){document.querySelectorAll('.ord-dropping').forEach(x=>{if(x
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return;e.preventDefault();const t=ordDropTarget(e);ordMark(t);try{e.dataTransfer.dropEffect=t?'copy':'none'}catch(x){}});
 viewEl.addEventListener('dragleave',e=>{if(UI.view!=='orders')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget))ordMark(null)});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return;e.preventDefault();ordMark(null);const t=ordDropTarget(e);
+  const xl=[...e.dataTransfer.files].find(f=>/\.(xlsx|xls|csv)$/i.test(f.name));if(xl){const oid=t&&(t.dataset.ord||(t.dataset.inv||'').split('|')[0]);if(!oid){setSave('error','Drop the Excel sheet onto the order it belongs to');return}ordPoImport(oid,xl);return}
   const fs=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));
   if(!fs.length){setSave('error','Drop invoice PDFs');return}
   if(!t){setSave('error','Drop the invoice onto the order it belongs to');return}
@@ -3274,6 +3341,8 @@ function apply(parts,v){
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;if(c==='mat')delete l.matFromParts;persist('variations/'+a)}return}
   if(kind==='dwg'){if(S.dwgs[a]){S.dwgs[a][b]=v;persist('drawings/'+a)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a)}return}
+  if(kind==='opl'){const o=S.orders[a];const l=o&&o.lines&&o.lines[+b];if(l){l[c]=v;persist('orders/'+a);ordPoTotals(a)}return}
+  if(kind==='opm'){const o=S.orders[a];if(o){o.poMeta=o.poMeta||{};o.poMeta[b]=v;persist('orders/'+a);ordPoTotals(a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
   if(kind==='inv'){const iv=S.orders[a]?.inv?.[+b];if(iv&&((c==='amount'&&iv.amountFromPdf)||(c==='ref'&&iv.refFromPdf)))return;const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
   if(kind.startsWith('ms')){const m=S.msods[a];if(!m)return;
@@ -3437,6 +3506,9 @@ document.addEventListener('click',async e=>{
   if(act==='add-itp'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.itps.push({id:uid('i'),name:''});persist('apartments/'+t);render();return}
   if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;collapseAllTasks('labour');render();return}
   if(act==='toggle'){UI.open[btn.dataset.id]=!UI.open[btn.dataset.id];render();return}
+  if(act==='opl-add'){const o=S.orders[btn.dataset.id];if(!o)return;undoRecord();o.lines=[...(o.lines||[]),{desc:'',qty:'',unit:'',rate:''}];persist('orders/'+btn.dataset.id);render();setTimeout(()=>document.getElementById(('opl|'+btn.dataset.id+'|'+(o.lines.length-1)+'|desc').replace(/\|/g,'_'))?.focus(),30);return}
+  if(act==='opo-raise'){ordPoRaise(btn.dataset.id);return}
+  if(act==='opo-msod'){const o=S.orders[btn.dataset.id];if(o&&o.fromMsod){UI.ms=o.fromMsod;UI.mst='items';UI.view='msod';render()}return}
   if(act==='yn'){const k=btn.dataset.k;const cur=(S.info.cs||{})[k]?.yn;apply(['cs',k,'yn'],cur===btn.dataset.v?'':btn.dataset.v);render();return}
   if(act==='vopen'){const id=btn.dataset.v;UI.vrev=null;UI.vopen=UI.vopen===id?null:id;const x=S.vars[id];if(x&&!x.bu){x.bu=VBU_DEF();persist('variations/'+id)}render();if(UI.vopen)setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
   if(act==='vsub-add'){const x=S.vars[btn.dataset.v];const l=x?.bu?.lines?.[+btn.dataset.x];if(!l)return;l.subs=l.subs||[];
@@ -3576,6 +3648,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='pch'&&claimDoc().hist[+x]&&claimDoc().hist[+x].wf){undoRecord();pcDelete(+x)}
     else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
+    else if(kind==='opl'){const o=S.orders[id];if(o&&o.lines){o.lines.splice(+x,1);persist('orders/'+id)}}
     else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
     else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
     else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
