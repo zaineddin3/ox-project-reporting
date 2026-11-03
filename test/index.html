@@ -337,6 +337,7 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .hcmp-tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);transform:translateX(-1px)}
 .hcmp-v{text-align:right;font-size:13px}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
+.mssubmit .v{font-size:18px;line-height:1.25;overflow-wrap:anywhere}.mssubmit .btn{width:100%}
 .login{position:fixed;inset:0;z-index:100;background:var(--rail);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .login-card{background:var(--surface);color:var(--ink);border-radius:12px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
 .login-card .brand .t{color:var(--ink)}.login-card .brand .s{color:var(--muted);opacity:1}
@@ -1780,18 +1781,33 @@ function msPoPanel(id,m,C){
       <tr><td><b>GST-ex total</b></td><td class="n money"><b>${money2(ex)}</b></td></tr><tr><td>GST</td><td class="n money">${money2(ex/10)}</td></tr><tr><td>GST-inc total</td><td class="n money">${money2(ex*1.1)}</td></tr></tbody></table>
     ${raised.length?`<p class="hint" style="margin:12px 0 4px"><b>Raised</b></p><div class="hint">${raised.slice(0,8).map(r=>`${fmtDate(r.date)} · PO ${esc(r.no||'—')} · ${esc(r.supplier)} · ${money2(r.total)} ex GST · ${r.lines} lines${r.orderId&&S.orders[r.orderId]?' · <button class="rowlink" data-act="nav" data-v="orders" style="font-weight:500;color:var(--accent)">in Orders & invoices</button>':''}`).join('<br>')}</div>`:''}</div>`;
 }
+function msNextPoNo(){const job=(S.info.job||'').trim();const pre=(job?job+'-':'')+'PO-';let n=0;
+  for(const o of Object.values(S.orders)){const p=String(o&&o.poNo||'');if(p.startsWith(pre)){const v=parseInt(p.slice(pre.length),10);if(v>n)n=v}}
+  return pre+String(n+1).padStart(3,'0')}
+function msPoOrder(id,m,{no,date,supplier,freight,L}){
+  const total=L.reduce((a,x)=>a+x.qty*x.rate,0)+num(freight);
+  const amt=Math.round(total*100)/100;const desc=supplier+' – '+msName(m)+(m.title?' ('+m.title+')':'');
+  let oid=(m.poLog||[]).filter(r=>r.no===no&&r.orderId&&S.orders[r.orderId]).map(r=>r.orderId).pop();
+  if(oid){Object.assign(S.orders[oid],{poNo:no,supplier:desc,po:String(amt),date})}else{oid=uid('o');S.orders[oid]={created:Date.now(),inv:[],retention:false,date,poNo:no,supplier:desc,po:String(amt),fromMsod:id}}
+  persist('orders/'+oid);
+  m.poLog=[...(m.poLog||[]),{no,date,supplier,total:amt,lines:L.length,orderId:oid}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}
+  m.submitted={at:Date.now(),date,no,orderId:oid,total:amt,supplier};persist('msod/'+id);return oid}
+function msSubmit(id){const m=S.msods[id];if(!m)return;const ch=msChosen(m);if(ch<0){UI.msSubMsg='Choose a supplier in the item schedule before submitting.';UI.armed=null;render();return}
+  const L=poLines(m);if(!L.length){UI.msSubMsg='Add quantities to the item schedule before submitting.';UI.armed=null;render();return}
+  undoRecord();const po=m.po=m.po||{};let no=String(po.no??(m.hdr?.orderNo||'')).trim();if(!no){no=msNextPoNo();po.no=no}
+  const date=po.date||todayISO();msPoOrder(id,m,{no,date,supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),freight:po.freight,L});
+  UI.msSubMsg='';UI.armed=null;render()}
+function msSubmitTile(id,m,C){const sb=m.submitted;const ok=sb&&sb.orderId&&S.orders[sb.orderId];const armed=UI.armed==='mssub'+id;
+  const btn=`<button class="btn ${armed?'armed':'primary'}" data-act="ms-submit" style="margin-top:6px;justify-content:center">${armed?'Confirm: '+(ok?'update PO '+esc(sb.no):'create the PO'):ok?'Re-submit':'Submit'}</button>`;
+  return `<div class="kpi mssubmit"><span class="l">Submit</span>${ok?`<span class="v">PO ${esc(sb.no||'—')}</span><span class="d">Submitted ${fmtDate(sb.date||todayISO())} · ${money(sb.total)} · <button class="rowlink" data-act="nav" data-v="orders" style="font-weight:600;color:var(--accent)">View in Orders & invoices</button></span>`
+    :`<span class="d">${UI.msSubMsg?`<span class="neg">${esc(UI.msSubMsg)}</span>`:C.ch<0?'Choose a supplier, then submit to create the purchase order.':'Creates a purchase order for '+esc(msSupName(m,C.ch))+' in Orders & invoices.'}</span>`}${btn}</div>`}
 async function msPo(id){
   const m=S.msods[id];if(!m)return;const ch=msChosen(m);if(ch<0)return;const po=m.po||{};
   try{if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')}catch(e){setSave('error','Excel tool did not load. Check your connection and try again.');return}
   const L=poLines(m);const no=(po.no??(m.hdr?.orderNo||'')).trim();const date=po.date||todayISO();
   const d={supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),date,sub:!!po.sub,jobNo:m.hdr?.jobNo||S.info.job||'',project:m.hdr?.jobName||PROJ[PID]?.name||S.info.name||'',poNo:no,lines:L,freight:num(po.freight),printName:po.printName||''};
   let buf;try{const bin=atob(PO_TPL_B64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);buf=await poBuild(window.ExcelJS,u.buffer,d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
-  const total=L.reduce((a,x)=>a+x.qty*x.rate,0)+d.freight;
-  const amt=Math.round(total*100)/100;const desc=d.supplier+' – '+msName(m)+(m.title?' ('+m.title+')':'');
-  let oid=(m.poLog||[]).filter(r=>r.no===no&&r.orderId&&S.orders[r.orderId]).map(r=>r.orderId).pop();
-  if(oid){Object.assign(S.orders[oid],{poNo:no,supplier:desc,po:String(amt),date})}else{oid=uid('o');S.orders[oid]={created:Date.now(),inv:[],retention:false,date,poNo:no,supplier:desc,po:String(amt),fromMsod:id}}
-  persist('orders/'+oid);
-  m.poLog=[...(m.poLog||[]),{no,date,supplier:d.supplier,total:amt,lines:L.length,orderId:oid}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}persist('msod/'+id);render();
+  msPoOrder(id,m,{no,date,supplier:d.supplier,freight:d.freight,L});render();
   const name=`${(no||'PO').replace(/[^\w.-]+/g,'_')} - ${d.supplier.replace(/[^\w.-]+/g,'_')}.xlsx`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the purchase order')}
@@ -1816,7 +1832,7 @@ V.msod=()=>{
   <div class="kpis"><div class="kpi"><span class="l">${esc(MS_LABEL[m.type]||'')}</span><span class="v">${m.items.length} items</span><span class="d">${esc(m.title||'Add what this MSOD is for under Details')}</span></div>
     <div class="kpi"><span class="l">Proposed order value</span><span class="v">${C.ch<0?'—':money(C.proposed)}</span><span class="d">${C.ch<0?'Choose a supplier in the item schedule':esc(msSupName(m,C.ch))}</span></div>
     <div class="kpi"><span class="l">Budget</span><span class="v">${money(C.bud)}</span><span class="d ${C.gain<0?'neg':''}">${C.bud?(C.ch<0?'Choose a supplier to compare':(C.gain<0?money(-C.gain)+' over':money(C.gain)+' under')+' ('+pct(C.gp)+')'):'Add the budget in the item schedule'}</span></div>
-    <div class="kpi"><span class="l">Delivered</span><span class="v">${pct(C.pctDel)}</span><span class="d">${money(C.dval)} across ${m.dockets.length} deliver${m.dockets.length===1?'y':'ies'}</span></div></div>
+    <div class="kpi"><span class="l">Delivered</span><span class="v">${pct(C.pctDel)}</span><span class="d">${money(C.dval)} across ${m.dockets.length} deliver${m.dockets.length===1?'y':'ies'}</span></div>${msSubmitTile(id,m,C)}</div>
   <div class="seg" role="group" aria-label="MSOD section">${tabs.map(([k,l])=>`<button data-act="ms-tab" data-v="${k}" aria-pressed="${tab===k}">${l}</button>`).join('')}</div>
   ${body}</div>`;
 };
@@ -3276,7 +3292,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-act]');i
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
-  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del')UI.armed=null;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del'&&act!=='ms-submit')UI.armed=null;
   if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
@@ -3310,6 +3326,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
     if(act==='ms-add-note'){const d=m.dockets[UI.msd];if(!d)return;const L=msNotes(d);delete d.notes;L.push({id:uid('n'),date:todayISO(),text:''});persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('msnt_'+id+'_'+UI.msd+'_'+(L.length-1)+'_text');if(el)el.focus()},60);return}
     if(act==='ms-po'){msPo(id);return}
+    if(act==='ms-submit'){if(UI.armed!=='mssub'+id){UI.armed='mssub'+id;UI.msSubMsg='';render();return}msSubmit(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-choose'){const v=btn.dataset.v;m.chosen=String(m.chosen)===v?'':v;persist('msod/'+id);render();return}
   }
