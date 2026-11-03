@@ -320,6 +320,12 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .hcmp-v{text-align:right;font-size:13px}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
 .pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
+.pdfv{position:fixed;inset:0;z-index:120;background:rgba(20,28,36,.72);display:flex;flex-direction:column}
+.pdfv-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line)}
+.pdfv-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50vw}
+.pdfv-body{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 12px 40px}
+.pdfv-body canvas{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);max-width:100%;height:auto!important}
+.pdfv-msg{color:#fff;margin-top:40px}
 .login{position:fixed;inset:0;z-index:100;background:var(--rail);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .login-card{background:var(--surface);color:var(--ink);border-radius:12px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
 .login-card .brand .t{color:var(--ink)}.login-card .brand .s{color:var(--muted);opacity:1}
@@ -1123,6 +1129,25 @@ async function readPdf(blob){
   if(text.replace(/--- page \d+ ---/g,'').trim().length<80){for(const pg of pages){const vp=pg.getViewport({scale:1.6});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;images.push(await new Promise(r=>c.toBlob(r,'image/png')))}}
   return {text:text.slice(0,60000),images};
 }
+/* in-app PDF viewer: works in Claude, the website and the desktop app */
+let PDFV=null;
+function pdfViewClose(){if(PDFV){PDFV.closed=true;PDFV.el.remove();PDFV=null}}
+async function pdfView(id,name){pdfViewClose();
+  const el=document.createElement('div');el.className='pdfv';el.setAttribute('role','dialog');el.setAttribute('aria-label',name||'Document');
+  el.innerHTML=`<div class="pdfv-bar"><b class="pdfv-t"></b><span class="hint pdfv-n"></span><span style="flex:1"></span><button class="btn" type="button" data-pv="dl" disabled>Download</button><button class="btn primary" type="button" data-pv="x">Close</button></div><div class="pdfv-body"><p class="hint pdfv-msg">Opening…</p></div>`;
+  el.querySelector('.pdfv-t').textContent=name||'Document';document.body.appendChild(el);const me=PDFV={el,closed:false,blob:null};
+  el.addEventListener('click',async ev=>{const b=ev.target.closest('[data-pv]');if(ev.target===el||(b&&b.dataset.pv==='x')){pdfViewClose();return}
+    if(b&&b.dataset.pv==='dl'&&me.blob){let fn=name||'document.pdf';if(!/\.pdf$/i.test(fn))fn+='.pdf';try{if(downloads)await downloads.save({filename:fn,data:me.blob});else await browserDownloads.save({filename:fn,data:me.blob})}catch(err){if(!(err&&err.code==='declined'))setSave('error','Could not download the file')}}});
+  const msg=t=>{const m=el.querySelector('.pdfv-msg');if(m)m.textContent=t};
+  try{const blob=await fileBlob({id});if(me.closed)return;if(!blob)throw new Error('missing');me.blob=blob;el.querySelector('[data-pv="dl"]').disabled=false;
+    const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;if(me.closed)return;
+    el.querySelector('.pdfv-n').textContent=doc.numPages+' page'+(doc.numPages===1?'':'s');const body=el.querySelector('.pdfv-body');body.innerHTML='';
+    const W=Math.min(980,body.clientWidth-24);const dpr=Math.min(2,window.devicePixelRatio||1);
+    for(let i=1;i<=doc.numPages;i++){if(me.closed)return;const pg=await doc.getPage(i);const v1=pg.getViewport({scale:1});const sc=W/v1.width;const vp=pg.getViewport({scale:sc*dpr});
+      const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);c.style.width=Math.round(vp.width/dpr)+'px';c.style.height=Math.round(vp.height/dpr)+'px';body.appendChild(c);
+      await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
+  catch(err){console.error(err);msg(/not.?found|404|missing/i.test(String(err&&(err.message||err.statusCode||err)))?'This file couldn’t be found. It may have been removed, or was uploaded in another version of the app.':'Couldn’t open this PDF. Check your connection and try again.')}}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&PDFV)pdfViewClose()});
 async function fileBlob(f){if(!f||!f.id)return null;
   if(HOSTED&&window.__sb){const {data,error}=await window.__sb.storage.from('files').download(f.id);if(error)throw error;return data}
   const r=await fetch('/_blob/'+f.id);if(!r.ok)throw new Error('fetch '+r.status);return r.blob()}
@@ -3623,8 +3648,8 @@ document.addEventListener('change',e=>{if(e.target.id==='projsel'){const v=e.tar
 
 
 /* ---------- hosted mode (outside Claude): Supabase ---------- */
-document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.closest('a[data-file]');if(!a||!HOSTED||!window.__sb)return;e.preventDefault();
-  const w=window.oxDesktop?null:window.open('','_blank');try{const {data,error}=await window.__sb.storage.from('files').createSignedUrl(a.dataset.file,600);if(error)throw error;if(window.oxDesktop)window.oxDesktop.openExternal(data.signedUrl);else if(w)w.location=data.signedUrl;else location.href=data.signedUrl}catch(err){if(w)w.close();setSave('error','Could not open the file')}});
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[data-file]');if(!a)return;e.preventDefault();
+  let nm=a.getAttribute('title')||a.textContent||'Document';nm=nm.replace(/^View /,'');pdfView(a.dataset.file,nm)});
 function jsonMerge(a,b){if(!a||typeof a!=='object'||Array.isArray(a))a={};const o={...a};for(const k in b){const v=b[k];o[k]=(v&&typeof v==='object'&&!Array.isArray(v))?jsonMerge(a[k],v):v}return o}
 function makeSbDb(sb){
   const parent=p=>p.split('/').slice(0,-1).join('/');const T='docs';
