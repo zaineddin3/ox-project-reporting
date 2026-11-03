@@ -2200,8 +2200,12 @@ function toWire(h){
     if(a==='csv')return toCsv(d);
     if(a==='snap'){TO.snap=!TO.snap;try{localStorage.setItem('ox_tosnap',TO.snap?'1':'0')}catch(e){}if(TO.snap)toSnapPrep(d);TO.snapHit=null;toBar();toDraw();return}
     if(a==='lbl'){TO.lbl=!TO.lbl;try{localStorage.setItem('ox_tolbl',TO.lbl?'1':'0')}catch(e){}toBar();toDraw();return}
-    if(a==='am'){Object.assign(TO.auto,{m:v,name:null,tgt:'new',res:null,all:null,tpl:null,note:'',busy:''});toSide();toDraw();if(v==='label')setTimeout(()=>document.getElementById('to_aq')?.focus(),20);return}
+    if(a==='am'){Object.assign(TO.auto,{m:v,name:null,tgt:'new',res:null,all:null,tpl:null,note:'',busy:''});toSide();toDraw();if(v==='label')setTimeout(()=>document.getElementById('to_aq')?.focus(),20);if(v==='search'){Object.assign(TO.auto,{groups:null,ssel:new Set()});setTimeout(()=>document.getElementById('to_sq')?.focus(),20)}return}
     if(a==='apg'){TO.auto.pages=v;TO.auto.res=null;TO.auto.all=null;toSide();toDraw();return}
+    if(a==='sfind'){TO.auto.sq=document.getElementById('to_sq')?.value||TO.auto.sq;return toSearchText(d)}
+    if(a==='sall'||a==='snone'){const A=TO.auto;A.ssel=new Set(a==='sall'&&A.groups?A.groups.map((_,i)=>i):[]);toSearchSync();toSide();toDraw();return}
+    if(a==='sadd')return toSearchAdd(d);
+    if(a==='sclear'){Object.assign(TO.auto,{groups:null,ssel:new Set(),res:null,note:''});toSide();toDraw();return}
     if(a==='afind'){TO.auto.q=document.getElementById('to_aq')?.value||TO.auto.q;TO.auto.name=null;return toFindLabel(d)}
     if(a==='aadd')return toAutoAdd(d);
     if(a==='clrto'){if(!TO.clrArm){TO.clrArm=true;toSide();clearTimeout(TO.clrT);TO.clrT=setTimeout(()=>{TO.clrArm=false;toSide()},4000);return}TO.clrArm=false;undoRecord();d.items=[];d.marks=[];TO.item=null;TO.sel=null;TO.draft=[];TO.applied=null;Object.assign(TO.auto,{res:null,all:null,note:'Take off cleared. Use Undo if that was a mistake.'});persist('drawings/'+TO.id);toSync();return}
@@ -2235,6 +2239,10 @@ function toWire(h){
     if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum()}}
     if(k==='zname'){const z=d.zones.find(x=>x.id===id);if(z){z.name=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}
     if(k==='aq'){TO.auto.q=e.target.value;return}
+    if(k==='sq'){TO.auto.sq=e.target.value;return}
+    if(k==='sname'){TO.auto.sname=e.target.value;return}
+    if(k==='scomb'){TO.auto.scomb=e.target.checked;toSide();return}
+    if(k==='ssel'){const A=TO.auto;A.ssel=A.ssel||new Set();if(e.target.checked)A.ssel.add(+id);else A.ssel.delete(+id);toSearchSync();toSide();toDraw();return}
     if(k==='memname'){const le=toLib().find(x=>x.id===id);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
     if(k==='wopt'){TO.whole[id]=e.target.checked;toSide();return}
     if(k==='won'){const r=TO.whole.rows&&TO.whole.rows[+id];if(r){r.on=e.target.checked;const b=h.querySelector('[data-ta="wadd"]');const n=TO.whole.rows.filter(x=>x.on).length;if(b){b.textContent=`Add ${n} item${n===1?'':'s'}`;b.disabled=!n}toDraw()}return}
@@ -2252,7 +2260,7 @@ function toWire(h){
   h.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
   h.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
   h.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(!e.dataTransfer||!e.dataTransfer.files.length)return;if(z.classList.contains('to-memdrop'))return toLibLoad(e.dataTransfer.files);toSymbolFile(e.dataTransfer.files[0])});
-  h.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&/^(iname|zname|sname)\|/.test(e.target.dataset.tk||'')){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&e.target.id==='to_ratio'){e.preventDefault();h.querySelector('[data-ta="ratio"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_aq'){e.preventDefault();h.querySelector('[data-ta="afind"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_callen'){e.preventDefault();h.querySelector('[data-ta="calset"]')?.click()}});
+  h.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&/^(iname|zname|sname)\|/.test(e.target.dataset.tk||'')){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&e.target.id==='to_ratio'){e.preventDefault();h.querySelector('[data-ta="ratio"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_aq'){e.preventDefault();h.querySelector('[data-ta="afind"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_sq'){e.preventDefault();TO.auto.sq=e.target.value;h.querySelector('[data-ta="sfind"]')?.click()}if(e.key==='Enter'&&e.target.id==='to_callen'){e.preventDefault();h.querySelector('[data-ta="calset"]')?.click()}});
   h.addEventListener('pointerdown',e=>{const pe=e.target.closest('#toPage');const st=e.target.closest('#toStage');if(!st||e.button>1)return;
     if(TO.viewRev!=null&&TO.tool!=='pan')TO.tool='pan';
     TO.noClick=false;const ae=document.activeElement;if(ae&&h.contains(ae)&&ae.tagName==='INPUT')ae.blur();
@@ -2322,6 +2330,39 @@ async function toFindLabel(d){const A=TO.auto;const q=A.q.trim();if(!q){A.note='
     A.res=out.filter(c=>toAutoKeep(d,c));A.busy='';A.note=A.res.length?'':`No “${q}” labels found${toAutoZone(d)?' in this section':''}. Labels must be text in the PDF (not part of a scanned image); try “Count by symbol” instead.`}
   catch(e){console.error(e);A.busy='';A.note='Could not read the drawing text.'}
   toSide();toDraw()}
+/* search the drawing text and pick what to count */
+async function toSearchText(d){const A=TO.auto;const q=(A.sq||'').trim();if(!q){A.note='Type what to look for, e.g. B or GPO.';return toSide()}
+  A.busy='Searching the drawing text…';A.groups=null;A.res=null;A.ssel=new Set();A.note='';toSide();toDraw();
+  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];const ql=q.toLowerCase();const G=new Map();
+    const tokRe=/[A-Za-z0-9][A-Za-z0-9\-\/._]*[A-Za-z0-9]|[A-Za-z0-9]/g;
+    for(const p of pages){const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();
+      for(const t of tc.items){if(!t.str)continue;tokRe.lastIndex=0;let m;while((m=tokRe.exec(t.str))){const tok=m[0];if(!tok.toLowerCase().includes(ql))continue;
+        const L=t.str.length||1;const f=(m.index+tok.length/2)/L;const [a,b,c,dd,e,ff]=t.transform;const dl=Math.hypot(a,b)||1,ul=Math.hypot(c,dd)||1;
+        const x=e+a/dl*t.width*f+c/ul*(t.height||ul)/2,y=ff+b/dl*t.width*f+dd/ul*(t.height||ul)/2;const v=vp.convertToViewportPoint(x,y);
+        const hit={pg:p,pts:[[Math.round(v[0]*100)/100,Math.round(v[1]*100)/100]],on:true};if(!toAutoKeep(d,hit))continue;
+        const key=tok.toUpperCase();let g=G.get(key);if(!g)G.set(key,g={label:tok,hits:[]});g.hits.push(hit)}}}
+    A.groups=[...G.values()].sort((a,b)=>b.hits.length-a.hits.length||a.label.localeCompare(b.label,undefined,{numeric:true})).slice(0,300);
+    A.busy='';A.note=A.groups.length?'':`Nothing matching “${q}” found${toAutoZone(d)?' in this section':''}. Search only finds text in the PDF (not scanned images); try “Count symbol” instead.`}
+  catch(e){console.error(e);A.busy='';A.note='Could not read the drawing text.'}
+  toSide();toDraw()}
+function toSearchSync(){const A=TO.auto;A.res=A.groups?[...A.ssel].sort((a,b)=>a-b).flatMap(i=>A.groups[i]?A.groups[i].hits:[]):null;if(A.res&&!A.res.length)A.res=null}
+function toSearchAdd(d){const A=TO.auto;if(!A.groups||!A.ssel.size)return;undoRecord();let add=0,skip=0,items=0;const sel=[...A.ssel].sort((a,b)=>a-b).map(i=>A.groups[i]).filter(Boolean);
+  const dup=(it,c)=>d.marks.some(m=>m.it===it.id&&m.pg===c.pg&&Math.hypot(m.pts[0][0]-c.pts[0][0],m.pts[0][1]-c.pts[0][1])<4);
+  const mk=(name,label)=>{let it=label?d.items.find(i=>i.type==='count'&&i.how&&i.how.m==='label'&&String(i.how.q).toUpperCase()===label.toUpperCase()):null;
+    if(!it){it={id:uid('i'),name,type:'count',color:TO_COLORS[d.items.length%TO_COLORS.length],src:label?'Search count of “'+label+'”':'Search count of “'+(A.sq||'').trim()+'”'};if(label){it.label=label;it.how={m:'label',q:label,cs:false}}d.items.push(it);items++}return it};
+  if(A.scomb){const it=mk((A.sname||'').trim()||((A.sq||'').trim()+' (combined)'),null);for(const g of sel)for(const c of g.hits){if(!c.on)continue;if(dup(it,c)){skip++;continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'search'});add++}TO.item=it.id}
+  else for(const g of sel){const it=mk(g.label,g.label);for(const c of g.hits){if(!c.on)continue;if(dup(it,c)){skip++;continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'search'});add++}TO.item=it.id}
+  A.note=`Counted ${add} across ${sel.length} label${sel.length===1?'':'s'}${skip?`, skipped ${skip} already counted`:''}.`;A.groups=null;A.ssel=new Set();A.res=null;persist('drawings/'+TO.id);toSync()}
+function toSearchBody(d,pages){const A=TO.auto;const G=A.groups;const sel=A.ssel||new Set();
+  const n=G?[...sel].reduce((s,i)=>s+(G[i]?G[i].hits.filter(c=>c.on).length:0),0):0;
+  return `<p class="hint" style="margin:0">Search the drawing’s text, then tick what you want counted. For example <b>B</b> lists B1, B2, B10… with how many of each.</p>
+    <div class="to-row"><input class="f" id="to_sq" data-tk="sq" value="${esc(A.sq||'')}" placeholder="Search, e.g. B or GPO" style="width:150px"><button class="btn primary" data-ta="sfind">Search</button></div>${pages}
+    ${G&&G.length?`<div class="to-row" style="align-self:stretch;justify-content:space-between"><b>${G.length} match${G.length===1?'':'es'}</b><span><button class="btn ghost" data-ta="sall">Select all</button><button class="btn ghost" data-ta="snone">None</button></span></div>
+    <div class="to-slist" style="align-self:stretch;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${G.map((g,i)=>`<label class="to-row" style="justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--line);margin:0;cursor:pointer"><span><input type="checkbox" data-tk="ssel|${i}" ${sel.has(i)?'checked':''}> <b>${esc(g.label)}</b></span><span class="money">${g.hits.length}</span></label>`).join('')}</div>
+    ${sel.size?`<p class="hint" style="margin:0">Ticked labels are circled in yellow on the drawing. Click a circle to leave that one out.</p>
+    <label class="to-row hint"><input type="checkbox" data-tk="scomb" ${A.scomb?'checked':''}> Combine into one item</label>
+    ${A.scomb?`<div class="to-row" style="align-self:stretch"><span class="hint">Item name</span><input class="f" data-tk="sname" value="${esc(A.sname??((A.sq||'').trim()+' (combined)'))}" style="flex:1;border-color:var(--line);background:var(--surface)"></div>`:''}`:''}
+    <div class="to-row"><button class="btn primary" data-ta="sadd" ${n?'':'disabled'}>Count ${n} ${A.scomb?'as one item':`as ${sel.size} item${sel.size===1?'':'s'}`}</button>${G?'<button class="btn" data-ta="sclear">Clear</button>':''}</div>`:''}`}
 /* symbol search: template matching on a rendered page, in a worker */
 const TO_MATCH_SRC=`onmessage=e=>{const {ink,dil,W,H,tps,min}=e.data;const I=new Int32Array((W+1)*(H+1));
 for(let y=0;y<H;y++){let r=0;for(let x=0;x<W;x++){r+=ink[y*W+x];I[(y+1)*(W+1)+x+1]=I[y*(W+1)+x+1]+r}}
@@ -2411,9 +2452,10 @@ function toAutoAdd(d,opt={}){const A=TO.auto;if(!A.res)return;const on=A.res.fil
   if(opt.lib){it.lib=opt.lib.id;it.how={m:'sym',src:opt.lib.src,ar:opt.lib.ar,pt:A.imgPt||opt.lib.pt,thr:Math.max(thr,opt.lib.thr||0),rot:opt.lib.rot!==false};if(opt.lib.img&&!it.img)it.img=opt.lib.img;it.color=it.color;if(A.m==='symbol'&&thr>(opt.lib.thr||0)){opt.lib.thr=thr;toLibSave()}opt.lib.used=(opt.lib.used||0)+1;if(A.imgPt&&A.m==='symbol')opt.lib.pt=A.imgPt;toLibSave()}
   TO.applied={did:TO.id,it:it.id,v:toItemQty(d,it,null).v-before,n:add,skip,img:it.img||null};if(opt.memo!==false)toMemoUpd(it,mA,thr);A.snapId=null;A.snapImg=null;A.res=null;A.all=null;A.tpl=null;A.name=null;A.note=`Added ${add} ${it.type==='count'?'':'runs '}to “${it.name}”${skip?`, skipped ${skip} already counted`:''}.`;persist('drawings/'+TO.id);toSync()}
 function toAutoBox(d){const A=TO.auto;const it=toAutoItem(d);const need=toAutoNeed(A.m);const ok=it&&it.type===need;const z=toAutoZone(d);
-  const seg=`<div class="to-seg" style="align-self:stretch">${[['whole','✨ Whole drawing'],['label','Count label'],['symbol','Count symbol'],['line','Measure line']].map(([k,l])=>`<button class="seg-b${A.m===k?' on':''}" data-ta="am" data-v="${k}" style="flex:1;text-align:center">${l}</button>`).join('')}</div>`;
+  const seg=`<div class="to-seg" style="align-self:stretch">${[['whole','✨ Whole drawing'],['search','🔍 Search'],['label','Count label'],['symbol','Count symbol'],['line','Measure line']].map(([k,l])=>`<button class="seg-b${A.m===k?' on':''}" data-ta="am" data-v="${k}" style="flex:1;text-align:center">${l}</button>`).join('')}</div>`;
   if(A.m==='whole')return `<div class="to-box to-auto"><b>Auto take off${z?` · in ${esc(z.name||'section')}`:''}</b>${seg}</div>`+toWholeBox(d);
   const pages=`<div class="to-row"><span class="hint">Search</span><div class="to-seg">${[['this','This page'],['all','All pages']].map(([k,l])=>`<button class="seg-b${A.pages===k?' on':''}" data-ta="apg" data-v="${k}">${l}</button>`).join('')}</div></div>`;
+  if(A.m==='search')return `<div class="to-box to-auto"><b>Auto take off${z?` · in ${esc(z.name||'section')}`:''}</b>${seg}${toSearchBody(d,pages)}${A.busy?`<p class="hint" style="margin:0"><span class="to-spin"></span>${esc(A.busy)}</p>`:''}${A.note?`<p class="hint" style="margin:0">${esc(A.note)}</p>`:''}</div>`;
   let body='';
   if(A.m==='label')body=`<p class="hint" style="margin:0">Finds every text label on the drawing, e.g. <b>B1</b>, and counts one at each.</p>
     <div class="to-row"><input class="f" id="to_aq" data-tk="aq" value="${esc(A.q)}" placeholder="Label, e.g. B1" style="width:130px"><button class="btn primary" data-ta="afind">Find</button></div>
@@ -2990,8 +3032,10 @@ V.calc=()=>`<div class="stack">${head('Labour Hours and Material Calculator','Ta
 const viewEl=document.getElementById('view');
 let rTimer=null;
 function scheduleRender(ms=60){clearTimeout(rTimer);rTimer=setTimeout(render,ms)}
-function projList(){const ids=new Set(['main',...Object.keys(PROJ)]);ids.add(PID);
+const canAddProject=()=>!(HOSTED&&window.__me&&window.__me.role!=='admin'&&window.__me.scope==='packages');
+function projList(){const ids=new Set([...(HOSTED&&PROJ_LOADED&&!PROJ.main&&Object.keys(PROJ).some(k=>!PROJ[k].removed)?[]:['main']),...Object.keys(PROJ)]);if(!(HOSTED&&PROJ_LOADED&&PID==='main'&&!ids.has('main')))ids.add(PID);
   return [...ids].filter(id=>!(PROJ[id]&&PROJ[id].removed)).map(id=>({id,name:projName(id),created:PROJ[id]?.created||(id==='main'?1:Date.now())})).sort((a,b)=>a.created-b.created)}
+let PROJ_LOADED=false;
 let PEXP;try{PEXP=JSON.parse(localStorage.getItem('ox_pexp')||'null')}catch(e){}if(!PEXP||typeof PEXP!=='object')PEXP={};
 function savePexp(){try{localStorage.setItem('ox_pexp',JSON.stringify(PEXP))}catch(e){}}
 const isOpenProj=id=>PEXP[id]!==undefined?PEXP[id]:id===PID;
@@ -3014,8 +3058,8 @@ function renderChrome(){
   tree.innerHTML=`<div class="plabel">Projects</div>`+list.map(x=>isOpenProj(x.id)
     ?`<div class="pgroup open${x.id===PID?' active':''}">${headRow(x)}<nav class="nav">${navFor(x.id)}</nav></div>`
     :`<div class="pgroup${x.id===PID?' active shut':''}">${headRow(x)}${x.id===PID?`<nav class="nav">${navFor(x.id)}</nav>`:''}</div>`).join('')+
-    `<button class="addproj" data-act="add-proj">+ Add project</button>`+
-    `<select class="projsel" id="projsel" aria-label="Project">${list.map(x=>`<option value="${x.id}"${x.id===PID?' selected':''}>${esc(x.name)}</option>`).join('')}<option value="__new">+ Add project</option></select>`;
+    (canAddProject()?`<button class="addproj" data-act="add-proj">+ Add project</button>`:'')+
+    `<select class="projsel" id="projsel" aria-label="Project">${list.map(x=>`<option value="${x.id}"${x.id===PID?' selected':''}>${esc(x.name)}</option>`).join('')}${canAddProject()?'<option value="__new">+ Add project</option>':''}</select>`;
   renderHeader();
 }
 function renderHeader(){
@@ -3448,6 +3492,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='pch'&&claimDoc().hist[+x]&&claimDoc().hist[+x].wf){undoRecord();pcDelete(+x)}
     else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
+    else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
     else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
     else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
     else if(kind==='pcsec'){claimDoc().secs.splice(+x,1);persist('project/claim')}
@@ -3564,29 +3609,54 @@ function makeSbAssets(sb){return {
   async delete(id){await sb.storage.from('files').remove([id]);return {deleted:true}}
 }}
 const browserDownloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:'saved'}}};
+function loginCard(inner){const el=document.createElement('div');el.className='login';el.innerHTML=`<form class="login-card" novalidate><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>${inner}</form>`;document.body.appendChild(el);return el}
+const setpwRedirect=()=>/^https?:$/.test(location.protocol)?location.origin+location.pathname+'?setpw=1':undefined;
 function loginScreen(sb,msg){
-  const web=/^https?:$/.test(location.protocol);
-  const el=document.createElement('div');el.className='login';el.innerHTML=`<form class="login-card" id="loginform"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
-    <h2>Sign in</h2><p class="hint" id="loginhelp">Enter your work email and we’ll email you a 6-digit sign-in code. Only people added to the team can see project data.</p>
-    <div id="step1"><label for="loginemail">Email</label><input class="f" id="loginemail" type="email" required autocomplete="email" placeholder="name@oxfordgroup.com.au"></div>
-    <div id="step2" hidden><label for="logincode">Sign-in code</label><input class="f" id="logincode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></div>
-    <button class="btn primary" type="submit" id="loginbtn">Email me a code</button>
-    <button class="btn ghost" type="button" id="loginback" hidden>Use a different email</button>
+  const el=loginCard(`<h2 id="lg-title">Sign in</h2><p class="hint" id="lg-help">Sign in with your work email and password.</p>
+    <div id="lg-em"><label for="loginemail">Email</label><input class="f" id="loginemail" type="email" required autocomplete="username" placeholder="name@oxfordgroup.com.au"></div>
+    <div id="lg-pw"><label for="loginpw">Password</label><input class="f" id="loginpw" type="password" autocomplete="current-password"></div>
+    <div id="lg-code" hidden><label for="logincode">Code from the email</label><input class="f" id="logincode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></div>
+    <button class="btn primary" type="submit" id="loginbtn">Sign in</button>
+    <button class="btn ghost" type="button" id="lg-forgot">Forgot password, or first time here?</button>
+    <button class="btn ghost" type="button" id="lg-back" hidden>Back to sign in</button>
     ${window.oxDesktop?'<button class="btn ghost" type="button" id="loginsettings">Connection settings</button>':''}
-    <p class="hint" id="loginmsg">${esc(msg||'')}</p></form>`;
-  document.body.appendChild(el);
-  const $=q=>el.querySelector(q);let stage=1;
-  if(window.oxDesktop&&$('#loginsettings'))$('#loginsettings').onclick=()=>window.oxDesktop.openSettings();
-  $('#loginback').onclick=()=>{stage=1;$('#step1').hidden=false;$('#step2').hidden=true;$('#loginback').hidden=true;$('#loginbtn').textContent='Email me a code';$('#loginmsg').textContent=''};
-  $('#loginform').addEventListener('submit',async ev=>{ev.preventDefault();const em=$('#loginemail').value.trim();const m=$('#loginmsg');const b=$('#loginbtn');b.disabled=true;
-    if(stage===1){m.textContent='Sending…';
-      const opts={shouldCreateUser:true};if(web)opts.emailRedirectTo=location.origin+location.pathname;
-      const {error}=await sb.auth.signInWithOtp({email:em,options:opts});b.disabled=false;
-      if(error){m.textContent=/signups? not allowed|not found|Invalid/i.test(error.message)?'That email has not been invited yet. Ask the app owner to invite you.':'Could not send the code: '+error.message;return}
-      stage=2;$('#step1').hidden=true;$('#step2').hidden=false;$('#loginback').hidden=false;b.textContent='Sign in';m.textContent='We’ve emailed a code to '+em+'. Type it here'+(web?', or click the link in the email.':'.');setTimeout(()=>$('#logincode').focus(),30);return}
+    <p class="hint" id="loginmsg">${esc(msg||'')}</p>`);
+  const $=q=>el.querySelector(q);let mode='signin';
+  if($('#loginsettings'))$('#loginsettings').onclick=()=>window.oxDesktop.openSettings();
+  const setMode=m=>{mode=m;$('#lg-pw').hidden=m!=='signin';$('#lg-code').hidden=m!=='code';$('#lg-em').hidden=m==='code';$('#lg-forgot').hidden=m!=='signin';$('#lg-back').hidden=m==='signin';$('#loginmsg').textContent='';
+    $('#lg-title').textContent=m==='signin'?'Sign in':'Set your password';
+    $('#lg-help').textContent=m==='signin'?'Sign in with your work email and password.':m==='email'?'Enter your email. We’ll email you a link and a 6-digit code, then you can choose a new password.':'Click the link in the email, or type the code here.';
+    $('#loginbtn').textContent=m==='signin'?'Sign in':m==='email'?'Email me a code':'Continue'};
+  $('#lg-forgot').onclick=()=>setMode('email');$('#lg-back').onclick=()=>setMode('signin');
+  el.querySelector('form').addEventListener('submit',async ev=>{ev.preventDefault();const em=$('#loginemail').value.trim().toLowerCase();const m=$('#loginmsg');const b=$('#loginbtn');
+    if(mode!=='code'&&!/^\S+@\S+\.\S+$/.test(em)){m.textContent='Enter your email address.';return}
+    b.disabled=true;
+    if(mode==='signin'){const pw=$('#loginpw').value;if(!pw){b.disabled=false;m.textContent='Enter your password.';return}
+      m.textContent='Signing in…';const {error}=await sb.auth.signInWithPassword({email:em,password:pw});b.disabled=false;
+      if(error){m.textContent=/invalid/i.test(error.message)?'Email or password is wrong. If you haven’t set a password yet, use “Forgot password, or first time here?”.':/confirm/i.test(error.message)?'Your email isn’t confirmed yet. Use “Forgot password, or first time here?”.':'Could not sign in: '+error.message;return}
+      location.reload();return}
+    if(mode==='email'){m.textContent='Sending…';const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:true,emailRedirectTo:setpwRedirect()}});b.disabled=false;
+      if(error){m.textContent=/rate|security purposes/i.test(error.message)?'Please wait a minute before asking for another email.':'Could not send the email: '+error.message;return}
+      try{sessionStorage.setItem('ox_setpw','1')}catch(e){}
+      setMode('code');m.textContent='We’ve emailed '+em+'.';setTimeout(()=>$('#logincode').focus(),30);return}
     m.textContent='Checking…';const {error}=await sb.auth.verifyOtp({email:em,token:$('#logincode').value.trim(),type:'email'});b.disabled=false;
-    if(error){m.textContent='That code didn’t work. Check it and try again, or request a new one.';return}
-    location.reload()});
+    if(error){m.textContent='That code didn’t work. Check it and try again, or go back and request a new one.';return}
+    try{sessionStorage.setItem('ox_setpw','1')}catch(e){}location.reload()});
+}
+function passwordScreen(sb,{change=false}={}){
+  const el=loginCard(`<h2>${change?'Change your password':'Choose your password'}</h2><p class="hint">${change?'Enter a new password for ':'You’re signed in as '}<b>${esc(window.__me?.email||'')}</b>${change?'.':'. Choose a password to use next time you sign in.'} Use at least 8 characters.</p>
+    <label for="pw1">New password</label><input class="f" id="pw1" type="password" autocomplete="new-password">
+    <label for="pw2">Type it again</label><input class="f" id="pw2" type="password" autocomplete="new-password">
+    <button class="btn primary" type="submit" id="pwbtn">Save password</button>
+    ${change?'<button class="btn ghost" type="button" id="pwcancel">Cancel</button>':''}
+    <p class="hint" id="pwmsg"></p>`);
+  const $=q=>el.querySelector(q);if($('#pwcancel'))$('#pwcancel').onclick=()=>el.remove();setTimeout(()=>$('#pw1').focus(),30);
+  el.querySelector('form').addEventListener('submit',async ev=>{ev.preventDefault();const p1=$('#pw1').value,p2=$('#pw2').value,m=$('#pwmsg');
+    if(p1.length<8){m.textContent='Use at least 8 characters.';return}if(p1!==p2){m.textContent='The two passwords don’t match.';return}
+    $('#pwbtn').disabled=true;m.textContent='Saving…';const {error}=await sb.auth.updateUser({password:p1,data:{pw_set:true}});$('#pwbtn').disabled=false;
+    if(error){m.textContent=/different/i.test(error.message)?'That’s your current password. Choose a new one.':'Could not save the password: '+error.message;return}
+    try{sessionStorage.removeItem('ox_setpw')}catch(e){}if(/[?&]setpw=1/.test(location.search))history.replaceState(null,'',location.pathname+location.hash);
+    el.remove();setSave('saved');const p=document.getElementById('savepill');if(p)p.textContent='Password saved'});
 }
 function noAccess(sb,email){
   const el=document.createElement('div');el.className='login';el.innerHTML=`<div class="login-card"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
@@ -3594,45 +3664,100 @@ function noAccess(sb,email){
     <button class="btn primary" type="button" id="na-retry">Check again</button><button class="btn ghost" type="button" id="na-out">Sign out</button></div>`;
   document.body.appendChild(el);el.querySelector('#na-retry').onclick=()=>location.reload();el.querySelector('#na-out').onclick=()=>sb.auth.signOut();
 }
-let TEAM=null,TEAMMSG='';
-async function loadTeam(){const {data,error}=await window.__sb.from('team').select('*').order('added_at');if(error){TEAMMSG='Could not load the team: '+error.message;TEAM=[]}else TEAM=data;render()}
+let TEAM=null,TEAMMSG='',PK=null;
+async function loadTeam(){const sb=window.__sb;const {data,error}=await sb.from('team').select('*').order('added_at');if(error){TEAMMSG='Could not load the team: '+error.message;TEAM=[]}else TEAM=data;
+  const [p,m,j]=await Promise.all([sb.from('packages').select('*').order('created_at'),sb.from('package_members').select('*'),sb.from('package_projects').select('*')]);
+  PK=p.error?{err:p.error.message,list:[],mem:[],proj:[]}:{list:p.data||[],mem:m.data||[],proj:j.data||[]};render()}
+const scopeLabel=s=>s==='packages'?'Only their packages':'All projects';
+async function inviteEmail(email){const {error}=await window.__sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:setpwRedirect()}});return error}
+function pkPanel(){
+  if(!PK)return '';if(PK.err)return `<div class="banner">Packages aren’t set up in the database yet (${esc(PK.err)}).</div>`;
+  const admin=window.__me.role==='admin';const projs=projList().concat(Object.keys(PROJ).filter(k=>!PROJ[k].removed&&!projList().some(x=>x.id===k)).map(k=>({id:k,name:projName(k)})));
+  const pname=id=>(projs.find(x=>x.id===id)||{}).name||projName(id)||id;const taken=new Set(PK.proj.map(x=>x.project_id));
+  const mine=admin?PK.list:PK.list.filter(p=>PK.mem.some(m=>m.package_id===p.id&&m.email===window.__me.email));
+  return `<div class="panel"><h3>Packages</h3><p class="hint" style="margin:4px 0 12px">A package groups projects with the people allowed to see them. Projects in a package are visible only to its members and admins. Projects not in any package are visible to everyone with “All projects” access.</p>
+  ${admin?`<form id="pkform" class="form" style="margin-bottom:14px"><label>New package<input class="f" id="pk_name" placeholder="e.g. Sanctuary client" required></label><label style="justify-content:flex-end"><button class="btn primary" type="submit" style="text-transform:none;letter-spacing:0">Create package</button></label></form>`:''}
+  ${mine.length?mine.map(p=>{const mem=PK.mem.filter(m=>m.package_id===p.id),pr=PK.proj.filter(x=>x.package_id===p.id);
+    const freeUsers=(TEAM||[]).filter(u=>!mem.some(m=>m.email===u.email)),freeProj=projs.filter(x=>!taken.has(x.id));
+    return `<div class="panel" style="margin:10px 0;background:var(--bg)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(p.name)}</b>${admin?delBtn('pkg',p.id,'','Delete package'):''}</div>
+      <div class="hint" style="margin:10px 0 4px">Projects</div><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${pr.map(x=>`<span class="tag">${esc(pname(x.project_id))}${admin?` <button class="btn ghost" data-pkunproj="${esc(x.project_id)}" aria-label="Remove ${esc(pname(x.project_id))} from ${esc(p.name)}" style="padding:0 4px">✕</button>`:''}</span>`).join('')||'<span class="hint">No projects yet</span>'}
+        ${admin&&freeProj.length?`<select class="f" data-pkaddproj="${p.id}" aria-label="Add a project to ${esc(p.name)}" style="width:auto"><option value="">+ Add project…</option>${freeProj.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select>`:''}</div>
+      <div class="hint" style="margin:10px 0 4px">People</div><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${mem.map(m=>`<span class="tag">${esc(m.email)}${admin?` <button class="btn ghost" data-pkunmem="${p.id}|${esc(m.email)}" aria-label="Remove ${esc(m.email)} from ${esc(p.name)}" style="padding:0 4px">✕</button>`:''}</span>`).join('')||'<span class="hint">No people yet</span>'}
+        ${admin&&freeUsers.length?`<select class="f" data-pkaddmem="${p.id}" aria-label="Add a person to ${esc(p.name)}" style="width:auto"><option value="">+ Add person…</option>${freeUsers.map(u=>`<option value="${esc(u.email)}">${esc(u.name?u.name+' · '+u.email:u.email)}</option>`).join('')}</select>`:''}</div></div>`}).join(''):`<p class="hint">${admin?'No packages yet.':'You’re not in any packages.'}</p>`}</div>`;
+}
 V.team=()=>{
   if(!HOSTED||!window.__me)return `<div class="panel empty"><b>Team & users</b>User management is available in the hosted and desktop versions of the app.</div>`;
   if(TEAM===null){loadTeam();return `<div class="panel empty"><b>Loading team…</b></div>`}
   const admin=window.__me.role==='admin';const me=window.__me.email;
-  return `<div class="stack">${head('Team & users','Everyone listed here can sign in with their email and a code and work on every project. Admins can add and remove people and change roles.')}
+  const pkOf=e=>PK?PK.mem.filter(m=>m.email===e).map(m=>(PK.list.find(p=>p.id===m.package_id)||{}).name).filter(Boolean):[];
+  return `<div class="stack">${head('Team & users','Everyone listed here signs in with their email and password. Admins can add and remove people, set what they can see, and group projects into packages.')}
   ${TEAMMSG?`<div class="banner">${esc(TEAMMSG)}</div>`:''}
   ${admin?`<form class="panel" id="teamform"><h3>Add a user</h3><div class="form" style="margin-top:10px">
-    <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@oxfordgroup.com.au"></label>
+    <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@company.com.au"></label>
     <label>Name<input class="f" id="tm_name" placeholder="Full name"></label>
     <label>Role<select class="f" id="tm_role"><option value="member">Member: can edit projects</option><option value="admin">Admin: can also manage users</option></select></label>
+    <label>Can see<select class="f" id="tm_scope"><option value="all">All projects</option><option value="packages">Only their packages</option></select></label>
+    ${PK&&PK.list.length?`<label>Package<select class="f" id="tm_pkg"><option value="">None</option>${PK.list.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>`:''}
     <label style="justify-content:flex-end"><button class="btn primary" type="submit" style="text-transform:none;letter-spacing:0">Add user</button></label></div>
-    <p class="hint" style="margin:8px 0 0">After you add someone, they open the app, enter this email, and sign in with the code they’re emailed. No password needed.</p></form>`:''}
-  <div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead><tbody>
-  ${TEAM.map(u=>{const self=u.email===me;return `<tr><td>${esc(u.name||'—')}${self?' <span class="tag acc">you</span>':''}</td><td class="mono">${esc(u.email)}</td>
+    <p class="hint" style="margin:8px 0 0">We email them a link to set their password. After that they sign in with their email and password.</p></form>`:''}
+  <div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Can see</th><th>Packages</th><th>Added</th><th></th></tr></thead><tbody>
+  ${TEAM.map(u=>{const self=u.email===me;const pk=pkOf(u.email);return `<tr><td>${esc(u.name||'—')}${self?' <span class="tag acc">you</span>':''}</td><td class="mono">${esc(u.email)}</td>
     <td>${admin&&!self?`<select class="f" data-teamrole="${esc(u.email)}" aria-label="Role for ${esc(u.email)}"><option value="member"${u.role==='member'?' selected':''}>Member</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select>`:`<span class="tag ${u.role==='admin'?'good':''}">${u.role==='admin'?'Admin':'Member'}</span>`}</td>
+    <td>${u.role==='admin'?'<span class="hint">Everything</span>':admin?`<select class="f" data-teamscope="${esc(u.email)}" aria-label="What ${esc(u.email)} can see"><option value="all"${u.scope!=='packages'?' selected':''}>All projects</option><option value="packages"${u.scope==='packages'?' selected':''}>Only their packages</option></select>`:esc(scopeLabel(u.scope))}</td>
+    <td>${pk.length?pk.map(n=>`<span class="tag">${esc(n)}</span>`).join(' '):'<span class="hint">—</span>'}</td>
     <td class="hint">${u.added_at?new Date(u.added_at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
-    <td>${admin&&!self?delBtn('team','x',u.email,'Remove'):''}</td></tr>`}).join('')}
-  </tbody></table></div></div>`;
+    <td style="white-space:nowrap">${admin&&!self?`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" title="Email ${esc(u.email)} a link to set their password">Send set-up email</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>`}).join('')}
+  </tbody></table></div>
+  ${pkPanel()}
+  ${admin?`<div class="panel"><h3>Import projects</h3><p class="hint" style="margin:4px 0 10px">Load an export file (.json) of projects, for example from the Claude version of this app. Records with the same name are replaced.</p>
+    <label class="btn" style="display:inline-flex;cursor:pointer">Choose export file<input type="file" id="imp_file" accept=".json,application/json" hidden></label> <span class="hint" id="imp_msg">${esc(IMPMSG)}</span></div>`:''}</div>`;
 };
-document.addEventListener('submit',async e=>{if(e.target.id!=='teamform')return;e.preventDefault();
-  const email=document.getElementById('tm_email').value.trim().toLowerCase(),name=document.getElementById('tm_name').value.trim(),role=document.getElementById('tm_role').value;
-  const {error}=await window.__sb.from('team').insert({email,name,role});TEAMMSG=error?(/duplicate/i.test(error.message)?email+' is already on the team.':'Could not add the user: '+error.message):'Added '+email+'. They can sign in now.';loadTeam()});
-document.addEventListener('change',async e=>{const r=e.target.dataset&&e.target.dataset.teamrole;if(!r)return;const {error}=await window.__sb.from('team').update({role:e.target.value}).eq('email',r);TEAMMSG=error?'Could not change the role: '+error.message:'Updated '+r+'.';loadTeam()});
+let IMPMSG='';
+document.addEventListener('change',async e=>{if(e.target.id!=='imp_file'||!window.__sb)return;const f=e.target.files&&e.target.files[0];if(!f)return;const sb=window.__sb;
+  const say=t=>{IMPMSG=t;const m=document.getElementById('imp_msg');if(m)m.textContent=t};
+  let rows;try{rows=JSON.parse(await f.text())}catch(err){say('That file isn’t a valid export.');return}
+  if(!Array.isArray(rows)||!rows.every(r=>r&&typeof r.path==='string'&&r.data&&typeof r.data==='object')){say('That file isn’t a project export.');return}
+  const names=rows.filter(r=>r.path.startsWith('projects/')&&!r.data.removed).map(r=>r.data.name||r.path.split('/')[1]);
+  if(!confirm('Import '+rows.length+' records'+(names.length?' for: '+names.join(', '):'')+'?\nExisting records with the same name will be replaced.'))return;
+  say('Importing…');let done=0;const now=new Date().toISOString();
+  for(let i=0;i<rows.length;i+=20){const chunk=rows.slice(i,i+20).map(r=>({path:r.path,coll:r.coll||r.path.split('/').slice(0,-1).join('/'),data:r.data,updated_at:now}));
+    const {error}=await sb.from('docs').upsert(chunk);if(error){say('Stopped after '+done+' records: '+error.message);return}done+=chunk.length;say('Importing… '+done+' of '+rows.length)}
+  say('Imported '+done+' records'+(names.length?' ('+names.join(', ')+')':'')+'. Open them from the project list.');e.target.value=''});
+document.addEventListener('submit',async e=>{const sb=window.__sb;
+  if(e.target.id==='pkform'){e.preventDefault();const name=document.getElementById('pk_name').value.trim();if(!name)return;const {error}=await sb.from('packages').insert({name});TEAMMSG=error?'Could not create the package: '+error.message:'Created package '+name+'.';loadTeam();return}
+  if(e.target.id!=='teamform')return;e.preventDefault();
+  const email=document.getElementById('tm_email').value.trim().toLowerCase(),name=document.getElementById('tm_name').value.trim(),role=document.getElementById('tm_role').value,scope=document.getElementById('tm_scope').value,pkg=document.getElementById('tm_pkg')?.value;
+  if(!/^\S+@\S+\.\S+$/.test(email)){TEAMMSG='Enter a valid email.';render();return}
+  const {error}=await sb.from('team').insert({email,name,role,scope});
+  if(error){TEAMMSG=/duplicate/i.test(error.message)?email+' is already on the team.':'Could not add the user: '+error.message;loadTeam();return}
+  if(pkg){const r=await sb.from('package_members').insert({package_id:pkg,email});if(r.error)TEAMMSG='Added '+email+', but could not add them to the package: '+r.error.message}
+  const ie=await inviteEmail(email);TEAMMSG=(TEAMMSG&&TEAMMSG.startsWith('Added '+email+', but')?TEAMMSG+' ':'')+(ie?'Added '+email+'. The set-up email could not be sent ('+ie.message+'); use “Send set-up email” to try again.':'Added '+email+' and emailed them a link to set their password.');
+  loadTeam()});
+document.addEventListener('change',async e=>{const d=e.target.dataset||{};const sb=window.__sb;if(!sb)return;
+  if(d.teamrole){const {error}=await sb.from('team').update({role:e.target.value}).eq('email',d.teamrole);TEAMMSG=error?'Could not change the role: '+error.message:'Updated '+d.teamrole+'.';loadTeam();return}
+  if(d.teamscope){const {error}=await sb.from('team').update({scope:e.target.value}).eq('email',d.teamscope);TEAMMSG=error?'Could not change access: '+error.message:d.teamscope+' can now see: '+scopeLabel(e.target.value)+'.';loadTeam();return}
+  if(d.pkaddproj&&e.target.value){const {error}=await sb.from('package_projects').insert({package_id:d.pkaddproj,project_id:e.target.value});TEAMMSG=error?'Could not add the project: '+error.message:'Added '+projName(e.target.value)+' to the package.';loadTeam();return}
+  if(d.pkaddmem&&e.target.value){const {error}=await sb.from('package_members').insert({package_id:d.pkaddmem,email:e.target.value});TEAMMSG=error?'Could not add the person: '+error.message:'Added '+e.target.value+' to the package.';loadTeam();return}});
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-invite],[data-pkunproj],[data-pkunmem]');if(!t||!window.__sb)return;const sb=window.__sb;
+  if(t.dataset.invite){t.disabled=true;const er=await inviteEmail(t.dataset.invite);TEAMMSG=er?'Could not send the email: '+er.message:'Emailed '+t.dataset.invite+' a link to set their password.';render();return}
+  if(t.dataset.pkunproj){const {error}=await sb.from('package_projects').delete().eq('project_id',t.dataset.pkunproj);TEAMMSG=error?'Could not remove the project: '+error.message:'Removed '+projName(t.dataset.pkunproj)+' from the package.';loadTeam();return}
+  if(t.dataset.pkunmem){const [pid,em]=t.dataset.pkunmem.split('|');const {error}=await sb.from('package_members').delete().eq('package_id',pid).eq('email',em);TEAMMSG=error?'Could not remove: '+error.message:'Removed '+em+' from the package.';loadTeam();return}});
 async function hostedBoot(startStore,offline){
   const C=window.OX_CONFIG||{};
   if(!window.supabase||!C.supabaseUrl||!C.supabaseAnonKey||/YOUR_/.test(C.supabaseUrl+C.supabaseAnonKey)){document.getElementById('banner').innerHTML='<div class="banner">This copy of the app is not connected to a database yet. '+(window.oxDesktop?'Open <b>Connection settings</b> from the app menu and enter your Supabase details.':'Add your Supabase URL and key to config.js (see the setup guide).')+'</div>';setSave('local');return}
   const sb=window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true}});window.__sb=sb;
   const {data:{session}}=await sb.auth.getSession();
-  if(!session){loginScreen(sb);sb.auth.onAuthStateChange((ev,s2)=>{if(s2&&ev==='SIGNED_IN')location.reload()});setSave('local');document.getElementById('savepill').textContent='Signed out';return}
+  if(!session){loginScreen(sb);sb.auth.onAuthStateChange((ev,s2)=>{if(s2&&(ev==='SIGNED_IN'||ev==='PASSWORD_RECOVERY'))location.reload()});setSave('local');document.getElementById('savepill').textContent='Signed out';return}
   sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')location.reload()});
   const myEmail=(session.user.email||'').toLowerCase();
   const {data:meRow,error:meErr}=await sb.from('team').select('*').eq('email',myEmail).maybeSingle();
   if(meErr){document.getElementById('banner').innerHTML='<div class="banner">Could not check your access: '+esc(meErr.message)+'. Has supabase-setup.sql been run?</div>';setSave('error','No connection');return}
   if(!meRow){noAccess(sb,myEmail);setSave('local');document.getElementById('savepill').textContent='No access';return}
   window.__me=meRow;
-  document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="signout" type="button">Sign out</button>${window.oxDesktop?'<button class="addproj" id="oxsettings" type="button">Connection settings</button>':''}</div>`;
-  document.getElementById('signout').onclick=()=>sb.auth.signOut();if(window.oxDesktop)document.getElementById('oxsettings').onclick=()=>window.oxDesktop.openSettings();
+  document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="chpw" type="button">Change password</button><button class="addproj" id="signout" type="button">Sign out</button>${window.oxDesktop?'<button class="addproj" id="oxsettings" type="button">Connection settings</button>':''}</div>`;
+  document.getElementById('signout').onclick=()=>sb.auth.signOut();document.getElementById('chpw').onclick=()=>passwordScreen(sb,{change:true});
+  let wantPw=false;try{wantPw=sessionStorage.getItem('ox_setpw')==='1'}catch(e){}
+  if(wantPw||/[?&]setpw=1/.test(location.search)||!(session.user.user_metadata&&session.user.user_metadata.pw_set))passwordScreen(sb);if(window.oxDesktop)document.getElementById('oxsettings').onclick=()=>window.oxDesktop.openSettings();
   assets=makeSbAssets(sb);downloads=browserDownloads;
   startStore(makeSbDb(sb));render();
 }
@@ -3659,7 +3784,10 @@ async function hostedBoot(startStore,offline){
   function startStore(d){
     db=d;setSave('saved');
     db.collection('projects').onSnapshot(sn=>{for(const k in PROJ)if(!isDirty('projects/'+k))delete PROJ[k];for(const d of sn.docs)if(!isDirty('projects/'+d.id))PROJ[d.id]=clone(d.data());
+      if(!sn.metadata.fromCache)PROJ_LOADED=true;
       if(PID!=='main'&&!PROJ[PID]&&!isDirty('projects/'+PID)&&!sn.metadata.fromCache){PID='main';try{localStorage.setItem('ox_pid','main')}catch(e){}blankState();subscribe()}
+      if(HOSTED&&PROJ_LOADED&&!projList().some(x=>x.id===PID)){const f=projList()[0];if(f)switchProject(f.id)}
+      if(HOSTED&&PROJ_LOADED&&!canAddProject()&&!projList().length)document.getElementById('banner').innerHTML='<div class="banner">No projects have been shared with you yet. Ask an admin to add you to a package.</div>';
       scheduleRender()},e=>console.error(e));
     subscribe();
   }
