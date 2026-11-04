@@ -3909,6 +3909,19 @@ async function hostedBoot(startStore,offline){
 }
 
 /* ---------- boot ---------- */
+/* Claude copy: open the shared app instead (Claude pages can't reach the shared database) */
+const SHARED_URL='https://zaineddin3.github.io/ox-project-reporting/';
+function claudeLauncher(){let skip=false;try{skip=sessionStorage.getItem('ox_local')==='1'}catch(e){}
+  const bn=document.getElementById('banner');
+  if(skip){bn.innerHTML=`<div class="banner">You’re in the Claude-only copy. Changes here stay in Claude and don’t reach the website or desktop app. <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>Open the shared app</b></a></div>`;return}
+  const el=document.createElement('div');el.className='login';el.id='oxlaunch';
+  el.innerHTML=`<div class="login-card"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
+    <h2>Open the shared app</h2><p class="hint">Your projects live in the shared app, the same one the website and desktop app use, so everyone sees each other’s changes. Claude can’t connect to it from inside this page, so open it here:</p>
+    <a class="btn primary" href="${SHARED_URL}" target="_blank" rel="noopener" style="text-decoration:none">Open Oxford Project Reporting ↗</a>
+    <p class="hint" style="margin:4px 0 0">Or open the <b>OX Project Reporting</b> desktop app on your computer.</p>
+    <button class="btn ghost" type="button" id="oxlocal">Use the Claude-only copy instead</button>
+    <p class="hint" style="font-size:12px;margin:0">The Claude-only copy is separate: changes made in it don’t appear in the shared app.</p></div>`;
+  document.body.appendChild(el);el.querySelector('#oxlocal').onclick=()=>{try{sessionStorage.setItem('ox_local','1')}catch(e){}el.remove();claudeLauncher()}}
 (function(){
   let h=(location.hash||'').slice(1);if(h==='apartments')h='subcontractors';if(VIEWS_LIST.some(v=>v[0]===h))UI.view=h;
   render();setSave('saving');document.getElementById('savepill').textContent='Connecting';
@@ -3922,7 +3935,7 @@ async function hostedBoot(startStore,offline){
   window.claude.use('db').then(d=>{
     clearTimeout(timeout);
     if(!d){offline();return}
-    document.getElementById('banner').innerHTML='<div class="banner">This Claude copy saves separately from the website and desktop app, so changes made here don’t appear there. Use <a href="https://zaineddin3.github.io/ox-project-reporting/" target="_blank" rel="noopener"><b>the website</b></a> or the desktop app to work on the shared projects.</div>';
+    claudeLauncher();
     window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});
     window.claude.use('downloads').then(x=>{downloads=x}).catch(()=>{});
     window.claude.use('sample').then(x=>{sampleFn=x}).catch(()=>{});
