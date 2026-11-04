@@ -3932,25 +3932,28 @@ function claudeLauncher(startLocal,startSharedFn,msg){
 /* shared projects through the Supabase connector (Claude can't reach the database directly) */
 const SB_PROJECT='pcwhvtpfaszllauhbchp';
 const MCP_MSG={server_not_connected:'The Supabase connector isn’t connected. Add it in Claude Settings → Connectors, then try again.',needs_reauth:'Your Supabase connector needs signing in again. Reconnect it in Claude Settings → Connectors.',not_in_manifest:'Supabase isn’t allowed for this page. Allow it when Claude asks, or from this page’s Permissions menu.',approval_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',consent_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',selection_required:'You have more than one Supabase connector. Choose one when Claude asks, then try again.',blocked_by_policy:'Your organisation’s settings block Supabase for this page.',server_unavailable:'Supabase didn’t answer just now. Try again in a moment.'};
-async function startShared(startStore){
+const DIAG={v:'b115',steps:[]};const diag=(k,v)=>{DIAG.steps.push(k+(v!==undefined?': '+String(v).slice(0,400):''));DIAG.at=Date.now();try{window.__claudeDb&&window.__claudeDb.doc('meta/diag').set(JSON.parse(JSON.stringify(DIAG)))}catch(e){}};
+async function startShared(startStore){diag('start');
   setSave('saving');document.getElementById('savepill').textContent='Connecting';
   const fail=m=>{setSave('local');claudeLauncher(()=>{window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});startStore(window.__claudeDb)},()=>startShared(startStore),m)};
-  let mcp=null;try{mcp=await window.claude.use('mcp')}catch(e){}
+  let mcp=null;try{mcp=await window.claude.use('mcp')}catch(e){diag('use mcp threw',e&&e.message)}
+  diag('mcp',mcp?'available':'null');
   if(!mcp)return fail('This view can’t use connectors. Open the shared app instead.');
   const sdb=makeMcpDb(mcp);
-  try{await sdb.ping()}catch(e){console.error(e);return fail(MCP_MSG[e&&e.code]||('Couldn’t reach your projects through Supabase'+(e&&e.message?': '+esc(String(e.message).slice(0,160)):'.')))}
+  try{await sdb.ping();diag('ping ok')}catch(e){console.error(e);diag('ping failed',(e&&e.code)+' '+(e&&e.message));return fail(MCP_MSG[e&&e.code]||('Couldn’t reach your projects through Supabase'+(e&&e.message?': '+esc(String(e.message).slice(0,160)):'.')))}
   assets=null;window.__mcpMode=true;try{sessionStorage.removeItem('ox_local')}catch(e){}
   startStore(sdb);render()}
 function makeMcpDb(mcp){
   const parent=p=>p.split('/').slice(0,-1).join('/');const lit=v=>"'"+String(v).replace(/'/g,"''")+"'";
   async function q(sql){const r=await mcp.callTool('Supabase','execute_sql',{project_id:SB_PROJECT,query:sql},{cache:false});
-    const pl=r&&r.payload;const txt=typeof pl==='string'?pl:pl&&typeof pl.result==='string'?pl.result:JSON.stringify(pl||'');
-    const m=txt.match(/<untrusted-data-[^>]*>\s*([\s\S]*?)\s*<\/untrusted-data-/);const body=(m?m[1]:txt).trim();
+    const pl=r&&r.payload;if(DIAG.steps.length<12)diag('payload',typeof pl+' '+(typeof pl==='string'?pl:JSON.stringify(pl)).slice(0,300)+' | content '+JSON.stringify(r&&r.content||[]).slice(0,200));const txt=typeof pl==='string'?pl:pl&&typeof pl.result==='string'?pl.result:JSON.stringify(pl||'');
+    let body=txt;const ce=txt.lastIndexOf('</untrusted-data-');if(ce>=0){const os=txt.lastIndexOf('<untrusted-data-',ce);const oe=os>=0?txt.indexOf('>',os):-1;if(oe>0&&oe<ce)body=txt.slice(oe+1,ce)}body=body.trim();
     if(!body)return [];try{const v=JSON.parse(body);return Array.isArray(v)?v:[]}catch(e){if(/error/i.test(body))throw {code:'tool_error',message:body.slice(0,200)};return []}}
   const listeners={},sig={};let want=new Set(),timer=null;
   const snap=rows=>{const docs=rows.map(r=>({id:r.path.split('/').pop(),exists:true,data:()=>r.data}));return {docs,metadata:{fromCache:false,hasPendingWrites:false},size:docs.length,empty:!docs.length}};
   async function fetchColls(cs){if(!cs.length)return;const rows=await q(`select path, coll, data from public.docs where coll in (${cs.map(lit).join(',')})`);
     const by={};for(const c of cs)by[c]=[];for(const r of rows)if(by[r.coll])by[r.coll].push({path:r.path,data:typeof r.data==='string'?JSON.parse(r.data):r.data});
+    if(cs.includes('projects'))diag('projects rows',by.projects.length);
     for(const c of cs){const L=listeners[c];if(L)for(const f of L)f.next(snap(by[c]))}}
   function bump(c){want.add(c);clearTimeout(timer);timer=setTimeout(()=>{const cs=[...want].filter(x=>listeners[x]&&listeners[x].size);want=new Set();fetchColls(cs).catch(e=>{console.error(e);for(const x of cs)for(const f of listeners[x]||[])f.err&&f.err(e)})},80)}
   async function poll(){const cs=Object.keys(listeners).filter(c=>listeners[c].size);if(!cs.length||document.hidden)return;
@@ -3960,7 +3963,7 @@ function makeMcpDb(mcp){
   setInterval(poll,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   const after=async c=>{bump(c);setTimeout(poll,1500)};
   return {
-    async ping(){await q('select 1 as ok')},
+    async ping(){const r=await q('select 1 as ok');if(!(r[0]&&r[0].ok===1))throw {code:'tool_error',message:'Supabase answered, but the reply couldn’t be read.'}},
     doc(p){return {
       async set(data){await q(`insert into public.docs (path, coll, data, updated_at) values (${lit(p)}, ${lit(parent(p))}, ${lit(JSON.stringify(data))}::jsonb, now()) on conflict (path) do update set coll = excluded.coll, data = excluded.data, updated_at = now()`);after(parent(p))},
       async update(patch){const r=await q(`select data from public.docs where path = ${lit(p)}`);if(!r.length)throw {code:'invalid_argument',message:'missing'};const cur=typeof r[0].data==='string'?JSON.parse(r[0].data):r[0].data;
