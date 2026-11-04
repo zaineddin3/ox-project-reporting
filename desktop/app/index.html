@@ -3822,7 +3822,10 @@ function noAccess(sb,email){
     <button class="btn primary" type="button" id="na-retry">Check again</button><button class="btn ghost" type="button" id="na-out">Sign out</button></div>`;
   document.body.appendChild(el);el.querySelector('#na-retry').onclick=()=>location.reload();el.querySelector('#na-out').onclick=()=>sb.auth.signOut();
 }
-let TEAM=null,TEAMMSG='',PK=null;
+let TEAM=null,TEAMMSG='',PK=null,TEAMSHARE=null;
+const APP_URL='https://zaineddin3.github.io/ox-project-reporting/';
+function shareText(em,pw){return 'Hi,\n\nYou now have access to Oxford Project Reporting.\n\n1. Open '+APP_URL+'\n2. Sign in with your email: '+em+'\n3. Temporary password: '+pw+'\n\nYou will be asked to choose your own password after signing in.'}
+function genPw(){const c='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';const a=new Uint32Array(10);crypto.getRandomValues(a);return 'Ox-'+Array.from(a,x=>c[x%c.length]).join('')}
 async function loadTeam(){const sb=window.__sb;const {data,error}=await sb.from('team').select('*').order('added_at');if(error){TEAMMSG='Could not load the team: '+error.message;TEAM=[]}else TEAM=data;
   const [p,m,j]=await Promise.all([sb.from('packages').select('*').order('created_at'),sb.from('package_members').select('*'),sb.from('package_projects').select('*')]);
   PK=p.error?{err:p.error.message,list:[],mem:[],proj:[]}:{list:p.data||[],mem:m.data||[],proj:j.data||[]};render()}
@@ -3833,14 +3836,15 @@ async function inviteEmail(email){if(inviteWait(email))return {message:'wait',wa
   const {error}=await window.__sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:setpwRedirect()}});
   if(!error||/rate|security purposes|over_email/i.test(error.message||''))INV_AT[email]=INV_AT[email]||Date.now();
   if(!error){setTimeout(()=>{if(UI.view==='team')render()},61000)}return error}
-function inviteMsg(email,err){if(!err)return 'Emailed '+email+' a link and code to set their password. If it hasn’t arrived in a few minutes, ask them to check junk or quarantine, since company email filters sometimes hold it. You can also give them a temporary password.';
+function inviteMsg(email,err){if(!err)return 'Emailed '+email+' a link and code to set their password. Company email systems (like Oxford’s) often hold mail from a Gmail sender in quarantine, so if it hasn’t arrived in a few minutes, click “Temporary password” next to their name and send them the details yourself.';
   if(err.message==='wait'||/rate|security purposes|over_email/i.test(err.message||''))return 'A set-up email was already sent to '+email+' less than a minute ago. Give it a few minutes and ask them to check junk or quarantine. You can send another after a minute.';
+  if(err.message==='claude_page')return 'Set-up emails can only be sent from the website or desktop app. In Claude, give them a temporary password instead (button next to their name).';
   return 'Could not send the set-up email to '+email+': '+err.message+'. You can give them a temporary password instead.'}
 async function setTempPw(email,pw){const sb=window.__sb;let {data,error}=await sb.rpc('admin_set_password',{target_email:email,new_password:pw});
   if(!error&&data==='no_account'){await inviteEmail(email);({data,error}=await sb.rpc('admin_set_password',{target_email:email,new_password:pw}))}
   if(error)return /could not find the function|schema cache|admin_set_password/i.test(error.message)?'Temporary passwords need a one-time database update first. Ask Claude to apply “supabase-temp-password.sql”.':'Could not set the password: '+error.message;
   if(data==='no_account')return 'Their account isn’t ready yet. Try again in a minute.';
-  return 'Temporary password set for '+email+'. Give it to them; they sign in with their email and this password, then choose their own.'}
+  TEAMSHARE={email,pw};return 'Temporary password set for '+email+'. Copy the message below and send it to them from your own email (Outlook) or Teams.'}
 function pkPanel(){
   if(!PK)return '';if(PK.err)return `<div class="banner">Packages aren’t set up in the database yet (${esc(PK.err)}).</div>`;
   const admin=window.__me.role==='admin';const projs=projList().concat(Object.keys(PROJ).filter(k=>!PROJ[k].removed&&!projList().some(x=>x.id===k)).map(k=>({id:k,name:projName(k)})));
@@ -3857,12 +3861,13 @@ function pkPanel(){
         ${admin&&freeUsers.length?`<select class="f" data-pkaddmem="${p.id}" aria-label="Add a person to ${esc(p.name)}" style="width:auto"><option value="">+ Add person…</option>${freeUsers.map(u=>`<option value="${esc(u.email)}">${esc(u.name?u.name+' · '+u.email:u.email)}</option>`).join('')}</select>`:''}</div></div>`}).join(''):`<p class="hint">${admin?'No packages yet.':'You’re not in any packages.'}</p>`}</div>`;
 }
 V.team=()=>{
-  if(!HOSTED||!window.__me)return `<div class="panel empty"><b>Team & users</b>User management is available in the hosted and desktop versions of the app.</div>`;
+  if(!(HOSTED||window.__mcpMode)||!window.__me)return `<div class="panel empty"><b>Team & users</b>User management is available in the hosted and desktop versions of the app.</div>`;
   if(TEAM===null){loadTeam();return `<div class="panel empty"><b>Loading team…</b></div>`}
   const admin=window.__me.role==='admin';const me=window.__me.email;
   const pkOf=e=>PK?PK.mem.filter(m=>m.email===e).map(m=>(PK.list.find(p=>p.id===m.package_id)||{}).name).filter(Boolean):[];
   return `<div class="stack">${head('Team & users','Everyone listed here signs in with their email and password. Admins can add and remove people, set what they can see, and group projects into packages.')}
   ${TEAMMSG?`<div class="banner">${esc(TEAMMSG)}</div>`:''}
+  ${TEAMSHARE?`<div class="panel" style="margin-bottom:12px"><b>Sign-in details for ${esc(TEAMSHARE.email)}</b><textarea class="f" id="share_txt" readonly rows="8" style="width:100%;margin:8px 0;font-family:inherit">${esc(shareText(TEAMSHARE.email,TEAMSHARE.pw))}</textarea><button class="btn primary" type="button" data-copyshare="1">Copy message</button> <button class="btn ghost" type="button" data-closeshare="1">Done</button> <span class="hint" id="share_hint">Paste it into an email from your work account so their company filter doesn’t hold it.</span></div>`:''}
   ${admin?`<form class="panel" id="teamform"><h3>Add a user</h3><div class="form" style="margin-top:10px">
     <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@company.com.au"></label>
     <label>Name<input class="f" id="tm_name" placeholder="Full name"></label>
@@ -3878,8 +3883,8 @@ V.team=()=>{
     <td>${u.role==='admin'?'<span class="hint">Everything</span>':admin?`<select class="f" data-teamscope="${esc(u.email)}" aria-label="What ${esc(u.email)} can see"><option value="all"${u.scope!=='packages'?' selected':''}>All projects</option><option value="packages"${u.scope==='packages'?' selected':''}>Only their packages</option></select>`:esc(scopeLabel(u.scope))}</td>
     <td>${pk.length?pk.map(n=>`<span class="tag">${esc(n)}</span>`).join(' '):'<span class="hint">—</span>'}</td>
     <td class="hint">${u.added_at?new Date(u.added_at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
-    <td style="white-space:nowrap">${admin&&!self?`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" ${inviteWait(u.email)?'disabled':''} title="Email ${esc(u.email)} a link to set their password">${inviteWait(u.email)?'Email sent':'Send set-up email'}</button> <button class="btn ghost" type="button" data-tmppw="${esc(u.email)}">Temporary password</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>
-    ${admin&&!self&&UI.tmpPw===u.email?`<tr><td colspan="7"><form class="to-row" data-tmpform="${esc(u.email)}" style="gap:8px;flex-wrap:wrap"><span class="hint">Temporary password for <b>${esc(u.email)}</b></span><input class="f" type="text" id="tmp_pw" autocomplete="off" placeholder="At least 8 characters" style="width:220px"><button class="btn primary" type="submit">Set password</button><button class="btn ghost" type="button" data-tmppw="">Cancel</button><span class="hint">They’ll be asked to choose their own password after signing in.</span></form></td></tr>`:''}`}).join('')}
+    <td style="white-space:nowrap">${admin&&!self?`${window.__mcpMode?'':`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" ${inviteWait(u.email)?'disabled':''} title="Email ${esc(u.email)} a link to set their password">${inviteWait(u.email)?'Email sent':'Send set-up email'}</button> `}<button class="btn ghost" type="button" data-tmppw="${esc(u.email)}">Temporary password</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>
+    ${admin&&!self&&UI.tmpPw===u.email?`<tr><td colspan="7"><form class="to-row" data-tmpform="${esc(u.email)}" style="gap:8px;flex-wrap:wrap"><span class="hint">Temporary password for <b>${esc(u.email)}</b></span><input class="f" type="text" id="tmp_pw" autocomplete="off" placeholder="At least 8 characters" style="width:220px"><button class="btn ghost" type="button" data-genpw="1">Generate</button><button class="btn primary" type="submit">Set password</button><button class="btn ghost" type="button" data-tmppw="">Cancel</button><span class="hint">They’ll be asked to choose their own password after signing in.</span></form></td></tr>`:''}`}).join('')}
   </tbody></table></div>
   ${pkPanel()}
   ${admin?`<div class="panel"><h3>Import projects</h3><p class="hint" style="margin:4px 0 10px">Load an export file (.json) of projects, for example from the Claude version of this app. Records with the same name are replaced.</p>
@@ -3913,6 +3918,11 @@ document.addEventListener('change',async e=>{const d=e.target.dataset||{};const 
   if(d.teamscope){const {error}=await sb.from('team').update({scope:e.target.value}).eq('email',d.teamscope);TEAMMSG=error?'Could not change access: '+error.message:d.teamscope+' can now see: '+scopeLabel(e.target.value)+'.';loadTeam();return}
   if(d.pkaddproj&&e.target.value){const {error}=await sb.from('package_projects').insert({package_id:d.pkaddproj,project_id:e.target.value});TEAMMSG=error?'Could not add the project: '+error.message:'Added '+projName(e.target.value)+' to the package.';loadTeam();return}
   if(d.pkaddmem&&e.target.value){const {error}=await sb.from('package_members').insert({package_id:d.pkaddmem,email:e.target.value});TEAMMSG=error?'Could not add the person: '+error.message:'Added '+e.target.value+' to the package.';loadTeam();return}});
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-genpw],[data-copyshare],[data-closeshare]');if(!t)return;
+  if(t.dataset.genpw){const i=document.getElementById('tmp_pw');if(i){i.value=genPw();i.focus()}return}
+  if(t.dataset.closeshare){TEAMSHARE=null;render();return}
+  const ta=document.getElementById('share_txt'),h=document.getElementById('share_hint');if(!ta)return;
+  try{await navigator.clipboard.writeText(ta.value);if(h)h.textContent='Copied. Paste it into an email or Teams message.'}catch(_){ta.focus();ta.select();try{document.execCommand('copy');if(h)h.textContent='Copied. Paste it into an email or Teams message.'}catch(__){if(h)h.textContent='Select the text above and copy it.'}}});
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tmppw]');if(!t)return;UI.tmpPw=t.dataset.tmppw||null;render();if(UI.tmpPw)setTimeout(()=>document.getElementById('tmp_pw')?.focus(),30)});
 document.addEventListener('submit',async e=>{const em=e.target.dataset&&e.target.dataset.tmpform;if(!em)return;e.preventDefault();const pw=(document.getElementById('tmp_pw')?.value||'').trim();
   if(pw.length<8){TEAMMSG='Use at least 8 characters for the temporary password.';render();return}TEAMMSG='Setting the password…';render();TEAMMSG=await setTempPw(em,pw);if(!/^Could not|need|isn’t ready/.test(TEAMMSG))UI.tmpPw=null;render()});
@@ -3973,8 +3983,34 @@ async function startShared(startStore){diag('start');
   if(!mcp)return fail('This view can’t use connectors. Open the shared app instead.');
   const sdb=makeMcpDb(mcp);
   try{await sdb.ping();diag('ping ok')}catch(e){console.error(e);diag('ping failed',(e&&e.code)+' '+(e&&e.message));return fail(MCP_MSG[e&&e.code]||('Couldn’t reach your projects through Supabase'+(e&&e.message?': '+esc(String(e.message).slice(0,160)):'.')))}
-  assets=null;window.__mcpMode=true;try{sessionStorage.removeItem('ox_local')}catch(e){}
+  assets=null;window.__mcpMode=true;window.__sb=makeSqlSb(sdb.sql);window.__me={email:'',name:'',role:'admin',scope:'all'};try{sessionStorage.removeItem('ox_local')}catch(e){}
   startStore(sdb);render()}
+/* Team & users in the Claude page: the few table operations it needs, run as SQL through the connector */
+function makeSqlSb(q){const T=new Set(['team','packages','package_members','package_projects']);
+  const lit=v=>v===null||v===undefined?'null':typeof v==='number'?String(v):typeof v==='boolean'?(v?'true':'false'):"'"+String(v).replace(/'/g,"''")+"'";
+  const col=c=>{if(!/^[a-z_]+$/.test(c))throw new Error('bad column');return c};
+  const run=async sql=>{try{return {data:await q(sql),error:null}}catch(e){const m=String(e&&e.message||e);return {data:null,error:{message:/duplicate key|already exists/i.test(m)?'duplicate key':m}}}};
+  function from(t){if(!T.has(t))throw new Error('table not allowed');const st={op:'select',f:[],ord:null,one:false,row:null};
+    const where=()=>st.f.length?' where '+st.f.map(([k,v])=>col(k)+' = '+lit(v)).join(' and '):'';
+    const api={select(){return api},order(c){st.ord=col(c);return api},eq(k,v){st.f.push([k,v]);return api},maybeSingle(){st.one=true;return api},
+      insert(r){st.op='insert';st.row=r;return api},update(r){st.op='update';st.row=r;return api},delete(){st.op='delete';return api},
+      then(res,rej){let sql;
+        if(st.op==='select')sql=`select * from public.${t}${where()}${st.ord?' order by '+st.ord:''}`;
+        else if(st.op==='insert'){const ks=Object.keys(st.row);sql=`insert into public.${t} (${ks.map(col).join(', ')}) values (${ks.map(k=>lit(st.row[k])).join(', ')}) returning *`}
+        else if(st.op==='update'){if(!st.f.length)return Promise.resolve({error:{message:'no filter'}}).then(res,rej);sql=`update public.${t} set ${Object.keys(st.row).map(k=>col(k)+' = '+lit(st.row[k])).join(', ')}${where()}`}
+        else{if(!st.f.length)return Promise.resolve({error:{message:'no filter'}}).then(res,rej);sql=`delete from public.${t}${where()}`}
+        return run(sql).then(r=>st.one&&!r.error?{data:(r.data||[])[0]||null,error:null}:r).then(res,rej)}};return api}
+  async function rpc(fn,a){if(fn!=='admin_set_password')return {error:{message:'not available'}};
+    const em=String(a.target_email||'').trim().toLowerCase(),pw=String(a.new_password||'');if(pw.length<8)return {error:{message:'Use at least 8 characters'}};
+    const on=await run(`select 1 as ok from public.team where email = ${lit(em)}`);if(on.error)return on;if(!on.data.length)return {error:{message:'That email is not on the team'}};
+    const up=await run(`update auth.users set encrypted_password = extensions.crypt(${lit(pw)}, extensions.gen_salt('bf')), email_confirmed_at = coalesce(email_confirmed_at, now()), raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) - 'pw_set', updated_at = now() where lower(email) = ${lit(em)} returning id`);
+    if(up.error)return up;if(up.data.length)return {data:'ok',error:null};
+    const mk=await run(`with u as (insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change_token_new, email_change)
+      values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', ${lit(em)}, extensions.crypt(${lit(pw)}, extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now(), '', '', '', '') returning id, email)
+      insert into auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+      select gen_random_uuid(), u.id::text, u.id, jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true), 'email', now(), now(), now() from u returning user_id`);
+    if(mk.error)return mk;return {data:mk.data.length?'ok':'no_account',error:null}}
+  return {from,rpc,auth:{signInWithOtp:async()=>({error:{message:'claude_page'}})}}}
 function makeMcpDb(mcp){
   const parent=p=>p.split('/').slice(0,-1).join('/');const lit=v=>"'"+String(v).replace(/'/g,"''")+"'";
   async function q(sql){const r=await mcp.callTool('Supabase','execute_sql',{project_id:SB_PROJECT,query:sql},{cache:false});
@@ -3995,6 +4031,7 @@ function makeMcpDb(mcp){
   setInterval(poll,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   const after=async c=>{bump(c);setTimeout(poll,1500)};
   return {
+    sql:q,
     async ping(){const r=await q('select 1 as ok');if(!(r[0]&&r[0].ok===1))throw {code:'tool_error',message:'Supabase answered, but the reply couldn’t be read.'}},
     doc(p){return {
       async set(data){await q(`insert into public.docs (path, coll, data, updated_at) values (${lit(p)}, ${lit(parent(p))}, ${lit(JSON.stringify(data))}::jsonb, now()) on conflict (path) do update set coll = excluded.coll, data = excluded.data, updated_at = now()`);after(parent(p))},
