@@ -3827,7 +3827,20 @@ async function loadTeam(){const sb=window.__sb;const {data,error}=await sb.from(
   const [p,m,j]=await Promise.all([sb.from('packages').select('*').order('created_at'),sb.from('package_members').select('*'),sb.from('package_projects').select('*')]);
   PK=p.error?{err:p.error.message,list:[],mem:[],proj:[]}:{list:p.data||[],mem:m.data||[],proj:j.data||[]};render()}
 const scopeLabel=s=>s==='packages'?'Only their packages':'All projects';
-async function inviteEmail(email){const {error}=await window.__sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:setpwRedirect()}});return error}
+const INV_AT={};
+function inviteWait(email){const t=INV_AT[email];return t?Math.max(0,60-Math.floor((Date.now()-t)/1000)):0}
+async function inviteEmail(email){if(inviteWait(email))return {message:'wait',wait:inviteWait(email)};
+  const {error}=await window.__sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:setpwRedirect()}});
+  if(!error||/rate|security purposes|over_email/i.test(error.message||''))INV_AT[email]=INV_AT[email]||Date.now();
+  if(!error){setTimeout(()=>{if(UI.view==='team')render()},61000)}return error}
+function inviteMsg(email,err){if(!err)return 'Emailed '+email+' a link and code to set their password. If it hasn’t arrived in a few minutes, ask them to check junk or quarantine, since company email filters sometimes hold it. You can also give them a temporary password.';
+  if(err.message==='wait'||/rate|security purposes|over_email/i.test(err.message||''))return 'A set-up email was already sent to '+email+' less than a minute ago. Give it a few minutes and ask them to check junk or quarantine. You can send another after a minute.';
+  return 'Could not send the set-up email to '+email+': '+err.message+'. You can give them a temporary password instead.'}
+async function setTempPw(email,pw){const sb=window.__sb;let {data,error}=await sb.rpc('admin_set_password',{target_email:email,new_password:pw});
+  if(!error&&data==='no_account'){await inviteEmail(email);({data,error}=await sb.rpc('admin_set_password',{target_email:email,new_password:pw}))}
+  if(error)return /could not find the function|schema cache|admin_set_password/i.test(error.message)?'Temporary passwords need a one-time database update first. Ask Claude to apply “supabase-temp-password.sql”.':'Could not set the password: '+error.message;
+  if(data==='no_account')return 'Their account isn’t ready yet. Try again in a minute.';
+  return 'Temporary password set for '+email+'. Give it to them; they sign in with their email and this password, then choose their own.'}
 function pkPanel(){
   if(!PK)return '';if(PK.err)return `<div class="banner">Packages aren’t set up in the database yet (${esc(PK.err)}).</div>`;
   const admin=window.__me.role==='admin';const projs=projList().concat(Object.keys(PROJ).filter(k=>!PROJ[k].removed&&!projList().some(x=>x.id===k)).map(k=>({id:k,name:projName(k)})));
@@ -3856,15 +3869,17 @@ V.team=()=>{
     <label>Role<select class="f" id="tm_role"><option value="member">Member: can edit projects</option><option value="admin">Admin: can also manage users</option></select></label>
     <label>Can see<select class="f" id="tm_scope"><option value="all">All projects</option><option value="packages">Only their packages</option></select></label>
     ${PK&&PK.list.length?`<label>Package<select class="f" id="tm_pkg"><option value="">None</option>${PK.list.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>`:''}
+    <label>Temporary password (optional)<input class="f" id="tm_pw" type="text" autocomplete="off" placeholder="Leave blank to email a set-up link"></label>
     <label style="justify-content:flex-end"><button class="btn primary" type="submit" style="text-transform:none;letter-spacing:0">Add user</button></label></div>
-    <p class="hint" style="margin:8px 0 0">We email them a link to set their password. After that they sign in with their email and password.</p></form>`:''}
+    <p class="hint" style="margin:8px 0 0">We email them a link and code to set their password. If their company email blocks it, give them a temporary password instead; they choose their own after signing in.</p></form>`:''}
   <div class="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Can see</th><th>Packages</th><th>Added</th><th></th></tr></thead><tbody>
   ${TEAM.map(u=>{const self=u.email===me;const pk=pkOf(u.email);return `<tr><td>${esc(u.name||'—')}${self?' <span class="tag acc">you</span>':''}</td><td class="mono">${esc(u.email)}</td>
     <td>${admin&&!self?`<select class="f" data-teamrole="${esc(u.email)}" aria-label="Role for ${esc(u.email)}"><option value="member"${u.role==='member'?' selected':''}>Member</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select>`:`<span class="tag ${u.role==='admin'?'good':''}">${u.role==='admin'?'Admin':'Member'}</span>`}</td>
     <td>${u.role==='admin'?'<span class="hint">Everything</span>':admin?`<select class="f" data-teamscope="${esc(u.email)}" aria-label="What ${esc(u.email)} can see"><option value="all"${u.scope!=='packages'?' selected':''}>All projects</option><option value="packages"${u.scope==='packages'?' selected':''}>Only their packages</option></select>`:esc(scopeLabel(u.scope))}</td>
     <td>${pk.length?pk.map(n=>`<span class="tag">${esc(n)}</span>`).join(' '):'<span class="hint">—</span>'}</td>
     <td class="hint">${u.added_at?new Date(u.added_at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
-    <td style="white-space:nowrap">${admin&&!self?`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" title="Email ${esc(u.email)} a link to set their password">Send set-up email</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>`}).join('')}
+    <td style="white-space:nowrap">${admin&&!self?`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" ${inviteWait(u.email)?'disabled':''} title="Email ${esc(u.email)} a link to set their password">${inviteWait(u.email)?'Email sent':'Send set-up email'}</button> <button class="btn ghost" type="button" data-tmppw="${esc(u.email)}">Temporary password</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>
+    ${admin&&!self&&UI.tmpPw===u.email?`<tr><td colspan="7"><form class="to-row" data-tmpform="${esc(u.email)}" style="gap:8px;flex-wrap:wrap"><span class="hint">Temporary password for <b>${esc(u.email)}</b></span><input class="f" type="text" id="tmp_pw" autocomplete="off" placeholder="At least 8 characters" style="width:220px"><button class="btn primary" type="submit">Set password</button><button class="btn ghost" type="button" data-tmppw="">Cancel</button><span class="hint">They’ll be asked to choose their own password after signing in.</span></form></td></tr>`:''}`}).join('')}
   </tbody></table></div>
   ${pkPanel()}
   ${admin?`<div class="panel"><h3>Import projects</h3><p class="hint" style="margin:4px 0 10px">Load an export file (.json) of projects, for example from the Claude version of this app. Records with the same name are replaced.</p>
@@ -3889,15 +3904,20 @@ document.addEventListener('submit',async e=>{const sb=window.__sb;
   const {error}=await sb.from('team').insert({email,name,role,scope});
   if(error){TEAMMSG=/duplicate/i.test(error.message)?email+' is already on the team.':'Could not add the user: '+error.message;loadTeam();return}
   if(pkg){const r=await sb.from('package_members').insert({package_id:pkg,email});if(r.error)TEAMMSG='Added '+email+', but could not add them to the package: '+r.error.message}
-  const ie=await inviteEmail(email);TEAMMSG=(TEAMMSG&&TEAMMSG.startsWith('Added '+email+', but')?TEAMMSG+' ':'')+(ie?'Added '+email+'. The set-up email could not be sent ('+ie.message+'); use “Send set-up email” to try again.':'Added '+email+' and emailed them a link to set their password.');
-  loadTeam()});
+  const pre=TEAMMSG&&TEAMMSG.startsWith('Added '+email+', but')?TEAMMSG+' ':'';const tpw=(document.getElementById('tm_pw')?.value||'').trim();
+  const ie=await inviteEmail(email);let msg='Added '+email+'. '+inviteMsg(email,ie);
+  if(tpw){if(tpw.length<8)msg+=' The temporary password was not set: use at least 8 characters.';else msg='Added '+email+'. '+(await setTempPw(email,tpw))}
+  TEAMMSG=pre+msg;loadTeam()});
 document.addEventListener('change',async e=>{const d=e.target.dataset||{};const sb=window.__sb;if(!sb)return;
   if(d.teamrole){const {error}=await sb.from('team').update({role:e.target.value}).eq('email',d.teamrole);TEAMMSG=error?'Could not change the role: '+error.message:'Updated '+d.teamrole+'.';loadTeam();return}
   if(d.teamscope){const {error}=await sb.from('team').update({scope:e.target.value}).eq('email',d.teamscope);TEAMMSG=error?'Could not change access: '+error.message:d.teamscope+' can now see: '+scopeLabel(e.target.value)+'.';loadTeam();return}
   if(d.pkaddproj&&e.target.value){const {error}=await sb.from('package_projects').insert({package_id:d.pkaddproj,project_id:e.target.value});TEAMMSG=error?'Could not add the project: '+error.message:'Added '+projName(e.target.value)+' to the package.';loadTeam();return}
   if(d.pkaddmem&&e.target.value){const {error}=await sb.from('package_members').insert({package_id:d.pkaddmem,email:e.target.value});TEAMMSG=error?'Could not add the person: '+error.message:'Added '+e.target.value+' to the package.';loadTeam();return}});
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tmppw]');if(!t)return;UI.tmpPw=t.dataset.tmppw||null;render();if(UI.tmpPw)setTimeout(()=>document.getElementById('tmp_pw')?.focus(),30)});
+document.addEventListener('submit',async e=>{const em=e.target.dataset&&e.target.dataset.tmpform;if(!em)return;e.preventDefault();const pw=(document.getElementById('tmp_pw')?.value||'').trim();
+  if(pw.length<8){TEAMMSG='Use at least 8 characters for the temporary password.';render();return}TEAMMSG='Setting the password…';render();TEAMMSG=await setTempPw(em,pw);if(!/^Could not|need|isn’t ready/.test(TEAMMSG))UI.tmpPw=null;render()});
 document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-invite],[data-pkunproj],[data-pkunmem]');if(!t||!window.__sb)return;const sb=window.__sb;
-  if(t.dataset.invite){t.disabled=true;const er=await inviteEmail(t.dataset.invite);TEAMMSG=er?'Could not send the email: '+er.message:'Emailed '+t.dataset.invite+' a link to set their password.';render();return}
+  if(t.dataset.invite){t.disabled=true;const er=await inviteEmail(t.dataset.invite);TEAMMSG=inviteMsg(t.dataset.invite,er);render();return}
   if(t.dataset.pkunproj){const {error}=await sb.from('package_projects').delete().eq('project_id',t.dataset.pkunproj);TEAMMSG=error?'Could not remove the project: '+error.message:'Removed '+projName(t.dataset.pkunproj)+' from the package.';loadTeam();return}
   if(t.dataset.pkunmem){const [pid,em]=t.dataset.pkunmem.split('|');const {error}=await sb.from('package_members').delete().eq('package_id',pid).eq('email',em);TEAMMSG=error?'Could not remove: '+error.message:'Removed '+em+' from the package.';loadTeam();return}});
 async function hostedBoot(startStore,offline){
