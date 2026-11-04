@@ -3911,17 +3911,66 @@ async function hostedBoot(startStore,offline){
 /* ---------- boot ---------- */
 /* Claude copy: open the shared app instead (Claude pages can't reach the shared database) */
 const SHARED_URL='https://zaineddin3.github.io/ox-project-reporting/';
-function claudeLauncher(){let skip=false;try{skip=sessionStorage.getItem('ox_local')==='1'}catch(e){}
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}};
+function claudeLauncher(startLocal,startSharedFn,msg){
+  let local=false;try{local=sessionStorage.getItem('ox_local')==='1'}catch(e){}
   const bn=document.getElementById('banner');
-  if(skip){bn.innerHTML=`<div class="banner">You’re in the Claude-only copy. Changes here stay in Claude and don’t reach the website or desktop app. <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>Open the shared app</b></a></div>`;return}
+  if(local){bn.innerHTML=`<div class="banner">You’re in the Claude-only copy. Changes here stay in Claude and don’t reach the website or desktop app. <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>Open the shared app</b></a></div>`;startLocal();return}
+  if(lsGet('ox_mode')==='shared'&&!msg){startSharedFn();return}
+  document.getElementById('oxlaunch')?.remove();
   const el=document.createElement('div');el.className='login';el.id='oxlaunch';
   el.innerHTML=`<div class="login-card"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
-    <h2>Open the shared app</h2><p class="hint">Your projects live in the shared app, the same one the website and desktop app use, so everyone sees each other’s changes. Claude can’t connect to it from inside this page, so open it here:</p>
+    <h2>Open your projects</h2><p class="hint">Your projects live in the shared app, the same one the website and desktop app use, so everyone sees each other’s changes.</p>
+    ${msg?`<div class="banner" style="margin:0">${msg}</div>`:''}
     <a class="btn primary" href="${SHARED_URL}" target="_blank" rel="noopener" style="text-decoration:none">Open Oxford Project Reporting ↗</a>
-    <p class="hint" style="margin:4px 0 0">Or open the <b>OX Project Reporting</b> desktop app on your computer.</p>
-    <button class="btn ghost" type="button" id="oxlocal">Use the Claude-only copy instead</button>
-    <p class="hint" style="font-size:12px;margin:0">The Claude-only copy is separate: changes made in it don’t appear in the shared app.</p></div>`;
-  document.body.appendChild(el);el.querySelector('#oxlocal').onclick=()=>{try{sessionStorage.setItem('ox_local','1')}catch(e){}el.remove();claudeLauncher()}}
+    <button class="btn" type="button" id="oxshared">Work here in Claude on the shared projects</button>
+    <p class="hint" style="font-size:12px;margin:0">Works through your Supabase connector. Claude asks your permission the first time. A little slower than the website; changes from others appear within about 20 seconds. PDF uploads and file viewing need the website.</p>
+    <button class="btn ghost" type="button" id="oxlocal">Use the Claude-only copy instead</button></div>`;
+  document.body.appendChild(el);
+  el.querySelector('#oxlocal').onclick=()=>{try{sessionStorage.setItem('ox_local','1')}catch(e){}el.remove();claudeLauncher(startLocal,startSharedFn)};
+  el.querySelector('#oxshared').onclick=()=>{lsSet('ox_mode','shared');el.remove();startSharedFn()}}
+/* shared projects through the Supabase connector (Claude can't reach the database directly) */
+const SB_PROJECT='pcwhvtpfaszllauhbchp';
+const MCP_MSG={server_not_connected:'The Supabase connector isn’t connected. Add it in Claude Settings → Connectors, then try again.',needs_reauth:'Your Supabase connector needs signing in again. Reconnect it in Claude Settings → Connectors.',not_in_manifest:'Supabase isn’t allowed for this page. Allow it when Claude asks, or from this page’s Permissions menu.',approval_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',consent_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',selection_required:'You have more than one Supabase connector. Choose one when Claude asks, then try again.',blocked_by_policy:'Your organisation’s settings block Supabase for this page.',server_unavailable:'Supabase didn’t answer just now. Try again in a moment.'};
+async function startShared(startStore){
+  setSave('saving');document.getElementById('savepill').textContent='Connecting';
+  const fail=m=>{lsSet('ox_mode',null);setSave('local');claudeLauncher(()=>{window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});startStore(window.__claudeDb)},()=>startShared(startStore),m)};
+  let mcp=null;try{mcp=await window.claude.use('mcp')}catch(e){}
+  if(!mcp)return fail('This view can’t use connectors. Open the shared app instead.');
+  const sdb=makeMcpDb(mcp);
+  try{await sdb.ping()}catch(e){console.error(e);return fail(MCP_MSG[e&&e.code]||('Couldn’t reach your projects through Supabase'+(e&&e.message?': '+esc(String(e.message).slice(0,160)):'.')))}
+  assets=null;document.getElementById('banner').innerHTML=`<div class="banner">Working on the shared projects through Supabase. Changes from the website or desktop app appear within about 20 seconds. To upload or view PDFs, use <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>the website</b></a>. <button class="rowlink" type="button" id="oxleave" style="color:var(--accent);font-weight:600">Switch</button></div>`;
+  document.getElementById('oxleave').onclick=()=>{lsSet('ox_mode',null);location.reload()};
+  startStore(sdb);render()}
+function makeMcpDb(mcp){
+  const parent=p=>p.split('/').slice(0,-1).join('/');const lit=v=>"'"+String(v).replace(/'/g,"''")+"'";
+  async function q(sql){const r=await mcp.callTool('Supabase','execute_sql',{project_id:SB_PROJECT,query:sql},{cache:false});
+    const pl=r&&r.payload;const txt=typeof pl==='string'?pl:pl&&typeof pl.result==='string'?pl.result:JSON.stringify(pl||'');
+    const m=txt.match(/<untrusted-data-[^>]*>\s*([\s\S]*?)\s*<\/untrusted-data-/);const body=(m?m[1]:txt).trim();
+    if(!body)return [];try{const v=JSON.parse(body);return Array.isArray(v)?v:[]}catch(e){if(/error/i.test(body))throw {code:'tool_error',message:body.slice(0,200)};return []}}
+  const listeners={},sig={};let want=new Set(),timer=null;
+  const snap=rows=>{const docs=rows.map(r=>({id:r.path.split('/').pop(),exists:true,data:()=>r.data}));return {docs,metadata:{fromCache:false,hasPendingWrites:false},size:docs.length,empty:!docs.length}};
+  async function fetchColls(cs){if(!cs.length)return;const rows=await q(`select path, coll, data from public.docs where coll in (${cs.map(lit).join(',')})`);
+    const by={};for(const c of cs)by[c]=[];for(const r of rows)if(by[r.coll])by[r.coll].push({path:r.path,data:typeof r.data==='string'?JSON.parse(r.data):r.data});
+    for(const c of cs){const L=listeners[c];if(L)for(const f of L)f.next(snap(by[c]))}}
+  function bump(c){want.add(c);clearTimeout(timer);timer=setTimeout(()=>{const cs=[...want].filter(x=>listeners[x]&&listeners[x].size);want=new Set();fetchColls(cs).catch(e=>{console.error(e);for(const x of cs)for(const f of listeners[x]||[])f.err&&f.err(e)})},80)}
+  async function poll(){const cs=Object.keys(listeners).filter(c=>listeners[c].size);if(!cs.length||document.hidden)return;
+    try{const rows=await q(`select coll, count(*)::int as n, max(updated_at)::text as t from public.docs where coll in (${cs.map(lit).join(',')}) group by coll`);
+      const now={};for(const r of rows)now[r.coll]=r.n+'|'+r.t;const ch=[];for(const c of cs){const v=now[c]||'0';if(sig[c]!==undefined&&sig[c]!==v)ch.push(c);sig[c]=v}
+      if(ch.length)await fetchColls(ch)}catch(e){console.error(e)}}
+  setInterval(poll,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+  const after=async c=>{bump(c);setTimeout(poll,1500)};
+  return {
+    async ping(){await q('select 1 as ok')},
+    doc(p){return {
+      async set(data){await q(`insert into public.docs (path, coll, data, updated_at) values (${lit(p)}, ${lit(parent(p))}, ${lit(JSON.stringify(data))}::jsonb, now()) on conflict (path) do update set coll = excluded.coll, data = excluded.data, updated_at = now()`);after(parent(p))},
+      async update(patch){const r=await q(`select data from public.docs where path = ${lit(p)}`);if(!r.length)throw {code:'invalid_argument',message:'missing'};const cur=typeof r[0].data==='string'?JSON.parse(r[0].data):r[0].data;
+        await q(`update public.docs set data = ${lit(JSON.stringify(jsonMerge(cur,patch)))}::jsonb, updated_at = now() where path = ${lit(p)}`);after(parent(p))},
+      async delete(){await q(`delete from public.docs where path = ${lit(p)}`);after(parent(p))},
+      async get(){const r=await q(`select data from public.docs where path = ${lit(p)}`);const d=r[0]&&(typeof r[0].data==='string'?JSON.parse(r[0].data):r[0].data);return {id:p.split('/').pop(),exists:!!d,data:()=>d||null}}
+    }},
+    collection(c){return {onSnapshot(next,err){const f={next,err};(listeners[c]=listeners[c]||new Set()).add(f);bump(c);return ()=>listeners[c].delete(f)}}}
+  }}
 (function(){
   let h=(location.hash||'').slice(1);if(h==='apartments')h='subcontractors';if(VIEWS_LIST.some(v=>v[0]===h))UI.view=h;
   render();setSave('saving');document.getElementById('savepill').textContent='Connecting';
@@ -3933,13 +3982,12 @@ function claudeLauncher(){let skip=false;try{skip=sessionStorage.getItem('ox_loc
   if(HOSTED){clearTimeout(timeout);hostedBoot(startStore,offline);return}
   if(!window.claude||!window.claude.use){clearTimeout(timeout);offline();return}
   window.claude.use('db').then(d=>{
-    clearTimeout(timeout);
+    clearTimeout(timeout);window.__claudeDb=d;
     if(!d){offline();return}
-    claudeLauncher();
-    window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});
     window.claude.use('downloads').then(x=>{downloads=x}).catch(()=>{});
     window.claude.use('sample').then(x=>{sampleFn=x}).catch(()=>{});
-    startStore(d);
+    const startLocal=()=>{window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});startStore(d)};
+    claudeLauncher(startLocal,()=>startShared(startStore));
   }).catch(()=>{clearTimeout(timeout);offline()});
   function startStore(d){
     db=d;setSave('saved');
