@@ -1154,7 +1154,7 @@ async function pdfView(id,name){pdfViewClose();
     for(let i=1;i<=doc.numPages;i++){if(me.closed)return;const pg=await doc.getPage(i);const v1=pg.getViewport({scale:1});const sc=W/v1.width;const vp=pg.getViewport({scale:sc*dpr});
       const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);c.style.width=Math.round(vp.width/dpr)+'px';c.style.height=Math.round(vp.height/dpr)+'px';body.appendChild(c);
       await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
-  catch(err){console.error(err);msg(/not.?found|404|missing/i.test(String(err&&(err.message||err.statusCode||err)))?'This file couldn’t be found. It may have been removed, or was uploaded in another version of the app.':'Couldn’t open this PDF. Check your connection and try again.')}}
+  catch(err){console.error(err);if(window.__mcpMode){msg('Files can’t be opened inside Claude. Open this on the website: '+SHARED_URL);return}msg(/not.?found|404|missing/i.test(String(err&&(err.message||err.statusCode||err)))?'This file couldn’t be found. It may have been removed, or was uploaded in another version of the app.':'Couldn’t open this PDF. Check your connection and try again.')}}
 addEventListener('keydown',e=>{if(e.key==='Escape'&&PDFV)pdfViewClose()});
 async function fileBlob(f){if(!f||!f.id)return null;
   if(HOSTED&&window.__sb){const {data,error}=await window.__sb.storage.from('files').download(f.id);if(error)throw error;return data}
@@ -3913,18 +3913,18 @@ async function hostedBoot(startStore,offline){
 const SHARED_URL='https://zaineddin3.github.io/ox-project-reporting/';
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}};
 function claudeLauncher(startLocal,startSharedFn,msg){
-  let local=false;try{local=sessionStorage.getItem('ox_local')==='1'}catch(e){}
+  let local=false;try{local=!!msg&&sessionStorage.getItem('ox_local')==='1'}catch(e){}
   const bn=document.getElementById('banner');
   if(local){bn.innerHTML=`<div class="banner">You’re in the Claude-only copy. Changes here stay in Claude and don’t reach the website or desktop app. <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>Open the shared app</b></a></div>`;startLocal();return}
-  if(lsGet('ox_mode')==='shared'&&!msg){startSharedFn();return}
+  if(!msg){startSharedFn();return}
   document.getElementById('oxlaunch')?.remove();
   const el=document.createElement('div');el.className='login';el.id='oxlaunch';
   el.innerHTML=`<div class="login-card"><div class="brand"><img src="${LOGO}" alt="Oxford Electrical Group" width="44" height="54"><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
-    <h2>Open your projects</h2><p class="hint">Your projects live in the shared app, the same one the website and desktop app use, so everyone sees each other’s changes.</p>
+    <h2>Couldn’t open your projects here</h2><p class="hint">This page opens your shared projects (the same ones the website and desktop app use) through the Supabase connector, but it couldn’t this time.</p>
     ${msg?`<div class="banner" style="margin:0">${msg}</div>`:''}
     <a class="btn primary" href="${SHARED_URL}" target="_blank" rel="noopener" style="text-decoration:none">Open Oxford Project Reporting ↗</a>
-    <button class="btn" type="button" id="oxshared">Work here in Claude on the shared projects</button>
-    <p class="hint" style="font-size:12px;margin:0">Works through your Supabase connector. Claude asks your permission the first time. A little slower than the website; changes from others appear within about 20 seconds. PDF uploads and file viewing need the website.</p>
+    <button class="btn" type="button" id="oxshared">Try again</button>
+    <p class="hint" style="font-size:12px;margin:0">Claude asks your permission to use Supabase the first time; choose Allow.</p>
     <button class="btn ghost" type="button" id="oxlocal">Use the Claude-only copy instead</button></div>`;
   document.body.appendChild(el);
   el.querySelector('#oxlocal').onclick=()=>{try{sessionStorage.setItem('ox_local','1')}catch(e){}el.remove();claudeLauncher(startLocal,startSharedFn)};
@@ -3934,13 +3934,12 @@ const SB_PROJECT='pcwhvtpfaszllauhbchp';
 const MCP_MSG={server_not_connected:'The Supabase connector isn’t connected. Add it in Claude Settings → Connectors, then try again.',needs_reauth:'Your Supabase connector needs signing in again. Reconnect it in Claude Settings → Connectors.',not_in_manifest:'Supabase isn’t allowed for this page. Allow it when Claude asks, or from this page’s Permissions menu.',approval_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',consent_required:'Claude needs your approval to use Supabase here. Try again and choose Allow.',selection_required:'You have more than one Supabase connector. Choose one when Claude asks, then try again.',blocked_by_policy:'Your organisation’s settings block Supabase for this page.',server_unavailable:'Supabase didn’t answer just now. Try again in a moment.'};
 async function startShared(startStore){
   setSave('saving');document.getElementById('savepill').textContent='Connecting';
-  const fail=m=>{lsSet('ox_mode',null);setSave('local');claudeLauncher(()=>{window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});startStore(window.__claudeDb)},()=>startShared(startStore),m)};
+  const fail=m=>{setSave('local');claudeLauncher(()=>{window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});startStore(window.__claudeDb)},()=>startShared(startStore),m)};
   let mcp=null;try{mcp=await window.claude.use('mcp')}catch(e){}
   if(!mcp)return fail('This view can’t use connectors. Open the shared app instead.');
   const sdb=makeMcpDb(mcp);
   try{await sdb.ping()}catch(e){console.error(e);return fail(MCP_MSG[e&&e.code]||('Couldn’t reach your projects through Supabase'+(e&&e.message?': '+esc(String(e.message).slice(0,160)):'.')))}
-  assets=null;document.getElementById('banner').innerHTML=`<div class="banner">Working on the shared projects through Supabase. Changes from the website or desktop app appear within about 20 seconds. To upload or view PDFs, use <a href="${SHARED_URL}" target="_blank" rel="noopener"><b>the website</b></a>. <button class="rowlink" type="button" id="oxleave" style="color:var(--accent);font-weight:600">Switch</button></div>`;
-  document.getElementById('oxleave').onclick=()=>{lsSet('ox_mode',null);location.reload()};
+  assets=null;window.__mcpMode=true;try{sessionStorage.removeItem('ox_local')}catch(e){}
   startStore(sdb);render()}
 function makeMcpDb(mcp){
   const parent=p=>p.split('/').slice(0,-1).join('/');const lit=v=>"'"+String(v).replace(/'/g,"''")+"'";
