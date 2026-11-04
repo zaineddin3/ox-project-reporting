@@ -3919,14 +3919,9 @@ async function hostedBoot(startStore,offline){
   }
   if(HOSTED){clearTimeout(timeout);hostedBoot(startStore,offline);return}
   if(!window.claude||!window.claude.use){clearTimeout(timeout);offline();return}
-  window.claude.use('db').then(async d=>{
+  window.claude.use('db').then(d=>{
     clearTimeout(timeout);
     if(!d){offline();return}
-    const err=await sharedReachable();
-    try{await d.doc('meta/sync').set({mode:err?'claude':'shared',err,at:Date.now()})}catch(e){}
-    if(!err){try{downloads=await window.claude.use('downloads')}catch(e){}
-      window.claude.use('sample').then(x=>{sampleFn=x}).catch(()=>{});
-      window.OX_CONFIG=OX_SHARED;HOSTED=true;render();hostedBoot(startStore,offline);return}
     document.getElementById('banner').innerHTML='<div class="banner">This Claude copy saves separately from the website and desktop app, so changes made here don’t appear there. Use <a href="https://zaineddin3.github.io/ox-project-reporting/" target="_blank" rel="noopener"><b>the website</b></a> or the desktop app to work on the shared projects.</div>';
     window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});
     window.claude.use('downloads').then(x=>{downloads=x}).catch(()=>{});
