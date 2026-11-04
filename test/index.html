@@ -1119,7 +1119,14 @@ async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=f
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
 }
-const HOSTED=!!window.OX_CONFIG;
+let HOSTED=!!window.OX_CONFIG;
+/* the shared online database (same one the website and desktop app use); the key is the public one */
+const OX_SHARED={supabaseUrl:'https://pcwhvtpfaszllauhbchp.supabase.co',supabaseAnonKey:'sb_publishable_SFzyuMEhTpfPynAxt_Jtgw_tOezgQlz'};
+async function sharedReachable(){const to=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
+  try{if(!window.supabase)await Promise.race([loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'),to(6000)]);
+    if(!window.supabase||!window.supabase.createClient)return 'library';
+    const r=await Promise.race([fetch(OX_SHARED.supabaseUrl+'/auth/v1/health',{headers:{apikey:OX_SHARED.supabaseAnonKey}}),to(6000)]);return r&&r.ok?'':'http '+(r&&r.status)}
+  catch(e){return String(e&&e.message||e).slice(0,120)}}
 let assets=null;const UP={};
 let COLL=new Set();try{COLL=new Set(JSON.parse(localStorage.getItem('ox_coll')||'[]'))}catch(e){}
 function saveColl(){try{localStorage.setItem('ox_coll',JSON.stringify([...COLL]))}catch(e){}}
@@ -3915,7 +3922,7 @@ async function hostedBoot(startStore,offline){
   document.getElementById('signout').onclick=()=>sb.auth.signOut();document.getElementById('chpw').onclick=()=>passwordScreen(sb,{change:true});
   let wantPw=false;try{wantPw=sessionStorage.getItem('ox_setpw')==='1'}catch(e){}
   if(wantPw||/[?&]setpw=1/.test(location.search)||!(session.user.user_metadata&&session.user.user_metadata.pw_set))passwordScreen(sb);if(window.oxDesktop)document.getElementById('oxsettings').onclick=()=>window.oxDesktop.openSettings();
-  assets=makeSbAssets(sb);downloads=browserDownloads;
+  assets=makeSbAssets(sb);downloads=downloads||browserDownloads;
   startStore(makeSbDb(sb));render();
 }
 
@@ -3930,9 +3937,15 @@ async function hostedBoot(startStore,offline){
   }
   if(HOSTED){clearTimeout(timeout);hostedBoot(startStore,offline);return}
   if(!window.claude||!window.claude.use){clearTimeout(timeout);offline();return}
-  window.claude.use('db').then(d=>{
+  window.claude.use('db').then(async d=>{
     clearTimeout(timeout);
     if(!d){offline();return}
+    const err=await sharedReachable();
+    try{await d.doc('meta/sync').set({mode:err?'claude':'shared',err,at:Date.now()})}catch(e){}
+    if(!err){try{downloads=await window.claude.use('downloads')}catch(e){}
+      window.claude.use('sample').then(x=>{sampleFn=x}).catch(()=>{});
+      window.OX_CONFIG=OX_SHARED;HOSTED=true;render();hostedBoot(startStore,offline);return}
+    document.getElementById('banner').innerHTML='<div class="banner">This Claude copy saves separately from the website and desktop app, so changes made here don’t appear there. Use <a href="https://zaineddin3.github.io/ox-project-reporting/" target="_blank" rel="noopener"><b>the website</b></a> or the desktop app to work on the shared projects.</div>';
     window.claude.use('assets').then(a=>{assets=a;render()}).catch(()=>{});
     window.claude.use('downloads').then(x=>{downloads=x}).catch(()=>{});
     window.claude.use('sample').then(x=>{sampleFn=x}).catch(()=>{});
