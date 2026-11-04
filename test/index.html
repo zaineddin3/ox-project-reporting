@@ -3831,6 +3831,15 @@ function noAccess(sb,email){
 let TEAM=null,TEAMMSG='',PK=null,TEAMSHARE=null;
 const APP_URL='https://zaineddin3.github.io/ox-project-reporting/';
 function shareText(em,pw){return 'Hi,\n\nYou now have access to Oxford Project Reporting.\n\n1. Open '+APP_URL+'\n2. Sign in with your email: '+em+'\n3. Temporary password: '+pw+'\n\nYou will be asked to choose your own password after signing in.'}
+function linkSubject(){return 'Oxford Project Reporting: your access'}
+function linkText(){return 'Hi,\n\nYou have been given access to Oxford Project Reporting.\n\nOpen the app here: '+APP_URL+'\n\nSign in with your work email. Your temporary password will be sent separately; after signing in you will be asked to choose your own.\n\nTip: bookmark the link, or use the browser menu to install it as an app.'}
+function linkMailto(to){return 'mailto:'+(to||'')+'?subject='+encodeURIComponent(linkSubject())+'&body='+encodeURIComponent(linkText())}
+function linkPanel(){const others=(TEAM||[]).map(u=>u.email).filter(e=>e&&e!==(window.__me.email||''));
+  return `<div class="panel" style="margin-bottom:12px"><h3>Share the app</h3><p class="hint" style="margin:4px 0 10px">Send people the link to Oxford Project Reporting. The email opens in your own mail app (Outlook), so it reaches company inboxes.</p>
+  <div class="to-row" style="gap:8px;flex-wrap:wrap;align-items:center"><input class="f" id="app_link" readonly value="${esc(APP_URL)}" style="flex:1;min-width:240px">
+  <button class="btn primary" type="button" data-copylink="link">Copy link</button><button class="btn ghost" type="button" data-copylink="msg">Copy invite message</button>
+  ${others.length?`<a class="btn ghost" style="text-decoration:none" href="${esc(linkMailto('')+'&bcc='+encodeURIComponent(others.join(',')))}" target="_blank" rel="noopener">Email everyone (${others.length})</a>`:''}</div>
+  <span class="hint" id="link_hint" style="display:block;margin-top:6px">To send it to one person, use “Email link” next to their name.</span></div>`}
 function genPw(){const c='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';const a=new Uint32Array(10);crypto.getRandomValues(a);return 'Ox-'+Array.from(a,x=>c[x%c.length]).join('')}
 async function loadTeam(){const sb=window.__sb;const {data,error}=await sb.from('team').select('*').order('added_at');if(error){TEAMMSG='Could not load the team: '+error.message;TEAM=[]}else TEAM=data;
   const [p,m,j]=await Promise.all([sb.from('packages').select('*').order('created_at'),sb.from('package_members').select('*'),sb.from('package_projects').select('*')]);
@@ -3874,6 +3883,7 @@ V.team=()=>{
   return `<div class="stack">${head('Team & users','Everyone listed here signs in with their email and password. Admins can add and remove people, set what they can see, and group projects into packages.')}
   ${TEAMMSG?`<div class="banner">${esc(TEAMMSG)}</div>`:''}
   ${TEAMSHARE?`<div class="panel" style="margin-bottom:12px"><b>Sign-in details for ${esc(TEAMSHARE.email)}</b><textarea class="f" id="share_txt" readonly rows="8" style="width:100%;margin:8px 0;font-family:inherit">${esc(shareText(TEAMSHARE.email,TEAMSHARE.pw))}</textarea><button class="btn primary" type="button" data-copyshare="1">Copy message</button> <button class="btn ghost" type="button" data-closeshare="1">Done</button> <span class="hint" id="share_hint">Paste it into an email from your work account so their company filter doesn’t hold it.</span></div>`:''}
+  ${admin?linkPanel():''}
   ${admin?`<form class="panel" id="teamform"><h3>Add a user</h3><div class="form" style="margin-top:10px">
     <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@company.com.au"></label>
     <label>Name<input class="f" id="tm_name" placeholder="Full name"></label>
@@ -3889,7 +3899,7 @@ V.team=()=>{
     <td>${u.role==='admin'?'<span class="hint">Everything</span>':admin?`<select class="f" data-teamscope="${esc(u.email)}" aria-label="What ${esc(u.email)} can see"><option value="all"${u.scope!=='packages'?' selected':''}>All projects</option><option value="packages"${u.scope==='packages'?' selected':''}>Only their packages</option></select>`:esc(scopeLabel(u.scope))}</td>
     <td>${pk.length?pk.map(n=>`<span class="tag">${esc(n)}</span>`).join(' '):'<span class="hint">—</span>'}</td>
     <td class="hint">${u.added_at?new Date(u.added_at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
-    <td style="white-space:nowrap">${admin&&!self?`${window.__mcpMode?'':`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" ${inviteWait(u.email)?'disabled':''} title="Email ${esc(u.email)} a link to set their password">${inviteWait(u.email)?'Email sent':'Send set-up email'}</button> `}<button class="btn ghost" type="button" data-tmppw="${esc(u.email)}">Temporary password</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>
+    <td style="white-space:nowrap">${admin&&!self?`${window.__mcpMode?'':`<button class="btn ghost" type="button" data-invite="${esc(u.email)}" ${inviteWait(u.email)?'disabled':''} title="Email ${esc(u.email)} a link to set their password">${inviteWait(u.email)?'Email sent':'Send set-up email'}</button> `}<a class="btn ghost" style="text-decoration:none" href="${esc(linkMailto(u.email))}" target="_blank" rel="noopener" title="Email ${esc(u.email)} the app link">Email link</a> <button class="btn ghost" type="button" data-tmppw="${esc(u.email)}">Temporary password</button> `+delBtn('team','x',u.email,'Remove'):''}</td></tr>
     ${admin&&!self&&UI.tmpPw===u.email?`<tr><td colspan="7"><form class="to-row" data-tmpform="${esc(u.email)}" style="gap:8px;flex-wrap:wrap"><span class="hint">Temporary password for <b>${esc(u.email)}</b></span><input class="f" type="text" id="tmp_pw" autocomplete="off" placeholder="At least 8 characters" style="width:220px"><button class="btn ghost" type="button" data-genpw="1">Generate</button><button class="btn primary" type="submit">Set password</button><button class="btn ghost" type="button" data-tmppw="">Cancel</button><span class="hint">They’ll be asked to choose their own password after signing in.</span></form></td></tr>`:''}`}).join('')}
   </tbody></table></div>
   ${pkPanel()}
@@ -3924,6 +3934,9 @@ document.addEventListener('change',async e=>{const d=e.target.dataset||{};const 
   if(d.teamscope){const {error}=await sb.from('team').update({scope:e.target.value}).eq('email',d.teamscope);TEAMMSG=error?'Could not change access: '+error.message:d.teamscope+' can now see: '+scopeLabel(e.target.value)+'.';loadTeam();return}
   if(d.pkaddproj&&e.target.value){const {error}=await sb.from('package_projects').insert({package_id:d.pkaddproj,project_id:e.target.value});TEAMMSG=error?'Could not add the project: '+error.message:'Added '+projName(e.target.value)+' to the package.';loadTeam();return}
   if(d.pkaddmem&&e.target.value){const {error}=await sb.from('package_members').insert({package_id:d.pkaddmem,email:e.target.value});TEAMMSG=error?'Could not add the person: '+error.message:'Added '+e.target.value+' to the package.';loadTeam();return}});
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-copylink]');if(!t)return;const txt=t.dataset.copylink==='msg'?linkText():APP_URL;const h=document.getElementById('link_hint');
+  const ok=()=>{if(h)h.textContent=t.dataset.copylink==='msg'?'Invite message copied. Paste it into an email or Teams message.':'Link copied.'};
+  try{await navigator.clipboard.writeText(txt);ok()}catch(_){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(__){if(h)h.textContent='Copy the link from the box above.'}ta.remove()}});
 document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-genpw],[data-copyshare],[data-closeshare]');if(!t)return;
   if(t.dataset.genpw){const i=document.getElementById('tmp_pw');if(i){i.value=genPw();i.focus()}return}
   if(t.dataset.closeshare){TEAMSHARE=null;render();return}
