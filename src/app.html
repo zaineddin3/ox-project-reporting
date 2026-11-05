@@ -3313,10 +3313,11 @@ function collapseAllTasks(view){let ch=false;const add=k=>{if(!COLL.has(k)){COLL
   if(ch)saveColl()}
 const ALL_TABS=()=>[...VIEWS_LIST,['team','Team & users']];
 function myTabs(){const me=window.__me;if(!me||me.role==='admin'||window.__mcpMode||me.tabs==null)return null;return new Set(String(me.tabs).split(',').map(x=>x.trim()).filter(Boolean))}
-function canView(k){if(k==='team')return !!(HOSTED&&window.__me)&&(!myTabs()||myTabs().has('team'));const T=myTabs();return !T||T.has(k)}
+const teamOn=()=>!!((HOSTED||window.__mcpMode)&&window.__me);
+function canView(k){if(k==='team')return teamOn()&&(!myTabs()||myTabs().has('team'));const T=myTabs();return !T||T.has(k)}
 function firstView(){const v=ALL_TABS().find(([k])=>canView(k));return v?v[0]:null}
 function renderChrome(){
-  const navFor=pid=>(HOSTED&&window.__me?ALL_TABS():VIEWS_LIST).filter(([k])=>canView(k)).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" data-pid="${pid}" aria-current="${pid===PID&&UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
+  const navFor=pid=>(teamOn()?ALL_TABS():VIEWS_LIST).filter(([k])=>canView(k)).map(([k,l],i)=>`<button data-act="nav" data-v="${k}" data-pid="${pid}" aria-current="${pid===PID&&UI.view===k}"><span class="n">${String(i+1).padStart(2,'0')}</span>${l}</button>`).join('');
   const list=projList();
   const one=list.length<2;
   const headRow=x=>{const open=isOpenProj(x.id);
