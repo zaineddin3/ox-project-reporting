@@ -402,6 +402,8 @@ tr.pg-empty td{color:var(--muted)}
 .lundo{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:4px;border-radius:5px;color:var(--accent);font-size:14px;font-weight:700;vertical-align:middle}.lundo:hover{background:var(--soft)}.lundo:focus-visible{outline:2px solid var(--accent)}
 tr.subparent td{background:color-mix(in srgb,var(--soft) 70%,var(--surface))}
 .colrz{position:absolute;top:0;right:0;bottom:0;width:8px;cursor:col-resize;z-index:3;touch-action:none}
+th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,transparent)}.colrz:hover,.col-resizing .colrz{border-right:2px solid var(--accent)!important}
+.tw.rsz{resize:vertical;overflow:auto;min-height:160px}.task-drop.dropping{outline:2px dashed var(--accent);outline-offset:3px}
 .colrz::after{content:"";position:absolute;top:20%;bottom:20%;right:0;width:1px;background:var(--line)}
 .colrz:hover::after,body.col-resizing .colrz::after{background:var(--accent);width:2px;top:0;bottom:0}
 body.col-resizing{cursor:col-resize;user-select:none}
@@ -1464,7 +1466,7 @@ V.subcontractors=()=>{
     if(q&&!lines.length)return '';
     const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
     const shut=COLL.has('sec'+x.id)&&!q;
-    return `<tr class="secrow"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
     (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
       const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
       if(l.subs&&l.subs.length){
@@ -1763,7 +1765,7 @@ function taskEditor(t){
     const rows=td.items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id);
     let e=0,ea=0;rows.forEach(o=>{const x=itemCalc(o.it);e+=x.est;ea+=x.earned});
     const shut=COLL.has('lbs'+t+'_'+sc.id);
-    return `<tr class="secrow"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="lbs${t}_${esc(sc.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp('tksec|'+t+'|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Level 3'})}</div></td><td colspan="${NC-4}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="tsec-clone" data-v="${si}" title="Copy this section and its lines">Clone section</button>${rows.length} line${rows.length===1?'':'s'} · ${hrs(ea)} of ${hrs(e)} hrs earned · ${pct(e?ea/e:0,0)}</td><td style="text-align:right">${delBtn('tksec',t,sc.id,'Remove section')}</td></tr>`+
+    return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="lbs${t}_${esc(sc.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp('tksec|'+t+'|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Level 3'})}</div></td><td colspan="${NC-4}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="tsec-clone" data-v="${si}" title="Copy this section and its lines">Clone section</button>${rows.length} line${rows.length===1?'':'s'} · ${hrs(ea)} of ${hrs(e)} hrs earned · ${pct(e?ea/e:0,0)}</td><td style="text-align:right">${delBtn('tksec',t,sc.id,'Remove section')}</td></tr>`+
     (shut?'':rows.map(({it,j})=>{const k='item|'+t+'|'+j+'|';const x=itemCalc(it);
       const tail=`<td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.ftc)}</td><td class="n money"><b>${hrs(x.fc)}</b></td><td class="n money ${x.varHrs<0?'neg':''}">${hrs(x.varHrs)}</td><td class="n money">${x.rateEst.toFixed(2)} · ${x.rateAct?x.rateAct.toFixed(2):'—'}</td>`;
       if(x.split){const ck='t'+t+'_'+j;const cl=COLL.has(ck);const armed=UI.armed==='imerge'+t+j;
@@ -1777,7 +1779,7 @@ function taskEditor(t){
     ${tail}<td></td></tr>`}).join(''))+(shut?'':
     `<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="add-item" data-s="${sc.id}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`);
   }).join('');
-  return `<div class="tw"><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Budget hrs</th><th class="n">Hrs spent</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n" title="Hours spent + hours to go">Total hrs</th><th class="n">+/− hrs</th><th class="n">Hrs per 1% (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="tw rsz task-drop" data-rsz="task" data-t="${t}" title=""><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Budget hrs</th><th class="n">Hrs spent</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n" title="Hours spent + hours to go">Total hrs</th><th class="n">+/− hrs</th><th class="n">Hrs per 1% (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 const fmtH=n=>(Math.round((n||0)*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
 const pendOf=it=>(it.subs&&it.subs.length?it.subs.reduce((a,sb)=>a+pendOf(sb),0):num(it.newHrs));
@@ -1886,7 +1888,9 @@ V.labour=()=>{
   ${TASK_IDS.map((id,i)=>{const x=taskCalc(id);return `<tr class="${id===t?'sel':''}"><td><button class="rowlink" data-act="task" data-v="${id}">${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}</button> <span class="hint">${taskDoc(id).items.length?taskDoc(id).items.length+' items':''}</span></td><td class="n money">${hrs(x.est)}</td><td class="n money">${taskBud(id)?hrs(taskBud(id)):'—'}</td><td class="n money">${hrs(x.spent)}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.fc-x.spent)}</td><td class="n money"><b>${hrs(x.fc)}</b></td><td class="n money ${x.varHrs<0?'neg':x.varHrs>0?'pos':''}">${hrs(x.varHrs)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${(x.pct*100).toFixed(1)}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(x.pct,0)}</span></div></td></tr>`}).join('')}
   </tbody><tfoot><tr><td>All tasks</td><td class="n money">${hrs(c.lEst)}</td><td class="n money">${allBud()?hrs(allBud()):'—'}</td><td class="n money">${hrs(c.lSpent)}</td><td class="n money">${hrs(c.lEarned)}</td><td class="n money">${hrs(c.lFc-c.lSpent)}</td><td class="n money">${hrs(c.lFc)}</td><td class="n money ${c.lEst-c.lFc<0?'neg':''}">${hrs(c.lEst-c.lFc)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${(c.lEst?Math.min(c.lEarned/c.lEst,1)*100:0).toFixed(1)}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(c.lEst?c.lEarned/c.lEst:0,0)}</span></div></td></tr></tfoot></table></div>
   ${UI.mvFlash?`<div class="banner" style="margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(UI.mvFlash.txt)}${UI.mvFlash.t!==t?`<button class="btn" data-act="task" data-v="${UI.mvFlash.t}">Go to that task</button>`:''}<button class="btn ghost" data-act="mvflash-x">Dismiss</button></div>`:''}
-  <div class="panel"><div class="sec-head"><div><h3>Task ${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</h3><p class="hint">Group the work into labelled sections and set each line’s estimated hours. % complete and hours spent are updated on the Progress tab, and the forecast is worked out from them.</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="progress">Update progress</button><button class="btn primary" data-act="add-tsec">+ Add section</button></div></div>
+  <div class="panel"><div class="sec-head"><div><h3>Task ${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</h3><p class="hint">Group the work into labelled sections and set each line’s estimated hours. % complete and hours spent are updated on the Progress tab, and the forecast is worked out from them.</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="progress">Update progress</button><label class="btn" for="task_file" title="Add lines from an Excel or CSV file">Import Excel</label><input type="file" id="task_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><button class="btn primary" data-act="add-tsec">+ Add section</button></div></div>
+  <p class="hint" style="margin:-4px 0 10px">Drag an Excel (.xlsx) or CSV file onto the table to add lines; drop it on a section to add them there. Headings matched: WBS, Description, Unit, Qty, Est. hrs, Budget hrs and (optional) Section. A WBS such as 3.2.1 under 3.2 becomes a sub-line. Drag a column heading’s edge to resize it, or the table’s bottom-right corner to make it taller or shorter.</p>
+  ${UI.tkMsg?`<div class="banner" style="margin:0 0 10px">${esc(UI.tkMsg)}</div>`:''}
   ${taskEditor(t)}</div>
   ${labourLogPanel()}
   ${allLinesPanel()}
@@ -3356,6 +3360,10 @@ function renderHeader(){
   const m=[['Job',i.job?(i.job):''],['Period ending',fmtDate(i.period)],['PM',i.pm]].filter(x=>x[1]);
   document.getElementById('pmeta').innerHTML=m.length?m.map(([l,v])=>`<span>${l} <b>${esc(v)}</b></span>`).join(''):'<span>Add the project name, job number and period in Project details.</span>';
 }
+let RSZ={};try{RSZ=JSON.parse(localStorage.getItem('ox_rsz')||'{}')||{}}catch(e){RSZ={}}
+const RSZ_OBS=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>{let ch=false;for(const en of es){const el=en.target;if(!el.dataset.rszOn)continue;const h=Math.round(el.getBoundingClientRect().height);if(el.style.height&&RSZ[el.dataset.rsz]!==h){RSZ[el.dataset.rsz]=h;ch=true}}if(ch)try{localStorage.setItem('ox_rsz',JSON.stringify(RSZ))}catch(e){}}):null;
+function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{const h=RSZ[el.dataset.rsz];if(h)el.style.height=h+'px';el.dataset.rszOn='1';
+  el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height)+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
 function render(){
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
@@ -3363,7 +3371,7 @@ function render(){
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
-  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+tmvHtml();calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}
+  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+tmvHtml();calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
@@ -3415,6 +3423,34 @@ function llogMap(rows){
     if(!row.ox&&map.ox===undefined&&map.totHrs!==undefined&&row.hire!==''){const t=num(g('totHrs'));if(t)row.ox=String(Math.round((t-num(row.hire)-num(row.pm))*100)/100)}
     if(row.hire||row.ox||row.pm||row.cost||row.hireCost)out.push(row)}
   return {rows:out,guessed,found:Object.keys(map).filter(k=>['date','hire','ox','pm','cost','hireCost'].includes(k))}}
+/* rows of the first sheet with data, as arrays of text (Excel or CSV) */
+async function sheetRows(file){const name=file.name||'';let rows=[];
+  if(/\.csv$/i.test(name)||file.type==='text/csv'){const txt=await file.text();rows=txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===','){out.push(cur);cur=''}else cur+=c}out.push(cur);return out})}
+  else{if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');const wb=new window.ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+    const ws=wb.worksheets.find(w=>w.actualRowCount>0)||wb.worksheets[0];ws.eachRow({includeEmpty:false},r=>{const a=[];r.eachCell({includeEmpty:true},(c,ci)=>{a[ci-1]=llogCell(c.value)});rows.push(a)})}
+  return rows.map(r=>Array.from(r,v=>v==null?'':String(v).trim()))}
+/* Labour & tasks: lines from Excel */
+function taskMapRows(rows){const H={wbs:/^(wbs|wbs code|code|ref|item no\.?|line no\.?|no\.?|#)$/i,desc:/desc|description|scope|activity|work item|^item$|^task$|particular/i,unit:/^(unit|units|uom)$/i,qty:/^(qty|quantity|qnty)$/i,
+    bud:/budget/i,est:/(est|estimate|estimated).*(hr|hour)|^(hrs|hours|labour hrs|labour hours|est\.?|man ?hours)$/i,sec:/^(section|area|level|zone|location|group)$/i};
+  let hi=-1,map={};for(let i=0;i<Math.min(rows.length,15);i++){const m={};rows[i].forEach((c,ci)=>{const t=c.replace(/\s+/g,' ').trim();if(!t)return;for(const k of ['bud','est','wbs','unit','qty','sec','desc'])if(m[k]===undefined&&H[k].test(t)&&!Object.values(m).includes(ci)){if(k==='est'&&/budget|spent|actual/i.test(t))continue;m[k]=ci;break}});if(m.desc!==undefined){hi=i;map=m;break}}
+  const isNum=v=>v!==''&&!isNaN(num(String(v).replace(/[,\s]/g,'')));const n=v=>String(num(String(v).replace(/[,\s]/g,'')));
+  if(hi<0){map={};const r0=rows.find(r=>r.some(Boolean))||[];let c=0;if(/^\d+(\.\d+)*$/.test(r0[0]||'')){map.wbs=0;c=1}map.desc=c;map.unit=c+1;map.qty=c+2;map.est=c+3}
+  const out=[];for(const r of rows.slice(hi+1)){const g=k=>map[k]===undefined?'':(r[map[k]]||'');const desc=g('desc');if(!desc||/^(sub ?total|total)\b/i.test(desc))continue;
+    out.push({wbs:g('wbs'),desc,unit:g('unit'),qty:isNum(g('qty'))?n(g('qty')):'',estHrs:isNum(g('est'))?n(g('est')):'',budHrs:isNum(g('bud'))?n(g('bud')):'',sec:g('sec')})}
+  return {rows:out,matched:Object.keys(map).filter(k=>map[k]!==undefined),header:hi>=0}}
+async function taskImport(file,secId){const t=UI.task;if(!file)return;if(!/\.(xlsx|csv)$/i.test(file.name||'')){UI.tkMsg='Drop an Excel (.xlsx) or CSV file.';render();return}
+  UI.tkMsg='Reading '+file.name+'…';render();
+  try{const R=taskMapRows(await sheetRows(file));if(!R.rows.length){UI.tkMsg='No lines with a description were found in '+file.name+'.';render();return}
+    undoRecord();const d=ensureTask(t);const secs=d.sections;const defSec=secId&&secs.some(x=>x.id===secId)?secId:secs[secs.length-1].id;
+    const secFor=name=>{if(!name)return defSec;let sc=secs.find(x=>(x.name||'').trim().toLowerCase()===name.trim().toLowerCase());if(!sc){const blank=secs.length===1&&!d.items.length&&/^Section 1$/.test(secs[0].name||'')?secs[0]:null;if(blank){blank.name=name;sc=blank}else{sc={id:uid('S'),name};secs.push(sc)}}return sc.id};
+    const placed=[];let lines=0,subs=0;
+    for(const r of R.rows){const line={id:uid('q'),wbs:r.wbs,desc:r.desc,unit:r.unit,qty:r.qty,pct:'',estHrs:r.estHrs,spentHrs:''};if(r.budHrs)line.budHrs=r.budHrs;
+      const par=r.wbs?[...placed].reverse().find(p=>p.wbs&&r.wbs.startsWith(p.wbs+'.')):null;
+      if(par){(par.node.subs=par.node.subs||[]).push(Object.assign(line,{sec:undefined}));delete line.sec;subs++}
+      else{line.sec=secFor(r.sec);d.items.push(line);lines++}
+      placed.push({wbs:r.wbs,node:line})}
+    persist('tasks/'+t);UI.tkMsg=`Added ${lines} line${lines===1?'':'s'}${subs?` and ${subs} sub-line${subs===1?'':'s'}`:''} from ${file.name}${R.header?'':' (no headings found, so columns were read as WBS, description, unit, qty, est. hrs)'}. Use Undo at the top if it isn’t right.`;render()}
+  catch(e){console.error(e);UI.tkMsg='Could not read '+file.name+'. Save it as .xlsx or .csv and try again.';render()}}
 async function llogImport(file){
   if(!file)return;const name=file.name||'file';UI.llogMsg={txt:'Reading '+name+'…'};render();
   try{let rows=[];
@@ -3464,6 +3500,12 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='variations'||!ordHasFiles(e))re
   const t=e.target.closest&&e.target.closest('[data-vdrop]');const id=t?t.dataset.vdrop:(UI.vopen&&e.target.closest&&e.target.closest('#bupanel')?UI.vopen:null);
   if(!id){setSave('error','Drop the PDF onto the variation it belongs to');return}uploadVarAtt(id,e.dataTransfer.files)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='to_file'&&e.target.files&&e.target.files.length){toUpload(e.target.files);e.target.value=''}});
+viewEl.addEventListener('change',e=>{if(e.target.id==='task_file'&&e.target.files&&e.target.files[0]){taskImport(e.target.files[0],null);e.target.value=''}});
+const tkHasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files');
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='labour'||!tkHasFiles(e))return;const z=e.target.closest&&e.target.closest('.task-drop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
+viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.task-drop');if(z&&(!e.relatedTarget||!z.contains(e.relatedTarget)))z.classList.remove('dropping')});
+viewEl.addEventListener('drop',e=>{if(UI.view!=='labour'||!tkHasFiles(e))return;const z=e.target.closest&&e.target.closest('.task-drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');
+  let tr=e.target.closest('tr');while(tr&&!tr.dataset.tsec)tr=tr.previousElementSibling;const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)taskImport(f,tr?tr.dataset.tsec:null)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='site_photo'&&e.target.files&&e.target.files.length){sitePhotos(e.target.files);e.target.value=''}});
 viewEl.addEventListener('change',e=>{if(e.target.id==='llog_file'&&e.target.files&&e.target.files[0]){llogImport(e.target.files[0]);e.target.value=''}});
 
@@ -3843,7 +3885,7 @@ function undoRestore(snap){
     else S[MAP[c]][id]=d;
     persist(p)}
 }
-function doUndo(){const e=UNDO.stack.pop();if(!e)return;const now=undoSnap();UNDO.redo.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
+function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=undoSnap();UNDO.redo.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
