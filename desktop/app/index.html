@@ -150,12 +150,12 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .site-ph figure .tag{position:absolute;left:4px;bottom:4px;font-size:10px}.site-phx{position:absolute;top:2px;right:2px;padding:2px 7px;background:color-mix(in srgb,var(--surface) 85%,transparent)}
 .site-phadd{width:104px;height:104px;border:2px dashed var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12.5px;color:var(--muted)}.site-phadd span{font-size:26px}
 .site-other{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}.site-other p{margin:4px 0}
-.site-times{display:flex;flex-direction:column;gap:8px}.site-time{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(150px,1fr) 80px minmax(130px,1fr) minmax(100px,1fr) auto;gap:6px;align-items:center}
+.site-times{display:flex;flex-direction:column;gap:8px}.site-time{display:grid;grid-template-columns:minmax(110px,1.2fr) minmax(140px,1fr) 72px minmax(130px,1fr) minmax(160px,1.4fr) minmax(90px,1fr) auto;gap:6px;align-items:center}.site-linehint{font-size:12px}
 .site-big{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1}
 .site-lb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}.site-lb img{max-width:100%;max-height:85vh;border-radius:6px}
 tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var(--muted)}
-@media (max-width:700px){.site-time{grid-template-columns:1fr 96px;grid-template-areas:"who hrs" "cat cat" "task task" "note del";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
-  .site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|task"]{grid-area:task}.site-time>.site-note{grid-area:note}.site-time>[data-act="del"]{grid-area:del}
+@media (max-width:700px){.site-time{grid-template-columns:1fr 96px;grid-template-areas:"who hrs" "cat cat" "task task" "line line" "note del";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
+  .site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|tid"]{grid-area:task}.site-time>.site-line,.site-time>.site-linehint{grid-area:line}.site-time>.site-note{grid-area:note}.site-time>[data-act="del"]{grid-area:del}
   .site .f,.site select.f,.site textarea.f{border:1px solid var(--line);background:var(--surface)}.site-time .f,.site-time select{min-height:42px;font-size:16px}
   .site-ta,.site .f{font-size:16px}.site-add{flex:1;min-height:46px;font-size:16px}.site-date{width:100%}.site-date .f{flex:1}.site-phadd,.site-ph img{width:calc((100vw - 72px)/3);height:calc((100vw - 72px)/3)}}
 .to-allow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--line);font-size:12px}.to-allow .f{padding:3px 6px}
@@ -617,6 +617,7 @@ function dataFor(p){
   if(c==='tasks')return taskDoc(id);
 }
 function persist(p){
+  if(p.startsWith('site/'))SITEV++;
   if(!db){setSave('local');return}
   setSave('saving');clearTimeout(pending[p]);
   pending[p]=setTimeout(()=>flush(p),650);
@@ -696,7 +697,7 @@ function lhUndo(o){const H=o&&o.id&&LH[o.id];if(!H||!H.length)return false;const
 const lhHas=o=>!!(o&&o.id&&LH[o.id]&&LH[o.id].length);
 const lhBtn=(o,v)=>lhHas(o)?`<button class="lundo" data-act="lundo" data-v="${v}" title="Undo the last change to this line (back to ${esc(String(LH[o.id][LH[o.id].length-1].snap[LH[o.id][LH[o.id].length-1].field]??'blank')||'blank')})" aria-label="Undo the last change to this line">↶</button>`:'';
 function itemOne(it){
-  const e=num(it.estHrs),s=num(it.spentHrs),p=Math.min(Math.max(num(it.pct),0),100)/100,q=num(it.qty);
+  const e=num(it.estHrs),s=num(it.spentHrs)+(it.id?siteLineHrs()[it.id]||0:0),p=Math.min(Math.max(num(it.pct),0),100)/100,q=num(it.qty);
   const ftc=p>0?(s>0?s*(1-p)/p:e*(1-p)):e;const ov=it.instOv!==undefined&&it.instOv!==null&&it.instOv!=='';
   const ins=q*p;
   return {est:e,spent:s,qty:q,pct:p,installed:ins,instCalc:q*p,instOv:ov,earned:e*p,ftc,fc:s+ftc,varHrs:e-(s+ftc),rateEst:e/100,rateAct:p?s/(p*100):0};
@@ -1540,6 +1541,16 @@ function setupPanel(t,d){
 }
 
 /* ---------- Site diary & timesheets (made for phones) ---------- */
+/* site hours booked to a task line or sub-line, by line id (added to that line's spent hours) */
+let SITEV=0;const SITEHC={v:-1,o:null,m:{}};
+function siteLineHrs(){if(SITEHC.v===SITEV&&SITEHC.o===S.site)return SITEHC.m;const m={};for(const k in S.site){const t=S.site[k];if(t&&t.kind==='time'&&t.line)m[t.line]=(m[t.line]||0)+num(t.hrs)}SITEHC.v=SITEV;SITEHC.o=S.site;SITEHC.m=m;return m}
+const siteTid=t=>t.tid||(t.task?TASK_IDS[TASKS.indexOf(t.task)]||'':'');
+/* every line in a task with its sub-lines and splits, in order */
+function taskNodes(tid){const out=[];const w=(n,path,depth,par)=>{const leaf=!(n.subs&&n.subs.length);out.push({n,path,depth,leaf,par});if(!leaf)n.subs.forEach((c,i)=>w(c,path+'.'+i,depth+1,n))};taskDoc(tid).items.forEach((it,i)=>w(it,String(i),0));return out}
+const nodeLabel=n=>[n.wbs,n.desc||n.name].filter(Boolean).join(' ').trim()||'Unnamed line';
+function lineSelect(id,t){const tid=siteTid(t);if(!tid)return '<span class="hint site-linehint">Pick a task to choose a line</span>';const N=taskNodes(tid);
+  if(!N.length)return '<span class="hint site-linehint">This task has no lines yet</span>';const cur=t.line||'';const curNode=N.find(x=>x.n.id&&x.n.id===cur);
+  return `<select class="f site-line" id="sitet_${id}_line" data-b="sitet|${id}|lineSel" aria-label="Line or sub-line"><option value=""${cur?'':' selected'}>Whole task (no line)</option>${N.map(x=>`<option value="${esc(x.path)}"${x.leaf?'':' disabled'}${curNode&&curNode.path===x.path?' selected':''}>${'\u00a0\u00a0'.repeat(x.depth)}${x.depth?'↳ ':''}${esc(nodeLabel(x.n))}${x.par?' ('+esc(nodeLabel(x.par))+')':''}${x.leaf?'':' · split, choose a sub-line'}</option>`).join('')}${cur&&!curNode?'<option value="" selected>Line no longer exists</option>':''}</select>`}
 const SITE_WX=[['fine','☀️ Fine'],['cloudy','☁️ Cloudy'],['rain','🌧️ Rain'],['wind','💨 Windy'],['hot','🔥 Hot'],['storm','⛈️ Storm']];
 const SITE_CAT=[['ox','Oxford / subcontractor'],['hire','Labour hire'],['pm','Project management']];
 const siteMe=()=>({email:(window.__me&&window.__me.email)||'',name:(window.__me&&window.__me.name)||''});
@@ -1590,11 +1601,13 @@ function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const 
       <input class="f" id="sitet_${id}_who" data-b="${kk}who" list="site_names" value="${esc(t.who||'')}" placeholder="Name" aria-label="Name" autocomplete="off">
       ${sel(kk+'cat',t.cat||'ox',SITE_CAT,{label:'Type'})}
       <input class="f num" id="sitet_${id}_hrs" data-b="${kk}hrs" inputmode="decimal" value="${esc(t.hrs||'')}" placeholder="Hours" aria-label="Hours">
-      ${sel(kk+'task',t.task||'',[['','Task (optional)'],...TASKS.map(x=>[x,x])],{label:'Task'})}
+      ${sel(kk+'tid',siteTid(t),[['','Task (optional)'],...TASK_IDS.map((x,i)=>[x,String(i+1).padStart(3,'0')+' · '+TASKS[i]])],{label:'Task'})}
+      ${lineSelect(id,t)}
       <input class="f site-note" id="sitet_${id}_note" data-b="${kk}note" value="${esc(t.note||'')}" placeholder="Note" aria-label="Note">
       ${delBtn('site',id,'','Remove')}</div>`}).join('')||'<p class="hint" style="margin:0">No hours yet for this day.</p>'}</div>
     <div class="toolbar" style="margin-top:10px"><button class="btn primary site-add" data-act="site-add-time">+ Add hours</button>${prev&&!T.length?`<button class="btn" data-act="site-copy" data-v="${esc(prev)}">Copy crew from ${esc(fmtDate(prev))}</button>`:''}</div>
-    <p class="hint" style="margin:8px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>`}
+    <p class="hint" style="margin:8px 0 0">Choose a task and line (or sub-line) to add the hours to that line’s spent hours in Labour & tasks and Progress. Lines that are split need a sub-line.</p>
+    <p class="hint" style="margin:6px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>`}
 function siteListHtml(){const days=new Map();for(const [,x] of Object.entries(S.site)){if(!x||!x.date||(x.kind!=='diary'&&x.kind!=='time'))continue;const d=days.get(x.date)||{date:x.date,dia:[],h:0,ph:0};if(x.kind==='diary'){d.dia.push(x);d.ph+=(x.photos||[]).length}else d.h+=num(x.hrs);days.set(x.date,d)}
   const rows=[...days.values()].sort((a,b)=>b.date.localeCompare(a.date));
   return `<div class="panel">${rows.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Weather</th><th class="n">On site</th><th>Work done</th><th class="n">Photos</th><th class="n">Hours</th></tr></thead><tbody>${rows.map(d=>{const w=d.dia.map(x=>(SITE_WX.find(v=>v[0]===x.weather)||['',''])[1]).filter(Boolean);const on=d.dia.reduce((a,x)=>Math.max(a,num(x.onsite)),0);
@@ -1750,7 +1763,7 @@ function taskEditor(t){
         (cl?'':labSubs(t,j,it,'',1,NC,showItp)+`<tr class="subadd"><td></td><td colspan="${NC-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="isub-add" data-v="${j}">+ Add sub-line to ${esc(it.desc||'this line')}</button></td></tr>`);
       }
       return `<tr><td style="width:110px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="imove" data-v="${j}" data-d="-1" title="Move up" aria-label="Move line up">▲</button><button class="mv" data-act="imove" data-v="${j}" data-d="1" title="Move down" aria-label="Move line down">▼</button></span>${delBtn('item',t,String(j),'Remove')}${lhBtn(it,t+'|'+j+'|-1')}</td><td style="width:80px">${inp(k+'wbs',it.wbs,{label:'WBS'})}</td><td><div class="subtask">${inp(k+'desc',it.desc,{label:'Description',ph:'e.g. Cast-in conduit'})}<button class="btn ghost splitbtn" data-act="isplit" data-v="${j}" title="Split this line into sub-lines">Split</button><button class="btn ghost splitbtn" data-act="iclone" data-v="${j}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="mvto" data-v="${j}" title="Move this line to another task or section">Move…</button></div></td>${showItp?`<td style="width:150px">${itpCell('item|'+t+'|'+j,it.itpFile)}</td>`:''}
-<td class="n money ro" style="width:90px" title="Update on the Progress tab">${pct(x.pct,0)}</td><td style="width:90px">${inp(k+'estHrs',it.estHrs,{num:1,label:'Estimated hours'})}</td><td style="width:90px">${inp(k+'budHrs',it.budHrs,{num:1,label:'Budget hours',ph:it.estHrs?String(num(it.estHrs)):'0'})}</td><td class="n money ro" style="width:90px" title="Update on the Progress tab">${hrs(x.spent)}</td>
+<td class="n money ro" style="width:90px" title="Update on the Progress tab">${pct(x.pct,0)}</td><td style="width:90px">${inp(k+'estHrs',it.estHrs,{num:1,label:'Estimated hours'})}</td><td style="width:90px">${inp(k+'budHrs',it.budHrs,{num:1,label:'Budget hours',ph:it.estHrs?String(num(it.estHrs)):'0'})}</td><td class="n money ro" style="width:90px" title="Update on the Progress tab, or book site hours to this line">${hrs(x.spent)}${it.id&&siteLineHrs()[it.id]?`<div class="hint" style="font-size:10.5px">incl. ${hrs(siteLineHrs()[it.id])} site</div>`:''}</td>
     ${tail}<td></td></tr>`}).join(''))+(shut?'':
     `<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="add-item" data-s="${sc.id}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`);
   }).join('');
@@ -3473,7 +3486,10 @@ function apply(parts,v){
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
   if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
   if(kind==='sited'){const [id,d]=siteDiaryDoc(a);d[b]=v;persist('site/'+id);return}
-  if(kind==='sitet'){const t=S.site[a];if(t){t[b]=v;persist('site/'+a)}return}
+  if(kind==='sitet'){const t=S.site[a];if(!t)return;
+    if(b==='tid'){t.tid=v;t.task=v?TASKS[TASK_IDS.indexOf(v)]||'':'';t.line=''}
+    else if(b==='lineSel'){const tid=siteTid(t);if(!v||!tid){t.line=''}else{const d=ensureTask(tid);const n=nodeAt(d,v);if(!n)return;if(!n.id){n.id=uid('q');persist('tasks/'+tid)}t.line=n.id}}
+    else t[b]=v;persist('site/'+a);return}
   if(kind==='sites'){S.site.settings=S.site.settings||{kind:'settings'};S.site.settings[a]=v;persist('site/settings');return}
   if(kind==='pc'){claimDoc().hdr[a]=v;persist('project/claim');return}
   if(kind==='pcret'){claimDoc().retMax=v;persist('project/claim');return}
@@ -3553,7 +3569,7 @@ document.addEventListener('click',async e=>{
   if(act==='site-go'){UI.siteDate=btn.dataset.v;UI.siteTab='day';UI.siteMsg='';if(UI.view!=='site'){UI.view='site';try{history.replaceState(null,'','#site')}catch(err){}}render();window.scrollTo&&window.scrollTo(0,0);return}
   if(act==='site-wx'){const date=UI.siteDate||todayISO();const [id,d]=siteDiaryDoc(date);d.weather=d.weather===btn.dataset.v?'':btn.dataset.v;persist('site/'+id);render();return}
   if(act==='site-add-time'){const date=UI.siteDate||todayISO();const id=uid('t');const me=siteMe();S.site[id]={kind:'time',date,who:'',cat:'ox',hrs:'',task:'',note:'',by:me.email,created:Date.now()};persist('site/'+id);render();setTimeout(()=>{const el=document.getElementById('sitet_'+id+'_who');if(el){el.focus();el.scrollIntoView({block:'center'})}},50);return}
-  if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
+  if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',tid:siteTid(t),line:t.line||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
   if(act==='site-ph'){sitePhotoView(btn.dataset.v);return}
   if(act==='site-phdel'){const date=UI.siteDate||todayISO();const id=siteDiaryId(date);const d=S.site[id];const i=+btn.dataset.v;if(d&&d.photos&&d.photos[i]){const key='siteph'+id+i;if(UI.armed!==key){UI.armed=key;btn.textContent='Remove?';btn.classList.add('armed');setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},3000);return}UI.armed=null;d.photos.splice(i,1);persist('site/'+id);render()}return}
   if(act==='ms-tab'){UI.mst=btn.dataset.v;render();return}
@@ -3775,7 +3791,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
     else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
     else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
-    else if(kind==='site'){delete S.site[id];removeDoc('site/'+id)}
+    else if(kind==='site'){delete S.site[id];SITEV++;removeDoc('site/'+id)}
     else if(kind==='pcsec'){claimDoc().secs.splice(+x,1);persist('project/claim')}
     else if(kind==='pch'){claimDoc().hist.splice(+x,1);persist('project/claim')}
     else if(kind==='tksec'){const d=ensureTask(id);const first=d.sections[0].id;const ids=new Set(d.sections.map(z=>z.id));d.items=d.items.filter(it=>(ids.has(it.sec)?it.sec:first)!==x);d.sections=d.sections.filter(z=>z.id!==x);persist('tasks/'+id)}
