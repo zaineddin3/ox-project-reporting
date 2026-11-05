@@ -127,6 +127,26 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .to-page svg[data-tool="take"],.to-page svg[data-tool="cal"],.to-page svg[data-tool="zone"]{cursor:crosshair}
 .to-page svg[data-tool="pan"]{cursor:grab}
 .to-load{position:absolute;inset:12px;display:grid;place-items:center;color:var(--muted);font-size:13px;pointer-events:none}
+.site .site-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.site-tabs,.site-wx{display:flex;flex-wrap:wrap;gap:6px}.site-wx .seg-b,.site-tabs .seg-b{border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:var(--surface)}
+.site-wx .seg-b.on,.site-tabs .seg-b.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.site-date{display:flex;gap:6px;align-items:center}.site-date .f{width:auto;min-height:40px}
+.site-card{max-width:820px}.site-lbl{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}
+.site-ta{width:100%;min-height:90px;font:inherit;line-height:1.45}.site-num{max-width:140px}
+.site-ph{display:flex;flex-wrap:wrap;gap:8px}.site-ph figure{margin:0;position:relative}.site-phb{padding:0;border:0;background:none;cursor:zoom-in;display:block}
+.site-ph img{width:104px;height:104px;object-fit:cover;border-radius:8px;background:var(--soft);display:block}.site-ph.sm img{width:64px;height:64px}
+.site-ph figure .tag{position:absolute;left:4px;bottom:4px;font-size:10px}.site-phx{position:absolute;top:2px;right:2px;padding:2px 7px;background:color-mix(in srgb,var(--surface) 85%,transparent)}
+.site-phadd{width:104px;height:104px;border:2px dashed var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12.5px;color:var(--muted)}.site-phadd span{font-size:26px}
+.site-other{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}.site-other p{margin:4px 0}
+.site-times{display:flex;flex-direction:column;gap:8px}.site-time{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(150px,1fr) 80px minmax(130px,1fr) minmax(100px,1fr) auto;gap:6px;align-items:center}
+.site-big{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1}
+.site-lb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}.site-lb img{max-width:100%;max-height:85vh;border-radius:6px}
+tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var(--muted)}
+@media (max-width:700px){.site-time{grid-template-columns:1fr 96px;grid-template-areas:"who hrs" "cat cat" "task task" "note del";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
+  .site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|task"]{grid-area:task}.site-time>.site-note{grid-area:note}.site-time>[data-act="del"]{grid-area:del}
+  .site .f,.site select.f,.site textarea.f{border:1px solid var(--line);background:var(--surface)}.site-time .f,.site-time select{min-height:42px;font-size:16px}
+  .site-ta,.site .f{font-size:16px}.site-add{flex:1;min-height:46px;font-size:16px}.site-date{width:100%}.site-date .f{flex:1}.site-phadd,.site-ph img{width:calc((100vw - 72px)/3);height:calc((100vw - 72px)/3)}}
+.to-allow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--line);font-size:12px}.to-allow .f{padding:3px 6px}
 .to-mk.dim{opacity:.35}.to-mk.sel{filter:drop-shadow(0 0 3px #000)}
 svg[data-tool="sel"] .to-mk,svg[data-tool="sel"] .to-zone{cursor:pointer}
 .to-zone rect{fill:rgba(56,106,150,.05);stroke:#386a96}.to-zone.on rect{fill:rgba(56,106,150,.02);stroke:#1c7ed6}.to-zone.sel rect{stroke:#e03131}
@@ -479,7 +499,7 @@ const CALC_HTML="<!doctype html><html><head><script>window.claude={use:function(
 <script>
 const UNITS_RAW={"E": "0101:2,0102:2,0103:2,0104:3,0105:3,0106:3,0107:3,0108:3,0109:3,0201:2,0202:2,0203:2,0301:2,0302:2,0303:2,0304:2,0305:2,0306:2,0307:2,0308:2,0309:2,0310:2,0311:2,0401:2,0402:2,0403:2,0404:2,0405:2,0406:2,0407:2,0408:2,0409:2,0410:2,0411:2,0501:2,0502:2,0503:2,0504:1,0505:2,0506:2,0507:2,0508:2,0509:2,0510:2,0601:2,0602:2,0603:1,0604:2,0605:2,0606:2,0607:2,0608:2,0701:2,0702:2,0703:1,0704:2,0705:2,0706:2,0707:2,0708:2,0801:2,0802:2,0803:1,0804:2,0805:2,0806:2,0807:2,0808:2,0901:2,0902:2,0903:1,0904:2,0905:2,0906:2,0907:2,0908:2,1001:2,1002:2,1003:1,1004:2,1005:2,1006:2,1007:2,1008:2,1101:2,1102:2,1103:1,1104:2,1105:2,1106:2,1107:2,1108:2,1201:2,1202:2,1203:1,1204:2,1205:5,1206:2,1207:2,1208:2,1301:2,1302:2,1303:1,1304:2,1305:5,1306:2,1307:2,1308:2,1401:2,1402:2,1403:1,1404:2,1405:5,1406:2,1407:2,1408:2,1501:2,1502:2,1503:1,1504:2,1505:2,1506:2,1507:2,1508:2,1601:2,1602:2,1603:1,1604:2,1605:2,1606:2,1607:2,1608:2,1701:2,1702:2,1703:1,1704:2,1705:2,1706:2,1707:2,1708:2,1801:2,1802:2,1803:1,1804:2,1805:2,1806:2,1807:2,1808:2,1901:2,1902:2,1903:1,1904:2,1905:2,1906:2,1907:2,1908:2,2001:2,2002:2,2003:1,2004:2,2005:2,2006:2,2007:2,2008:2,2101:2,2102:2,2103:1,2104:2,2105:2,2106:2,2107:2,2108:2,2201:2,2202:2,2203:1,2204:2,2205:2,2206:2,2207:2,2208:2,2301:2,2302:2,2303:1,2304:2,2305:2,2306:2,2307:2,2308:2,2401:2,2402:2,2403:1,2404:2,2405:2,2406:2,2407:2,2408:2,2501:2,2502:2,2503:1,2504:2,2505:2,2506:2,2507:2,2508:2,2601:2,2602:2,2603:1,2604:2,2605:2,2606:2,2607:2,2608:2,2701:2,2702:2,2703:1,2704:2,2705:2,2706:2,2707:2,2708:2,2801:2,2802:2,2803:1,2804:2,2805:2,2806:2,2901:2,2902:2,2903:1,2904:2,2905:2,3001:2,3002:2,3003:1,3004:4,3101:2,3102:2,3103:1,3104:3,3105:4,3201:2,3202:2,3203:1,3204:3,3205:4,3301:2,3302:2,3303:1,3304:3,3305:4,3401:2,3402:2,3403:1,3404:3,3405:4,3501:2,3502:2,3503:1,3504:3,3505:4,3601:2,3602:2,3603:1,3604:3,3605:4,3701:2,3702:2,3703:1,3704:3,3705:4,3801:2,3802:2,3803:1,3804:3,3805:4,3901:2,3902:2,3903:1,3904:3,3905:4", "F": "0312:2,0313:2,0314:2,0315:2,0316:2,0412:2,0413:2,0414:2,0415:2,0416:2,0511:2,0512:2,0513:2,0514:2,0609:2,0610:2,0611:2,0612:2,0613:2,0614:1,0615:2,0616:2,0709:2,0710:2,0711:2,0712:2,0713:2,0714:1,0715:2,0716:2,0809:2,0810:2,0811:2,0812:2,0813:1,0814:1,0815:2,0816:2,0909:2,0910:2,0911:2,0912:2,0913:2,0914:1,0915:2,0916:2,1009:2,1010:2,1011:2,1012:2,1013:2,1014:1,1015:2,1016:1,1109:2,1110:2,1111:2,1112:2,1113:2,1114:1,1115:2,1116:2,1209:2,1210:2,1211:2,1212:2,1213:2,1214:1,1215:2,1216:2,1309:2,1310:2,1311:2,1312:2,1313:2,1314:1,1315:2,1316:2,1409:2,1410:2,1411:2,1412:2,1413:2,1414:1,1415:2,1416:2,1509:2,1510:2,1511:2,1512:2,1513:2,1514:1,1515:2,1516:2,1609:2,1610:2,1611:2,1612:2,1613:2,1614:1,1615:2,1616:1,1709:2,1710:2,1711:2,1712:2,1713:2,1714:1,1715:2,1716:2,1809:2,1810:2,1811:2,1812:2,1813:2,1814:1,1815:2,1816:2,1909:2,1910:2,1911:2,1912:2,1913:2,1914:1,1915:2,1916:2,2009:2,2010:2,2011:2,2012:2,2013:2,2014:1,2015:2,2016:2,2109:2,2110:2,2111:2,2112:2,2113:2,2114:1,2115:2,2116:2,2209:2,2210:2,2211:2,2212:2,2213:2,2214:1,2215:2,2216:2,2309:2,2310:2,2311:1,2312:2,2313:2,2409:2,2410:2,2411:1,2412:2,2413:2,2509:2,2510:2,2511:3,2512:1,2513:2,2514:2,2609:2,2610:2,2611:3,2612:1,2613:2,2614:2,2709:2,2710:2,2711:3,2712:1,2713:2,2714:2,2809:2,2810:2,2811:3,2812:1,2813:2,2814:2,2906:2,2907:2,2908:3,2909:1,2910:2,2911:2,3006:2,3007:2,3008:3,3009:1,3010:2,3011:2,3106:2,3107:2,3108:3,3109:1,3110:2,3111:2,3206:2,3207:2,3208:3,3209:1,3210:2,3211:2"};
 const VIEWS_LIST=[
-  ['overview','Overview'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
+  ['overview','Overview'],['site','Site diary & hours'],['details','Project details'],['cost','Cost to complete'],['claim','Progress claim'],['variations','Variations'],
   ['orders','Orders & invoices'],['procurement','Procurement'],['cashflow','Cash flow'],['subcontractors','Subcontractors'],['labour','Labour & tasks'],['progress','Progress'],['boq','Order Costing Summary'],['takeoff','Take off'],['msod','MSOD'],['calc','Labour Hours and Material Calculator']
 ];
 const TASKS=["Temporary works","Deck work","Rough in","Fit off","Containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
@@ -524,7 +544,7 @@ const inp=(b,val,o={})=>`<input class="f${o.num?' num':''}" id="${esc(b.replace(
 const sel=(b,val,opts,o={})=>`<select class="f${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" aria-label="${esc(o.label||'')}">${opts.map(x=>{const [v,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(t)}</option>`}).join('')}</select>`;
 
 /* ---------- state ---------- */
-const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},claim:null};
+const S={llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null};
 let UI_PDFLAB=false;try{UI_PDFLAB=localStorage.getItem('ox_pdfhidelab')==='1'}catch(e){}
 const UI={view:'overview',bld:'E',level:'all',q:'',task:'t01',open:{},armed:null,bulkStage:'',bulkPct:'100',setup:false,pdfHideLab:UI_PDFLAB};
 const crewRows=()=>S.crew.rows||CREW_DEFAULT;
@@ -574,12 +594,14 @@ function setSave(state,msg){
   const el=document.getElementById('savepill');
   el.className='pill '+({saving:'busy',saved:'ok',error:'err',local:''}[state]||'');
   el.textContent={saving:'Saving…',saved:'All changes saved',error:msg||'Save failed',local:'Not saving'}[state]||state;
+  if(state==='saved'&&typeof OFF!=='undefined'&&OFF.n){el.className='pill busy';el.textContent=navigator.onLine===false?'Offline · saved on this device':'Syncing changes…'}
+  else if(state==='saved'&&typeof OFF!=='undefined'&&OFF.user&&navigator.onLine===false){el.className='pill';el.textContent='Offline'}
 }
 function dataFor(p){
   const [c,id]=p.split('/');
   if(c==='projects')return PROJ[id];
   if(c==='project'){if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
-  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];if(c==='drawings')return S.dwgs[id];if(c==='estimates')return S.ests[id];
+  if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];if(c==='drawings')return S.dwgs[id];if(c==='estimates')return S.ests[id];if(c==='site')return S.site[id];
   if(c==='tasks')return taskDoc(id);
 }
 function persist(p){
@@ -605,7 +627,7 @@ async function flush(p){
     inflight[p]--;return;
   }
   inflight[p]--;
-  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/')&&!p.startsWith('msod/')&&!p.startsWith('estimates/'))applyDoc(p,latest[p]);
+  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/')&&!p.startsWith('msod/')&&!p.startsWith('estimates/')&&!p.startsWith('site/'))applyDoc(p,latest[p]);
   if(!Object.keys(pending).length&&!Object.values(inflight).some(Boolean))setSave('saved');
   scheduleRender();
 }
@@ -622,7 +644,7 @@ function applyDoc(p,data){
 }
 function onColl(name,snap){
   if(name==='tasks'&&!onColl.tk){onColl.tk=1;setTimeout(()=>{if(UI.view==='labour'||UI.view==='progress'){collapseAllTasks(UI.view);scheduleRender(0)}},0)}
-  const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs'}[name];if(name==='estimates')CALC.loaded=true;
+  const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs',site:'site'}[name];if(name==='estimates')CALC.loaded=true;
   const seen=new Set();
   const next={};
   for(const d of snap.docs){
@@ -644,7 +666,8 @@ function crewRate(){
   let c=0,h=0;for(const r of crewRows()){c+=num(r.qty)*num(r.rate)*num(r.hrs);h+=num(r.qty)*num(r.hrs)}
   return h?c/h:0;
 }
-function logTotals(){let h=0,o=0,pm=0,c=0,hc=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);pm+=num(r.pm);c+=num(r.cost);hc+=num(r.hireCost)}const t=h+o+pm;return {hire:h,ox:o,pm,hrs:t,cost:c,hireCost:hc,total:c+hc,rate:t?(c+hc)/t:0}}
+function logTotals(){let h=0,o=0,pm=0,c=0,hc=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);pm+=num(r.pm);c+=num(r.cost);hc+=num(r.hireCost)}
+  for(const r of siteDays()){h+=r.hire;o+=r.ox;pm+=r.pm;c+=r.cost;hc+=r.hireCost}const t=h+o+pm;return {hire:h,ox:o,pm,hrs:t,cost:c,hireCost:hc,total:c+hc,rate:t?(c+hc)/t:0}}
 function labourRateSrc(){if(num(S.info.labourRate))return 'Override set in project details';if(logTotals().rate)return 'Average from labour cost log';if(num(S.info.tenderRate))return 'Tendered rate (no labour cost log entries yet)';return 'Blended crew rate (add rows to the labour cost log to use actual costs)'}
 function labourRate(){return num(S.info.labourRate)||logTotals().rate||num(S.info.tenderRate)||crewRate()}
 function taskCalc(t){
@@ -1504,12 +1527,82 @@ function setupPanel(t,d){
   </div></div>`;
 }
 
+/* ---------- Site diary & timesheets (made for phones) ---------- */
+const SITE_WX=[['fine','☀️ Fine'],['cloudy','☁️ Cloudy'],['rain','🌧️ Rain'],['wind','💨 Windy'],['hot','🔥 Hot'],['storm','⛈️ Storm']];
+const SITE_CAT=[['ox','Oxford / subcontractor'],['hire','Labour hire'],['pm','Project management']];
+const siteMe=()=>({email:(window.__me&&window.__me.email)||'',name:(window.__me&&window.__me.name)||''});
+const siteUserKey=e=>{let h=0;for(const c of String(e||'me'))h=(h*31+c.charCodeAt(0))>>>0;return h.toString(36)};
+const siteDiaryId=date=>'d'+String(date).replace(/-/g,'')+'_'+siteUserKey(siteMe().email);
+const siteSet=()=>S.site.settings||{};
+function siteRates(){const st=siteSet();const def=crewRate();return {ox:num(st.rateOx)||def,hire:num(st.rateHire)||num(st.rateOx)||def,oxSet:!!num(st.rateOx),hireSet:!!num(st.rateHire)}}
+const siteTimes=date=>Object.entries(S.site).filter(([,x])=>x&&x.kind==='time'&&(!date||x.date===date)).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+const siteDiaries=date=>Object.entries(S.site).filter(([,x])=>x&&x.kind==='diary'&&(!date||x.date===date)).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+/* hours per day by type, costed at the site rates; these flow into the labour cost log and cost to complete */
+function siteDays(){const R=siteRates();const by={};for(const [,t] of siteTimes()){if(!t.date)continue;const d=by[t.date]=by[t.date]||{date:t.date,ox:0,hire:0,pm:0,cost:0,hireCost:0};const h=num(t.hrs);if(t.cat==='hire'){d.hire+=h;d.hireCost+=h*R.hire}else if(t.cat==='pm')d.pm+=h;else{d.ox+=h;d.cost+=h*R.ox}}
+  return Object.values(by).filter(d=>d.ox||d.hire||d.pm).sort((a,b)=>a.date.localeCompare(b.date))}
+const PHURL={};
+function photoSrc(id){if(PHURL[id])return PHURL[id].url||'';PHURL[id]={};(async()=>{try{let b=null;
+    if(String(id).startsWith('pend-'))b=await offBlobGet(id);
+    else if(HOSTED&&window.__sb){const {data,error}=await window.__sb.storage.from('files').download(id);if(error)throw error;b=data}
+    else{const r=await fetch('/_blob/'+encodeURIComponent(id));if(!r.ok)throw new Error('fetch');b=await r.blob()}
+    if(b){PHURL[id].url=URL.createObjectURL(b);document.querySelectorAll('img[data-ph="'+id+'"]').forEach(i=>i.src=PHURL[id].url)}}catch(e){PHURL[id].err=1}})();return ''}
+async function siteShrink(file){try{const url=URL.createObjectURL(file);const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+    const k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));return b||file}catch(e){return file}}
+function siteDiaryDoc(date){const id=siteDiaryId(date);if(!S.site[id]){const me=siteMe();S.site[id]={kind:'diary',date,by:me.email,byName:me.name,created:Date.now(),weather:'',onsite:'',work:'',issues:'',photos:[]}}return [id,S.site[id]]}
+async function sitePhotos(files){if(!assets&&!HOSTED){UI.siteMsg='Photos can be added from the website or the desktop app.';render();return}const date=UI.siteDate||todayISO();const list=[...files].filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp)$/i.test(f.name));if(!list.length)return;
+  const [id,d]=siteDiaryDoc(date);d.photos=d.photos||[];UI.siteMsg='Adding '+list.length+' photo'+(list.length===1?'':'s')+'…';render();let queued=0,bad=0;
+  for(const f of list){const b=await siteShrink(f);const name=(f.name||'photo').replace(/\.[^.]+$/,'')+'.jpg';const file=new File([b],name,{type:'image/jpeg'});
+    try{if(!assets)throw Object.assign(new Error('no storage'),{code:'no_assets'});const r=await assets.upload(file,{type:'image/jpeg'});d.photos.push({id:r.id,name,at:Date.now()})}
+    catch(e){if(HOSTED&&(e.code==='no_assets'?false:true)&&offIsNet(e)){const pid='pend-'+uid('p');await offBlobPut(pid,file);d.photos.push({id:pid,name,at:Date.now(),pending:1});queued++}else{console.error(e);bad++}}}
+  persist('site/'+id);UI.siteMsg=bad?(assets?'Some photos could not be uploaded.':'Photos can be added from the website or the desktop app.'):queued?(queued===1?'1 photo saved on this phone. It uploads':queued+' photos saved on this phone. They upload')+' when you’re back online.':'';render()}
+function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const mine=S.site[myId]||{};const others=siteDiaries(date).filter(([id])=>id!==myId);
+  const k='sited|'+date+'|';const T=siteTimes(date);const R=siteRates();let dh=0,dc=0;for(const [,t] of T){const h=num(t.hrs);dh+=h;dc+=t.cat==='hire'?h*R.hire:t.cat==='pm'?0:h*R.ox}
+  const names=[...new Set([...siteTimes().map(([,t])=>t.who).filter(Boolean),...((typeof TEAM!=='undefined'&&TEAM)||[]).map(u=>u.name).filter(Boolean)])].sort();
+  const prev=(()=>{const ds=[...new Set(siteTimes().map(([,t])=>t.date))].filter(x=>x&&x<date).sort();return ds[ds.length-1]||''})();
+  const ph=(mine.photos||[]);
+  return `<div class="panel site-card"><h3>Daily diary</h3><p class="hint" style="margin:2px 0 10px">${esc(me.name||me.email||'Your')} entry for ${esc(fmtDate(date))}. Saves as you type.</p>
+    <div class="site-lbl">Weather</div><div class="site-wx">${SITE_WX.map(([v,l])=>`<button class="seg-b${mine.weather===v?' on':''}" data-act="site-wx" data-v="${v}" aria-pressed="${mine.weather===v}">${l}</button>`).join('')}</div>
+    <label class="site-lbl" for="sited_${date}_onsite">People on site</label>${inp(k+'onsite',mine.onsite||'',{num:1,label:'People on site',ph:'e.g. 6'}).replace('class="f num"','class="f num site-num"')}
+    <label class="site-lbl" for="sited_${date}_work">Work done today</label><textarea class="f site-ta" id="sited_${date}_work" data-b="${k}work" rows="4" placeholder="e.g. Level 3 rough in, units 301–306. Cable tray installed in riser.">${esc(mine.work||'')}</textarea>
+    <label class="site-lbl" for="sited_${date}_issues">Delays, issues or instructions</label><textarea class="f site-ta" id="sited_${date}_issues" data-b="${k}issues" rows="3" placeholder="e.g. Waiting on ceiling grid in L2. Builder asked to relocate GPO in unit 304.">${esc(mine.issues||'')}</textarea>
+    <div class="site-lbl">Photos${ph.length?` <span class="hint">(${ph.length})</span>`:''}</div>
+    <div class="site-ph">${ph.map((p,i)=>`<figure><button class="site-phb" data-act="site-ph" data-v="${esc(p.id)}" aria-label="Open photo ${i+1}"><img data-ph="${esc(p.id)}" src="${photoSrc(p.id)}" alt="Site photo ${i+1}"></button>${p.pending?'<span class="tag warn">Waiting to upload</span>':''}<button class="btn ghost site-phx" data-act="site-phdel" data-v="${i}" aria-label="Remove photo ${i+1}">✕</button></figure>`).join('')}
+      ${assets||HOSTED?`<label class="site-phadd" for="site_photo"><span>📷</span>Add photos</label><input type="file" id="site_photo" accept="image/*" multiple hidden>`:'<p class="hint" style="margin:0">Add photos from the website or desktop app (or the app on your phone).</p>'}</div>
+    ${UI.siteMsg?`<p class="hint" style="margin:8px 0 0">${esc(UI.siteMsg)}</p>`:''}
+    ${others.map(([,o])=>`<div class="site-other"><b>${esc(o.byName||o.by||'Someone')}</b>${o.weather?' · '+esc((SITE_WX.find(w=>w[0]===o.weather)||['',''])[1]):''}${o.onsite?' · '+esc(o.onsite)+' on site':''}${o.work?`<p>${esc(o.work)}</p>`:''}${o.issues?`<p class="hint">${esc(o.issues)}</p>`:''}${(o.photos||[]).length?`<div class="site-ph sm">${o.photos.map(p=>`<button class="site-phb" data-act="site-ph" data-v="${esc(p.id)}"><img data-ph="${esc(p.id)}" src="${photoSrc(p.id)}" alt=""></button>`).join('')}</div>`:''}</div>`).join('')}
+  </div>
+  <div class="panel site-card"><div class="sec-head" style="margin-bottom:6px"><div><h3>Hours</h3><p class="hint" style="margin:2px 0 0">Everyone’s hours on ${esc(fmtDate(date))}. They go into the labour cost log and cost to complete.</p></div><div style="text-align:right"><div class="site-big">${hrs(dh)} h</div><div class="hint">${money(dc)}</div></div></div>
+    <datalist id="site_names">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="site-times">${T.map(([id,t])=>{const kk='sitet|'+id+'|';return `<div class="site-time">
+      <input class="f" id="sitet_${id}_who" data-b="${kk}who" list="site_names" value="${esc(t.who||'')}" placeholder="Name" aria-label="Name" autocomplete="off">
+      ${sel(kk+'cat',t.cat||'ox',SITE_CAT,{label:'Type'})}
+      <input class="f num" id="sitet_${id}_hrs" data-b="${kk}hrs" inputmode="decimal" value="${esc(t.hrs||'')}" placeholder="Hours" aria-label="Hours">
+      ${sel(kk+'task',t.task||'',[['','Task (optional)'],...TASKS.map(x=>[x,x])],{label:'Task'})}
+      <input class="f site-note" id="sitet_${id}_note" data-b="${kk}note" value="${esc(t.note||'')}" placeholder="Note" aria-label="Note">
+      ${delBtn('site',id,'','Remove')}</div>`}).join('')||'<p class="hint" style="margin:0">No hours yet for this day.</p>'}</div>
+    <div class="toolbar" style="margin-top:10px"><button class="btn primary site-add" data-act="site-add-time">+ Add hours</button>${prev&&!T.length?`<button class="btn" data-act="site-copy" data-v="${esc(prev)}">Copy crew from ${esc(fmtDate(prev))}</button>`:''}</div>
+    <p class="hint" style="margin:8px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>`}
+function siteListHtml(){const days=new Map();for(const [,x] of Object.entries(S.site)){if(!x||!x.date||(x.kind!=='diary'&&x.kind!=='time'))continue;const d=days.get(x.date)||{date:x.date,dia:[],h:0,ph:0};if(x.kind==='diary'){d.dia.push(x);d.ph+=(x.photos||[]).length}else d.h+=num(x.hrs);days.set(x.date,d)}
+  const rows=[...days.values()].sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="panel">${rows.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Weather</th><th class="n">On site</th><th>Work done</th><th class="n">Photos</th><th class="n">Hours</th></tr></thead><tbody>${rows.map(d=>{const w=d.dia.map(x=>(SITE_WX.find(v=>v[0]===x.weather)||['',''])[1]).filter(Boolean);const on=d.dia.reduce((a,x)=>Math.max(a,num(x.onsite)),0);
+    return `<tr><td><button class="rowlink" data-act="site-go" data-v="${esc(d.date)}">${esc(fmtDate(d.date))}</button></td><td>${esc([...new Set(w)].join(' '))}</td><td class="n">${on||''}</td><td style="min-width:240px">${d.dia.map(x=>x.work?`<div>${x.byName?`<b>${esc(x.byName)}:</b> `:''}${esc(x.work.length>160?x.work.slice(0,160)+'…':x.work)}</div>`:'').join('')}${d.dia.some(x=>x.issues)?`<div class="hint">${d.dia.map(x=>esc(x.issues||'')).filter(Boolean).join(' · ')}</div>`:''}</td><td class="n">${d.ph||''}</td><td class="n money">${d.h?hrs(d.h):''}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty"><b>No site entries yet</b>Open Today to fill in the first diary entry and hours.</div>'}</div>`}
+function siteRatesHtml(){const st=siteSet();const def=crewRate();return `<div class="panel site-card"><h3>Rates for site hours</h3><p class="hint" style="margin:2px 0 12px">Used to cost the hours entered on site. Leave blank to use the crew rate (${money2(def)}/h).</p>
+  <div class="form"><label>Oxford / subcontractor ($/h)<div class="cur">${inp('sites|rateOx',st.rateOx||'',{num:1,label:'Oxford / subcontractor rate',ph:def?def.toFixed(2):''})}</div></label><label>Labour hire ($/h)<div class="cur">${inp('sites|rateHire',st.rateHire||'',{num:1,label:'Labour hire rate',ph:def?def.toFixed(2):''})}</div></label></div></div>`}
+V.site=()=>{const date=UI.siteDate||todayISO();const tab=UI.siteTab||'day';const off=typeof OFF!=='undefined'&&OFF.n?`<div class="banner">${navigator.onLine?'Syncing':'Offline'}: ${OFF.n} change${OFF.n===1?'':'s'} saved on this device${navigator.onLine?'…':'. They upload when you’re back online.'}</div>`:'';
+  const shift=n=>{const d=new Date(date+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+  return `<div class="stack site">${head('Site diary & hours','Fill this in on site from your phone: what happened today, photos, and everyone’s hours. Hours flow into the labour cost log and cost to complete.')}${off}
+  <div class="site-bar"><div class="site-tabs">${[['day','Today'],['all','All entries'],['rates','Rates']].map(([v,l])=>`<button class="seg-b${tab===v?' on':''}" data-act="site-tab" data-v="${v}">${l}</button>`).join('')}</div>
+  ${tab==='day'?`<div class="site-date"><button class="btn" data-act="site-go" data-v="${shift(-1)}" aria-label="Previous day">‹</button><input class="f" type="date" id="site_date" data-ui="siteDate" value="${esc(date)}" aria-label="Date"><button class="btn" data-act="site-go" data-v="${shift(1)}" aria-label="Next day">›</button>${date!==todayISO()?`<button class="btn ghost" data-act="site-go" data-v="${todayISO()}">Today</button>`:''}</div>`:''}</div>
+  ${tab==='all'?siteListHtml():tab==='rates'?siteRatesHtml():siteDayHtml(date)}</div>`};
+function sitePhotoView(id){document.getElementById('site_lb')?.remove();const el=document.createElement('div');el.id='site_lb';el.className='site-lb';el.innerHTML=`<button class="btn" aria-label="Close photo">✕ Close</button><img data-ph="${esc(id)}" src="${photoSrc(id)}" alt="Site photo">`;el.onclick=()=>el.remove();document.body.appendChild(el)}
 function labourLogPanel(){
   const T=logTotals();
   return `<div class="panel llog-drop"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by date. Total hours = labour hire + Oxford + subcontractor + project management. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
     <div style="display:flex;gap:28px;text-align:right;flex-wrap:wrap;justify-content:flex-end"><div><div class="kpi" style="padding:0;background:none"><span class="l">Total cost</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1.1">${money(T.total)}</div><div class="hint" style="font-size:11.5px">Oxford + subcontractor + labour hire</div></div><div><div class="kpi" style="padding:0;background:none"><span class="l">Average labour rate</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${T.hrs?'$'+T.rate.toFixed(2)+'/hr':'—'}</div></div></div></div>
   <div class="tw"><table style="min-width:760px"><thead><tr><th></th><th>Date</th><th class="n" style="white-space:normal">Labour hire</th><th class="n" style="white-space:normal">Oxford + subcontractor</th><th class="n" style="white-space:normal">Project management</th><th class="n" style="white-space:normal">Total hours</th><th class="n" style="white-space:normal">Oxford + subcontractor cost</th><th class="n" style="white-space:normal">Labour hire cost</th><th class="n" style="white-space:normal" title="Oxford + subcontractor cost + labour hire cost">Total cost</th><th class="n" title="(Oxford + subcontractor cost + labour hire cost) ÷ total hours">Rate $/hr<br><span style="font-weight:500;text-transform:none;letter-spacing:0">incl. labour hire</span></th></tr></thead><tbody>
   ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox)+num(r.pm);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Date'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford + subcontractor',ph:'0'})}</td><td style="min-width:90px">${inp(k+'pm',r.pm,{num:1,label:'Project management hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money"><b>${num(r.cost)+num(r.hireCost)?money(num(r.cost)+num(r.hireCost)):'—'}</b></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="10" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
+  ${siteDays().map(r=>`<tr class="ro-row" title="From site timesheets"><td><button class="rowlink" data-act="site-go" data-v="${esc(r.date)}">Site hours</button></td><td>${esc(fmtDate(r.date))}</td><td class="n money">${hrs(r.hire)}</td><td class="n money">${hrs(r.ox)}</td><td class="n money">${hrs(r.pm)}</td><td class="n money">${hrs(r.hire+r.ox+r.pm)}</td><td class="n money">${money(r.cost)}</td><td class="n money">${money(r.hireCost)}</td><td class="n money">${money(r.cost+r.hireCost)}</td><td class="n money">${r.hire+r.ox+r.pm?'$'+((r.cost+r.hireCost)/(r.hire+r.ox+r.pm)).toFixed(2):'—'}</td></tr>`).join('')}
   <tr class="addrow"><td colspan="10"><div class="toolbar"><button class="btn" data-act="llog-add">+ Add row</button><label class="btn" for="llog_file">Import Excel, CSV or PDF</label><input type="file" id="llog_file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
     <span class="hint">or drag an Excel (.xlsx), CSV or PDF onto this panel. Columns are matched by their headings: date, labour hire, Oxford + subcontractor, project management, Oxford + subcontractor cost, labour hire cost.</span></div>${UI.llogMsg?`<div class="hint" style="margin-top:6px;color:${UI.llogMsg.err?'var(--bad)':'var(--good,#2f7d4f)'}">${esc(UI.llogMsg.txt)}</div>`:''}</td></tr>
   </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${hrs(T.hire)}</td><td class="n money">${hrs(T.ox)}</td><td class="n money">${hrs(T.pm)}</td><td class="n money">${hrs(T.hrs)}</td><td class="n money">${money(T.cost)}</td><td class="n money">${money(T.hireCost)}</td><td class="n money">${money(T.total)}</td><td class="n money">${T.hrs?'$'+T.rate.toFixed(2):'—'}</td></tr></tfoot></table></div></div>`;
@@ -1790,6 +1883,8 @@ function msDesc(m,it){
 }
 const msCat=(m,it)=>m.type==='submain'?(it.cable||''):(it.cat||'');
 function msQty(m,it){
+  if(it.toLink){const tot=toKeyQty(it.toLink,null);const per={};let any=false;for(const l of m.locs){const q=toKeyQty(it.toLink,l.name||'');per[l.id]=q;if(q!=null)any=true}
+    return {qty:Math.round((tot||0)*100)/100,src:'drawing',per:any?per:null,found:tot!=null}}
   const has=m.locs.some(l=>it.q&&it.q[l.id]!==undefined&&it.q[l.id]!=='');
   if(has)return {qty:m.locs.reduce((a,l)=>a+num(it.q[l.id]),0),src:'takeoff'};
   if(m.type==='submain'&&it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!=='')return {qty:num(it.n)*num(it.run),src:'cable'};
@@ -1960,7 +2055,7 @@ function msItems(id,m,C){
     <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
   const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
-    const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='takeoff'?'from take off':'cables × run'}</span>`;
+    const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='drawing'?'from drawings':x.src==='takeoff'?'from take off':'cables × run'}</span>`;
     return `<tr><td class="hint">${i+1}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
       ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}"><div class="cur">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</div></td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
@@ -1986,16 +2081,20 @@ function msItems(id,m,C){
     <label class="wide">Comments${inp(ka+'comments',a.comments||'',{label:'Comments'})}</label></div></div></div>`;
   return `<div class="panel" style="padding:12px 14px">${tool}</div>${paste}${table}${summary}${msPoPanel(id,m,C)}`;
 }
-function msTakeoff(id,m,C){
-  const rows=C.rows.map((x,i)=>{const it=x.it;
+function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(id);if(!d)continue;for(const z of d.zones){const n=(z.name||'').trim();if(n&&!s.has(n.toLowerCase()))s.set(n.toLowerCase(),n)}}return [...s.values()]}
+function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
+  const linkOpts=[['','Typed in'],...keys.map(k=>[k.k,k.name+' ('+TO_TYPE[k.type].toLowerCase()+')'])];
+  if(keys.length)for(const x of C.rows)if(x.it.toLink&&!keys.some(k=>k.k===x.it.toLink))linkOpts.push([x.it.toLink,'Missing: '+x.it.toLink.split('|')[0]]);
+  const rows=C.rows.map((x,i)=>{const it=x.it;const Q=it.toLink?msQty(m,it):null;
     return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">Describe this line in the item schedule</span>'}</td>
+    <td style="min-width:170px">${keys.length||it.toLink?sel('msi|'+id+'|'+i+'|toLink',it.toLink||'',linkOpts,{label:'Quantity source line '+(i+1)}):'<span class="hint">No drawing take off yet</span>'}</td>
     ${m.type==='submain'?`<td class="n money hint">${it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!==''?(num(it.n)*num(it.run)).toLocaleString('en-AU',{maximumFractionDigits:2}):'—'}</td>`:''}
-    ${m.locs.map(l=>`<td style="min-width:80px">${inp('msq|'+id+'|'+i+'|'+l.id,it.q?.[l.id]??'',{num:1,label:(l.name||'Location')+' qty line '+(i+1)})}</td>`).join('')}
+    ${m.locs.map(l=>Q?`<td class="n money hint" style="min-width:80px" title="From drawing sections named ${esc(l.name||'')}">${Q.per?fmtq(Q.per[l.id]):''}</td>`:`<td style="min-width:80px">${inp('msq|'+id+'|'+i+'|'+l.id,it.q?.[l.id]??'',{num:1,label:(l.name||'Location')+' qty line '+(i+1)})}</td>`).join('')}
     <td class="n money"><b>${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
-  return `<div class="panel" style="padding:12px 14px"><div class="toolbar"><p class="hint" style="margin:0;flex:1">Enter quantities by location. When a line has take-off quantities, their total becomes its qty in the item schedule${m.type==='submain'?'. Otherwise it uses number of cables × run length':''}.</p><button class="btn primary" data-act="ms-add-loc">+ Add location</button></div></div>
-  <div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th>${m.type==='submain'?'<th class="n">Cables × run (m)</th>':''}${m.locs.map((l,li)=>`<th><div class="msloc">${inp('msloc|'+id+'|'+li,l.name,{label:'Location '+(li+1)+' name',ph:'Location'})}${delBtn('msloc',id,String(li))}</div></th>`).join('')}<th class="n">Total qty</th></tr></thead>
-  <tbody>${rows||`<tr><td colspan="${m.locs.length+3}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
-  <tfoot><tr><td colspan="${m.type==='submain'?3:2}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>a+num(it.q?.[l.id]),0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
+  return `<div class="panel" style="padding:12px 14px"><div class="toolbar"><p class="hint" style="margin:0;flex:1">Enter quantities by location, or link a line to a take off item under <b>From</b> and its quantity comes straight from the drawings (split by location where a drawing section has the same name). When a line has take-off quantities, their total becomes its qty in the item schedule${m.type==='submain'?'. Otherwise it uses number of cables × run length':''}.</p>${keys.length&&toZoneNames().length?'<button class="btn" data-act="ms-loc-dwg" title="Add a location for each section drawn on the drawings">Locations from drawing sections</button>':''}<button class="btn primary" data-act="ms-add-loc">+ Add location</button></div></div>
+  <div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th>From</th>${m.type==='submain'?'<th class="n">Cables × run (m)</th>':''}${m.locs.map((l,li)=>`<th><div class="msloc">${inp('msloc|'+id+'|'+li,l.name,{label:'Location '+(li+1)+' name',ph:'Location'})}${delBtn('msloc',id,String(li))}</div></th>`).join('')}<th class="n">Total qty</th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="${m.locs.length+4}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
+  <tfoot><tr><td colspan="${m.type==='submain'?4:3}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>{if(it.toLink){const Q=msQty(m,it);return a+num(Q.per&&Q.per[l.id])}return a+num(it.q?.[l.id])},0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
 }
 function msDeliveries(id,m,C){
   const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
@@ -2160,7 +2259,17 @@ function toMarkQty(d,it,m,z){
   const sc=toScale(d,m.pg);if(!sc)return null;const k=num(sc.mpu);
   if(it.type==='length'){if(!z)return toLen(m.pts)*k;let l=0;for(let i=1;i<m.pts.length;i++)l+=toClipSeg(m.pts[i-1],m.pts[i],z.r);return l*k}
   const poly=z?toClipPoly(m.pts,z.r):m.pts;return poly.length>2?toPolyArea(poly)*k*k:0}
-function toItemQty(d,it,z){let t=0,miss=false;for(const m of d.marks)if(m.it===it.id){const q=toMarkQty(d,it,m,z);if(q==null)miss=true;else t+=q}return miss&&it.type!=='count'?{v:t,miss}:{v:t}}
+/* lengths include cable allowances: extra metres per run (drops, terminations) and a waste % */
+const toHasAllow=it=>it.type==='length'&&(num(it.allow)>0||num(it.waste)>0);
+function toItemQty(d,it,z){let t=0,miss=false,runs=0,share=0;const al=toHasAllow(it);for(const m of d.marks)if(m.it===it.id){const q=toMarkQty(d,it,m,z);if(q==null)miss=true;else{t+=q;if(q>0){runs++;if(al){const full=z?toMarkQty(d,it,m,null):q;share+=full>0?Math.min(1,q/full):1}}}}
+  const raw=t;if(al)t=(t+share*num(it.allow))*(1+num(it.waste)/100);const r={v:t,raw,runs};if(miss&&it.type!=='count')r.miss=true;return r}
+const toKeyOf=i=>(i.name||TO_TYPE[i.type]).trim().toLowerCase()+'|'+i.type;
+function toKeys(){const m=new Map();for(const id in S.dwgs){const d=dwgDoc(id);if(!d)continue;for(const i of d.items){const k=toKeyOf(i);if(!m.has(k))m.set(k,{k,name:i.name||TO_TYPE[i.type],type:i.type})}}return [...m.values()].sort((a,b)=>a.name.localeCompare(b.name)||a.type.localeCompare(b.type))}
+/* total of one take off item (same name + type) across all drawings; loc limits it to sections with that name. null = nothing found */
+function toKeyQty(key,loc){let t=0,hit=false;const L=loc==null?null:String(loc).trim().toLowerCase();
+  for(const id in S.dwgs){const d=dwgDoc(id);if(!d)continue;for(const i of d.items){if(toKeyOf(i)!==key)continue;
+    if(L==null){t+=toItemQty(d,i,null).v;hit=true}else for(const z of d.zones)if((z.name||'').trim().toLowerCase()===L){t+=toItemQty(d,i,z).v;hit=true}}}
+  return hit?t:null}
 function toCurZone(d){return TO.mode==='sec'?d.zones.find(z=>z.id===TO.zone)||null:null}
 
 /* ---------- drawings list ---------- */
@@ -2260,7 +2369,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <input class="f" id="to_in_${i.id}" value="${esc(i.name||'')}" data-tk="iname|${i.id}" placeholder="${TO_TYPE[i.type]} item" aria-label="Item name">
     <span class="tag${i.src?' to-autotag':''}" title="${esc(i.src||'')}">${i.src?'✨ ':''}${TO_TYPE[i.type]}</span>
     <span class="money to-q" title="${q&&q.miss?'Some marks are on a page with no scale':''}">${q?toFmt(i.type,q.v)+(q.miss?' *':''):'—'}</span>
-    <button class="btn ghost" data-ta="idel" data-v="${i.id}" aria-label="Delete item" title="Delete item and its marks">✕</button></div>`}).join('');
+    <button class="btn ghost" data-ta="idel" data-v="${i.id}" aria-label="Delete item" title="Delete item and its marks">✕</button></div>${i.type==='length'&&TO.item===i.id?`<div class="to-allow"><span class="hint">Cable allowance</span><label class="hint">Extra per run <input class="f num" id="to_al_${i.id}" data-tk="iallow|${i.id}" value="${esc(i.allow||'')}" placeholder="0" inputmode="decimal" style="width:62px"> m</label><label class="hint">Waste <input class="f num" id="to_wa_${i.id}" data-tk="iwaste|${i.id}" value="${esc(i.waste||'')}" placeholder="0" inputmode="decimal" style="width:52px"> %</label><span class="hint" id="to_alq_${i.id}">${q&&toHasAllow(i)?`Measured ${toFmt('length',q.raw)} in ${q.runs} run${q.runs===1?'':'s'}`:'Add drops, terminations and waste to each run'}</span></div>`:''}`}).join('');
   const zones=d.zones.map(zz=>`<div class="to-it${TO.zone===zz.id?' on':''}" data-ta="zone" data-v="${zz.id}"><span class="to-zsw"></span><input class="f" id="to_zn_${zz.id}" value="${esc(zz.name||'')}" data-tk="zname|${zz.id}" placeholder="Section name" aria-label="Section name"><span class="hint">p${zz.pg}</span><button class="btn ghost" data-ta="zdel" data-v="${zz.id}" aria-label="Delete section">✕</button></div>`).join('');
   const sel=TO.sel?toSelBox(d):'';
   const draft=TO.draft.length?`<div class="to-box"><b>${TO.draft.length} point${TO.draft.length===1?'':'s'}</b>${it&&it.type!=='count'&&sc?` · ${it.type==='length'?toFmt('length',toLen(TO.draft)*num(sc.mpu)):toFmt('area',toPolyArea(TO.draft)*num(sc.mpu)**2)}`:''} <button class="btn primary" data-ta="finish" ${TO.draft.length<(it&&it.type==='area'?3:2)?'disabled':''}>Finish</button> <button class="btn" data-ta="cancel">Cancel</button></div>`:'';
@@ -2286,7 +2395,7 @@ function toSum(){const el=document.getElementById('toSum');if(!el)return;const d
   el.innerHTML=`<div class="sec-head" style="margin-bottom:8px"><h3><button class="tog" data-ta="sumtog" data-v="tosum" aria-expanded="${!COLL.has('tosum')}" aria-label="${COLL.has('tosum')?'Show':'Hide'} summary">${COLL.has('tosum')?'▸':'▾'}</button>Take off summary</h3><button class="btn" data-ta="csv">Download CSV</button></div>
     <div class="tw"><table><thead><tr><th>Item</th><th>Type</th>${cols.map((c,ci)=>`<th class="n${ci===0?'':' to-zc'}">${esc(c.n)}</th>`).join('')}${d.zones.length?'<th class="n">Outside sections</th>':''}</tr></thead>
     <tbody>${d.items.map(i=>{const all=toItemQty(d,i,null).v,inz=d.zones.reduce((a,z)=>a+toItemQty(d,i,z).v,0);return `<tr><td>${i.img?`<img src="${i.img}" alt="" class="to-thumb">`:`<span class="to-dot" style="background:${esc(i.color)}"></span>`}${esc(i.name||TO_TYPE[i.type]+' item')}</td><td class="hint">${TO_TYPE[i.type]}</td>${cols.map(c=>cell(i,c.z)).join('')}${d.zones.length?`<td class="n money">${toFmt(i.type,Math.max(0,all-inz))}</td>`:''}</tr>`}).join('')}</tbody></table></div>
-    ${miss?'<p class="hint" style="margin:6px 0 0">* Some marks are on a page with no scale and are not included.</p>':''}${d.zones.length?'<p class="hint" style="margin:6px 0 0">Lengths and areas that cross a section edge are split at the edge. If sections overlap, a mark counts in each.</p>':''}`}
+    ${miss?'<p class="hint" style="margin:6px 0 0">* Some marks are on a page with no scale and are not included.</p>':''}${d.items.some(toHasAllow)?'<p class="hint" style="margin:6px 0 0">Lengths include each item’s cable allowance (extra per run and waste).</p>':''}${d.zones.length?'<p class="hint" style="margin:6px 0 0">Lengths and areas that cross a section edge are split at the edge. If sections overlap, a mark counts in each.</p>':''}`}
 function toDraw(){const sv=document.getElementById('toSvg');if(!sv||!TO.vp)return;const d=dwgDoc(TO.id);if(!d)return;const s=TO.zoom||1;const u=1/s;const z=toCurZone(d);const pg=TO.page;
   const byId={};d.items.forEach(i=>byId[i.id]=i);let h='';
   for(const zz of d.zones)if(zz.pg===pg){const on=TO.zone===zz.id;h+=`<g data-zn="${zz.id}" class="to-zone${on?' on':''}${TO.sel&&TO.sel.id===zz.id?' sel':''}"><rect x="${zz.r[0]}" y="${zz.r[1]}" width="${zz.r[2]}" height="${zz.r[3]}" stroke-width="${(on?2.5:1.5)*u}" stroke-dasharray="${6*u} ${4*u}"/><text x="${zz.r[0]+4*u}" y="${zz.r[1]+14*u}" font-size="${12*u}">${esc(zz.name||'Section')}</text></g>`}
@@ -2376,6 +2485,7 @@ function toWire(h){
   h.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tk==='revsel'){const v=e.target.value;TO.viewRev=v==='cur'?null:+v;TO.rvc=null;TO.tool='pan';TO.draft=[];TO.sel=null;TO.page=1;TO.zoom=0;TO.item=null;toLoadPage();toSync()}});
   h.addEventListener('input',e=>{const t=e.target.dataset&&e.target.dataset.tk;if(!t)return;if(TO.viewRev!=null&&!/^(revsel)$/.test(t))return;const [k,id]=t.split('|');const d=dwgDoc(TO.id);if(!d)return;
     if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum()}}
+    if(k==='iallow'||k==='iwaste'){const it=d.items.find(i=>i.id===id);if(it){it[k==='iallow'?'allow':'waste']=e.target.value;persist('drawings/'+TO.id);toSum();const q=toItemQty(dwgDoc(TO.id),it,toCurZone(d));const row=e.target.closest('.to-allow');const qe=row&&row.previousElementSibling&&row.previousElementSibling.querySelector('.to-q');if(qe)qe.textContent=toFmt('length',q.v)+(q.miss?' *':'');const me=document.getElementById('to_alq_'+id);if(me)me.textContent=toHasAllow(it)?`Measured ${toFmt('length',q.raw)} in ${q.runs} run${q.runs===1?'':'s'}`:'Add drops, terminations and waste to each run'}}
     if(k==='zname'){const z=d.zones.find(x=>x.id===id);if(z){z.name=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}
     if(k==='aq'){TO.auto.q=e.target.value;return}
     if(k==='sq'){TO.auto.sq=e.target.value;return}
@@ -3312,6 +3422,7 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='variations'||!ordHasFiles(e))re
   const t=e.target.closest&&e.target.closest('[data-vdrop]');const id=t?t.dataset.vdrop:(UI.vopen&&e.target.closest&&e.target.closest('#bupanel')?UI.vopen:null);
   if(!id){setSave('error','Drop the PDF onto the variation it belongs to');return}uploadVarAtt(id,e.dataTransfer.files)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='to_file'&&e.target.files&&e.target.files.length){toUpload(e.target.files);e.target.value=''}});
+viewEl.addEventListener('change',e=>{if(e.target.id==='site_photo'&&e.target.files&&e.target.files.length){sitePhotos(e.target.files);e.target.value=''}});
 viewEl.addEventListener('change',e=>{if(e.target.id==='llog_file'&&e.target.files&&e.target.files[0]){llogImport(e.target.files[0]);e.target.value=''}});
 
 /* ---------- editing ---------- */
@@ -3349,6 +3460,9 @@ function apply(parts,v){
     persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
   if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
+  if(kind==='sited'){const [id,d]=siteDiaryDoc(a);d[b]=v;persist('site/'+id);return}
+  if(kind==='sitet'){const t=S.site[a];if(t){t[b]=v;persist('site/'+a)}return}
+  if(kind==='sites'){S.site.settings=S.site.settings||{kind:'settings'};S.site.settings[a]=v;persist('site/settings');return}
   if(kind==='pc'){claimDoc().hdr[a]=v;persist('project/claim');return}
   if(kind==='pcret'){claimDoc().retMax=v;persist('project/claim');return}
   if((kind==='pcl'||kind==='pcsec'||kind==='pcret')&&pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');scheduleRender(0);return}
@@ -3423,12 +3537,20 @@ document.addEventListener('click',async e=>{
   if(act==='ms-pick'){UI.ms=btn.dataset.v;UI.msd=null;UI.msNew=false;render();return}
   if(act==='ms-newpick'){UI.msNew=!UI.msNew;render();return}
   if(act==='ms-new'){const id=uid('m');S.msods[id]=msNew(btn.dataset.v);UI.ms=id;UI.msNew=false;UI.mst='details';UI.msd=null;persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('ms_'+id+'_name');if(el)el.focus()},60);return}
+  if(act==='site-tab'){UI.siteTab=btn.dataset.v;render();return}
+  if(act==='site-go'){UI.siteDate=btn.dataset.v;UI.siteTab='day';UI.siteMsg='';if(UI.view!=='site'){UI.view='site';try{history.replaceState(null,'','#site')}catch(err){}}render();window.scrollTo&&window.scrollTo(0,0);return}
+  if(act==='site-wx'){const date=UI.siteDate||todayISO();const [id,d]=siteDiaryDoc(date);d.weather=d.weather===btn.dataset.v?'':btn.dataset.v;persist('site/'+id);render();return}
+  if(act==='site-add-time'){const date=UI.siteDate||todayISO();const id=uid('t');const me=siteMe();S.site[id]={kind:'time',date,who:'',cat:'ox',hrs:'',task:'',note:'',by:me.email,created:Date.now()};persist('site/'+id);render();setTimeout(()=>{const el=document.getElementById('sitet_'+id+'_who');if(el){el.focus();el.scrollIntoView({block:'center'})}},50);return}
+  if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
+  if(act==='site-ph'){sitePhotoView(btn.dataset.v);return}
+  if(act==='site-phdel'){const date=UI.siteDate||todayISO();const id=siteDiaryId(date);const d=S.site[id];const i=+btn.dataset.v;if(d&&d.photos&&d.photos[i]){const key='siteph'+id+i;if(UI.armed!==key){UI.armed=key;btn.textContent='Remove?';btn.classList.add('armed');setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},3000);return}UI.armed=null;d.photos.splice(i,1);persist('site/'+id);render()}return}
   if(act==='ms-tab'){UI.mst=btn.dataset.v;render();return}
   if(act==='ms-dk'){UI.msd=+btn.dataset.v;render();return}
   if(act==='ms-paste'){UI.msPaste=!UI.msPaste;render();if(UI.msPaste)setTimeout(()=>{const el=document.getElementById('ms_paste');if(el)el.focus()},60);return}
   if(act.startsWith('ms-')){const id=UI.ms;const m=S.msods[id];if(!m)return;
     if(act==='ms-add-line'){m.items.push(msItem());persist('msod/'+id);render();setTimeout(()=>{const f=(MS_COLS[m.type]||MS_COLS.general)[0][0];const el=document.getElementById('msi_'+id+'_'+(m.items.length-1)+'_'+f);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
     if(act==='ms-paste-ok'){const n=msPasteRows(id);if(n){UI.msPaste=false;UI.msPasteTxt='';persist('msod/'+id)}render();return}
+    if(act==='ms-loc-dwg'){const names=toZoneNames();const untouched=m.locs.every(l=>/^PS\d+$/.test(l.name||'')&&!m.items.some(it=>it.q&&it.q[l.id]!==undefined&&it.q[l.id]!==''));if(untouched)m.locs=[];let n=0;for(const nm of names)if(!m.locs.some(l=>(l.name||'').trim().toLowerCase()===nm.toLowerCase())){m.locs.push({id:uid('L'),name:nm});n++}persist('msod/'+id);setSave('saved');render();return}
     if(act==='ms-add-loc'){m.locs.push({id:uid('L'),name:'PS'+(m.locs.length+1)});persist('msod/'+id);render();return}
     if(act==='ms-add-dk'){m.dockets.push({id:uid('d'),date:todayISO(),delivery:'',q:{}});UI.msd=m.dockets.length-1;persist('msod/'+id);render();return}
     if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
@@ -3641,6 +3763,7 @@ document.addEventListener('click',async e=>{
     else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
     else if(kind==='team'){window.__sb.from('team').delete().eq('email',x).then(({error})=>{TEAMMSG=error?'Could not remove: '+error.message:'Removed '+x+'.';loadTeam()});return}
     else if(kind==='llog'){S.llog.rows.splice(+x,1);persist('project/labourlog')}
+    else if(kind==='site'){delete S.site[id];removeDoc('site/'+id)}
     else if(kind==='pcsec'){claimDoc().secs.splice(+x,1);persist('project/claim')}
     else if(kind==='pch'){claimDoc().hist.splice(+x,1);persist('project/claim')}
     else if(kind==='tksec'){const d=ensureTask(id);const first=d.sections[0].id;const ids=new Set(d.sections.map(z=>z.id));d.items=d.items.filter(it=>(ids.has(it.sec)?it.sec:first)!==x);d.sections=d.sections.filter(z=>z.id!==x);persist('tasks/'+id)}
@@ -3658,7 +3781,7 @@ document.addEventListener('click',async e=>{
 const UNDO={stack:[],redo:[],burstKey:null,burstAt:0};
 function undoSnap(){const o={};const add=(p,d)=>{if(d!==undefined&&d!==null)o[p]=JSON.stringify(d)};
   add('project/info',S.info);add('project/cashflow',S.cash);add('project/crew',S.crew);add('project/labourlog',S.llog);add('project/claim',S.claim);
-  for(const [c,m] of [['variations',S.vars],['orders',S.orders],['procurement',S.procs],['msod',S.msods],['tasks',S.tasks],['apartments',S.apt],['drawings',S.dwgs]])for(const k in m)add(c+'/'+k,m[k]);
+  for(const [c,m] of [['variations',S.vars],['orders',S.orders],['procurement',S.procs],['msod',S.msods],['tasks',S.tasks],['apartments',S.apt],['drawings',S.dwgs],['site',S.site]])for(const k in m)add(c+'/'+k,m[k]);
   return o}
 const snapKey=o=>Object.keys(o).sort().map(k=>k+'='+o[k]).join('\n');
 function undoRecord(){const snap=undoSnap();const key=snapKey(snap);const top=UNDO.stack[UNDO.stack.length-1];if(top&&top.key===key)return null;
@@ -3666,7 +3789,7 @@ function undoRecord(){const snap=undoSnap();const key=snapKey(snap);const top=UN
 function undoDrop(e){if(!e)return;const i=UNDO.stack.indexOf(e);if(i<0)return;const cur=snapKey(undoSnap());if(cur===e.key){UNDO.stack.splice(i,1);if(!UNDO.redo.length)UNDO.redo=e.redoBak||[];undoButtons()}}
 function undoRestore(snap){
   const cur=undoSnap();const paths=new Set([...Object.keys(cur),...Object.keys(snap)]);
-  const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt',drawings:'dwgs'};
+  const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt',drawings:'dwgs',site:'site'};
   for(const p of paths){if(cur[p]===snap[p])continue;const [c,id]=p.split('/');
     if(snap[p]===undefined){if(MAP[c]){delete S[MAP[c]][id];removeDoc(p)}else if(p==='project/claim'){S.claim=null}continue}
     const d=JSON.parse(snap[p]);deleted.delete(p);
@@ -3679,7 +3802,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;const now=undoSnap();UND
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
@@ -3688,12 +3811,12 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
 
 /* ---------- projects ---------- */
 let unsubs=[];
-function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},claim:null})}
+function blankState(){Object.assign(S,{llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null})}
 async function flushAll(){const keys=Object.keys(pending);await Promise.all(keys.map(k=>{clearTimeout(pending[k]);return flush(k)}))}
 function subscribe(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
   if(!db)return;const err=e=>{console.error(e)};
-  for(const name of ['project','variations','orders','procurement','msod','estimates','tasks','apartments','drawings'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
+  for(const name of ['project','variations','orders','procurement','msod','estimates','tasks','apartments','drawings','site'])unsubs.push(db.collection(physColl(name)).onSnapshot(s=>onColl(name,s),err));
 }
 async function switchProject(id){
   if(id===PID)return;
@@ -3731,27 +3854,58 @@ document.addEventListener('change',e=>{if(e.target.id==='projsel'){const v=e.tar
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[data-file]');if(!a)return;e.preventDefault();
   let nm=a.getAttribute('title')||a.textContent||'Document';nm=nm.replace(/^View /,'');pdfView(a.dataset.file,nm)});
 function jsonMerge(a,b){if(!a||typeof a!=='object'||Array.isArray(a))a={};const o={...a};for(const k in b){const v=b[k];o[k]=(v&&typeof v==='object'&&!Array.isArray(v))?jsonMerge(a[k],v):v}return o}
+/* ---------- offline (website and desktop): keep the last copy of each list on this device, queue changes made without signal ---------- */
+const OFF={n:0,db:null,user:'',busy:false};
+function offIdb(){if(OFF.db)return OFF.db;OFF.db=new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('no idb'));const r=indexedDB.open('ox-offline',1);r.onupgradeneeded=()=>{const d=r.result;for(const n of ['colls','outbox','blobs'])if(!d.objectStoreNames.contains(n))d.createObjectStore(n)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});OFF.db.catch(()=>{OFF.db=null});return OFF.db}
+async function offTx(store,mode,fn){const d=await offIdb();return new Promise((res,rej)=>{const t=d.transaction(store,mode);const r=fn(t.objectStore(store));let out;if(r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+const offGet=(st,k)=>offTx(st,'readonly',o=>o.get(k)).catch(()=>undefined);
+const offPut=(st,k,v)=>offTx(st,'readwrite',o=>o.put(v,k)).catch(()=>{});
+const offDel=(st,k)=>offTx(st,'readwrite',o=>o.delete(k)).catch(()=>{});
+const offVals=st=>offTx(st,'readonly',o=>o.getAll()).catch(()=>[]);
+const offBlobPut=(k,b)=>offPut('blobs',k,b),offBlobGet=k=>offGet('blobs',k);
+function offIsNet(e){if(typeof navigator!=='undefined'&&navigator.onLine===false)return true;const m=String(e&&(e.message||e.details||e)||'');return e instanceof TypeError||/Failed to fetch|NetworkError|Load failed|network ?error|fetch failed|ERR_INTERNET|ERR_NAME|timed? ?out/i.test(m)}
+async function offOutbox(){return (await offVals('outbox')).filter(x=>x&&x.u===OFF.user).sort((a,b)=>a.t-b.t)}
+async function offCount(){const n=(await offOutbox()).length+((await offVals('blobs')).length?0:0);const was=OFF.n;OFF.n=n;if(!Object.keys(pending).length&&!Object.values(inflight).some(Boolean))setSave('saved');if(was!==n&&UI.view==='site')scheduleRender(0)}
+async function offClearUser(){try{const d=await offIdb();for(const st of ['colls','outbox']){const keys=await offTx(st,'readonly',o=>o.getAllKeys());for(const k of keys||[])if(String(k).startsWith(OFF.user+'|'))await offDel(st,k)}}catch(e){}}
 function makeSbDb(sb){
-  const parent=p=>p.split('/').slice(0,-1).join('/');const T='docs';
+  const parent=p=>p.split('/').slice(0,-1).join('/');const T='docs';const U=()=>OFF.user+'|';
   const listeners={};
-  async function fetchColl(c){const {data,error}=await sb.from(T).select('path,data').eq('coll',c);if(error)throw error;return data}
+  async function overlay(c,rows){const box=(await offOutbox()).filter(x=>x.coll===c);if(!box.length)return rows;const m=new Map(rows.map(r=>[r.path,r]));for(const x of box){if(x.del)m.delete(x.p);else m.set(x.p,{path:x.p,data:x.data})}return [...m.values()]}
+  async function fetchColl(c){let rows;try{const {data,error}=await sb.from(T).select('path,data').eq('coll',c);if(error)throw error;rows=data;offPut('colls',U()+c,data)}
+    catch(e){if(!offIsNet(e))throw e;rows=await offGet('colls',U()+c);if(!rows)throw e}
+    return overlay(c,rows)}
+  async function cacheRow(p,data,del){const k=U()+parent(p);const rows=(await offGet('colls',k))||null;if(!rows)return;const i=rows.findIndex(r=>r.path===p);if(del){if(i>=0)rows.splice(i,1)}else if(i>=0){rows[i]={path:p,data}}else rows.push({path:p,data});await offPut('colls',k,rows)}
+  async function queue(p,data,del){await offPut('outbox',U()+p,{u:OFF.user,p,coll:parent(p),data:del?null:data,del:!!del,t:Date.now()});await offCount();bump(parent(p));if(navigator.onLine!==false)setTimeout(drain,400)}
+  async function drain(){if(OFF.busy||navigator.onLine===false)return;OFF.busy=true;let sent=0;const colls=new Set();
+    try{for(const x of await offOutbox()){try{if(x.del){const {error}=await sb.from(T).delete().eq('path',x.p);if(error)throw error}else{const {error}=await sb.from(T).upsert({path:x.p,coll:x.coll,data:x.data,updated_at:new Date().toISOString()});if(error)throw error}
+        await cacheRow(x.p,x.data,x.del);await offDel('outbox',U()+x.p);sent++;colls.add(x.coll)}catch(e){if(offIsNet(e))break;console.error('offline change not saved',x.p,e);await offDel('outbox',U()+x.p)}}}
+    finally{OFF.busy=false}await offCount();for(const c of colls)bump(c);if(sent)offPhotoDrain()}
+  addEventListener('online',()=>{drain();offPhotoDrain()});addEventListener('offline',()=>offCount());setInterval(()=>{if(OFF.n)drain()},30000);setTimeout(()=>{offCount();drain();offPhotoDrain()},1500);
   async function emit(c){const L=listeners[c];if(!L||!L.size)return;try{const rows=await fetchColl(c);const snap={docs:rows.map(r=>({id:r.path.split('/').pop(),exists:true,data:()=>r.data})),metadata:{fromCache:false,hasPendingWrites:false}};snap.size=snap.docs.length;snap.empty=!snap.size;for(const f of L)f.next(snap)}catch(e){for(const f of L)f.err&&f.err(e)}}
   const timers={};const bump=c=>{clearTimeout(timers[c]);timers[c]=setTimeout(()=>emit(c),120)};
   sb.channel('docs-all').on('postgres_changes',{event:'*',schema:'public',table:T},pl=>{const p=(pl.new&&pl.new.path)||(pl.old&&pl.old.path);if(p)bump(parent(p))}).subscribe();
   setInterval(()=>{for(const c in listeners)if(listeners[c].size)emit(c)},60000);
   return {
     doc(p){return {
-      async set(data){const {error}=await sb.from(T).upsert({path:p,coll:parent(p),data,updated_at:new Date().toISOString()});if(error)throw Object.assign(error,{code:'unavailable'})},
-      async update(patch){const {data:row,error:e1}=await sb.from(T).select('data').eq('path',p).maybeSingle();if(e1)throw e1;if(!row)throw {code:'invalid_argument',message:'missing'};
-        const {error}=await sb.from(T).update({data:jsonMerge(row.data,patch),updated_at:new Date().toISOString()}).eq('path',p);if(error)throw error},
-      async delete(){const {error}=await sb.from(T).delete().eq('path',p);if(error)throw error},
+      async set(data){if(OFF.n||navigator.onLine===false)return queue(p,data);try{const {error}=await sb.from(T).upsert({path:p,coll:parent(p),data,updated_at:new Date().toISOString()});if(error)throw error}catch(e){if(offIsNet(e))return queue(p,data);throw Object.assign(e,{code:'unavailable'})}cacheRow(p,data)},
+      async update(patch){const local=async()=>{const q=(await offOutbox()).find(x=>x.p===p&&!x.del);let base=q&&q.data;if(!base){const rows=await offGet('colls',U()+parent(p))||[];const r=rows.find(r=>r.path===p);base=r&&r.data}if(!base)throw {code:'invalid_argument',message:'missing'};return queue(p,jsonMerge(base,patch))};
+        if(OFF.n||navigator.onLine===false)return local();
+        try{const {data:row,error:e1}=await sb.from(T).select('data').eq('path',p).maybeSingle();if(e1)throw e1;if(!row)throw {code:'invalid_argument',message:'missing'};
+        const merged=jsonMerge(row.data,patch);const {error}=await sb.from(T).update({data:merged,updated_at:new Date().toISOString()}).eq('path',p);if(error)throw error;cacheRow(p,merged)}catch(e){if(offIsNet(e))return local();throw e}},
+      async delete(){if(OFF.n||navigator.onLine===false)return queue(p,null,true);try{const {error}=await sb.from(T).delete().eq('path',p);if(error)throw error}catch(e){if(offIsNet(e))return queue(p,null,true);throw e}cacheRow(p,null,true)},
       async get(){const {data}=await sb.from(T).select('data').eq('path',p).maybeSingle();return {id:p.split('/').pop(),exists:!!data,data:()=>data&&data.data}}
     }},
     collection(c){return {onSnapshot(next,err){const f={next,err};(listeners[c]=listeners[c]||new Set()).add(f);emit(c);return ()=>listeners[c].delete(f)}}}
   };
 }
+async function offPhotoDrain(){if(!assets||navigator.onLine===false||offPhotoDrain.busy)return;offPhotoDrain.busy=true;try{
+    for(const [sid,d] of Object.entries(S.site)){if(!d||!Array.isArray(d.photos))continue;let ch=false;
+      for(const ph of d.photos){if(!ph.pending||!String(ph.id).startsWith('pend-'))continue;const b=await offBlobGet(ph.id);if(!b){ph.pending=0;ch=true;continue}
+        try{const r=await assets.upload(new File([b],ph.name||'photo.jpg',{type:'image/jpeg'}),{type:'image/jpeg'});if(PHURL[ph.id])PHURL[r.id]=PHURL[ph.id];await offDel('blobs',ph.id);ph.id=r.id;delete ph.pending;ch=true}catch(e){if(offIsNet(e))return;console.error(e)}}
+      if(ch)persist('site/'+sid)}
+  }finally{offPhotoDrain.busy=false}scheduleRender()}
 function makeSbAssets(sb){return {
-  async upload(file,opts){const id=(crypto.randomUUID?crypto.randomUUID():uid('f'))+'.pdf';const {error}=await sb.storage.from('files').upload(id,file,{contentType:(opts&&opts.type)||file.type||'application/pdf',upsert:false});if(error)throw Object.assign(error,{code:'upstream_error'});return {id,url:'#'}},
+  async upload(file,opts){const ty=(opts&&opts.type)||file.type||'application/pdf';const ext=/png/.test(ty)?'.png':/jpe?g/.test(ty)?'.jpg':/webp/.test(ty)?'.webp':'.pdf';const id=(crypto.randomUUID?crypto.randomUUID():uid('f'))+ext;const {error}=await sb.storage.from('files').upload(id,file,{contentType:ty,upsert:false});if(error)throw Object.assign(error,{code:'upstream_error'});return {id,url:'#'}},
   async delete(id){await sb.storage.from('files').remove([id]);return {deleted:true}}
 }}
 const browserDownloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:'saved'}}};
@@ -3939,12 +4093,15 @@ async function hostedBoot(startStore,offline){
   if(!session){loginScreen(sb);sb.auth.onAuthStateChange((ev,s2)=>{if(s2&&(ev==='SIGNED_IN'||ev==='PASSWORD_RECOVERY'))location.reload()});setSave('local');document.getElementById('savepill').textContent='Signed out';return}
   sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')location.reload()});
   const myEmail=(session.user.email||'').toLowerCase();
-  const {data:meRow,error:meErr}=await sb.from('team').select('*').eq('email',myEmail).maybeSingle();
+  let {data:meRow,error:meErr}=await sb.from('team').select('*').eq('email',myEmail).maybeSingle().then(r=>r,e=>({data:null,error:e}));
+  if(meErr&&offIsNet(meErr)){try{meRow=JSON.parse(localStorage.getItem('ox_me_'+myEmail)||'null')}catch(e){}if(meRow)meErr=null}
+  else if(meRow){try{localStorage.setItem('ox_me_'+myEmail,JSON.stringify(meRow))}catch(e){}}
+  OFF.user=myEmail;
   if(meErr){document.getElementById('banner').innerHTML='<div class="banner">Could not check your access: '+esc(meErr.message)+'. Has supabase-setup.sql been run?</div>';setSave('error','No connection');return}
   if(!meRow){noAccess(sb,myEmail);setSave('local');document.getElementById('savepill').textContent='No access';return}
   window.__me=meRow;
   document.getElementById('whoami').innerHTML=`<div class="who">${esc(session.user.email||'')}<button class="addproj" id="chpw" type="button">Change password</button><button class="addproj" id="signout" type="button">Sign out</button>${window.oxDesktop?'<button class="addproj" id="oxsettings" type="button">Connection settings</button>':''}</div>`;
-  document.getElementById('signout').onclick=()=>sb.auth.signOut();document.getElementById('chpw').onclick=()=>passwordScreen(sb,{change:true});
+  document.getElementById('signout').onclick=async()=>{if(OFF.n&&!confirm(OFF.n+' change'+(OFF.n===1?' has':'s have')+' not uploaded yet because you are offline. Sign out anyway and lose '+(OFF.n===1?'it':'them')+'?'))return;await offClearUser();try{localStorage.removeItem('ox_me_'+myEmail)}catch(e){}sb.auth.signOut()};document.getElementById('chpw').onclick=()=>passwordScreen(sb,{change:true});
   let wantPw=false;try{wantPw=sessionStorage.getItem('ox_setpw')==='1'}catch(e){}
   if(wantPw||/[?&]setpw=1/.test(location.search)||!(session.user.user_metadata&&session.user.user_metadata.pw_set))passwordScreen(sb);if(window.oxDesktop)document.getElementById('oxsettings').onclick=()=>window.oxDesktop.openSettings();
   assets=makeSbAssets(sb);downloads=downloads||browserDownloads;
