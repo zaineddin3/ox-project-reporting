@@ -150,12 +150,16 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .site-ph figure .tag{position:absolute;left:4px;bottom:4px;font-size:10px}.site-phx{position:absolute;top:2px;right:2px;padding:2px 7px;background:color-mix(in srgb,var(--surface) 85%,transparent)}
 .site-phadd{width:104px;height:104px;border:2px dashed var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12.5px;color:var(--muted)}.site-phadd span{font-size:26px}
 .site-other{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}.site-other p{margin:4px 0}
-.site-times{display:flex;flex-direction:column;gap:8px}.site-time{display:grid;grid-template-columns:minmax(110px,1.2fr) minmax(140px,1fr) 72px minmax(130px,1fr) minmax(160px,1.4fr) minmax(90px,1fr) auto;gap:6px;align-items:center}.site-linehint{font-size:12px}
+.site-times{display:flex;flex-direction:column;gap:8px}.site-card{container-type:inline-size}
+.site-time{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 64px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.3fr);grid-template-areas:"who cat hrs task line nr";gap:6px;align-items:center}
+.site-time>*{min-width:0;width:100%}.site-time select.f{text-overflow:ellipsis}.site-linehint{font-size:12px}
+.site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|tid"]{grid-area:task}.site-time>.site-line,.site-time>.site-linehint{grid-area:line}.site-time>.site-nr{grid-area:nr}
+.site-nr{display:flex;gap:6px;align-items:center;min-width:0}.site-nr .site-note{flex:1;min-width:0;width:auto}.site-nr .btn{flex:none;white-space:nowrap}
+@container (max-width:980px){.site-time{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 72px;grid-template-areas:"who cat hrs" "task line line" "nr nr nr";padding:8px;border:1px solid var(--line);border-radius:10px}}
 .site-big{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1}
 .site-lb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}.site-lb img{max-width:100%;max-height:85vh;border-radius:6px}
 tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var(--muted)}
-@media (max-width:700px){.site-time{grid-template-columns:1fr 96px;grid-template-areas:"who hrs" "cat cat" "task task" "line line" "note del";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
-  .site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|tid"]{grid-area:task}.site-time>.site-line,.site-time>.site-linehint{grid-area:line}.site-time>.site-note{grid-area:note}.site-time>[data-act="del"]{grid-area:del}
+@media (max-width:700px){.site-time{grid-template-columns:minmax(0,1fr) 96px;grid-template-areas:"who hrs" "cat cat" "task task" "line line" "nr nr";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
   .site .f,.site select.f,.site textarea.f{border:1px solid var(--line);background:var(--surface)}.site-time .f,.site-time select{min-height:42px;font-size:16px}
   .site-ta,.site .f{font-size:16px}.site-add{flex:1;min-height:46px;font-size:16px}.site-date{width:100%}.site-date .f{flex:1}.site-phadd,.site-ph img{width:calc((100vw - 72px)/3);height:calc((100vw - 72px)/3)}}
 .to-allow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--line);font-size:12px}.to-allow .f{padding:3px 6px}
@@ -1603,8 +1607,7 @@ function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const 
       <input class="f num" id="sitet_${id}_hrs" data-b="${kk}hrs" inputmode="decimal" value="${esc(t.hrs||'')}" placeholder="Hours" aria-label="Hours">
       ${sel(kk+'tid',siteTid(t),[['','Task (optional)'],...TASK_IDS.map((x,i)=>[x,String(i+1).padStart(3,'0')+' · '+TASKS[i]])],{label:'Task'})}
       ${lineSelect(id,t)}
-      <input class="f site-note" id="sitet_${id}_note" data-b="${kk}note" value="${esc(t.note||'')}" placeholder="Note" aria-label="Note">
-      ${delBtn('site',id,'','Remove')}</div>`}).join('')||'<p class="hint" style="margin:0">No hours yet for this day.</p>'}</div>
+      <div class="site-nr"><input class="f site-note" id="sitet_${id}_note" data-b="${kk}note" value="${esc(t.note||'')}" placeholder="Note" aria-label="Note">${delBtn('site',id,'','Remove')}</div></div>`}).join('')||'<p class="hint" style="margin:0">No hours yet for this day.</p>'}</div>
     <div class="toolbar" style="margin-top:10px"><button class="btn primary site-add" data-act="site-add-time">+ Add hours</button>${prev&&!T.length?`<button class="btn" data-act="site-copy" data-v="${esc(prev)}">Copy crew from ${esc(fmtDate(prev))}</button>`:''}</div>
     <p class="hint" style="margin:8px 0 0">Choose a task and line (or sub-line) to add the hours to that line’s spent hours in Labour & tasks and Progress. Lines that are split need a sub-line.</p>
     <p class="hint" style="margin:6px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>`}
