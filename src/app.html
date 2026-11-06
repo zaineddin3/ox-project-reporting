@@ -2348,11 +2348,14 @@ async function toLoadPage(){const d=dwgDoc(TO.id);if(!d)return;const ld=document
     if(!TO.zoom){const st=document.getElementById('toStage');TO.zoom=Math.max(.1,((st?.clientWidth||900)-24)/vp.width)}
     await toPaint();if(ld)ld.style.display='none';toSync();toSnapPrep(d)}
   catch(e){console.error(e);if(ld){ld.style.display='';ld.textContent='Could not load this drawing. '+(HOSTED?'Check your connection.':'Open the page from claude.ai to load stored drawings.')}}}
+function bgRender(pg,params,ms){const task=pg.render(Object.assign({intent:'print'},params));let t;
+  return Promise.race([task.promise,new Promise((_,rej)=>{t=setTimeout(()=>{try{task.cancel()}catch(e){}rej(new Error('timeout'))},ms||60000)})]).finally(()=>clearTimeout(t))}
 async function toPaint(){const pg=TO.pg;if(!pg)return;const cv=document.getElementById('toCv');if(!cv)return;const s=TO.zoom;const dpr=window.devicePixelRatio||1;
   let r=s*dpr;const maxPx=16e6;if(TO.vp.w*TO.vp.h*r*r>maxPx)r=Math.sqrt(maxPx/(TO.vp.w*TO.vp.h));r=Math.min(r,8192/Math.max(TO.vp.w,TO.vp.h));
   const vp=pg.getViewport({scale:r});const off=document.createElement('canvas');off.width=Math.floor(vp.width);off.height=Math.floor(vp.height);
-  if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render({canvasContext:off.getContext('2d'),viewport:vp});TO.rt=task;
-  try{await task.promise}catch(e){if(e&&e.name==='RenderingCancelledException')return;throw e}
+  if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render({canvasContext:off.getContext('2d'),viewport:vp,intent:TO.pmode||'display'});TO.rt=task;
+  let wd;const stall=new Promise(res=>{wd=setTimeout(()=>res('stall'),30000)});
+  try{const r=await Promise.race([task.promise,stall]);clearTimeout(wd);if(r==='stall'){if(TO.rt!==task)return;try{task.cancel()}catch(e){}TO.rt=null;if(TO.pmode!=='print'){TO.pmode='print';return toPaint()}return}}catch(e){clearTimeout(wd);if(e&&e.name==='RenderingCancelledException')return;throw e}
   TO.rt=null;TO.baseR=r;cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);
   const W=TO.vp.w*s,H=TO.vp.h*s;cv.style.width=W+'px';cv.style.height=H+'px';const pe=document.getElementById('toPage');pe.style.width=W+'px';pe.style.height=H+'px';
   const sv=document.getElementById('toSvg');sv.setAttribute('viewBox',`0 0 ${TO.vp.w} ${TO.vp.h}`);sv.style.width=W+'px';sv.style.height=H+'px';toDraw();toDetail()}
@@ -2648,10 +2651,10 @@ async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matc
     let R=Math.min(3,Math.max(0.75,30/Math.min(rect[2],rect[3])));const out=[];let tplInk=null;
     for(const p of pages){const pg=await pdf.getPage(p);const vp1=pg.getViewport({scale:1});let Rp=R;if(vp1.width*vp1.height*Rp*Rp>9e6)Rp=Math.sqrt(9e6/(vp1.width*vp1.height));
       if(p===TO.page)R=Rp;const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
-      await pg.render({canvasContext:cx,viewport:vp}).promise;const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
+      await bgRender(pg,{canvasContext:cx,viewport:vp});const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
       for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
       const dil=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}
-      if(!tplInk){if(!(src.fid===d.file.id&&p===src.pg)){const pt=await (await toPdf(src.fid)).getPage(src.pg);/* template always from the page it was drawn on */const vpt=pt.getViewport({scale:Rp});const ct=document.createElement('canvas');ct.width=Math.ceil(vpt.width);ct.height=Math.ceil(vpt.height);const cc=ct.getContext('2d',{willReadFrequently:true});cc.fillStyle='#fff';cc.fillRect(0,0,ct.width,ct.height);await pt.render({canvasContext:cc,viewport:vpt}).promise;tplInk=toTplFrom(cc.getImageData(0,0,ct.width,ct.height).data,ct.width,rect,Rp)}
+      if(!tplInk){if(!(src.fid===d.file.id&&p===src.pg)){const pt=await (await toPdf(src.fid)).getPage(src.pg);/* template always from the page it was drawn on */const vpt=pt.getViewport({scale:Rp});const ct=document.createElement('canvas');ct.width=Math.ceil(vpt.width);ct.height=Math.ceil(vpt.height);const cc=ct.getContext('2d',{willReadFrequently:true});cc.fillStyle='#fff';cc.fillRect(0,0,ct.width,ct.height);await bgRender(pt,{canvasContext:cc,viewport:vpt});tplInk=toTplFrom(cc.getImageData(0,0,ct.width,ct.height).data,ct.width,rect,Rp)}
         else tplInk=toTplFrom(px,W,rect,Rp)}
       if(!tplInk.ink){A.busy='';A.note='The box is empty. Drag it tightly around one symbol.';return toSide()}
       const tps=toTplSet(tplInk,A.rot,W);const raw=await toMatchRun({ink,dil,W,H,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil})),min:0.5});
@@ -2888,7 +2891,7 @@ function toMaskAt(im,W2,H2){const c=document.createElement('canvas');c.width=W2;
   const px=x.getImageData(0,0,W2,H2).data;const m=new Uint8Array(W2*H2);let ink=0;for(let i=0,j=0;i<m.length;i++,j+=4){const v=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<200?1:0;m[i]=v;ink+=v}return {w:W2,h:H2,m,ink}}
 async function toPageInk(pdf,p,R){const pg=await pdf.getPage(p);const vp1=pg.getViewport({scale:1});let Rp=R;if(vp1.width*vp1.height*Rp*Rp>9e6)Rp=Math.sqrt(9e6/(vp1.width*vp1.height));
   const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
-  await pg.render({canvasContext:cx,viewport:vp}).promise;const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
+  await bgRender(pg,{canvasContext:cx,viewport:vp});const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
   for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
   const dil=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}
   return {W,H,ink,dil,Rp}}
@@ -2924,7 +2927,7 @@ function toLearnThr(A){const ex=(A.res||[]).filter(c=>!c.on&&c.s!=null).map(c=>c
   if(ex.length&&kept.length){const mx=Math.max(...ex),mn=Math.min(...kept);if(mx<mn)t=Math.max(t,Math.min(mn-0.005,mx+0.01))}return Math.round(t*1000)/1000}
 async function toCropSrc(fid,pg,r){const pdf=await toPdf(fid);const p=await pdf.getPage(pg);const k=Math.min(8,240/Math.max(r[2],r[3]));const vp=p.getViewport({scale:k});
   const c=document.createElement('canvas');c.width=Math.ceil(r[2]*k);c.height=Math.ceil(r[3]*k);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-r[0]*k,-r[1]*k);
-  await p.render({canvasContext:x,viewport:vp}).promise;const px=x.getImageData(0,0,c.width,c.height).data;let t=c.height,b=-1,l=c.width,rr=-1;
+  await bgRender(p,{canvasContext:x,viewport:vp});const px=x.getImageData(0,0,c.width,c.height).data;let t=c.height,b=-1,l=c.width,rr=-1;
   for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){const j=(y*c.width+xx)*4;if(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11<190){if(y<t)t=y;if(y>b)b=y;if(xx<l)l=xx;if(xx>rr)rr=xx}}
   if(b<0)return null;const w=rr-l+1,h=b-t+1;const c2=document.createElement('canvas');c2.width=w;c2.height=h;const x2=c2.getContext('2d');x2.drawImage(c,l,t,w,h,0,0,w,h);
   return {src:c2.toDataURL('image/png'),ar:w/h,pt:Math.max(w,h)/k}}
@@ -2981,7 +2984,7 @@ async function toTextLines(d,pg){TO.txt=TO.txt||{};const k=d.file.id+'#'+pg;if(T
   for(const l of lines)l.s=l.s.replace(/\s+/g,' ').trim();TO.txt[k]={items,lines};return TO.txt[k]}
 /* find separate drawing areas on a page: blobs of linework separated by white space */
 async function toFindAreas(d,pg){const pdf=await toPdf(d.file.id);const p=await pdf.getPage(pg);const vp1=p.getViewport({scale:1});const R=1400/Math.max(vp1.width,vp1.height);const vp=p.getViewport({scale:R});
-  const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await p.render({canvasContext:cx,viewport:vp}).promise;
+  const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await bgRender(p,{canvasContext:cx,viewport:vp});
   const W=cv.width,H=cv.height,px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<215?1:0;
   /* remove long straight runs (sheet borders, title block frames) so they don't join everything together */
   const LH=Math.round(W*0.3),LV=Math.round(H*0.3);const kill=new Uint8Array(W*H);
@@ -3029,15 +3032,15 @@ async function toInkBox(pdf,pg,z,fid){if(fid){try{const P=await pageCanvas(fid,p
     for(let y=0;y<q.h;y++)for(let xx=0;xx<q.w;xx++){const j=(y*q.w+xx)*4;const lum=px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11;if(lum<200){if(y<t)t=y;if(y>b)b=y;if(xx<l)l=xx;if(xx>r)r=xx;if(Math.max(px[j],px[j+1],px[j+2])-Math.min(px[j],px[j+1],px[j+2])>60)col++}}
     if(b<0)return null;return {r:[z[0]+l/k-0.5,z[1]+t/k-0.5,(r-l+1)/k+1,(b-t+1)/k+1],col}}catch(e){}}
   const p=await pdf.getPage(pg);const k=6;const vp=p.getViewport({scale:k});const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(z[2]*k));c.height=Math.max(1,Math.ceil(z[3]*k));
-  const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-z[0]*k,-z[1]*k);await p.render({canvasContext:x,viewport:vp}).promise;
+  const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-z[0]*k,-z[1]*k);await bgRender(p,{canvasContext:x,viewport:vp});
   const px=x.getImageData(0,0,c.width,c.height).data;let t=c.height,b=-1,l=c.width,r=-1,col=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){const j=(y*c.width+xx)*4;const lum=px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11;if(lum<200){if(y<t)t=y;if(y>b)b=y;if(xx<l)l=xx;if(xx>r)r=xx;if(Math.max(px[j],px[j+1],px[j+2])-Math.min(px[j],px[j+1],px[j+2])>60)col++}}
   if(b<0)return null;return {r:[z[0]+l/k-0.5,z[1]+t/k-0.5,(r-l+1)/k+1,(b-t+1)/k+1],col}}
 async function toMatchCore(d,srcPg,rect,pages,rot){const pdf=await toPdf(d.file.id);const R=Math.min(3,Math.max(0.75,30/Math.min(rect[2],rect[3])));const out=[];let T=null;
   for(const p of pages){const pg=await pdf.getPage(p);const vp1=pg.getViewport({scale:1});let Rp=R;if(vp1.width*vp1.height*Rp*Rp>9e6)Rp=Math.sqrt(9e6/(vp1.width*vp1.height));
-    const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:cx,viewport:vp}).promise;
+    const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await bgRender(pg,{canvasContext:cx,viewport:vp});
     const W=cv.width,H=cv.height,px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
     const dil=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}
-    if(!T||T.Rp!==Rp){if(p===srcPg)T=toTplFrom(px,W,rect,Rp);else{const sp=await pdf.getPage(srcPg);const sv=sp.getViewport({scale:Rp});const c2=document.createElement('canvas');c2.width=Math.ceil(sv.width);c2.height=Math.ceil(sv.height);const x2=c2.getContext('2d',{willReadFrequently:true});x2.fillStyle='#fff';x2.fillRect(0,0,c2.width,c2.height);await sp.render({canvasContext:x2,viewport:sv}).promise;T=toTplFrom(x2.getImageData(0,0,c2.width,c2.height).data,c2.width,rect,Rp)}T.Rp=Rp}
+    if(!T||T.Rp!==Rp){if(p===srcPg)T=toTplFrom(px,W,rect,Rp);else{const sp=await pdf.getPage(srcPg);const sv=sp.getViewport({scale:Rp});const c2=document.createElement('canvas');c2.width=Math.ceil(sv.width);c2.height=Math.ceil(sv.height);const x2=c2.getContext('2d',{willReadFrequently:true});x2.fillStyle='#fff';x2.fillRect(0,0,c2.width,c2.height);await bgRender(sp,{canvasContext:x2,viewport:sv});T=toTplFrom(x2.getImageData(0,0,c2.width,c2.height).data,c2.width,rect,Rp)}T.Rp=Rp}
     if(!T.ink)return [];const tps=toTplSet(T,rot,W);const raw=await toMatchRun({ink,dil,W,H,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil})),min:0.6});
     const cand=[];for(let i=0;i<raw.length;i+=4){const t=tps[raw[i+2]];cand.push({x:(raw[i]+t.w/2)/Rp,y:(raw[i+1]+t.h/2)/Rp,s:raw[i+3]/1000})}cand.sort((a,b)=>b.s-a.s);const rad=0.6*Math.max(rect[2],rect[3]);const keep=[];for(const c of cand){if(keep.some(k=>Math.hypot(k.x-c.x,k.y-c.y)<rad))continue;keep.push(c)}
     for(const c of keep)out.push({pg:p,pts:[[Math.round(c.x*100)/100,Math.round(c.y*100)/100]],s:c.s})}
@@ -3120,7 +3123,7 @@ async function toDetail(){const pg=TO.pg,st=document.getElementById('toStage'),p
   const sr=st.getBoundingClientRect(),pr=pe.getBoundingClientRect();const x0=Math.max(0,sr.left-pr.left),y0=Math.max(0,sr.top-pr.top),x1=Math.min(pr.width,sr.right-pr.left),y1=Math.min(pr.height,sr.bottom-pr.top);
   if(x1<=x0||y1<=y0){cv.style.display='none';return}const w=x1-x0,h=y1-y0;const k=s*dpr;const vp=pg.getViewport({scale:k});
   const off=document.createElement('canvas');off.width=Math.ceil(w*dpr);off.height=Math.ceil(h*dpr);const cx=off.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,off.width,off.height);
-  if(TO.drt){try{TO.drt.cancel()}catch(e){}}const my=TO.dseq=(TO.dseq||0)+1;const task=pg.render({canvasContext:cx,viewport:vp,transform:[1,0,0,1,-x0*dpr,-y0*dpr]});TO.drt=task;
+  if(TO.drt){try{TO.drt.cancel()}catch(e){}}const my=TO.dseq=(TO.dseq||0)+1;const task=pg.render({canvasContext:cx,viewport:vp,transform:[1,0,0,1,-x0*dpr,-y0*dpr],intent:TO.pmode||'display'});TO.drt=task;
   try{await task.promise}catch(e){return}if(my!==TO.dseq||Math.abs(TO.zoom-s)>1e-9)return;TO.drt=null;
   cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);Object.assign(cv.style,{display:'block',left:x0+'px',top:y0+'px',width:w+'px',height:h+'px'})}
 /* ---------- Take off: drawing revisions ---------- */
@@ -3129,7 +3132,7 @@ function toParseNo(name){return ((name.match(/^([A-Z]{1,3}[-\s]?\d{2,4}[A-Z]?)/i
 function toBaseName(name){return name.replace(/\.pdf$/i,'').replace(/(?:^|[\s._\-\[(])rev(?:ision)?[\s._\-]*[A-Z0-9]{1,3}\b.*$/i,'').replace(/[\[(][A-Z0-9]{1,2}[\])]$/i,'').replace(/[\s._-]+$/,'').trim().toLowerCase()}
 function toNextRev(r){if(!r)return 'B';if(/^\d+$/.test(r))return String(+r+1);if(/^[A-Y]$/i.test(r))return String.fromCharCode(r.toUpperCase().charCodeAt(0)+1);return r+'1'}
 function toFindSame(fname){const no=toParseNo(fname),base=toBaseName(fname);for(const [id,d] of Object.entries(S.dwgs)){const dn=(d.no||'').toUpperCase().replace(/\s/g,'-');if(no&&dn&&no===dn)return id;if(!no&&base&&toBaseName(d.name||'')===base)return id}return null}
-async function toRenderInk(fid,pg,R){const pdf=await toPdf(fid);if(pg>pdf.numPages)return null;const p=await pdf.getPage(pg);const vp=p.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await p.render({canvasContext:x,viewport:vp}).promise;
+async function toRenderInk(fid,pg,R){const pdf=await toPdf(fid);if(pg>pdf.numPages)return null;const p=await pdf.getPage(pg);const vp=p.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await bgRender(p,{canvasContext:x,viewport:vp});
   const px=x.getImageData(0,0,c.width,c.height).data;const ink=new Uint8Array(c.width*c.height);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<200?1:0;return {W:c.width,H:c.height,ink,vw:vp.width/R,vh:vp.height/R}}
 /* compare two revisions page by page and return the changed areas */
 async function toDiff(oldFid,newFid,pages){const out={};for(let pg=1;pg<=Math.min(pages,12);pg++){try{const pdf=await toPdf(newFid);const p=await pdf.getPage(pg);const v=p.getViewport({scale:1});const R=1800/Math.max(v.width,v.height);
@@ -3222,8 +3225,8 @@ const pgcR=(v,R)=>{const cap=6e6;if(v.width*v.height*R*R>cap)R=Math.sqrt(cap/(v.
 async function pageCanvas(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);const k=fid+'#'+p+'@'+R;
   if(PGC.k===k&&PGC.c)return PGC;if(PGC.busy&&PGC.busy.k===k)return PGC.busy.pr;
   const pr=(async()=>{const vp=pg.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
-    await pg.render({canvasContext:x,viewport:vp}).promise;if(PGC.c&&PGC.c!==c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k,c,R,fid,p,busy:null});return PGC})();
-  PGC.busy={k,pr};return pr}
+    await bgRender(pg,{canvasContext:x,viewport:vp});if(PGC.c&&PGC.c!==c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k,c,R,fid,p,busy:null});return PGC})();
+  PGC.busy={k,pr};pr.catch(()=>{if(PGC.busy&&PGC.busy.pr===pr)PGC.busy=null});return pr}
 function pgcCrop(P,rect){const R=P.R,w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);
   x.imageSmoothingEnabled=false;x.drawImage(P.c,-Math.round(rect[0]*R),-Math.round(rect[1]*R));return {px:x.getImageData(0,0,w,h).data,w,h}}
 /* render a page into the worker once per scale; returns {key,W,H,R} */
@@ -3235,7 +3238,7 @@ async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.ge
 async function toCropMask(fid,p,rect,R){
   if(PGC.c&&PGC.fid===fid&&PGC.p===p&&Math.abs(PGC.R-R)<1e-3){const q=pgcCrop(PGC,rect);return toTplFrom(q.px,q.w,[0,0,q.w/R,q.h/R],R)}
   const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:R});const w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));
-  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.translate(-rect[0]*R,-rect[1]*R);await pg.render({canvasContext:x,viewport:vp}).promise;
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.translate(-rect[0]*R,-rect[1]*R);await bgRender(pg,{canvasContext:x,viewport:vp});
   const px=x.getImageData(0,0,w,h).data;return toTplFrom(px,w,[0,0,w/R,h/R],R)}
 /* match a template on pages; T = {w,h,m} mask at scale R; returns [{pg,x,y,s}] in page units */
 async function toMatchPages(fid,pages,mkT,Rwant,rot,min,onProg){const out=[];for(let i=0;i<pages.length;i++){const p=pages[i];const PG=await mwPage(fid,p,Rwant);const T=await mkT(PG.R);if(!T||!T.ink)continue;
@@ -3275,7 +3278,7 @@ async function toFindImg(d,sn,sizeOverride){const A=TO.auto;A.busy='Finding the 
 /* ---------- Take off: 🎯 Auto count — click one symbol, a count item is made and every match is clicked for you ---------- */
 TO.ac={busy:'',f:0,note:'',it:null,cands:null,thr:0.8,draft:null};
 async function toSymbolBoxAt(d,p){const pdf=await toPdf(d.file.id);const pg=await pdf.getPage(TO.page);const k=6,half=40;const z=[p[0]-half,p[1]-half,2*half,2*half];const vp=pg.getViewport({scale:k});
-  const W=Math.ceil(z[2]*k),H=Math.ceil(z[3]*k);const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,W,H);x.translate(-z[0]*k,-z[1]*k);await pg.render({canvasContext:x,viewport:vp}).promise;
+  const W=Math.ceil(z[2]*k),H=Math.ceil(z[3]*k);const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,W,H);x.translate(-z[0]*k,-z[1]*k);await bgRender(pg,{canvasContext:x,viewport:vp});
   const px=x.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<200?1:0;
   /* nearest ink to the click */const cx=Math.round(half*k),cy=Math.round(half*k);let s=-1,bd=1e9;const R0=Math.round(7*k);for(let y=Math.max(0,cy-R0);y<Math.min(H,cy+R0);y++)for(let xx=Math.max(0,cx-R0);xx<Math.min(W,cx+R0);xx++){if(!ink[y*W+xx])continue;const dd=(xx-cx)**2+(y-cy)**2;if(dd<bd){bd=dd;s=y*W+xx}}
   if(s<0)return null;const lab=new Uint8Array(W*H);const st=[s];lab[s]=1;let x0=W,y0=H,x1=0,y1=0;const g=2;/* join gaps of about 0.3 pt */
