@@ -162,7 +162,8 @@ tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var
 @media (max-width:700px){.site-time{grid-template-columns:minmax(0,1fr) 96px;grid-template-areas:"who hrs" "cat cat" "task task" "line line" "nr nr";padding:10px;border:1px solid var(--line);border-radius:10px;gap:8px}
   .site .f,.site select.f,.site textarea.f{border:1px solid var(--line);background:var(--surface)}.site-time .f,.site-time select{min-height:42px;font-size:16px}
   .site-ta,.site .f{font-size:16px}.site-add{flex:1;min-height:46px;font-size:16px}.site-date{width:100%}.site-date .f{flex:1}.site-phadd,.site-ph img{width:calc((100vw - 72px)/3);height:calc((100vw - 72px)/3)}}
-.splitacts{display:flex;gap:4px;margin-top:3px}.cp-list{max-height:min(52vh,460px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}.cp-sec{padding:4px 0;border-bottom:1px solid var(--line)}.cp-sec:last-child{border-bottom:0}
+.splitacts{display:flex;gap:4px;margin-top:3px}.xtask-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xtask-h h3{margin:0}.xtask-h .f{font-size:17px;font-weight:600;min-width:220px;border:1px solid var(--line);background:var(--surface)}
+.cp-list{max-height:min(52vh,460px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}.cp-sec{padding:4px 0;border-bottom:1px solid var(--line)}.cp-sec:last-child{border-bottom:0}
 .cp-opt{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.cp-secopt{font-size:14px}
 .tabs-pick{padding:6px 2px;position:sticky;left:12px;max-width:min(940px,calc(100vw - 360px))}@media (max-width:860px){.tabs-pick{max-width:calc(100vw - 64px)}}.tabs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}.tabs-opt{display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer}.tabs-btn{padding:3px 8px;font-size:12px}
 .to-igrp{display:flex;gap:6px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:6px 2px;margin:4px 0 2px;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);cursor:pointer;text-align:left}
@@ -528,6 +529,12 @@ const VIEWS_LIST=[
 ];
 const TASKS=["Temporary works","Deck work","Rough in","Fit off","Containment","Mains rough in","Riser work","Main switchboard","Commissioning","As built","Variation","Apartment QA","Fire rating","Landscape","Management & supervision","Downtime & defects"];
 const TASK_IDS=TASKS.map((_,i)=>'t'+String(i+1).padStart(2,'0'));
+/* tasks added for this project (saved in project info) join the standard ones, so every total, forecast and list includes them */
+const BASE_TASKS=TASKS.length;
+function syncTasks(){const X=(typeof S!=='undefined'&&S.info&&Array.isArray(S.info.xtasks))?S.info.xtasks:[];const sig=X.map(x=>x.id+':'+x.name).join('|');
+  if(syncTasks.sig===sig&&TASKS.length===BASE_TASKS+X.length)return;syncTasks.sig=sig;TASKS.length=BASE_TASKS;TASK_IDS.length=BASE_TASKS;for(const x of X){TASKS.push((x.name||'').trim()||'New task');TASK_IDS.push(x.id)}
+  if(typeof UI!=='undefined'&&UI.task&&!TASK_IDS.includes(UI.task))UI.task='t01'}
+const isXTask=t=>TASK_IDS.indexOf(t)>=BASE_TASKS;
 const CREW_DEFAULT=[
  ["Project manager","Normal",1,75,4],["Site supervisor","Normal",1,67,8],["Leading hand electrician","Normal",2,58,8],["Licensed electrician","Normal",2,55,8],["Trade assistant","Normal",2,49,8],["Apprentice","Normal",2,36,8],
  ["Site supervisor","Overtime ×1.5",1,100.5,2],["Leading hand electrician","Overtime ×1.5",2,87,2],["Licensed electrician","Overtime ×1.5",2,82.5,2],["Trade assistant","Overtime ×1.5",2,73.5,2],["Apprentice","Overtime ×1.5",2,54,2],
@@ -739,7 +746,7 @@ function aptCalc(t){
       claimed+=uc;sc.claimed+=uc;if(all)full++;for(const k in itp)if(st.itp?.[k])itp[k]++}}
   return {id:t,name:d.name,count,per,total,claimed,stage,itp,full,secs,pct:total?claimed/total:0};
 }
-function calc(){
+function calc(){syncTasks();
   const contract=(S.info.contract!==undefined&&S.info.contract!=='')?num(S.info.contract):claimTotals().c.sum,pcSum=num(S.info.pcSum);
   let vApp=0,vUn=0,vRej=0,vProfit=0;const vCount={};
   for(const v of Object.values(S.vars)){
@@ -1919,8 +1926,9 @@ V.labour=()=>{
   <div class="tw"><table><thead><tr><th>Task</th><th class="n">Est. hrs</th><th class="n">Budget hrs</th><th class="n">Spent</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n" title="Hours spent + hours to go">Total hrs</th><th class="n" title="Total hrs × labour rate ($${c.rate.toFixed(2)}/hr)">Cost</th><th class="n">+/− hrs</th><th style="width:18%">% complete</th></tr></thead><tbody>
   ${TASK_IDS.map((id,i)=>{const x=taskCalc(id);return `<tr class="${id===t?'sel':''}"><td><button class="rowlink" data-act="task" data-v="${id}">${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}</button> <span class="hint">${taskDoc(id).items.length?taskDoc(id).items.length+' items':''}</span></td><td class="n money">${hrs(x.est)}</td><td class="n money">${taskBud(id)?hrs(taskBud(id)):'—'}</td><td class="n money">${hrs(x.spent)}</td><td class="n money">${hrs(x.earned)}</td><td class="n money">${hrs(x.fc-x.spent)}</td><td class="n money"><b>${hrs(x.fc)}</b></td><td class="n money" title="${hrs(x.fc)} hrs × $${c.rate.toFixed(2)}/hr">${money(x.fc*c.rate)}</td><td class="n money ${x.varHrs<0?'neg':x.varHrs>0?'pos':''}">${hrs(x.varHrs)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${(x.pct*100).toFixed(1)}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(x.pct,0)}</span></div></td></tr>`}).join('')}
   </tbody><tfoot><tr><td>All tasks</td><td class="n money">${hrs(c.lEst)}</td><td class="n money">${allBud()?hrs(allBud()):'—'}</td><td class="n money">${hrs(c.lSpent)}</td><td class="n money">${hrs(c.lEarned)}</td><td class="n money">${hrs(c.lFc-c.lSpent)}</td><td class="n money">${hrs(c.lFc)}</td><td class="n money"><b>${money(c.lFc*c.rate)}</b></td><td class="n money ${c.lEst-c.lFc<0?'neg':''}">${hrs(c.lEst-c.lFc)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${(c.lEst?Math.min(c.lEarned/c.lEst,1)*100:0).toFixed(1)}%"></i></div><span class="money" style="width:44px;text-align:right">${pct(c.lEst?c.lEarned/c.lEst:0,0)}</span></div></td></tr></tfoot></table></div>
+  <div class="toolbar" style="margin:-6px 0 0"><button class="btn" data-act="task-add" title="Add a task to this project">+ Add task</button><span class="hint">Added tasks work like the standard ones: their hours flow into the totals, Progress, cost to complete and the labour forecast.</span></div>
   ${UI.mvFlash?`<div class="banner" style="margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(UI.mvFlash.txt)}${UI.mvFlash.t!==t?`<button class="btn" data-act="task" data-v="${UI.mvFlash.t}">Go to that task</button>`:''}<button class="btn ghost" data-act="mvflash-x">Dismiss</button></div>`:''}
-  <div class="panel"><div class="sec-head"><div><h3>Task ${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</h3><p class="hint">Group the work into labelled sections and set each line’s estimated hours. % complete and hours spent are updated on the Progress tab, and the forecast is worked out from them.</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="progress">Update progress</button><label class="btn" for="task_file" title="Add lines from an Excel or CSV file">Import Excel</label><input type="file" id="task_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><button class="btn primary" data-act="add-tsec">+ Add section</button></div></div>
+  <div class="panel"><div class="sec-head"><div>${isXTask(t)?`<div class="xtask-h"><h3>Task ${String(ti+1).padStart(3,'0')} ·</h3><input class="f" id="xtask_name" data-xtask="${t}" value="${esc(TASKS[ti])}" aria-label="Task name" placeholder="Task name"><button class="btn ghost" data-act="task-del" data-v="${t}" title="Remove this task">${UI.armed==='xt'+t?'Confirm remove':'Remove task'}</button></div>`:`<h3>Task ${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</h3>`}<p class="hint">Group the work into labelled sections and set each line’s estimated hours. % complete and hours spent are updated on the Progress tab, and the forecast is worked out from them.</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="progress">Update progress</button><label class="btn" for="task_file" title="Add lines from an Excel or CSV file">Import Excel</label><input type="file" id="task_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><button class="btn primary" data-act="add-tsec">+ Add section</button></div></div>
   <p class="hint" style="margin:-4px 0 10px">Drag an Excel (.xlsx) or CSV file onto the table to add lines; drop it on a section to add them there. Headings matched: WBS, Description, Unit, Qty, Est. hrs, Budget hrs and (optional) Section. A WBS such as 3.2.1 under 3.2 becomes a sub-line. Drag a column heading’s edge to resize it, or the table’s bottom-right corner to make it taller or shorter.</p>
   ${UI.tkMsg?`<div class="banner" style="margin:0 0 10px">${esc(UI.tkMsg)}</div>`:''}
   ${taskEditor(t)}</div>
@@ -3462,6 +3470,7 @@ const RSZ_OBS=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>{let ch
 function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{const h=RSZ[el.dataset.rsz];if(h)el.style.height=h+'px';el.dataset.rszOn='1';
   el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height)+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
 function render(){
+  syncTasks();
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
   const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;
@@ -3691,6 +3700,8 @@ viewEl.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.uiCheck){UI[t.dataset.uiCheck]=t.checked;if(t.dataset.uiCheck==='pdfHideLab'){try{localStorage.setItem('ox_pdfhidelab',t.checked?'1':'0')}catch(e){}}scheduleRender(0);return}
   if(t.dataset.ui==='tmvTo'&&UI.tmv){UI.tmv.to=t.value;return}
+  if(t.dataset.xtask!==undefined){const X=(S.info.xtasks||[]).find(x=>x.id===t.dataset.xtask);if(X){X.name=t.value;persist('project/info');syncTasks();
+      document.querySelectorAll(`[data-act=task][data-v="${X.id}"]`).forEach(b=>{const i=TASK_IDS.indexOf(X.id);b.textContent=String(i+1).padStart(3,'0')+' · '+TASKS[i]})}return}
   if(t.dataset.ui==='cptoTo'&&UI.cpto){UI.cpto.to=t.value;const y=window.scrollY;const cl=document.getElementById('cp_list');if(cl)cl.scrollTop=0;render();window.scrollTo(0,y);return}
   if(t.dataset.cpk!==undefined&&UI.cpto){const s2=new Set(UI.cpto.sel||[]);if(t.checked)s2.add(t.dataset.cpk);else s2.delete(t.dataset.cpk);UI.cpto.sel=[...s2];cptoCounts();return}
   if(t.dataset.cphrs!==undefined&&UI.cpto){UI.cpto.hrs=t.checked;return}
@@ -3709,7 +3720,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-act]');i
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
-  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del')UI.armed=null;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del'&&act!=='task-del')UI.armed=null;
   if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
@@ -3810,6 +3821,11 @@ document.addEventListener('click',async e=>{
     structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='add-stage'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.stages.push({id:uid('s'),name:'',rate:'0'});persist('apartments/'+t);render();return}
   if(act==='add-itp'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.itps.push({id:uid('i'),name:''});persist('apartments/'+t);render();return}
+  if(act==='task-add'){S.info.xtasks=Array.isArray(S.info.xtasks)?S.info.xtasks:[];const used=[...TASK_IDS,...S.info.xtasks.map(x=>x.id)].map(x=>+String(x).slice(1)||0);
+    const seq=Math.max(BASE_TASKS,num(S.info.xtaskSeq),...used)+1;S.info.xtaskSeq=seq;const id='t'+String(seq).padStart(2,'0');S.info.xtasks.push({id,name:'New task'});persist('project/info');
+    syncTasks();ensureTask(id);persist('tasks/'+id);UI.task=id;UI.mvFlash=null;render();setTimeout(()=>{const el=document.getElementById('xtask_name');if(el){el.focus();el.select();el.scrollIntoView({block:'center'})}},40);return}
+  if(act==='task-del'){const id=btn.dataset.v;if(!isXTask(id))return;if(UI.armed!=='xt'+id){UI.armed='xt'+id;render();setTimeout(()=>{if(UI.armed==='xt'+id){UI.armed=null;render()}},4000);return}UI.armed=null;
+    S.info.xtasks=(S.info.xtasks||[]).filter(x=>x.id!==id);persist('project/info');delete S.tasks[id];removeDoc('tasks/'+id);syncTasks();UI.task='t01';render();return}
   if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;collapseAllTasks('labour');render();return}
   if(act==='toggle'){UI.open[btn.dataset.id]=!UI.open[btn.dataset.id];render();return}
   if(act==='opl-add'){const o=S.orders[btn.dataset.id];if(!o)return;undoRecord();o.lines=[...(o.lines||[]),{desc:'',qty:'',unit:'',rate:''}];persist('orders/'+btn.dataset.id);render();setTimeout(()=>document.getElementById(('opl|'+btn.dataset.id+'|'+(o.lines.length-1)+'|desc').replace(/\|/g,'_'))?.focus(),30);return}
