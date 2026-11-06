@@ -2223,9 +2223,15 @@ function tmvHtml(){const M=UI.tmv;if(!M||UI.view!=='subcontractors')return '';co
 function mvtoHtml(){const M=UI.mvto;if(!M||UI.view!=='labour')return '';const src=nodeAt(ensureTask(M.t),M.path);if(!src){UI.mvto=null;return ''}
   const tt=M.to||M.t;const secs=taskSecs(tt);const sec=M.sec||'';
   return `<div class="vpick-ov" data-act="mvto-close"><div class="vpick" style="width:min(520px,100%)" role="dialog" aria-modal="true" aria-label="Move line" data-stop="1">
-    <div class="sec-head"><div><h3>Move “${esc(src.desc||'line')}”</h3><p class="hint">Moves the ${String(M.path).includes('.')?'sub-line':'line'}${src.subs&&src.subs.length?' and its sub-lines':''} with its hours, % complete and budget. A sub-line becomes its own line in the task you choose.</p></div><button class="btn" data-act="mvto-close">Close</button></div>
+    <div class="sec-head"><div><h3>Move “${esc(src.desc||'line')}”</h3><p class="hint">Moves the ${String(M.path).includes('.')?'sub-line':'line'}${src.subs&&src.subs.length?' and its sub-lines':''} with its hours, % complete and budget. Place it as its own line, or as a sub-line under another line.</p></div><button class="btn" data-act="mvto-close">Close</button></div>
     <div class="form"><label>Task<select class="f" data-ui="mvtoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}</option>`).join('')}</select></label>
-      <label>Section<select class="f" data-ui="mvtoSec" aria-label="Section">${secs.map(z=>`<option value="${esc(z.id)}"${z.id===sec?' selected':''}>${esc(z.name||'Untitled section')}</option>`).join('')}<option value="__new"${sec==='__new'?' selected':''}>+ New section</option></select></label></div>
+      <label>Section<select class="f" data-ui="mvtoSec" aria-label="Section">${secs.map(z=>`<option value="${esc(z.id)}"${z.id===sec?' selected':''}>${esc(z.name||'Untitled section')}</option>`).join('')}<option value="__new"${sec==='__new'?' selected':''}>+ New section</option></select></label>
+      ${(()=>{const secId=sec&&sec!=='__new'?sec:(sec==='__new'?'':secs[0]&&secs[0].id);const sids=secs.map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];
+        const own=p=>tt===M.t&&(p===String(M.path)||p.startsWith(String(M.path)+'.'));
+        const N=sec==='__new'?[]:taskNodes(tt).filter(x=>{const top=ensureTask(tt).items[+x.path.split('.')[0]];return top&&so(top)===secId&&!own(x.path)});
+        const cur=M.par||'';const hit=N.find(x=>x.path===cur);
+        return `<label>Place<select class="f" data-ui="mvtoPar" aria-label="Place"><option value=""${hit?'':' selected'}>As its own line in this section</option>${N.length?`<optgroup label="As a sub-line of">${N.map(x=>`<option value="${esc(x.path)}"${hit&&hit.path===x.path?' selected':''}>${'\u00a0\u00a0'.repeat(x.depth)}${x.depth?'↳ ':''}${esc(nodeLabel(x.n))}${x.par?' ('+esc(nodeLabel(x.par))+')':''}</option>`).join('')}</optgroup>`:''}</select></label>
+        ${hit&&!(hit.n.subs&&hit.n.subs.length)&&(num(hit.n.estHrs)||num(hit.n.spentHrs)||num(hit.n.pct))?`<p class="hint" style="margin:0">“${esc(nodeLabel(hit.n))}” has no sub-lines yet, so its own hours and % complete become its first sub-line (as with Split), and this line is added after it.</p>`:''}`})()}</div>
     <div class="toolbar" style="justify-content:flex-end"><button class="btn" data-act="mvto-close">Cancel</button><button class="btn primary" data-act="mvto-go">Move</button></div></div></div>`}
 function vpartsRow(l,id,li){const P=l.hrsParts;const tot=P.reduce((a,x)=>a+num(x.hrs),0);const mt=partsMat(l);const changed=l.hrsPick!==undefined&&String(l.hrs)!==String(l.hrsPick);const ro=id==null;const kp=pi=>'|'+id+'|'+li+'|'+pi;
   return `<tr class="vparts"><td></td><td colspan="10"><div class="vparts-box"><table><thead><tr><th>What’s in this line (per unit)</th><th>Code</th><th class="n">Qty</th><th class="n">Hrs each</th><th class="n">Hrs</th><th class="n">Material $ each</th><th class="n">Material $</th>${ro?'':'<th></th>'}</tr></thead><tbody>
@@ -3612,8 +3618,9 @@ viewEl.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.uiCheck){UI[t.dataset.uiCheck]=t.checked;if(t.dataset.uiCheck==='pdfHideLab'){try{localStorage.setItem('ox_pdfhidelab',t.checked?'1':'0')}catch(e){}}scheduleRender(0);return}
   if(t.dataset.ui==='tmvTo'&&UI.tmv){UI.tmv.to=t.value;return}
-  if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';scheduleRender(0);return}
-  if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;return}
+  if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';UI.mvto.par='';scheduleRender(0);return}
+  if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
+  if(t.dataset.ui==='mvtoPar'&&UI.mvto){UI.mvto.par=t.value;scheduleRender(0);return}
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
   const b=t.dataset.b;if(!b)return;
   if(UNDO.burstKey!==b||Date.now()-UNDO.burstAt>2000||t.type==='checkbox'||t.tagName==='SELECT')undoRecord();UNDO.burstKey=b;UNDO.burstAt=Date.now();
@@ -3818,6 +3825,13 @@ document.addEventListener('click',async e=>{
   if(act==='mvflash-x'){UI.mvFlash=null;render();return}
   if(act==='mvto'){UI.mvto={t:UI.task,path:btn.dataset.v,to:UI.task,sec:''};render();return}
   if(act==='mvto-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=mvto-close]'))return;UI.mvto=null;render();return}
+  if(act==='mvto-go'&&UI.mvto&&UI.mvto.par){const M=UI.mvto;const d=ensureTask(M.t),td=ensureTask(M.to||M.t);const src=nodeAt(d,M.path),tgt=nodeAt(td,M.par);
+    const inside=(n,x)=>n===x||(n.subs||[]).some(c=>inside(c,x));if(!src||!tgt||inside(src,tgt)){UI.mvto.par='';render();return}
+    const P=String(M.path).split('.');if(P.length===1)d.items.splice(+P[0],1);else{const q=+P.pop();const par=nodeAt(d,P.join('.'));par.subs.splice(q,1);if(!par.subs.length)delete par.subs}
+    if(!(tgt.subs&&tgt.subs.length)){const has=num(tgt.estHrs)||num(tgt.spentHrs)||num(tgt.pct)||num(tgt.qty)||num(tgt.budHrs);tgt.subs=[];
+      if(has){tgt.subs.push({id:tgt.id||uid('q'),desc:tgt.desc||'',unit:tgt.unit||'',qty:tgt.qty||'',pct:tgt.pct||'',estHrs:tgt.estHrs||'',budHrs:tgt.budHrs||'',spentHrs:tgt.spentHrs||'',newHrs:tgt.newHrs||'',hist:tgt.hist,itpFile:null});if(tgt.id)tgt.id=uid('q');delete tgt.hist}}
+delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto]=td;persist('tasks/'+M.t);if(tto!==M.t)persist('tasks/'+tto);
+    const ti=TASK_IDS.indexOf(tto);UI.mvFlash={t:tto,txt:`Moved “${src.desc||'line'}” under “${nodeLabel(tgt)}”${tto!==M.t?' in '+String(ti+1).padStart(3,'0')+' · '+TASKS[ti]:''}.`};UI.mvto=null;render();return}
   if(act==='mvto-go'){const M=UI.mvto;if(!M)return;const d=ensureTask(M.t);const P=String(M.path).split('.');let node;
     if(P.length===1){node=d.items[+P[0]];if(!node)return;d.items.splice(+P[0],1)}else{const q=+P.pop();const par=nodeAt(d,P.join('.'));node=par?.subs?.[q];if(!node)return;par.subs.splice(q,1);if(!par.subs.length)delete par.subs}
     const td=ensureTask(M.to);let sec=M.sec||taskSecs(M.to)[0].id;if(sec==='__new'){sec=uid('S');td.sections.push({id:sec,name:'Moved from '+TASKS[TASK_IDS.indexOf(M.t)]})}
