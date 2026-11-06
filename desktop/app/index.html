@@ -2278,10 +2278,13 @@ function cptoCounts(){const M=UI.cpto;if(!M)return;const n=(M.sel||[]).length;co
 const secLines=(t,sec)=>{const d=ensureTask(t);const sids=taskSecs(t).map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];return d.items.filter(x=>so(x)===sec)};
 function cptoSecHtml(M){const srcSec=taskSecs(M.t).find(z=>z.id===M.sec);if(!srcSec){UI.cpto=null;return ''}const L=secLines(M.t,M.sec);
   const tt=M.to||M.t;const secs=taskSecs(tt);const sel=new Set(M.sel||[]);const k=x=>tt+'|'+x;const nTot=sel.size;const per={};for(const x of sel){const t=x.split('|')[0];per[t]=(per[t]||0)+1}
-  const body=secs.map(z=>z.id===M.sec&&tt===M.t?'':`<label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('S:'+z.id))}" ${sel.has(k('S:'+z.id))?'checked':''}> <b>${esc(z.name||'Untitled section')}</b> <span class="hint">${secLines(tt,z.id).length} line${secLines(tt,z.id).length===1?'':'s'} now</span></label>`).join('')
+  const d2=ensureTask(tt);const sids2=secs.map(z=>z.id);const so2=x=>sids2.includes(x.sec)?x.sec:sids2[0];const N=taskNodes(tt);
+  const body=secs.map(z=>{if(z.id===M.sec&&tt===M.t)return '';const rows=N.filter(x=>so2(d2.items[+x.path.split('.')[0]])===z.id);
+    return `<div class="cp-sec"><label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('S:'+z.id))}" ${sel.has(k('S:'+z.id))?'checked':''}> <b>${esc(z.name||'Untitled section')}</b> <span class="hint">as lines at the end</span></label>
+      ${rows.map(x=>`<label class="cp-opt" style="padding-left:${22+x.depth*16}px"><input type="checkbox" data-cpk="${esc(k('N:'+x.path))}" ${sel.has(k('N:'+x.path))?'checked':''}> ${x.depth?'↳ ':''}${esc(nodeLabel(x.n))} <span class="hint">as sub-lines</span></label>`).join('')}</div>`}).join('')
     +`<label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('NEW'))}" ${sel.has(k('NEW'))?'checked':''}> <b>+ New section “${esc(srcSec.name||'Section')}”</b> <span class="hint">in this task</span></label>`;
   return `<div class="vpick-ov" data-act="cpto-close"><div class="vpick" style="width:min(620px,100%)" role="dialog" aria-modal="true" aria-label="Copy section" data-stop="1">
-    <div class="sec-head"><div><h3>Copy section “${esc(srcSec.name||'Section')}” to…</h3><p class="hint">Pastes its ${L.length} line${L.length===1?'':'s'} (with sub-lines) at the end of every section you tick. Spent hours and % complete start at zero.</p></div><button class="btn" data-act="cpto-close">Close</button></div>
+    <div class="sec-head"><div><h3>Copy section “${esc(srcSec.name||'Section')}” to…</h3><p class="hint">Pastes its ${L.length} line${L.length===1?'':'s'} (with their sub-lines) into every place you tick: a ticked section gets them as lines at the end; a ticked line or sub-line gets them underneath as sub-lines. Spent hours and % complete start at zero.</p></div><button class="btn" data-act="cpto-close">Close</button></div>
     <div class="form"><label>Task<select class="f" data-ui="cptoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}${per[t]?` (${per[t]} ticked)`:''}</option>`).join('')}</select></label></div>
     <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button></div>
     <div class="cp-list" id="cp_list">${body}</div>
@@ -3938,7 +3941,10 @@ document.addEventListener('click',async e=>{
   if(act==='cpto-allsec'){const M=UI.cpto;if(!M)return;const tt=M.to||M.t;const s2=new Set(M.sel||[]);for(const z of taskSecs(tt))if(!(M.kind==='sec'&&tt===M.t&&z.id===M.sec))s2.add(tt+'|S:'+z.id);M.sel=[...s2];document.querySelectorAll('input[data-cpk]').forEach(i=>{if(s2.has(i.dataset.cpk))i.checked=true});cptoCounts();return}
   if(act==='cpto-go'&&UI.cpto&&UI.cpto.kind==='sec'){const M=UI.cpto;if(!(M.sel||[]).length)return;const srcSec=taskSecs(M.t).find(z=>z.id===M.sec);const L=secLines(M.t,M.sec);if(!srcSec||!L.length)return;
     const touched=new Set();let n=0;
-    for(const x of M.sel){const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);const d=ensureTask(t);let sec;
+    /* resolve line targets first, so adding lines elsewhere can't shift them */
+    const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);return {t,key,node:key.startsWith('N:')?nodeAt(ensureTask(t),key.slice(2)):null}});
+    for(const x of T){if(!x.node)continue;cpParentify(x.node);for(const ln of L)x.node.subs.push(cpClean(ln,M.hrs!==false));S.tasks[x.t]=ensureTask(x.t);touched.add(x.t);n++}
+    for(const x of M.sel){const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);if(key.startsWith('N:'))continue;const d=ensureTask(t);let sec;
       if(key==='NEW'){sec=uid('S');d.sections.push({id:sec,name:srcSec.name||'Section'})}else{sec=key.slice(2);if(!taskSecs(t).some(z=>z.id===sec))continue}
       const sids=taskSecs(t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];const idx=d.items.map((y,j)=>j).filter(j=>so(d.items[j])===sec);let at=idx.length?idx[idx.length-1]+1:d.items.length;
       for(const ln of L){const cp=cpClean(ln,M.hrs!==false);cp.sec=sec;d.items.splice(at++,0,cp)}S.tasks[t]=d;touched.add(t);n++}
