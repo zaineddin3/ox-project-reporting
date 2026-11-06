@@ -3025,7 +3025,10 @@ function toAreaDraw(u){const F=TO.areas;if(!F||!F.list)return '';let h='';F.list
 async function toExclRegions(d,pg){d.excl=d.excl||[];let ex=d.excl.filter(x=>x.pg===pg);if(ex.length)return ex;TO.exAuto=TO.exAuto||{};const k=d.file.id+'#'+pg;if(!TO.exAuto[k]){try{TO.exAuto[k]=(await toFindAreas(d,pg)).filter(a=>a.kind!=='area')}catch(e){TO.exAuto[k]=[]}}return TO.exAuto[k]}
 const toInEx=(ex,p)=>ex.some(x=>toInRect(p,x.r));
 /* tight ink box of a small region, in page units */
-async function toInkBox(pdf,pg,z){const p=await pdf.getPage(pg);const k=6;const vp=p.getViewport({scale:k});const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(z[2]*k));c.height=Math.max(1,Math.ceil(z[3]*k));
+async function toInkBox(pdf,pg,z,fid){if(fid){try{const P=await pageCanvas(fid,pg,4);const q=pgcCrop(P,z),k=P.R,px=q.px;let t=q.h,b=-1,l=q.w,r=-1,col=0;
+    for(let y=0;y<q.h;y++)for(let xx=0;xx<q.w;xx++){const j=(y*q.w+xx)*4;const lum=px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11;if(lum<200){if(y<t)t=y;if(y>b)b=y;if(xx<l)l=xx;if(xx>r)r=xx;if(Math.max(px[j],px[j+1],px[j+2])-Math.min(px[j],px[j+1],px[j+2])>60)col++}}
+    if(b<0)return null;return {r:[z[0]+l/k-0.5,z[1]+t/k-0.5,(r-l+1)/k+1,(b-t+1)/k+1],col}}catch(e){}}
+  const p=await pdf.getPage(pg);const k=6;const vp=p.getViewport({scale:k});const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(z[2]*k));c.height=Math.max(1,Math.ceil(z[3]*k));
   const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-z[0]*k,-z[1]*k);await p.render({canvasContext:x,viewport:vp}).promise;
   const px=x.getImageData(0,0,c.width,c.height).data;let t=c.height,b=-1,l=c.width,r=-1,col=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){const j=(y*c.width+xx)*4;const lum=px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11;if(lum<200){if(y<t)t=y;if(y>b)b=y;if(xx<l)l=xx;if(xx>r)r=xx;if(Math.max(px[j],px[j+1],px[j+2])-Math.min(px[j],px[j+1],px[j+2])>60)col++}}
   if(b<0)return null;return {r:[z[0]+l/k-0.5,z[1]+t/k-0.5,(r-l+1)/k+1,(b-t+1)/k+1],col}}
@@ -3048,7 +3051,7 @@ async function toWholeRun(d){const O=TO.whole;const pages=TO.auto.pages==='all'?
         for(const l of lines){const zx=Math.max(L.r[0]+2,l.x0-l.fs*8),zone=[zx,l.y0-l.fs*0.9,Math.max(4,l.x0-zx-l.fs*0.4),(l.y1-l.y0)+l.fs*1.8];O.busy=`Counting “${l.s}”…`;toSide();
           const vec=await toVectors(d,pg);let lk={};for(const ph of vec){if(!ph.pts.every(q=>toInRect(q,zone)))continue;const len=toLen(ph.pts);lk[ph.key]=(lk[ph.key]||0)+len}
           const lkey=Object.entries(lk).sort((a,b)=>b[1]-a[1])[0];const tok=(l.s.match(/^([A-Z]{1,4}-?\d{0,3}[A-Z]?)\b/)||[])[1];
-          const box=await toInkBox(pdf,pg,zone);if(!box)continue;const isLine=lkey&&lkey[1]>l.fs*1.2&&box.r[3]<l.fs*0.9&&(/^#(?!000000)/.test(lkey[0].split('|')[0])||lkey[0].split('|')[2]);
+          await new Promise(r=>setTimeout(r,0));const box=await toInkBox(pdf,pg,zone,d.file.id);if(!box)continue;const isLine=lkey&&lkey[1]>l.fs*1.2&&box.r[3]<l.fs*0.9&&(/^#(?!000000)/.test(lkey[0].split('|')[0])||lkey[0].split('|')[2]);
           if(isLine){const cands=[];for(const p2 of pages){const ex2=await toExclRegions(d,p2);for(const ph of await toVectors(d,p2))if(ph.key===lkey[0]&&!ph.pts.every(q=>toInEx(ex2,q)))cands.push({pg:p2,pts:ph.pts})}
             if(cands.length)rows.push({kind:'line',type:'length',name:l.s,key:lkey[0],cands,on:true,color:lkey[0].split('|')[0]})}
           else{const r=box.r;if(r[2]<3||r[3]<3||r[2]>l.fs*8)continue;let cands=(await toMatchCore(d,pg,r,pages,true)).filter(c=>c.s>=0.8);const exAll={};for(const p2 of pages)exAll[p2]=await toExclRegions(d,p2);cands=cands.filter(c=>!toInEx(exAll[c.pg],c.pts[0]));
@@ -3196,7 +3199,13 @@ function match(m){const pg=P[m.key];if(!pg)return {err:'nopage'};const {W,H,ink,
     for(let c=0;c<bp.length;c++){if(bp[c]<0)continue;const x0=bp[c]%W,y0=(bp[c]/W)|0;let bsv=0,bx=x0,by=y0;
       for(let y=Math.max(0,y0-2);y<=Math.min(H-h,y0+2);y++)for(let x=Math.max(0,x0-2);x<=Math.min(W-w,x0+2);x++){const s=score(x,y);if(s>bsv){bsv=s;bx=x;by=y}}
       if(bsv>=min)out.push(bx,by,ti,Math.round(bsv*1000))}}
-  return {out}}
+  /* keep the best match in each neighbourhood, fast, and never send more than CAP */
+  const nC=out.length/4;if(!nC)return {out};const idx=new Uint32Array(nC);for(let i=0;i<nC;i++)idx[i]=i;idx.sort((a,b)=>out[b*4+3]-out[a*4+3]);
+  let rmax=1;for(const t of T)rmax=Math.max(rmax,t.w,t.h);const gs=Math.max(4,Math.ceil(rmax*0.6)),grid=new Map(),fin=[],CAP=12000;
+  for(let q=0;q<nC&&fin.length<CAP*4;q++){const i=idx[q],t=T[out[i*4+2]],cx=out[i*4]+t.w/2,cy=out[i*4+1]+t.h/2,rad=0.6*Math.max(t.w,t.h),gx=Math.floor(cx/gs),gy=Math.floor(cy/gs);let clash=false;
+    for(let yy=gy-1;yy<=gy+1&&!clash;yy++)for(let xx=gx-1;xx<=gx+1&&!clash;xx++){const L=grid.get(xx+','+yy);if(L)for(const p of L)if(Math.hypot(p[0]-cx,p[1]-cy)<rad){clash=true;break}}
+    if(clash)continue;const k=gx+','+gy;(grid.get(k)||grid.set(k,[]).get(k)).push([cx,cy]);fin.push(out[i*4],out[i*4+1],out[i*4+2],out[i*4+3])}
+  return {out:fin,more:nC*4>fin.length&&fin.length>=CAP*4}}
 onmessage=e=>{const m=e.data;try{if(m.op==='page'){prep(m);postMessage({op:'page',id:m.id});return}
   if(m.op==='cancel'){cancel[m.id]=1;return}
   if(m.op==='match'){const r=match(m);postMessage({op:r.err?'err':'res',id:m.id,err:r.err,out:r.out})}}catch(err){postMessage({op:'err',id:m.id,err:String(err&&err.message||err)})}}`;
@@ -3207,21 +3216,35 @@ function mwGet(){if(MWS.w)return MWS.w;try{MWS.w=new Worker(URL.createObjectURL(
 function mwCall(msg,transfer,prog,ms){const w=mwGet();if(!w)return Promise.reject(new Error('noworker'));const id='m'+(++MWS.seq);msg.id=id;
   return new Promise((res,rej)=>{MWS.q[id]={res,rej,prog,t:setTimeout(()=>{delete MWS.q[id];mwReset();rej(new Error('timeout'))},ms||90000)};w.postMessage(msg,transfer||[])})}
 function mwReset(){try{MWS.w&&MWS.w.terminate()}catch(e){}for(const k in MWS.q){clearTimeout(MWS.q[k].t);MWS.q[k].rej(new Error('cancel'))}MWS.w=null;MWS.q={};MWS.have=[]}
+/* one drawn copy of the last page used, shared by matching, symbol cut-outs and ink boxes (drawing a big sheet is the slow part) */
+const PGC={k:null,c:null,R:0,fid:null,p:0,busy:null};
+const pgcR=(v,R)=>{const cap=6e6;if(v.width*v.height*R*R>cap)R=Math.sqrt(cap/(v.width*v.height));return Math.round(R*1000)/1000};
+async function pageCanvas(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);const k=fid+'#'+p+'@'+R;
+  if(PGC.k===k&&PGC.c)return PGC;if(PGC.busy&&PGC.busy.k===k)return PGC.busy.pr;
+  const pr=(async()=>{const vp=pg.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+    await pg.render({canvasContext:x,viewport:vp}).promise;if(PGC.c&&PGC.c!==c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k,c,R,fid,p,busy:null});return PGC})();
+  PGC.busy={k,pr};return pr}
+function pgcCrop(P,rect){const R=P.R,w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  x.imageSmoothingEnabled=false;x.drawImage(P.c,-Math.round(rect[0]*R),-Math.round(rect[1]*R));return {px:x.getImageData(0,0,w,h).data,w,h}}
 /* render a page into the worker once per scale; returns {key,W,H,R} */
-async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});let R=R0;const cap=6e6;if(v.width*v.height*R*R>cap)R=Math.sqrt(cap/(v.width*v.height));R=Math.round(R*1000)/1000;
+async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);
   const key=fid+'#'+p+'@'+R;if(MWS.have.includes(key))return {key,W:Math.ceil(v.width*R),H:Math.ceil(v.height*R),R};
-  const vp=pg.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
-  await pg.render({canvasContext:x,viewport:vp}).promise;const im=x.getImageData(0,0,c.width,c.height);c.width=c.height=1;
+  const P=await pageCanvas(fid,p,R0);const im=P.c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,P.c.width,P.c.height);
   await mwCall({op:'page',key,W:im.width,H:im.height,rgba:im.data.buffer},[im.data.buffer]);MWS.have.push(key);while(MWS.have.length>3)MWS.have.shift();return {key,W:im.width,H:im.height,R}}
 /* template mask from a rectangle of a page, rendered at scale R */
-async function toCropMask(fid,p,rect,R){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:R});const w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));
+async function toCropMask(fid,p,rect,R){
+  if(PGC.c&&PGC.fid===fid&&PGC.p===p&&Math.abs(PGC.R-R)<1e-3){const q=pgcCrop(PGC,rect);return toTplFrom(q.px,q.w,[0,0,q.w/R,q.h/R],R)}
+  const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:R});const w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));
   const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.translate(-rect[0]*R,-rect[1]*R);await pg.render({canvasContext:x,viewport:vp}).promise;
   const px=x.getImageData(0,0,w,h).data;return toTplFrom(px,w,[0,0,w/R,h/R],R)}
 /* match a template on pages; T = {w,h,m} mask at scale R; returns [{pg,x,y,s}] in page units */
 async function toMatchPages(fid,pages,mkT,Rwant,rot,min,onProg){const out=[];for(let i=0;i<pages.length;i++){const p=pages[i];const PG=await mwPage(fid,p,Rwant);const T=await mkT(PG.R);if(!T||!T.ink)continue;
     const tps=toTplSet(T,rot,PG.W);const r=await mwCall({op:'match',key:PG.key,min,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil}))},null,f=>onProg&&onProg((i+f)/pages.length));
     const raw=r.out||[];const cand=[];for(let k=0;k<raw.length;k+=4){const t=tps[raw[k+2]];cand.push({x:(raw[k]+t.w/2)/PG.R,y:(raw[k+1]+t.h/2)/PG.R,s:raw[k+3]/1000,r:Math.max(t.w,t.h)/PG.R})}
-    cand.sort((a,b)=>b.s-a.s);const keep=[];for(const c of cand){if(keep.some(k=>Math.hypot(k.x-c.x,k.y-c.y)<0.6*c.r))continue;keep.push(c)}for(const c of keep)out.push({pg:p,x:c.x,y:c.y,s:c.s})}
+    cand.sort((a,b)=>b.s-a.s);const gs=Math.max(1,...cand.slice(0,50).map(c=>c.r))*0.6||1,G=new Map();
+    for(const c of cand){const gx=Math.floor(c.x/gs),gy=Math.floor(c.y/gs);let clash=false;for(let yy=gy-1;yy<=gy+1&&!clash;yy++)for(let xx=gx-1;xx<=gx+1&&!clash;xx++){const L=G.get(xx+','+yy);if(L)for(const k of L)if(Math.hypot(k.x-c.x,k.y-c.y)<0.6*c.r){clash=true;break}}
+      if(clash)continue;const key=gx+','+gy;(G.get(key)||G.set(key,[]).get(key)).push(c);out.push({pg:p,x:c.x,y:c.y,s:c.s})}
+    await new Promise(r=>setTimeout(r,0))}
   return out}
 const toRfor=(sz,mn)=>Math.min(4,Math.max(0.6,Math.min(30/Math.max(1,mn||sz),64/Math.max(1,sz))));
 const toBusyErr=e=>e&&e.message==='timeout'?'That took too long and was stopped. Drag a tighter box around one symbol, or search this page only.':e&&e.message==='cancel'?'Stopped.':'Could not search this drawing.';
