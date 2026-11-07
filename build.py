@@ -17,6 +17,13 @@ head = """<!doctype html>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+<meta property="og:title" content="Project Reporting">
+<meta property="og:site_name" content="Project Reporting">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zaineddin3.github.io/ox-project-reporting/">
+<meta property="og:image" content="https://zaineddin3.github.io/ox-project-reporting/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Project Reporting">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1c2732">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">

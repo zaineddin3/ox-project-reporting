@@ -7,6 +7,13 @@
 <link rel="alternate icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c2732'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='13' fill='%23e2884d' text-anchor='middle'%3EOX%3C/text%3E%3C/svg%3E">
 <script src="lib/supabase.js"></script>
 
+<meta property="og:title" content="Project Reporting">
+<meta property="og:site_name" content="Project Reporting">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zaineddin3.github.io/ox-project-reporting/">
+<meta property="og:image" content="https://zaineddin3.github.io/ox-project-reporting/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Project Reporting">
 <meta name="theme-color" content="#1c2732">
 </head>
 <body>
@@ -404,7 +411,10 @@ tr.pg-empty td{color:var(--muted)}
 tr.subparent td{background:color-mix(in srgb,var(--soft) 70%,var(--surface))}
 .colrz{position:absolute;top:0;right:0;bottom:0;width:8px;cursor:col-resize;z-index:3;touch-action:none}
 th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,transparent)}.colrz:hover,.col-resizing .colrz{border-right:2px solid var(--accent)!important}
-.tw.rsz{resize:vertical;overflow:auto;min-height:160px}.task-drop.dropping{outline:2px dashed var(--accent);outline-offset:3px}
+.tw.rsz{resize:vertical;overflow:auto;min-height:160px}
+.tsz-bar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 0 6px;font-size:12.5px;color:var(--muted)}.tsz-bar .btn{padding:3px 9px;font-size:12.5px;min-height:0}.tsz-bar .tsz-v{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}.tsz-bar .sep{width:1px;height:18px;background:var(--line);margin:0 4px}
+.tsz-grip{height:12px;margin:2px 0 8px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;touch-action:none;border-radius:6px}.tsz-grip span{width:56px;height:4px;border-radius:3px;background:var(--line)}.tsz-grip:hover span,body.tsz-drag .tsz-grip span{background:var(--accent)}
+body.tsz-full-on{overflow:hidden}.tsz-full{position:fixed;inset:0;z-index:60;background:var(--bg,#fff);padding:12px 16px;display:flex;flex-direction:column}.tsz-full>.tw.rsz{flex:1;height:auto!important;resize:none}.tsz-full>.tsz-grip{display:none}.task-drop.dropping{outline:2px dashed var(--accent);outline-offset:3px}
 .colrz::after{content:"";position:absolute;top:20%;bottom:20%;right:0;width:1px;background:var(--line)}
 .colrz:hover::after,body.col-resizing .colrz::after{background:var(--accent);width:2px;top:0;bottom:0}
 body.col-resizing{cursor:col-resize;user-select:none}
@@ -1833,7 +1843,7 @@ function taskEditor(t){
     ${tail}<td></td></tr>`}).join(''))+(shut?'':
     `<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="add-item" data-s="${sc.id}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`);
   }).join('');
-  return `<div class="tw rsz task-drop" data-rsz="task" data-t="${t}" title=""><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Budget hrs</th><th class="n">Hrs spent</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n" title="Hours spent + hours to go">Total hrs</th><th class="n">+/− hrs</th><th class="n">Hrs per 1% (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+  return `${tszBar('task')}<div class="tw rsz task-drop" data-rsz="task" data-t="${t}" title=""><table style="min-width:1080px"><thead><tr><th></th><th>WBS</th><th style="min-width:200px">Description</th>${showItp?'<th>ITP</th>':''}<th class="n">% complete</th><th class="n">Est. hrs</th><th class="n">Budget hrs</th><th class="n">Hrs spent</th><th class="n">Earned</th><th class="n">Hrs to go</th><th class="n" title="Hours spent + hours to go">Total hrs</th><th class="n">+/− hrs</th><th class="n">Hrs per 1% (est · act)</th><th></th></tr></thead><tbody>${body}</tbody></table></div><div class="tsz-grip" data-tszgrip="task" title="Drag to make the table taller or shorter"><span></span></div>`;
 }
 const fmtH=n=>(Math.round((n||0)*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
 const pendOf=it=>(it.subs&&it.subs.length?it.subs.reduce((a,sb)=>a+pendOf(sb),0):num(it.newHrs));
@@ -1944,7 +1954,7 @@ V.labour=()=>{
   <div class="toolbar" style="margin:-6px 0 0"><button class="btn" data-act="task-add" title="Add a task to this project">+ Add task</button><span class="hint">Added tasks work like the standard ones: their hours flow into the totals, Progress, cost to complete and the labour forecast.</span></div>
   ${UI.mvFlash?`<div class="banner" style="margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(UI.mvFlash.txt)}${UI.mvFlash.t!==t?`<button class="btn" data-act="task" data-v="${UI.mvFlash.t}">Go to that task</button>`:''}<button class="btn ghost" data-act="mvflash-x">Dismiss</button></div>`:''}
   <div class="panel"><div class="sec-head"><div><div class="xtask-h"><h3>Task ${String(ti+1).padStart(3,'0')} ·</h3><input class="f" id="xtask_name" data-xtask="${t}" value="${esc(TASKS[ti])}" aria-label="Task name" placeholder="${esc(isXTask(t)?'Task name':BASE_NAMES[ti])}">${isXTask(t)?`<button class="btn ghost" data-act="task-del" data-v="${t}" title="Remove this task">${UI.armed==='xt'+t?'Confirm remove':'Remove task'}</button>`:TASKS[ti]!==BASE_NAMES[ti]?`<button class="btn ghost" data-act="task-rename-reset" data-v="${t}" title="Go back to “${esc(BASE_NAMES[ti])}”">Reset name</button>`:''}</div><p class="hint">Group the work into labelled sections and set each line’s estimated hours. % complete and hours spent are updated on the Progress tab, and the forecast is worked out from them.</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="progress">Update progress</button><label class="btn" for="task_file" title="Add lines from an Excel or CSV file">Import Excel</label><input type="file" id="task_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><button class="btn primary" data-act="add-tsec">+ Add section</button></div></div>
-  <p class="hint" style="margin:-4px 0 10px">Drag an Excel (.xlsx) or CSV file onto the table to add lines; drop it on a section to add them there. Headings matched: WBS, Description, Unit, Qty, Est. hrs, Budget hrs and (optional) Section. A WBS such as 3.2.1 under 3.2 becomes a sub-line. Drag a column heading’s edge to resize it, or the table’s bottom-right corner to make it taller or shorter.</p>
+  <p class="hint" style="margin:-4px 0 10px">Drag an Excel (.xlsx) or CSV file onto the table to add lines; drop it on a section to add them there. Headings matched: WBS, Description, Unit, Qty, Est. hrs, Budget hrs and (optional) Section. A WBS such as 3.2.1 under 3.2 becomes a sub-line. Use Table size to change text size and height, or go full screen.</p>
   ${UI.tkMsg?`<div class="banner" style="margin:0 0 10px">${esc(UI.tkMsg)}</div>`:''}
   ${taskEditor(t)}</div>
   ${labourLogPanel()}
@@ -2739,34 +2749,63 @@ async function toFindLabel(d){const A=TO.auto;const q=A.q.trim();if(!q){A.note='
   catch(e){console.error(e);A.busy='';A.note='Could not read the drawing text.'}
   toSide();toDraw()}
 /* search the drawing text and pick what to count */
-async function toSearchText(d){const A=TO.auto;const q=(A.sq||'').trim();if(!q){A.note='Type what to look for, e.g. B or GPO.';return toSide()}
+async function toSearchText(d){const A=TO.auto;const q=(A.sq||'').trim();if(!q){A.note='Type what to look for, e.g. B or GPO.';return toSide()}const SM=toSmartTerms(q);
   A.busy='Searching the drawing text…';A.groups=null;A.res=null;A.ssel=new Set();A.note='';toSide();toDraw();
   try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];const ql=q.toLowerCase();const G=new Map();
     const tokRe=/[A-Za-z0-9][A-Za-z0-9\-\/._]*[A-Za-z0-9]|[A-Za-z0-9]/g;
     for(const p of pages){const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();
-      for(const t of tc.items){if(!t.str)continue;tokRe.lastIndex=0;let m;while((m=tokRe.exec(t.str))){const tok=m[0];if(!tok.toLowerCase().includes(ql))continue;
+      for(const t of tc.items){if(!t.str)continue;tokRe.lastIndex=0;let m;while((m=tokRe.exec(t.str))){const tok=m[0];if(!tok.toLowerCase().includes(ql)&&!(SM&&SM.tagRe.test(tok)))continue;
         const L=t.str.length||1;const f=(m.index+tok.length/2)/L;const [a,b,c,dd,e,ff]=t.transform;const dl=Math.hypot(a,b)||1,ul=Math.hypot(c,dd)||1;
         const x=e+a/dl*t.width*f+c/ul*(t.height||ul)/2,y=ff+b/dl*t.width*f+dd/ul*(t.height||ul)/2;const v=vp.convertToViewportPoint(x,y);
         const hit={pg:p,pts:[[Math.round(v[0]*100)/100,Math.round(v[1]*100)/100]],on:true};if(!toAutoKeep(d,hit))continue;
-        const key=tok.toUpperCase();let g=G.get(key);if(!g)G.set(key,g={label:tok,hits:[]});g.hits.push(hit)}}}
-    A.groups=[...G.values()].sort((a,b)=>b.hits.length-a.hits.length||a.label.localeCompare(b.label,undefined,{numeric:true})).slice(0,300);
-    A.busy='';A.note=A.groups.length?'':`Nothing matching “${q}” found${toAutoZone(d)?' in this section':''}. Search only finds text in the PDF (not scanned images); try “Count symbol” instead.`}
+        const key=tok.toUpperCase();let g=G.get(key);if(!g)G.set(key,g={label:tok,hits:[],kind:'text'});g.hits.push(hit)}}}
+    const txt=[...G.values()].sort((a,b)=>b.hits.length-a.hits.length||a.label.localeCompare(b.label,undefined,{numeric:true})).slice(0,300);
+    const sym=SM?await toSmartSyms(d,pdf,pages,SM,q):[];
+    A.groups=sym.concat(txt);A.ssel=new Set(sym.map((_,i)=>i));toSearchSync();
+    A.busy='';A.note=A.groups.length?(SM?`Smart search: “${q}” also looked for ${SM.tags.slice(0,6).join(', ')}… and matching legend symbols${toLib().length?' and memorised symbols':''}.`:''):`Nothing matching “${q}” found${toAutoZone(d)?' in this section':''}. Search only finds text in the PDF (not scanned images); try “Count symbol” instead.`}
   catch(e){console.error(e);A.busy='';A.note='Could not read the drawing text.'}
   toSide();toDraw()}
+/* smart search: count the legend symbol(s) described by the search words, and memorised symbols with a matching name */
+async function toSmartSyms(d,pdf,pages,SM,q){const A=TO.auto;const out=[];const ql=q.toLowerCase();const seen=new Set();const cands=[];
+  for(const p of pages){let T;try{T=await toTextLines(d,p)}catch(e){continue}for(const l of T.lines){const t=l.s.trim();if(t.length<2||t.length>70||!SM.wordRe.test(t))continue;cands.push({p,l,T})}}
+  cands.sort((a,b)=>a.l.s.length-b.l.s.length);let n=0;const legs=[];
+  for(const c of cands){if(n>=6)break;const name=c.l.s.trim().replace(/\s+/g,' ').slice(0,80);if(seen.has(name.toLowerCase()))continue;
+    A.busy=`Smart search: checking the legend for “${q}”…`;toSide();await new Promise(r=>setTimeout(r,0));
+    const r=await toLegendRect(pdf,d.file.id,c.p,c.T,c.l).catch(()=>null);if(!r)continue;seen.add(name.toLowerCase());n++;legs.push({c,r,name})}
+  if(legs.length){
+    /* other legend symbols of a similar size compete for each spot, so a look-alike (a light inside an isolator, say) goes to the symbol that fits best */
+    const rivals=[];const sz=r=>Math.max(r[2],r[3]);
+    for(const p of pages){if(rivals.length>=8)break;let T;try{T=await toTextLines(d,p)}catch(e){continue}
+      for(const l of T.lines){if(rivals.length>=8)break;const t=l.s.trim();const nm=t.replace(/\s+/g,' ').slice(0,80).toLowerCase();if(t.length<2||t.length>70||seen.has(nm))continue;
+        const r=await toLegendRect(pdf,d.file.id,p,T,l).catch(()=>null);if(!r)continue;if(!legs.some(g=>sz(r)>sz(g.r)*0.6&&sz(r)<sz(g.r)*1.6))continue;seen.add(nm);rivals.push({c:{p,l,T},r,name:nm,rival:true})}}
+    const all=legs.concat(rivals);
+    for(const g of all){A.busy=`Smart search: counting “${g.name}” symbols…`;toSide();const r=g.r;const cx=r[0]+r[2]/2,cy=r[1]+r[3]/2,rad=sz(r);
+      g.hits=(await toMatchCore(d,g.c.p,r,pages,true)).filter(h=>h.s>=0.8&&!(h.pg===g.c.p&&Math.hypot(h.pts[0][0]-cx,h.pts[0][1]-cy)<rad)).filter(h=>toAutoKeep(d,h))}
+    const gs=12,M=new Map();const key=(pg,x,y)=>pg+':'+Math.floor(x/gs)+':'+Math.floor(y/gs);
+    all.forEach((g,gi)=>g.hits.forEach(h=>{const k=key(h.pg,h.pts[0][0],h.pts[0][1]);if(!M.has(k))M.set(k,[]);M.get(k).push({gi,h,R:sz(g.r)})}));
+    const beaten=(gi,h,R)=>{const [x,y]=h.pts[0];for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const L=M.get(h.pg+':'+(Math.floor(x/gs)+i)+':'+(Math.floor(y/gs)+j));if(!L)continue;
+      for(const o of L){if(o.gi===gi||all[o.gi].name===all[gi].name)continue;if(Math.hypot(o.h.pts[0][0]-x,o.h.pts[0][1]-y)<0.5*Math.min(R,o.R)&&o.h.s>h.s+0.01)return true}}return false};
+    for(const [gi,g] of legs.entries()){const hits=g.hits.filter(h=>!beaten(gi,h,sz(g.r))).map(h=>({pg:h.pg,pts:h.pts,on:true}));if(!hits.length)continue;
+      const im=await toCropSrc(d.file.id,g.c.p,g.r).catch(()=>null);out.push({label:g.name,name:g.name,kind:'legend',img:im?im.src:null,hits})}}
+  for(const e of toLib()){const nm=(e.name||'').trim();if(!(SM.wordRe.test(nm)||SM.tagRe.test(nm)||nm.toLowerCase().includes(ql)))continue;const pt=e.pt||e.ptHint;if(!pt)continue;
+    A.busy=`Smart search: counting memorised “${nm}”…`;toSide();
+    const hits=(await toImgHits(d,{src:e.src,ar:e.ar,pt,rot:e.rot,thr:Math.max(0.8,e.thr||0.85)},pages)).map(h=>({pg:h.pg,pts:h.pts,on:true})).filter(h=>toAutoKeep(d,h));
+    if(hits.length)out.push({label:nm,name:nm,kind:'mem',img:e.img,hits})}
+  return out}
 function toSearchSync(){const A=TO.auto;A.res=A.groups?[...A.ssel].sort((a,b)=>a-b).flatMap(i=>A.groups[i]?A.groups[i].hits:[]):null;if(A.res&&!A.res.length)A.res=null}
 function toSearchAdd(d){const A=TO.auto;if(!A.groups||!A.ssel.size)return;undoRecord();let add=0,skip=0,items=0;const sel=[...A.ssel].sort((a,b)=>a-b).map(i=>A.groups[i]).filter(Boolean);
   const dup=(it,c)=>d.marks.some(m=>m.it===it.id&&m.pg===c.pg&&Math.hypot(m.pts[0][0]-c.pts[0][0],m.pts[0][1]-c.pts[0][1])<4);
   const mk=(name,label)=>{let it=label?d.items.find(i=>i.type==='count'&&i.how&&i.how.m==='label'&&String(i.how.q).toUpperCase()===label.toUpperCase()):null;
     if(!it){it={id:uid('i'),name,type:'count',color:TO_COLORS[d.items.length%TO_COLORS.length],src:label?'Search count of “'+label+'”':'Search count of “'+(A.sq||'').trim()+'”'};if(label){it.label=label;it.how={m:'label',q:label,cs:false}}d.items.push(it);items++}return it};
   if(A.scomb){const it=mk((A.sname||'').trim()||((A.sq||'').trim()+' (combined)'),null);for(const g of sel)for(const c of g.hits){if(!c.on)continue;if(dup(it,c)){skip++;continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'search'});add++}TO.item=it.id}
-  else for(const g of sel){const it=mk(g.label,g.label);for(const c of g.hits){if(!c.on)continue;if(dup(it,c)){skip++;continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'search'});add++}TO.item=it.id}
+  else for(const g of sel){const it=g.kind&&g.kind!=='text'?mk(g.name,null):mk(g.label,g.label);if(g.kind==='legend')it.src='Smart search: legend symbol “'+g.name+'”';else if(g.kind==='mem')it.src='Smart search: memorised symbol “'+g.name+'”';for(const c of g.hits){if(!c.on)continue;if(dup(it,c)){skip++;continue}d.marks.push({id:uid('m'),it:it.id,pg:c.pg,pts:c.pts.map(p=>p.slice()),auto:'search'});add++}TO.item=it.id}
   A.note=`Counted ${add} across ${sel.length} label${sel.length===1?'':'s'}${skip?`, skipped ${skip} already counted`:''}.`;A.groups=null;A.ssel=new Set();A.res=null;persist('drawings/'+TO.id);toSync()}
 function toSearchBody(d,pages){const A=TO.auto;const G=A.groups;const sel=A.ssel||new Set();
   const n=G?[...sel].reduce((s,i)=>s+(G[i]?G[i].hits.filter(c=>c.on).length:0),0):0;
-  return `<p class="hint" style="margin:0">Search the drawing’s text, then tick what you want counted. For example <b>B</b> lists B1, B2, B10… with how many of each.</p>
+  return `<p class="hint" style="margin:0">Search the drawing’s text, then tick what you want counted. For example <b>B</b> lists B1, B2, B10… with how many of each. Smart search knows trade names: type <b>GPO</b>, <b>isolator</b>, <b>downlight</b>, <b>exit</b>, <b>smoke</b> or <b>data</b> and it also finds the other tags used for them and counts the matching symbol from the legend.</p>
     <div class="to-row"><input class="f" id="to_sq" data-tk="sq" value="${esc(A.sq||'')}" placeholder="Search, e.g. B or GPO" style="width:150px"><button class="btn primary" data-ta="sfind">Search</button></div>${pages}
     ${G&&G.length?`<div class="to-row" style="align-self:stretch;justify-content:space-between"><b>${G.length} match${G.length===1?'':'es'}</b><span><button class="btn ghost" data-ta="sall">Select all</button><button class="btn ghost" data-ta="snone">None</button></span></div>
-    <div class="to-slist" style="align-self:stretch;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${G.map((g,i)=>`<label class="to-row" style="justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--line);margin:0;cursor:pointer"><span><input type="checkbox" data-tk="ssel|${i}" ${sel.has(i)?'checked':''}> <b>${esc(g.label)}</b></span><span class="money">${g.hits.length}</span></label>`).join('')}</div>
+    <div class="to-slist" style="align-self:stretch;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${G.map((g,i)=>`<label class="to-row" style="justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--line);margin:0;cursor:pointer"><span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(g.label)}"><input type="checkbox" data-tk="ssel|${i}" ${sel.has(i)?'checked':''}> ${g.img?`<img src="${esc(g.img)}" alt="" style="height:18px;max-width:42px;vertical-align:middle;background:#fff;border:1px solid var(--line);border-radius:3px">`:''} <b>${esc(g.label)}</b>${g.kind==='legend'?' <span class="hint">· legend</span>':g.kind==='mem'?' <span class="hint">· memorised</span>':''}</span><span class="money" style="flex:none;padding-left:8px">${g.hits.length}</span></label>`).join('')}</div>
     ${sel.size?`<p class="hint" style="margin:0">Ticked labels are circled in yellow on the drawing. Click a circle to leave that one out.</p>
     <label class="to-row hint"><input type="checkbox" data-tk="scomb" ${A.scomb?'checked':''}> Combine into one item</label>
     ${A.scomb?`<div class="to-row" style="align-self:stretch"><span class="hint">Item name</span><input class="f" data-tk="sname" value="${esc(A.sname??((A.sq||'').trim()+' (combined)'))}" style="flex:1;border-color:var(--line);background:var(--surface)"></div>`:''}`:''}
@@ -3092,16 +3131,43 @@ async function toSymPrep(f){const im=await toImgLoad(await toFileUrl(f));const c
 /* ---------- memorised symbols from a legend / symbol schedule PDF ---------- */
 async function toThumbOf(src){const im=await toImgLoad(src);const k=Math.min(1,120/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*k));c.height=Math.max(1,Math.round(im.naturalHeight*k));
   const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/png')}
+/* the symbol drawn to the left of a legend description line, or null */
+async function toLegendRect(pdf,fid,pg,T,l){const zx=Math.max(0,l.x0-l.fs*8),zone=[zx,l.y0-l.fs*0.9,Math.max(4,l.x0-zx-l.fs*0.4),(l.y1-l.y0)+l.fs*1.8];
+  /* other wording in that space means it's text, not a symbol (short tags inside a symbol are fine) */
+  if(T.items.some(it=>{const cx=(it.x0+it.x1)/2,cy=(it.y0+it.y1)/2;return cx>zone[0]&&cx<zone[0]+zone[2]&&cy>zone[1]&&cy<zone[1]+zone[3]&&it.s.trim().length>4}))return null;
+  const box=await toInkBox(pdf,pg,zone,fid);if(!box)return null;const r=box.r;if(r[2]<2.5||r[3]<2.5||r[2]>l.fs*8||r[3]>l.fs*6)return null;return r}
+/* smart search: what electricians type, and the tags / legend wording that mean the same thing */
+const TO_SMART=[
+ {k:['gpo','gpos','power point','powerpoint','power outlet','socket','outlet','dgpo','sgpo','pp'],tags:['GPO','DGPO','SGPO','DPO','SPO','PP','DPP','SPP','WGPO'],words:['GPO','DGPO','SGPO','POWER POINT','POWER OUTLET','SOCKET OUTLET','GENERAL PURPOSE OUTLET']},
+ {k:['isolator','isolators','iso','isol','isolating switch'],tags:['ISO','ISOL','ISOLATOR','IS','RISO','WPISO'],words:['ISOLATOR','ISOLATING SWITCH','ISO','ISOL']},
+ {k:['light','lights','lighting','downlight','downlights','dl','luminaire','batten','troffer','led'],tags:['DL','LT','LED','BT','TR','PL'],words:['DOWNLIGHT','DOWN LIGHT','LUMINAIRE','LIGHT','BATTEN','TROFFER','LED PANEL','PENDANT','FLOODLIGHT','BULKHEAD']},
+ {k:['exit','exit sign','exit light','emergency','emergency light','em'],tags:['EXIT','EX','EM','EML','EL','EMG'],words:['EXIT','EMERGENCY']},
+ {k:['switch','switches','light switch','sw'],tags:['SW','LS'],words:['SWITCH','DIMMER']},
+ {k:['smoke','smoke detector','smoke alarm','detector','sd','sa'],tags:['SD','SA','PSD','SMK','HD','TD'],words:['SMOKE','DETECTOR','SMOKE ALARM']},
+ {k:['data','data point','data outlet','tel','phone','rj45','comms','wap'],tags:['DATA','DP','TO','TEL','RJ45','TP','WAP'],words:['DATA','TELECOMMUNICATIONS OUTLET','TELEPHONE','RJ45','WIRELESS ACCESS POINT','COMMS']},
+ {k:['fan','fans','exhaust fan','ef','ceiling fan'],tags:['EF','EXF','CF','FAN'],words:['EXHAUST FAN','CEILING FAN','FAN']},
+ {k:['board','db','msb','switchboard','distribution board'],tags:['DB','MSB','SB','DSB','MDB'],words:['DISTRIBUTION BOARD','SWITCHBOARD']},
+ {k:['cctv','camera','cameras','cam'],tags:['CCTV','CAM'],words:['CCTV','CAMERA']},
+ {k:['tv','tv outlet','antenna'],tags:['TV','TVO','ANT'],words:['TV OUTLET','TELEVISION','ANTENNA']},
+ {k:['sensor','sensors','pir','motion sensor','occupancy sensor'],tags:['PIR','OS','MS','PE'],words:['SENSOR','PIR','OCCUPANCY','MOTION','PHOTOELECTRIC']},
+ {k:['hot water','hws','hwu','water heater'],tags:['HWS','HWU','HWC'],words:['HOT WATER','WATER HEATER']},
+ {k:['air con','aircon','ac','air conditioner','split system'],tags:['AC','ACU','FCU','IU','ODU'],words:['AIR CONDITION','SPLIT SYSTEM','FAN COIL','INDOOR UNIT','OUTDOOR UNIT']},
+ {k:['ev charger','ev','charger'],tags:['EV','EVC'],words:['EV CHARGER','CHARGER','CHARGING']},
+ {k:['intercom','door station'],tags:['IC','INT','DS'],words:['INTERCOM','DOOR STATION']},
+ {k:['card reader','access control','reader'],tags:['CR','ACR','REX'],words:['CARD READER','ACCESS CONTROL']}];
+function toSmartTerms(q){const ql=q.trim().toLowerCase().replace(/\s+/g,' ');if(!ql)return null;
+  const m=TO_SMART.filter(e=>e.k.includes(ql)||e.k.some(k=>k.length>3&&ql.length>3&&(ql.includes(k)||k.startsWith(ql))));if(!m.length)return null;
+  const tags=[...new Set(m.flatMap(e=>e.tags))],words=[...new Set(m.flatMap(e=>e.words))];const rx=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return {tags,words,
+    tagRe:new RegExp('^(?:'+tags.map(rx).join('|')+')(?:[-_.]?\\d{1,3}[A-Z]?|[-_.]?[A-Z]\\d{0,2})?$','i'),
+    wordRe:new RegExp('(?:^|[^A-Z0-9])(?:'+words.map(w=>rx(w).replace(/ /g,'\\s*')).join('|')+')S?(?:$|[^A-Z0-9])','i')}}
 async function toLibFromPdf(f){const A=TO.auto;const fid='legend-'+uid('l');DWG_BLOB[fid]=f;A.busy='Reading symbols from '+f.name+'…';A.note='';TO.memPdf=null;toSide();
   const rows=[],seen=new Set();
   try{const pdf=await toPdf(fid);const np=Math.min(pdf.numPages,8);const d0={file:{id:fid}};
     for(let pg=1;pg<=np;pg++){const T=await toTextLines(d0,pg);
       const lines=T.lines.filter(l=>{const t=l.s.trim();return t.length>1&&!/^(legend|symbols?|symbol legend|electrical legend|key|description|notes?|symbol|item|qty)$/i.test(t)});
       for(const l of lines){A.busy=`Reading symbols from ${f.name}… page ${pg} of ${np} · ${rows.length} found`;toSide();await new Promise(r=>setTimeout(r,0));
-        const zx=Math.max(0,l.x0-l.fs*8),zone=[zx,l.y0-l.fs*0.9,Math.max(4,l.x0-zx-l.fs*0.4),(l.y1-l.y0)+l.fs*1.8];
-        /* other wording in that space means it's text, not a symbol (short tags inside a symbol are fine) */
-        if(T.items.some(it=>{const cx=(it.x0+it.x1)/2,cy=(it.y0+it.y1)/2;return cx>zone[0]&&cx<zone[0]+zone[2]&&cy>zone[1]&&cy<zone[1]+zone[3]&&it.s.trim().length>4}))continue;
-        const box=await toInkBox(pdf,pg,zone,fid);if(!box)continue;const r=box.r;if(r[2]<2.5||r[3]<2.5||r[2]>l.fs*8||r[3]>l.fs*6)continue;
+        const r=await toLegendRect(pdf,fid,pg,T,l);if(!r)continue;
         const name=l.s.trim().replace(/\s+/g,' ').slice(0,80);if(seen.has(name.toLowerCase()))continue;
         const c=await toCropSrc(fid,pg,r).catch(()=>null);if(!c)continue;seen.add(name.toLowerCase());
         rows.push({id:uid('p'),name,src:c.src,ar:c.ar,pt:c.pt||Math.max(r[2],r[3]),img:await toThumbOf(c.src),on:true})}}
@@ -3549,9 +3615,30 @@ function renderHeader(){
   document.getElementById('pmeta').innerHTML=m.length?m.map(([l,v])=>`<span>${l} <b>${esc(v)}</b></span>`).join(''):'<span>Add the project name, job number and period in Project details.</span>';
 }
 let RSZ={};try{RSZ=JSON.parse(localStorage.getItem('ox_rsz')||'{}')||{}}catch(e){RSZ={}}
-const RSZ_OBS=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>{let ch=false;for(const en of es){const el=en.target;if(!el.dataset.rszOn)continue;const h=Math.round(el.getBoundingClientRect().height);if(el.style.height&&RSZ[el.dataset.rsz]!==h){RSZ[el.dataset.rsz]=h;ch=true}}if(ch)try{localStorage.setItem('ox_rsz',JSON.stringify(RSZ))}catch(e){}}):null;
-function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{const h=RSZ[el.dataset.rsz];if(h)el.style.height=h+'px';el.dataset.rszOn='1';
-  el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height)+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
+const RSZ_OBS=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>{let ch=false;for(const en of es){const el=en.target;if(!el.dataset.rszOn||!el.isConnected||el.closest('.tsz-full')){if(!el.isConnected&&RSZ_OBS)RSZ_OBS.unobserve(el);continue}const h=Math.round(el.getBoundingClientRect().height/(parseFloat(el.style.zoom)||1));if(el.style.height&&h>=40&&RSZ[el.dataset.rsz]!==h){RSZ[el.dataset.rsz]=h;ch=true}}if(ch)try{localStorage.setItem('ox_rsz',JSON.stringify(RSZ))}catch(e){}}):null;
+/* table size controls: text size, height, fit to screen, full screen */
+let TSZ_FULL=null;
+function tszBar(k){const z=RSZ[k+':z']||1;return `<div class="tsz-bar" data-tszbar="${k}"><span>Table size</span><button class="btn ghost" type="button" data-tsz="${k}|zout" title="Smaller text">A−</button><span class="tsz-v">${Math.round(z*100)}%</span><button class="btn ghost" type="button" data-tsz="${k}|zin" title="Bigger text">A+</button><span class="sep"></span>
+  <button class="btn ghost" type="button" data-tsz="${k}|short" title="Shorter">Shorter</button><button class="btn ghost" type="button" data-tsz="${k}|tall" title="Taller">Taller</button><button class="btn ghost" type="button" data-tsz="${k}|fit" title="Fill the rest of the screen">Fit to screen</button>
+  <button class="btn ghost" type="button" data-tsz="${k}|full">${TSZ_FULL===k?'Exit full screen':'Full screen'}</button><button class="btn ghost" type="button" data-tsz="${k}|reset" title="Back to normal size, column widths too">Reset</button><span class="hint" style="margin-left:6px">Drag a column edge to widen it, or the bar under the table to resize.</span></div>`}
+function tszSave(){try{localStorage.setItem('ox_rsz',JSON.stringify(RSZ))}catch(e){}}
+function tszFull(){viewEl.querySelectorAll('.tsz-full').forEach(x=>x.classList.remove('tsz-full'));document.body.classList.toggle('tsz-full-on',!!TSZ_FULL);if(!TSZ_FULL)return;const bar=viewEl.querySelector(`[data-tszbar="${TSZ_FULL}"]`),tw=viewEl.querySelector(`[data-rsz="${TSZ_FULL}"]`);if(!bar||!tw){TSZ_FULL=null;document.body.classList.remove('tsz-full-on');return}
+  let w=bar.parentElement.querySelector(':scope > .tsz-wrap');if(!w||!w.contains(tw)){w=document.createElement('div');w.className='tsz-wrap';bar.before(w);w.append(bar,tw);const g=viewEl.querySelector(`[data-tszgrip="${TSZ_FULL}"]`);if(g)w.append(g)}w.classList.add('tsz-full')}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-tsz]');if(!b)return;const [k,a]=b.dataset.tsz.split('|');const tw=viewEl.querySelector(`[data-rsz="${k}"]`);
+  const z=RSZ[k+':z']||1;const cur=tw?Math.round(tw.getBoundingClientRect().height/z):400;
+  if(a==='zin'||a==='zout'){const nz=Math.round(Math.min(1.5,Math.max(0.6,z+(a==='zin'?0.1:-0.1)))*10)/10;if(nz===1)delete RSZ[k+':z'];else RSZ[k+':z']=nz}
+  else if(a==='tall')RSZ[k]=cur+160;else if(a==='short')RSZ[k]=Math.max(160,cur-160);
+  else if(a==='fit'&&tw)RSZ[k]=Math.max(200,Math.round((innerHeight-tw.getBoundingClientRect().top-24)/z));
+  else if(a==='full')TSZ_FULL=TSZ_FULL===k?null:k;
+  else if(a==='reset'){delete RSZ[k];delete RSZ[k+':z'];const tb=tw&&tw.querySelector('table');if(tb&&tb.dataset.colkey&&COLW[tb.dataset.colkey]){delete COLW[tb.dataset.colkey];saveColW()}if(tw)tw.style.height=''}
+  tszSave();render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&TSZ_FULL){TSZ_FULL=null;render()}});
+let TSZG=null;document.addEventListener('pointerdown',e=>{const g=e.target.closest&&e.target.closest('[data-tszgrip]');if(!g)return;const tw=viewEl.querySelector(`[data-rsz="${g.dataset.tszgrip}"]`);if(!tw)return;e.preventDefault();
+  const z=parseFloat(tw.style.zoom)||1;TSZG={k:g.dataset.tszgrip,tw,y:e.clientY,z,h:tw.getBoundingClientRect().height/z};g.setPointerCapture&&g.setPointerCapture(e.pointerId);document.body.classList.add('tsz-drag')});
+document.addEventListener('pointermove',e=>{if(!TSZG)return;const h=Math.max(160,Math.round(TSZG.h+(e.clientY-TSZG.y)/TSZG.z));TSZG.tw.style.height=h+'px';TSZG.nh=h});
+const tszEnd=()=>{if(!TSZG)return;if(TSZG.nh){RSZ[TSZG.k]=TSZG.nh;tszSave()}TSZG=null;document.body.classList.remove('tsz-drag')};document.addEventListener('pointerup',tszEnd);document.addEventListener('pointercancel',tszEnd);
+function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{const h=RSZ[el.dataset.rsz];if(h)el.style.height=h+'px';const z=RSZ[el.dataset.rsz+':z'];el.style.zoom=z&&z!==1?String(z):'';el.dataset.rszOn='1';
+  el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height/(parseFloat(el.style.zoom)||1))+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
 function render(){
   syncTasks();
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
@@ -3562,7 +3649,7 @@ function render(){
   renderChrome();
   const keepSc={};viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{keepSc[el.id||('vp'+i)]=el.scrollTop});
   viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+cptoHtml()+tmvHtml();
-  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{applyRsz()}catch(e){}
+  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
@@ -3582,8 +3669,8 @@ function applyColWidths(){
 }
 let CRZ=null;
 viewEl.addEventListener('pointerdown',e=>{const h=e.target.closest('.colrz');if(!h)return;e.preventDefault();e.stopPropagation();const th=h.parentElement;const tbl=th.closest('table');
-  CRZ={th,key:tbl.dataset.colkey,i:+h.dataset.ci,x:e.clientX,w:th.getBoundingClientRect().width};h.setPointerCapture&&h.setPointerCapture(e.pointerId);document.body.classList.add('col-resizing')});
-viewEl.addEventListener('pointermove',e=>{if(!CRZ)return;const w=Math.max(36,Math.round(CRZ.w+e.clientX-CRZ.x));setColW(CRZ.th,w);CRZ.nw=w});
+  const zz=parseFloat(th.closest('[data-rsz]')?.style.zoom)||1;CRZ={th,key:tbl.dataset.colkey,i:+h.dataset.ci,x:e.clientX,w:th.getBoundingClientRect().width/zz,z:zz};h.setPointerCapture&&h.setPointerCapture(e.pointerId);document.body.classList.add('col-resizing')});
+viewEl.addEventListener('pointermove',e=>{if(!CRZ)return;const w=Math.max(36,Math.round(CRZ.w+(e.clientX-CRZ.x)/(CRZ.z||1)));setColW(CRZ.th,w);CRZ.nw=w});
 const endCRZ=()=>{if(!CRZ)return;if(CRZ.nw){(COLW[CRZ.key]=COLW[CRZ.key]||{})[CRZ.i]=CRZ.nw;saveColW()}CRZ=null;document.body.classList.remove('col-resizing')};
 viewEl.addEventListener('pointerup',endCRZ);viewEl.addEventListener('pointercancel',endCRZ);
 viewEl.addEventListener('dblclick',e=>{const h=e.target.closest('.colrz');if(!h)return;const th=h.parentElement;const key=th.closest('table').dataset.colkey;if(COLW[key]){delete COLW[key][+h.dataset.ci];saveColW()}th.style.width=th.style.minWidth=th.style.maxWidth=''});
@@ -4300,13 +4387,21 @@ function noAccess(sb,email){
 }
 let TEAM=null,TEAMMSG='',PK=null,TEAMSHARE=null;
 const APP_URL='https://zaineddin3.github.io/ox-project-reporting/';
-function shareText(em,pw){return 'Hi,\n\nYou now have access to Oxford Project Reporting.\n\n1. Open '+APP_URL+'\n2. Sign in with your email: '+em+'\n3. Temporary password: '+pw+'\n\nYou will be asked to choose your own password after signing in.'}
-function linkSubject(){return 'Oxford Project Reporting: your access'}
-function linkText(){return 'Hi,\n\nYou have been given access to Oxford Project Reporting.\n\nOpen the app here: '+APP_URL+'\n\nSign in with your work email. Your temporary password will be sent separately; after signing in you will be asked to choose your own.\n\nTip: bookmark the link, or use the browser menu to install it as an app.'}
+function shareText(em,pw){return 'Hi,\n\nYou now have access to Project Reporting.\n\n1. Open '+APP_URL+'\n2. Sign in with your email: '+em+'\n3. Temporary password: '+pw+'\n\nYou will be asked to choose your own password after signing in.'}
+function linkSubject(){return 'Project Reporting: your access'}
+function linkText(){return 'Hi,\n\nYou have been given access to Project Reporting.\n\nOpen it here: '+APP_URL+'\n\nSign in with your work email. Your temporary password will be sent separately; after signing in you will be asked to choose your own.\n\nTip: bookmark the link, or use the browser menu to install it as an app.'}
+const APP_NAME='Project Reporting';
+/* the link as a name: pasted into Outlook or Teams it shows as “Project Reporting”, with the address hidden behind it */
+function linkHtml(){return `<a href="${APP_URL}">${APP_NAME}</a>`}
+function textToHtml(t){return esc(t).split(esc(APP_URL)).join(linkHtml()).replace(/\n/g,'<br>')}
+async function copyRich(plain,html){try{if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([plain],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]);return true}}catch(e){}
+  /* fallback: copy a selection of the formatted text, which keeps the link */
+  try{const d=document.createElement('div');d.contentEditable='true';d.style.cssText='position:fixed;left:-9999px;top:0';d.innerHTML=html;document.body.appendChild(d);const r=document.createRange();r.selectNodeContents(d);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);const ok=document.execCommand('copy');sel.removeAllRanges();d.remove();if(ok)return true}catch(e){}
+  try{await navigator.clipboard.writeText(plain);return true}catch(e){return false}}
 function linkMailto(to){return 'mailto:'+(to||'')+'?subject='+encodeURIComponent(linkSubject())+'&body='+encodeURIComponent(linkText())}
 function linkPanel(){const others=(TEAM||[]).map(u=>u.email).filter(e=>e&&e!==(window.__me.email||''));
-  return `<div class="panel" style="margin-bottom:12px"><h3>Share the app</h3><p class="hint" style="margin:4px 0 10px">Send people the link to Oxford Project Reporting. The email opens in your own mail app (Outlook), so it reaches company inboxes.</p>
-  <div class="to-row" style="gap:8px;flex-wrap:wrap;align-items:center"><input class="f" id="app_link" readonly value="${esc(APP_URL)}" style="flex:1;min-width:240px">
+  return `<div class="panel" style="margin-bottom:12px"><h3>Share the app</h3><p class="hint" style="margin:4px 0 10px">Send people the link. When you paste it into Outlook or Teams it shows as just “Project Reporting”.</p>
+  <div class="to-row" style="gap:8px;flex-wrap:wrap;align-items:center"><a id="app_link" href="${esc(APP_URL)}" target="_blank" rel="noopener" style="flex:1;min-width:200px;font-weight:600;font-size:15px">${APP_NAME}</a>
   <button class="btn primary" type="button" data-copylink="link">Copy link</button><button class="btn ghost" type="button" data-copylink="msg">Copy invite message</button>
   ${others.length?`<a class="btn ghost" style="text-decoration:none" href="${esc(linkMailto('')+'&bcc='+encodeURIComponent(others.join(',')))}" target="_blank" rel="noopener">Email everyone (${others.length})</a>`:''}</div>
   <span class="hint" id="link_hint" style="display:block;margin-top:6px">To send it to one person, use “Email link” next to their name.</span></div>`}
@@ -4316,6 +4411,7 @@ async function loadTeam(){const sb=window.__sb;const {data,error}=await sb.from(
   PK=p.error?{err:p.error.message,list:[],mem:[],proj:[]}:{list:p.data||[],mem:m.data||[],proj:j.data||[]};render()}
 const scopeLabel=s=>s==='packages'?'Only their packages':'All projects';
 const INV_AT={};
+function editDist(a,b){const m=a.length,n=b.length;let p=[...Array(n+1).keys()];for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
 function inviteWait(email){const t=INV_AT[email];return t?Math.max(0,60-Math.floor((Date.now()-t)/1000)):0}
 /* company mail systems that hold the app's set-up emails: people there get a sign-in made directly, sent from your own Outlook */
 const MAIL_HELD=/@oxfordgroup\.com\.au$/i;const mailHeld=e=>MAIL_HELD.test(String(e||''));
@@ -4368,7 +4464,7 @@ V.team=()=>{
   const pkOf=e=>PK?PK.mem.filter(m=>m.email===e).map(m=>(PK.list.find(p=>p.id===m.package_id)||{}).name).filter(Boolean):[];
   return `<div class="stack">${head('Team & users','Everyone listed here signs in with their email and password. Admins can add and remove people, set what they can see, and group projects into packages.')}
   ${TEAMMSG?`<div class="banner">${esc(TEAMMSG)}</div>`:''}
-  ${TEAMSHARE?`<div class="panel" style="margin-bottom:12px"><b>Sign-in details for ${esc(TEAMSHARE.email)}</b><textarea class="f" id="share_txt" readonly rows="8" style="width:100%;margin:8px 0;font-family:inherit">${esc(shareText(TEAMSHARE.email,TEAMSHARE.pw))}</textarea><a class="btn primary" style="text-decoration:none" href="${esc('mailto:'+TEAMSHARE.email+'?subject='+encodeURIComponent('Oxford Project Reporting: your sign-in')+'&body='+encodeURIComponent(shareText(TEAMSHARE.email,TEAMSHARE.pw)))}" target="_blank" rel="noopener">Open in Outlook</a> <button class="btn" type="button" data-copyshare="1">Copy message</button> <button class="btn ghost" type="button" data-closeshare="1">Done</button> <span class="hint" id="share_hint">Paste it into an email from your work account so their company filter doesn’t hold it.</span></div>`:''}
+  ${TEAMSHARE?`<div class="panel" style="margin-bottom:12px"><b>Sign-in details for ${esc(TEAMSHARE.email)}</b><textarea class="f" id="share_txt" readonly rows="8" style="width:100%;margin:8px 0;font-family:inherit">${esc(shareText(TEAMSHARE.email,TEAMSHARE.pw))}</textarea><a class="btn primary" style="text-decoration:none" href="${esc('mailto:'+TEAMSHARE.email+'?subject='+encodeURIComponent('Project Reporting: your sign-in')+'&body='+encodeURIComponent(shareText(TEAMSHARE.email,TEAMSHARE.pw)))}" target="_blank" rel="noopener">Open in Outlook</a> <button class="btn" type="button" data-copyshare="1">Copy message</button> <button class="btn ghost" type="button" data-closeshare="1">Done</button> <span class="hint" id="share_hint">Paste it into an email from your work account so their company filter doesn’t hold it.</span></div>`:''}
   ${admin?linkPanel():''}
   ${admin?`<form class="panel" id="teamform"><h3>Add a user</h3><div class="form" style="margin-top:10px">
     <label>Email<input class="f" id="tm_email" type="email" required placeholder="name@company.com.au"></label>
@@ -4410,12 +4506,13 @@ document.addEventListener('submit',async e=>{const sb=window.__sb;
   if(e.target.id!=='teamform')return;e.preventDefault();
   const email=document.getElementById('tm_email').value.trim().toLowerCase(),name=document.getElementById('tm_name').value.trim(),role=document.getElementById('tm_role').value,scope=document.getElementById('tm_scope').value,pkg=document.getElementById('tm_pkg')?.value;
   if(!/^\S+@\S+\.\S+$/.test(email)){TEAMMSG='Enter a valid email.';render();return}
+  {const dom=email.split('@')[1]||'';if(dom!=='oxfordgroup.com.au'&&editDist(dom,'oxfordgroup.com.au')<=3&&!UI.domOk){UI.domOk=email;TEAMMSG=`Check the spelling: “${dom}” looks like a typo for oxfordgroup.com.au. Fix it, or press Add again to use it as typed.`;render();return}if(UI.domOk!==email)UI.domOk=null}
   const {error}=await sb.from('team').insert({email,name,role,scope});
-  if(error){TEAMMSG=/duplicate/i.test(error.message)?email+' is already on the team.':'Could not add the user: '+error.message;loadTeam();return}
+  if(error){TEAMMSG=/duplicate/i.test(error.message)?email+' is already on the team. To send them their sign-in, click “Sign-in details” next to their name below.':'Could not add the user: '+error.message;loadTeam();return}
   if(pkg){const r=await sb.from('package_members').insert({package_id:pkg,email});if(r.error)TEAMMSG='Added '+email+', but could not add them to the package: '+r.error.message}
   const pre=TEAMMSG&&TEAMMSG.startsWith('Added '+email+', but')?TEAMMSG+' ':'';const tpw=(document.getElementById('tm_pw')?.value||'').trim();
   let msg;
-  if(mailHeld(email)&&!window.__mcpMode){const pw=tpw.length>=8?tpw:genPw();msg='Added '+email+'. Oxford’s email system holds the app’s set-up emails, so their sign-in has been made now. '+(await setTempPw(email,pw))}
+  if(mailHeld(email)||window.__mcpMode){const pw=tpw.length>=8?tpw:genPw();msg='Added '+email+'. '+(window.__mcpMode?'Claude can’t send emails itself, so their sign-in has been made now. ':'Oxford’s email system holds the app’s set-up emails, so their sign-in has been made now. ')+(await setTempPw(email,pw))}
   else{const ie=await inviteEmail(email);msg='Added '+email+'. '+inviteMsg(email,ie);
     if(tpw){if(tpw.length<8)msg+=' The temporary password was not set: use at least 8 characters.';else msg='Added '+email+'. '+(await setTempPw(email,tpw))}}
   TEAMMSG=pre+msg;loadTeam()});
@@ -4424,14 +4521,13 @@ document.addEventListener('change',async e=>{const d=e.target.dataset||{};const 
   if(d.teamscope){const {error}=await sb.from('team').update({scope:e.target.value}).eq('email',d.teamscope);TEAMMSG=error?'Could not change access: '+error.message:d.teamscope+' can now see: '+scopeLabel(e.target.value)+'.';loadTeam();return}
   if(d.pkaddproj&&e.target.value){const {error}=await sb.from('package_projects').insert({package_id:d.pkaddproj,project_id:e.target.value});TEAMMSG=error?'Could not add the project: '+error.message:'Added '+projName(e.target.value)+' to the package.';loadTeam();return}
   if(d.pkaddmem&&e.target.value){const {error}=await sb.from('package_members').insert({package_id:d.pkaddmem,email:e.target.value});TEAMMSG=error?'Could not add the person: '+error.message:'Added '+e.target.value+' to the package.';loadTeam();return}});
-document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-copylink]');if(!t)return;const txt=t.dataset.copylink==='msg'?linkText():APP_URL;const h=document.getElementById('link_hint');
-  const ok=()=>{if(h)h.textContent=t.dataset.copylink==='msg'?'Invite message copied. Paste it into an email or Teams message.':'Link copied.'};
-  try{await navigator.clipboard.writeText(txt);ok()}catch(_){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(__){if(h)h.textContent='Copy the link from the box above.'}ta.remove()}});
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-copylink]');if(!t)return;const msg=t.dataset.copylink==='msg';const txt=msg?linkText():APP_URL;const h=document.getElementById('link_hint');
+  const ok=await copyRich(txt,msg?textToHtml(txt):linkHtml());if(h)h.textContent=ok?(msg?'Invite message copied. Paste it into an email or Teams message; the link shows as “Project Reporting”.':'Link copied. Paste it into an email or Teams message and it shows as “Project Reporting”.'):'Could not copy. Right-click “Project Reporting” above and choose Copy link.'});
 document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('[data-genpw],[data-copyshare],[data-closeshare]');if(!t)return;
   if(t.dataset.genpw){const i=document.getElementById('tmp_pw');if(i){i.value=genPw();i.focus()}return}
   if(t.dataset.closeshare){TEAMSHARE=null;render();return}
   const ta=document.getElementById('share_txt'),h=document.getElementById('share_hint');if(!ta)return;
-  try{await navigator.clipboard.writeText(ta.value);if(h)h.textContent='Copied. Paste it into an email or Teams message.'}catch(_){ta.focus();ta.select();try{document.execCommand('copy');if(h)h.textContent='Copied. Paste it into an email or Teams message.'}catch(__){if(h)h.textContent='Select the text above and copy it.'}}});
+  const ok=await copyRich(ta.value,textToHtml(ta.value));if(h)h.textContent=ok?'Copied. Paste it into an email or Teams message; the link shows as “Project Reporting”.':'Select the text above and copy it.'});
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tmppw]');if(!t)return;UI.tmpPw=t.dataset.tmppw||null;render();if(UI.tmpPw)setTimeout(()=>document.getElementById('tmp_pw')?.focus(),30)});
 document.addEventListener('submit',async e=>{const em=e.target.dataset&&e.target.dataset.tmpform;if(!em)return;e.preventDefault();const pw=(document.getElementById('tmp_pw')?.value||'').trim();
   if(pw.length<8){TEAMMSG='Use at least 8 characters for the temporary password.';render();return}TEAMMSG='Setting the password…';render();TEAMMSG=await setTempPw(em,pw);if(!/^Could not|need|isn’t ready/.test(TEAMMSG))UI.tmpPw=null;render()});
