@@ -175,6 +175,7 @@ tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var
 .to-igrp{display:flex;gap:6px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:6px 2px;margin:4px 0 2px;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);cursor:pointer;text-align:left}
 .to-also{display:flex;flex-direction:column;gap:5px;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--accent);font-size:12px}.to-also-r{display:flex;gap:6px;align-items:center}.to-also-r .f{padding:3px 6px;min-width:0;flex:1}.to-also-r .f.num{flex:none}.to-aq{min-width:56px;text-align:right}
 .to-also-sum{margin:-2px 0 4px 34px;font-size:11.5px}
+.to-mempdf{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--accent);border-radius:8px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}.to-mplist{max-height:320px;overflow:auto}.to-mplist .to-memi{cursor:pointer}
 .to-allow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--line);font-size:12px}.to-allow .f{padding:3px 6px}
 .to-mk.dim{opacity:.35}.to-mk.sel{filter:drop-shadow(0 0 3px #000)}
 svg[data-tool="sel"] .to-mk,svg[data-tool="sel"] .to-zone{cursor:pointer}
@@ -2517,7 +2518,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <span class="tag${i.src?' to-autotag':''}" title="${esc(i.src||'')}">${i.src?'✨ ':''}${TO_TYPE[i.type]}</span>
     <span class="money to-q" title="${q&&q.miss?'Some marks are on a page with no scale':''}">${q?toFmt(i.type,q.v)+(q.miss?' *':''):'—'}</span>
     <button class="btn ghost" data-ta="idel" data-v="${i.id}" aria-label="Delete item" title="Delete item and its marks">✕</button></div>${i.type==='length'&&TO.item===i.id?`<div class="to-allow"><span class="hint">Cable allowance</span><label class="hint">Extra per run <input class="f num" id="to_al_${i.id}" data-tk="iallow|${i.id}" value="${esc(i.allow||'')}" placeholder="0" inputmode="decimal" style="width:62px"> m</label><label class="hint">Waste <input class="f num" id="to_wa_${i.id}" data-tk="iwaste|${i.id}" value="${esc(i.waste||'')}" placeholder="0" inputmode="decimal" style="width:52px"> %</label><span class="hint" id="to_alq_${i.id}">${q&&toHasAllow(i)?`Measured ${toFmt('length',q.raw)} in ${q.runs} run${q.runs===1?'':'s'}`:'Add drops, terminations and waste to each run'}</span></div>`:''}
-    ${TO.item===i.id?`<div class="to-also"><span class="hint"><b>Also counts as</b> · one ${esc(TO_UNIT[i.type]==='ea'?'click':TO_UNIT[i.type])} of ${esc(i.name||'this')} also counts…</span>${also.map(a=>`<div class="to-also-r"><input class="f" id="to_an_${a.id}" data-tk="aname|${i.id}|${a.id}" value="${esc(a.name||'')}" placeholder="e.g. Back box" aria-label="Also counts as"><span class="hint">×</span><input class="f num" id="to_ap_${a.id}" data-tk="aper|${i.id}|${a.id}" value="${esc(a.per??'1')}" inputmode="decimal" style="width:56px" aria-label="How many per ${esc(i.name||'item')}"><span class="money hint to-aq">${q?toFmt(i.type,q.v*(a.per===''||a.per==null?1:num(a.per))):'—'}</span><button class="btn ghost" data-ta="adel" data-v="${i.id}|${a.id}" aria-label="Remove">✕</button></div>`).join('')}<button class="btn ghost" data-ta="aadd" data-v="${i.id}" style="align-self:flex-start">+ Also counts as…</button></div>`
+    ${TO.item===i.id?`<div class="to-also"><span class="hint"><b>Also counts as</b> · one ${esc(TO_UNIT[i.type]==='ea'?'click':TO_UNIT[i.type])} of ${esc(i.name||'this')} also counts…</span>${also.map(a=>`<div class="to-also-r"><input class="f" id="to_an_${a.id}" data-tk="aname|${i.id}|${a.id}" value="${esc(a.name||'')}" placeholder="e.g. Back box" aria-label="Also counts as"><span class="hint">×</span><input class="f num" id="to_ap_${a.id}" data-tk="aper|${i.id}|${a.id}" value="${esc(a.per??'1')}" inputmode="decimal" style="width:56px" aria-label="How many per ${esc(i.name||'item')}"><span class="money hint to-aq">${q?toFmt(i.type,q.v*(a.per===''||a.per==null?1:num(a.per))):'—'}</span><button class="btn ghost" data-ta="alsodel" data-v="${i.id}|${a.id}" aria-label="Remove">✕</button></div>`).join('')}<button class="btn ghost" data-ta="alsoadd" data-v="${i.id}" style="align-self:flex-start">+ Also counts as…</button></div>`
       :also.filter(a=>(a.name||'').trim()).map(a=>`<div class="to-also-sum hint">↳ ${esc(a.name)} ×${esc(a.per??'1')}${q?' · '+toFmt(i.type,q.v*(a.per===''||a.per==null?1:num(a.per))):''}</div>`).join('')}`};
   let TOF={};try{TOF=JSON.parse(localStorage.getItem('ox_tofold')||'{}')||{}}catch(e){}
   const items=['count','length','area'].map(ty=>{const L=d.items.filter(i=>i.type===ty);if(!L.length)return '';const fold=!!TOF[ty];
@@ -2588,8 +2589,8 @@ function toWire(h){
     if(a==='zone'){TO.zone=v;if(TO.mode!=='sec')TO.mode='sec';toSync();const z=toCurZone(d);if(z)toFocusZone(z);return}
     if(a==='iadd'){undoRecord();const n=d.items.filter(i=>i.type===v).length+1;const it={id:uid('i'),name:'',type:v,color:TO_COLORS[d.items.length%TO_COLORS.length]};d.items.push(it);TO.item=it.id;TO.tool='take';TO.draft=[];persist('drawings/'+TO.id);toSync();setTimeout(()=>{const n=document.getElementById('to_in_'+it.id);if(n)n.focus()},30);return}
     if(a==='igrp'){let F={};try{F=JSON.parse(localStorage.getItem('ox_tofold')||'{}')||{}}catch(e){}F[v]=!F[v];try{localStorage.setItem('ox_tofold',JSON.stringify(F))}catch(e){}toSide();return}
-    if(a==='aadd'){const it=d.items.find(i=>i.id===v);if(!it)return;undoRecord();(it.also=it.also||[]).push({id:uid('a'),name:'',per:'1'});persist('drawings/'+TO.id);toSide();const L=it.also[it.also.length-1];setTimeout(()=>{const el=document.getElementById('to_an_'+L.id);if(el)el.focus()},30);return}
-    if(a==='adel'){const [iid,aid]=v.split('|');const it=d.items.find(i=>i.id===iid);if(!it)return;undoRecord();it.also=(it.also||[]).filter(x=>x.id!==aid);persist('drawings/'+TO.id);toSide();toSum();return}
+    if(a==='alsoadd'){const it=d.items.find(i=>i.id===v);if(!it)return;undoRecord();(it.also=it.also||[]).push({id:uid('a'),name:'',per:'1'});persist('drawings/'+TO.id);toSide();const L=it.also[it.also.length-1];setTimeout(()=>{const el=document.getElementById('to_an_'+L.id);if(el)el.focus()},30);return}
+    if(a==='alsodel'){const [iid,aid]=v.split('|');const it=d.items.find(i=>i.id===iid);if(!it)return;undoRecord();it.also=(it.also||[]).filter(x=>x.id!==aid);persist('drawings/'+TO.id);toSide();toSum();return}
     if(a==='idel'){undoRecord();d.items=d.items.filter(i=>i.id!==v);d.marks=d.marks.filter(m=>m.it!==v);if(TO.item===v)TO.item=null;persist('drawings/'+TO.id);toSync();return}
     if(a==='zdel'){undoRecord();d.zones=d.zones.filter(z=>z.id!==v);if(TO.zone===v)TO.zone=null;persist('drawings/'+TO.id);toSync();return}
     if(a==='finish')return toFinish();
@@ -2619,7 +2620,13 @@ function toWire(h){
     if(a==='areafind')return toAreasRun(d,TO.auto.pages==='all'?[...Array(TO.pages||d.pages||1)].map((_,i)=>i+1):[TO.page]);
     if(a==='areamk'){const n=toAreasMake(d,TO.areas.list);TO.areas=null;if(n&&TO.mode!=='sec'){}toSync();return}
     if(a==='areax'){TO.areas=null;toSide();toDraw();return}
-    if(a==='memall')return toMemAll(d);
+    if(a==='mpcancel'){TO.memPdf=null;toSide();return}
+if(a==='mpall'){if(TO.memPdf){for(const r of TO.memPdf.rows)r.on=v==='1';toSide()}return}
+if(a==='mpsave'){const P=TO.memPdf;if(!P)return;const L=toLib();let n=0;for(const r of P.rows){if(!r.on)continue;const nm=(r.name||'').trim()||'Symbol '+(L.length+1);
+    const ex=L.find(x=>x.kind==='sym'&&x.name.trim().toLowerCase()===nm.toLowerCase());const e={id:ex?ex.id:uid('y'),kind:'sym',loaded:1,name:nm,img:r.img,src:r.src,ar:r.ar,ptHint:r.pt,thr:0.85,rot:true,used:ex?ex.used||0:0,at:Date.now(),from:P.name};
+    if(ex)Object.assign(ex,e,{pt:undefined});else L.push(e);n++}
+  toLibSave();TO.memPdf=null;TO.auto.note=`Memorised ${n} symbol${n===1?'':'s'} from ${P.name}. Press ✨ Count all memorised, or Count next to one.`;toSide();return}
+if(a==='memall')return toMemAll(d);
     if(a==='memrun'){const e=toLib().find(x=>x.id===v);if(e)toMemRun(d,e,false);return}
     if(a==='memdel'){S.info.symlib=toLib().filter(x=>x.id!==v);toLibSave();toSide();return}
     if(a==='memtog'){COLL.has('tomem')?COLL.delete('tomem'):COLL.add('tomem');saveColl();toSide();return}
@@ -2648,7 +2655,8 @@ function toWire(h){
     if(k==='sname'){TO.auto.sname=e.target.value;return}
     if(k==='scomb'){TO.auto.scomb=e.target.checked;toSide();return}
     if(k==='ssel'){const A=TO.auto;A.ssel=A.ssel||new Set();if(e.target.checked)A.ssel.add(+id);else A.ssel.delete(+id);toSearchSync();toSide();toDraw();return}
-    if(k==='memname'){const le=toLib().find(x=>x.id===id);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
+    if(k==='mpname'){const r=TO.memPdf&&TO.memPdf.rows.find(x=>x.id===id);if(r)r.name=e.target.value;return}
+if(k==='memname'){const le=toLib().find(x=>x.id===id);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
     if(k==='wopt'){TO.whole[id]=e.target.checked;toSide();return}
     if(k==='won'){const r=TO.whole.rows&&TO.whole.rows[+id];if(r){r.on=e.target.checked;const b=h.querySelector('[data-ta="wadd"]');const n=TO.whole.rows.filter(x=>x.on).length;if(b){b.textContent=`Add ${n} item${n===1?'':'s'}`;b.disabled=!n}toDraw()}return}
     if(k==='wname'){const r=TO.whole.rows&&TO.whole.rows[+id];if(r)r.name=e.target.value;return}
@@ -2662,6 +2670,7 @@ function toWire(h){
     if(k==='athr'){TO.auto.thr=+e.target.value/100;toAutoThr();const sp=e.target.nextElementSibling;if(sp)sp.textContent=Math.round(TO.auto.thr*100)+'%';clearTimeout(TO.athrT);TO.athrT=setTimeout(()=>{toSide();toDraw()},120);toDraw();return}
     if(k==='icol'){const it=d.items.find(i=>i.id===id);if(it){it.color=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}});
   h.addEventListener('change',e=>{if(e.target.id==='to_file2'&&e.target.files&&e.target.files.length){const fs=[...e.target.files];e.target.value='';toUpload(fs).then(()=>{TO.auto.note=UI.toMsg?UI.toMsg.t+' Go back to Drawings to open them.':'';toSide()});return}if(e.target.id==='to_memfile'&&e.target.files&&e.target.files.length){toLibLoad(e.target.files);e.target.value='';return}if(e.target.id==='to_symfile'&&e.target.files&&e.target.files[0]){toSymbolFile(e.target.files[0]);e.target.value=''}});
+  h.addEventListener('change',e=>{const id=e.target.dataset&&e.target.dataset.mp;if(!id||!TO.memPdf)return;const r=TO.memPdf.rows.find(x=>x.id===id);if(r)r.on=e.target.checked;const n=TO.memPdf.rows.filter(x=>x.on).length;const b=document.getElementById('to_mpsave');if(b){b.textContent=`Memorise ${n} symbol${n===1?'':'s'}`;b.disabled=!n}});
   h.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
   h.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
   h.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.to-symdrop');if(!z)return;e.preventDefault();z.classList.remove('dropping');if(!e.dataTransfer||!e.dataTransfer.files.length)return;if(z.classList.contains('to-memdrop'))return toLibLoad(e.dataTransfer.files);toSymbolFile(e.dataTransfer.files[0])});
@@ -3075,8 +3084,9 @@ async function toMemo(d,it,A,thr){const lib=toLib();const kind=A.m==='line'?'lin
   if(isNew)lib.push(e);it.lib=e.id;toLibSave();toSide()}
 function toLibBox(d){const L=toLib();const busy=!!TO.auto.busy;const shut=COLL.has('tomem');
   return `<div class="to-box to-mem"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>🧠 Memorised symbols${L.length?` (${L.length})`:''}</b><button class="tog" data-ta="memtog" aria-expanded="${!shut}">${shut?'▸':'▾'}</button></div>
-    ${shut?'':`<p class="hint" style="margin:0">Load pictures of the symbols you use (PNG or JPG). They're kept for this project, so you can count them on any drawing.</p>
-    <label class="to-symdrop to-memdrop" for="to_memfile"><span><b>Load symbols</b> · drop images here or choose files</span><input type="file" id="to_memfile" accept="image/*" multiple hidden></label>
+    ${shut?'':`<p class="hint" style="margin:0">Load the symbols you use: pictures (PNG or JPG), or a legend / symbol schedule PDF, and each symbol is read with its description. They're kept for this project, so you can count them on any drawing.</p>
+    <label class="to-symdrop to-memdrop" for="to_memfile"><span><b>Load symbols</b> · drop a legend PDF or symbol images here, or choose files</span><input type="file" id="to_memfile" accept="image/*,application/pdf,.pdf" multiple hidden></label>
+    ${TO.memPdf?toMemPdfHtml():''}
     ${L.length?`<button class="btn primary" data-ta="memall" ${busy?'disabled':''}>✨ Count all memorised on ${TO.auto.pages==='all'?'all pages':'this page'}</button>
     <div class="to-memlist">${L.map(e=>`<div class="to-memi"><img src="${e.img}" alt="" class="to-thumb"><input class="f" data-tk="memname|${e.id}" value="${esc(e.name)}" aria-label="Symbol name" style="flex:1;min-width:60px" title="${e.pt?'About '+Math.round(e.pt*0.3528*10)/10+' mm on the drawing':'Size found on first count'}">
       <button class="btn" data-ta="memrun" data-v="${e.id}" ${busy?'disabled':''}>Count</button><button class="btn ghost" data-ta="memdel" data-v="${e.id}" aria-label="Forget ${esc(e.name)}">✕</button></div>`).join('')}</div>`:''}`}</div>`}
@@ -3085,7 +3095,34 @@ async function toSymPrep(f){const im=await toImgLoad(await toFileUrl(f));const c
   if(b<0)return null;const w=r-l+1,h=b-t+1;const k=Math.min(1,240/Math.max(w,h));const c2=document.createElement('canvas');c2.width=Math.max(1,Math.round(w*k));c2.height=Math.max(1,Math.round(h*k));const x2=c2.getContext('2d');x2.fillStyle='#fff';x2.fillRect(0,0,c2.width,c2.height);x2.drawImage(c,l,t,w,h,0,0,c2.width,c2.height);
   const k3=Math.min(1,120/Math.max(c2.width,c2.height));const c3=document.createElement('canvas');c3.width=Math.max(1,Math.round(c2.width*k3));c3.height=Math.max(1,Math.round(c2.height*k3));const x3=c3.getContext('2d');x3.fillStyle='#fff';x3.fillRect(0,0,c3.width,c3.height);x3.drawImage(c2,0,0,c3.width,c3.height);
   const name=(f.name&&!/^image\.(png|jpe?g)$/i.test(f.name)?f.name.replace(/\.[a-z0-9]+$/i,''):'')||'Symbol '+(toLib().length+1);return {name,img:c3.toDataURL('image/png'),src:c2.toDataURL('image/png'),ar:c2.width/c2.height}}
-async function toLibLoad(files){const L=[...files].filter(f=>/^image\//.test(f.type));if(!L.length){TO.auto.note='Load images of symbols (PNG or JPG).';toSide();return}let n=0;
+/* ---------- memorised symbols from a legend / symbol schedule PDF ---------- */
+async function toThumbOf(src){const im=await toImgLoad(src);const k=Math.min(1,120/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*k));c.height=Math.max(1,Math.round(im.naturalHeight*k));
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/png')}
+async function toLibFromPdf(f){const A=TO.auto;const fid='legend-'+uid('l');DWG_BLOB[fid]=f;A.busy='Reading symbols from '+f.name+'…';A.note='';TO.memPdf=null;toSide();
+  const rows=[],seen=new Set();
+  try{const pdf=await toPdf(fid);const np=Math.min(pdf.numPages,8);const d0={file:{id:fid}};
+    for(let pg=1;pg<=np;pg++){const T=await toTextLines(d0,pg);
+      const lines=T.lines.filter(l=>{const t=l.s.trim();return t.length>1&&!/^(legend|symbols?|symbol legend|electrical legend|key|description|notes?|symbol|item|qty)$/i.test(t)});
+      for(const l of lines){A.busy=`Reading symbols from ${f.name}… page ${pg} of ${np} · ${rows.length} found`;toSide();await new Promise(r=>setTimeout(r,0));
+        const zx=Math.max(0,l.x0-l.fs*8),zone=[zx,l.y0-l.fs*0.9,Math.max(4,l.x0-zx-l.fs*0.4),(l.y1-l.y0)+l.fs*1.8];
+        /* other wording in that space means it's text, not a symbol (short tags inside a symbol are fine) */
+        if(T.items.some(it=>{const cx=(it.x0+it.x1)/2,cy=(it.y0+it.y1)/2;return cx>zone[0]&&cx<zone[0]+zone[2]&&cy>zone[1]&&cy<zone[1]+zone[3]&&it.s.trim().length>4}))continue;
+        const box=await toInkBox(pdf,pg,zone,fid);if(!box)continue;const r=box.r;if(r[2]<2.5||r[3]<2.5||r[2]>l.fs*8||r[3]>l.fs*6)continue;
+        const name=l.s.trim().replace(/\s+/g,' ').slice(0,80);if(seen.has(name.toLowerCase()))continue;
+        const c=await toCropSrc(fid,pg,r).catch(()=>null);if(!c)continue;seen.add(name.toLowerCase());
+        rows.push({id:uid('p'),name,src:c.src,ar:c.ar,pt:c.pt||Math.max(r[2],r[3]),img:await toThumbOf(c.src),on:true})}}
+    A.busy='';if(rows.length)TO.memPdf={name:f.name,rows};else A.note=`No symbols with a description beside them were found in ${f.name}. The PDF needs a legend laid out as symbol, then its description to the right (a drawn PDF, not a scan).`}
+  catch(e){console.error(e);A.busy='';A.note='Could not read '+f.name+'. Check it’s a PDF exported from CAD, not a scanned image.'}
+  finally{try{(await PDFC[fid])?.destroy()}catch(e){}delete PDFC[fid];delete DWG_BLOB[fid];if(TO.txt)for(const k in TO.txt)if(k.startsWith(fid+'#'))delete TO.txt[k];if(PGC.fid===fid){if(PGC.c)PGC.c.width=PGC.c.height=1;Object.assign(PGC,{k:null,c:null,fid:null})}}
+  if(COLL.has('tomem')){COLL.delete('tomem');saveColl()}toSide()}
+function toMemPdfHtml(){const P=TO.memPdf;const on=P.rows.filter(r=>r.on).length;
+  return `<div class="to-mempdf"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>From ${esc(P.name)}</b><span class="hint">${P.rows.length} found</span></div>
+    <p class="hint" style="margin:0">Untick anything that isn’t a symbol, and fix names if needed.</p>
+    <div class="to-row" style="gap:6px"><button class="btn ghost" data-ta="mpall" data-v="1">All</button><button class="btn ghost" data-ta="mpall" data-v="0">None</button></div>
+    <div class="to-memlist to-mplist">${P.rows.map(r=>`<label class="to-memi"><input type="checkbox" data-mp="${r.id}" ${r.on?'checked':''} aria-label="Memorise ${esc(r.name)}"><img src="${r.img}" alt="" class="to-thumb"><input class="f" data-tk="mpname|${r.id}" value="${esc(r.name)}" aria-label="Symbol name" style="flex:1;min-width:60px" title="About ${Math.round(r.pt*0.3528*10)/10} mm on the legend"></label>`).join('')}</div>
+    <div class="to-row" style="gap:6px"><button class="btn primary" data-ta="mpsave" id="to_mpsave" ${on?'':'disabled'}>Memorise ${on} symbol${on===1?'':'s'}</button><button class="btn" data-ta="mpcancel">Cancel</button></div></div>`}
+async function toLibLoad(files){const P=[...files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name||''));if(P.length){for(const f of P)await toLibFromPdf(f);if(!files.length||[...files].every(f=>P.includes(f)))return}
+  const L=[...files].filter(f=>/^image\//.test(f.type));if(!L.length){TO.auto.note='Load a legend PDF or images of symbols (PNG or JPG).';toSide();return}let n=0;
   for(const f of L){try{const p=await toSymPrep(f);if(!p)continue;toLib().push({id:uid('y'),kind:'sym',loaded:1,...p,thr:0.85,rot:true,used:0,at:Date.now()});n++}catch(e){console.error(e)}}
   toLibSave();TO.auto.note=n?`Memorised ${n} symbol${n===1?'':'s'}. Rename them if needed, then press Count.`:'Could not read those images.';if(COLL.has('tomem')){COLL.delete('tomem');saveColl()}toSide()}
 async function toFindLineKey(d,key){const A=TO.auto;A.busy='Reading the drawing lines…';A.res=null;A.note='';toSide();
@@ -3096,11 +3133,20 @@ async function toMemRun(d,e,quiet){const A=TO.auto;const ex=d.items.find(i=>i.na
   Object.assign(A,{m:e.kind==='line'?'line':e.kind==='label'?'label':'symbol',name:e.name,tgt:ex?ex.id:'new',res:null,all:null,snapId:null,snapImg:null,lastRect:null});TO.tool='auto';
   if(e.kind==='label'){A.q=e.q;await toFindLabel(d)}
   else if(e.kind==='line')await toFindLineKey(d,e.key);
-  else{A.rot=e.rot!==false;A.thr=e.thr||0.85;const sn={id:'lib_'+e.id,src:e.src,img:e.img,ar:e.ar,pt:e.pt,name:e.name};A.snapImg=e.img;A.snapId='lib_'+e.id;await toFindImg(d,sn,e.pt);A.thr=e.thr||A.thr;toAutoThr()}
+  else{A.rot=e.rot!==false;A.thr=e.thr||0.85;const sn={id:'lib_'+e.id,src:e.src,img:e.img,ar:e.ar,pt:e.pt,ptHint:e.ptHint,name:e.name};A.snapImg=e.img;A.snapId='lib_'+e.id;await toFindImg(d,sn,e.pt);A.thr=e.thr||A.thr;toAutoThr()}
+  if(quiet==='collect'){const res=(A.res||[]).filter(c=>c.on);return res.length?{e,snap:Object.assign({},A),res,pt:A.imgPt||e.pt||8}:null}
   if(quiet){const n=(A.res||[]).filter(c=>c.on).length;if(!n)return null;const before=TO.applied;toAutoAdd(d,{memo:false,lib:e});return TO.applied}
   toSide();toDraw();return null}
 async function toMemAll(d){const L=toLib().slice();if(!L.length)return;const got=[];const miss=[];TO.memBusy=true;
-  for(let i=0;i<L.length;i++){TO.auto.busy=`Running ${L[i].name} (${i+1} of ${L.length})…`;toSide();const r=await toMemRun(d,L[i],true);if(r)got.push(r);else miss.push(L[i].name)}
+  /* find every symbol first, then give any spot two symbols both claim to the one that matches it better (look-alike symbols otherwise count each other) */
+  const runs=[];for(let i=0;i<L.length;i++){TO.auto.busy=`Looking for ${L[i].name} (${i+1} of ${L.length})…`;toSide();const r=await toMemRun(d,L[i],'collect');if(r)runs.push(r);else miss.push(L[i].name)}
+  const G=new Map(),gs=12;const key=(pg,x,y)=>pg+':'+Math.floor(x/gs)+':'+Math.floor(y/gs);
+  runs.forEach((r,ri)=>(r.snap.all||r.res).forEach(c=>{if(c.s==null&&!r.res.includes(c))return;const [x,y]=c.pts[0];const k=key(c.pg,x,y);(G.get(k)||G.set(k,[]).get(k)).push({ri,c})}));
+  const drop=new Set();for(const [ri,r] of runs.entries())for(const c of r.res){const [x,y]=c.pts[0];const gx=Math.floor(x/gs),gy=Math.floor(y/gs);
+    for(let yy=gy-1;yy<=gy+1;yy++)for(let xx=gx-1;xx<=gx+1;xx++)for(const o of G.get(c.pg+':'+xx+':'+yy)||[]){if(o.ri===ri||o.c===c)continue;const rad=0.5*Math.min(r.pt,runs[o.ri].pt);
+      if(Math.hypot(o.c.pts[0][0]-x,o.c.pts[0][1]-y)<rad&&((o.c.s||0)>(c.s||0)||((o.c.s||0)===(c.s||0)&&o.ri<ri)))drop.add(c)}}
+  for(let i=0;i<runs.length;i++){const r=runs[i];const keep=r.res.filter(c=>!drop.has(c));if(!keep.length){miss.push(r.e.name);continue}TO.auto.busy=`Adding ${r.e.name} (${i+1} of ${runs.length})…`;toSide();
+    Object.assign(TO.auto,r.snap,{res:keep,all:keep});toAutoAdd(d,{memo:false,lib:r.e});if(TO.applied)got.push(TO.applied)}
   TO.memBusy=false;TO.auto.busy='';TO.auto.res=null;TO.auto.all=null;
   TO.applied=got.length?{did:TO.id,multi:got,miss}:null;TO.auto.note=got.length?'':'None of the memorised items were found on this '+(TO.auto.pages==='all'?'drawing':'page')+'.';toSync()}
 /* ---------- Take off: smart sections and whole-drawing auto take off ---------- */
@@ -3396,15 +3442,23 @@ async function toImgHits(d,how,pages){const im=await toImgLoad(how.src);const hi
 async function toFindImg(d,sn,sizeOverride){const A=TO.auto;A.busy='Finding the symbol size on the drawing…';A.res=null;A.all=null;A.note='';A.tpl=null;toSide();toDraw();
   try{const im=await toImgLoad(sn.src||sn.img);const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];const ar=sn.ar||im.naturalWidth/im.naturalHeight||1;
     let pt=sizeOverride||sn.pt||0;
-    if(!pt){const sizes=[];for(let v=6;v<=46;v*=1.14)sizes.push(Math.round(v*10)/10);let best=null;
+    if(!pt){const sizes=[];const hint=sn.ptHint;if(hint)for(const k of [1,0.87,1.15,0.76,1.3])sizes.push(Math.round(hint*k*10)/10);else for(let v=6;v<=46;v*=1.14)sizes.push(Math.round(v*10)/10);let best=null;
       for(let i=0;i<sizes.length;i++){A.busy=`Finding the symbol size on the drawing… ${Math.round((i+1)/sizes.length*100)}%`;toSide();
-        const c=await toMatchPages(d.file.id,[TO.page],R=>toImgT(im,ar,sizes[i]*R),2,A.rot,0.6);c.sort((a,b)=>b.s-a.s);const nh=c.filter(x=>x.s>=0.85).length;
-        const top=c.slice(0,3).reduce((a,x)=>a+x.s,0)/3-0.004*Math.log2(Math.max(1,nh))-(nh>150?1:0);if(!best||top>best.top+0.005)best={pt:sizes[i],top}}
+        const c=await toMatchPages(d.file.id,[TO.page],R=>toImgT(im,ar,sizes[i]*R),2,A.rot,0.6);c.sort((a,b)=>b.s-a.s);const nh=c.filter(x=>x.s>=0.85).length;const t3=c.slice(0,3).reduce((a,x)=>a+x.s,0)/3;
+        /* with a size from a legend PDF, judge sizes on match quality alone (a busy sheet can hold hundreds of real matches) and stop once the legend size fits well */
+        const top=hint?t3:t3-0.004*Math.log2(Math.max(1,nh))-(nh>150?1:0);if(!best||top>best.top+0.005)best={pt:sizes[i],top};if(hint&&i===0&&t3>=0.8)break}
       if(!best||best.top<0.5){A.busy='';A.note='No match found for that symbol on this page. Try a clearer image, or drag a box round one on the drawing instead.';return toSide()}
-      pt=best.pt;sn.pt=pt;if(S.dwgs[TO.id])persist('drawings/'+TO.id)}
+      pt=best.pt;sn.pt=pt;if(S.dwgs[TO.id])persist('drawings/'+TO.id);
+      const le=String(sn.id||'').startsWith('lib_')&&toLib().find(x=>x.id===String(sn.id).slice(4));if(le){le.pt=pt;delete le.ptHint;toLibSave()}}
     A.imgPt=pt;A.imgSn=sn.id;if(!sizeOverride&&!sn.thr)A.thr=Math.max(A.thr,0.85);A.busy='Looking for matching symbols…';toSide();
     const hits=await toMatchPages(d.file.id,pages,R=>toImgT(im,ar,pt*R),toRfor(pt,pt*Math.min(ar,1/ar)),A.rot,0.5,f=>{A.busy=`Looking for matching symbols… ${Math.round(f*100)}%`});
-    A.all=hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s,on:true})).filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches at this sensitivity. Lower it, or try Smaller / Larger.'}
+    let all=hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s,on:true})).filter(c=>toAutoKeep(d,c));
+    /* second pass: a picture (from a legend PDF or an image) rarely matches the drawing's own line weights and background exactly,
+       so take the best match from the drawing itself and count with that, which is what drawing a box round one does */
+    const top=all.slice().sort((a,b)=>b.s-a.s)[0];
+    if(top&&top.s>=0.72){const w=ar>=1?pt:pt*ar,h=ar>=1?pt/ar:pt,c0=top.pts[0];const rect=[c0[0]-w/2-1,c0[1]-h/2-1,w+2,h+2];A.busy='Checking matches against the drawing…';toSide();
+      try{const c2=(await toMatchCore(d,top.pg,rect,pages,A.rot)).map(c=>({...c,on:true})).filter(c=>toAutoKeep(d,c));if(c2.filter(c=>c.s>=0.8).length>=all.filter(c=>c.s>=A.thr).length){all=c2;A.lastRect={fid:d.file.id,pg:top.pg,r:rect};if(!sn.thr||sn.thr<0.8)A.thr=0.8}}catch(err){console.warn('second pass skipped',err)}}
+    A.all=all;toAutoThr();A.busy='';A.note=A.res.length?'':'No matches at this sensitivity. Lower it, or try Smaller / Larger.'}
   catch(e){console.error(e);A.busy='';A.note=toBusyErr(e)}toSide();toDraw()}
 
 /* ---------- Take off: 🎯 Auto count — click one symbol, a count item is made and every match is clicked for you ---------- */
