@@ -236,7 +236,7 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .to-revbox{background:color-mix(in srgb,#e03131 6%,var(--surface));border-color:color-mix(in srgb,#e03131 35%,var(--line))}
 .to-oldrev{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
 .to-revsel{width:auto!important;flex:0 0 auto;border-color:var(--line);background:var(--surface);font-weight:600;padding:5px 8px}
-.to-ro [data-ta="iadd"],.to-ro [data-ta="idel"],.to-ro [data-ta="zdel"],.to-ro [data-ta="clrto"],.to-ro [data-ta="areafind"],.to-ro .to-bar [data-ta="tool"]:not([data-v="pan"]),.to-ro .to-bar .to-seg:has([data-ta="snap"]),.to-ro .to-row:has(>[data-ta="tool"][data-v="zone"]) [data-ta="tool"],.to-ro label[for="to_file2"]{display:none!important}
+.to-ro [data-ta="iadd"],.to-ro [data-ta="idel"],.to-ro [data-ta="selmore"],.to-ro [data-ta="selitemdel"],.to-ro [data-ta="seldel"],.to-ro [data-ta="selcont"],.to-ro [data-ta="zdel"],.to-ro [data-ta="clrto"],.to-ro [data-ta="areafind"],.to-ro .to-bar [data-ta="tool"]:not([data-v="pan"]),.to-ro .to-bar .to-seg:has([data-ta="snap"]),.to-ro .to-row:has(>[data-ta="tool"][data-v="zone"]) [data-ta="tool"],.to-ro label[for="to_file2"]{display:none!important}
 .to-ro .to-it input,.to-ro .to-colimg{pointer-events:none}
 .to-ro .to-it{grid-template-columns:22px minmax(0,1fr) auto auto}
 .pc-banner{border-radius:10px;padding:10px 14px;font-size:13.5px;border:1px solid var(--line)}.pc-banner.lock{background:var(--soft)}.pc-banner.amend{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}.pc-banner .rowlink{color:var(--accent);text-decoration:underline}
@@ -2609,6 +2609,9 @@ function toWire(h){
     if(a==='cancel'){TO.draft=[];toSide();toDraw();return}
     if(a==='selcont'){const o=toSelObj(d);if(o){undoRecord();d.marks=d.marks.filter(m=>m.id!==o.id);TO.item=o.it;TO.tool='take';TO.draft=o.pts.map(q=>q.slice());TO.sel=null;if(o.pg!==TO.page){TO.page=o.pg;toLoadPage()}persist('drawings/'+TO.id);toSync()}return}
     if(a==='selnone'){TO.sel=null;toSide();toDraw();return}
+    if(a==='selmore'){const o=toSelObj(d);if(!o)return;TO.item=o.it;TO.sdraft=null;TO.ac.draft=null;TO.tool='take';TO.draft=[];TO.cal=null;TO.sel=null;TO.selDelArm=null;toSync();return}
+    if(a==='selitemdel'){const o=toSelObj(d);if(!o)return;if(TO.selDelArm!==o.it){TO.selDelArm=o.it;toSide();clearTimeout(TO.selDelT);TO.selDelT=setTimeout(()=>{TO.selDelArm=null;toSide()},4000);return}
+      TO.selDelArm=null;const iid=o.it;undoRecord();d.items=d.items.filter(i=>i.id!==iid);d.marks=d.marks.filter(m=>m.it!==iid);if(TO.item===iid)TO.item=null;TO.sel=null;persist('drawings/'+TO.id);toSync();return}
     if(a==='seldel'){undoRecord();if(TO.sel.k==='m')d.marks=d.marks.filter(m=>m.id!==TO.sel.id);else d.zones=d.zones.filter(z=>z.id!==TO.sel.id);TO.sel=null;persist('drawings/'+TO.id);toSync();return}
     if(a==='ratio'){const r=num(document.getElementById('to_ratio')?.value);if(r>0){undoRecord();d.scale[TO.page]={mpu:PT_M*r,label:'1:'+r,ratio:String(r)};persist('drawings/'+TO.id);toSync()}return}
     if(a==='calset'){const L=num(document.getElementById('to_callen')?.value);const pl=TO.cal&&TO.cal.length===2?Math.hypot(TO.cal[1][0]-TO.cal[0][0],TO.cal[1][1]-TO.cal[0][1]):0;if(L>0&&pl>0){undoRecord();const mpu=L/pl;d.scale[TO.page]={mpu,label:'Calibrated (1:'+Math.round(mpu/PT_M)+')',ratio:''};TO.cal=null;persist('drawings/'+TO.id);toSync()}return}
@@ -2983,7 +2986,8 @@ function toSelBox(d){const o=toSelObj(d);if(!o){TO.sel=null;return ''}
   const it=d.items.find(i=>i.id===o.it);if(!it)return '';const sc=toScale(d,o.pg);const q=toMarkQty(d,it,o,null);
   const tip=it.type==='count'?'Drag it to move it.':`Drag a square to move a point. Drag a round handle to add a new point there. Double-click a square to remove that point. Drag the ${it.type==='area'?'shape':'line'} to move it all.`;
   return `<div class="to-box"><b>${esc(it.name||TO_TYPE[it.type])}${it.type!=='count'?` · ${q==null?'no scale':toFmt(it.type,q)}`:''}</b><p class="hint" style="margin:0">${tip}</p>
-    <div class="to-row">${it.type==='length'?'<button class="btn" data-ta="selcont" title="Add more points to the end of this line">Extend line</button>':''}<button class="btn armed" data-ta="seldel">Delete</button><button class="btn" data-ta="selnone">Done</button></div></div>`}
+    <div class="to-row" style="flex-wrap:wrap"><button class="btn primary" data-ta="selmore" title="Go back to marking this item">+ ${it.type==='count'?'Keep counting':it.type==='area'?'Measure more areas':'Measure more lines'}</button>${it.type==='length'?'<button class="btn" data-ta="selcont" title="Add more points to the end of this line">Extend line</button>':''}</div>
+    <div class="to-row" style="flex-wrap:wrap"><button class="btn armed" data-ta="seldel">Delete this ${it.type==='count'?'mark':it.type==='area'?'area':'line'}</button>${(()=>{const n=d.marks.filter(m=>m.it===it.id).length;return `<button class="btn armed" data-ta="selitemdel" title="Delete the item and all ${n} of its marks">${TO.selDelArm===it.id?`Click again to delete all ${n}`:`Delete whole item (${n})`}</button>`})()}<button class="btn" data-ta="selnone">Done</button></div></div>`}
 function toHandles(d,u){if(TO.tool!=='sel'||!TO.sel)return '';const o=toSelObj(d);if(!o||o.pg!==TO.page&&TO.sel.k==='m'||TO.sel.k==='z'&&o.pg!==TO.page)return '';const r=5*u;let h='';
   if(TO.sel.k==='z'){const [x,y,w,hh]=o.r;[[x,y],[x+w,y],[x+w,y+hh],[x,y+hh]].forEach((p,i)=>h+=`<rect data-zh="${i}" x="${p[0]-r}" y="${p[1]-r}" width="${2*r}" height="${2*r}" class="to-hd" stroke-width="${1.5*u}"/>`);return h}
   const it=d.items.find(i=>i.id===o.it);if(!it)return '';const P=o.pts;
