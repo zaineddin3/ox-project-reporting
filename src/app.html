@@ -193,7 +193,7 @@ svg[data-tool="sel"] .to-mk,svg[data-tool="sel"] .to-zone{cursor:pointer}
 .to-auto .to-seg{flex-wrap:wrap}.to-autotag{background:color-mix(in srgb,#f59f00 18%,var(--surface));color:#8a5a00}
 .to-snaps{display:flex;flex-direction:column;gap:6px;align-self:stretch}
 .to-snapc{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:6px;background:var(--surface)}
-.to-snapc img{width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;flex:0 0 56px}
+.to-snapc img{width:72px;height:72px;flex-basis:72px!important;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;flex:0 0 56px}
 .to-thumb{width:22px;height:22px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px;vertical-align:middle;margin-right:8px}
 .to-colimg{position:relative;display:inline-block;border:2px solid;border-radius:4px;overflow:hidden;width:22px;height:22px}.to-colimg img{width:100%;height:100%;object-fit:contain;background:#fff;display:block}.to-colimg input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .to-applied{background:var(--good-soft);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
@@ -3001,11 +3001,17 @@ function toEditUp(dr){TO.snapHit=null;if(dr.moved){TO.lastVh=null;TO.noClick=Dat
 
 /* ---------- Take off: snapshots (saved symbols) ---------- */
 function toSnaps(){const out=[];for(const [id,d] of Object.entries(S.dwgs))for(const sn of (d.snaps||[]))out.push({...sn,did:id,dname:d.no||d.name||'Drawing',fid:d.file&&d.file.id});return out}
-function toSnapCapture(d,r){const cv=document.getElementById('toCv');if(!cv||!TO.vp)return;const k=cv.width/TO.vp.w;const sw=r[2]*k,sh=r[3]*k;const sc=Math.min(1,120/Math.max(sw,sh));
-  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*sc));c.height=Math.max(1,Math.round(sh*sc));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(cv,r[0]*k,r[1]*k,sw,sh,0,0,c.width,c.height);
-  undoRecord();d.snaps=d.snaps||[];const sn={id:uid('s'),name:'Snapshot '+(toSnaps().length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100),img:c.toDataURL('image/png')};d.snaps.push(sn);persist('drawings/'+TO.id);
+/* a sharp picture of part of the drawing, drawn straight from the PDF (not the screen), so it doesn't depend on the zoom */
+async function toSnapRender(fid,pg,r,maxPx){const pdf=await toPdf(fid);const p=await pdf.getPage(pg);const k=Math.min(40,(maxPx||480)/Math.max(r[2],r[3],1));const vp=p.getViewport({scale:k});
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(r[2]*k));c.height=Math.max(1,Math.ceil(r[3]*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-r[0]*k,-r[1]*k);
+  await bgRender(p,{canvasContext:x,viewport:vp});return c.toDataURL('image/png')}
+async function toSnapCapture(d,r){let img=null;try{img=await toSnapRender(d.file.id,TO.page,r)}catch(e){}
+  if(!img){const cv=document.getElementById('toCv');if(!cv||!TO.vp)return;const k=cv.width/TO.vp.w;const sw=r[2]*k,sh=r[3]*k;const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw));c.height=Math.max(1,Math.round(sh));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(cv,r[0]*k,r[1]*k,sw,sh,0,0,c.width,c.height);img=c.toDataURL('image/png')}
+  undoRecord();d.snaps=d.snaps||[];const sn={id:uid('s'),name:'Snapshot '+(toSnaps().length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100),img,hq:1};d.snaps.push(sn);persist('drawings/'+TO.id);
   TO.tool='snapl';TO.snapNew=sn.id;toSync();setTimeout(()=>{const n=document.getElementById('to_sn_'+sn.id);if(n){n.focus();n.select()}},30)}
-function toSnapBox(d){const L=toSnaps();const busy=TO.auto.busy&&TO.auto.m==='snap';
+let SNUP=false;async function toSnapUpgrade(d){if(SNUP||!d||!d.file||roView()||TO.viewRev!=null)return;const old=(d.snaps||[]).filter(sn=>!sn.hq&&sn.r);if(!old.length)return;SNUP=true;
+  try{for(const sn of old){try{sn.img=await toSnapRender(d.file.id,sn.pg||1,sn.r);sn.hq=1}catch(e){sn.hq=1}}persist('drawings/'+TO.id);toSide()}finally{SNUP=false}}
+function toSnapBox(d){const L=toSnaps();setTimeout(()=>toSnapUpgrade(d),0);const busy=TO.auto.busy&&TO.auto.m==='snap';
   const draft=TO.sdraft?`<div class="to-box"><b>New snapshot</b><p class="hint" style="margin:0">Drag the corners to resize the box, or drag inside it to move it. Make it fit tightly around one symbol.</p><div class="to-row"><button class="btn primary" data-ta="sdsave">Save snapshot</button><button class="btn" data-ta="sdx">Cancel</button></div></div>`:'';
   const list=L.map(sn=>`<div class="to-snapc${TO.snapSel===sn.id?' on':''}"><img src="${sn.img}" alt=""><div style="min-width:0;flex:1;display:flex;flex-direction:column;gap:4px">
       ${sn.did===TO.id?`<input class="f" id="to_sn_${sn.id}" data-tk="sname|${sn.id}" value="${esc(sn.name)}" aria-label="Snapshot name">`:`<b style="font-size:13px">${esc(sn.name)}</b>`}
