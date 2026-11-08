@@ -171,6 +171,7 @@ tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var
   .site-ta,.site .f{font-size:16px}.site-add{flex:1;min-height:46px;font-size:16px}.site-date{width:100%}.site-date .f{flex:1}.site-phadd,.site-ph img{width:calc((100vw - 72px)/3);height:calc((100vw - 72px)/3)}}
 .splitacts{display:flex;gap:4px;margin-top:3px}.xtask-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xtask-h h3{margin:0}.xtask-h .f{font-size:17px;font-weight:600;min-width:220px;border:1px solid var(--line);background:var(--surface)}
 .cp-list{max-height:min(52vh,460px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}.cp-sec{padding:4px 0;border-bottom:1px solid var(--line)}.cp-sec:last-child{border-bottom:0}
+.cp-clr{margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}.cp-clr .cp-opt{padding:2px 0}
 .cp-opt{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.cp-secopt{font-size:14px}
 .tabs-pick{padding:6px 2px;position:sticky;left:12px;max-width:min(940px,calc(100vw - 360px))}@media (max-width:860px){.tabs-pick{max-width:calc(100vw - 64px)}}.tabs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}.tabs-opt{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 4px 3px 8px;border-radius:7px;border:1px solid var(--line)}.tabs-opt select.f{width:auto;min-width:104px;padding:3px 6px;font-size:12.5px;min-height:0}.tabs-opt.lv-h{opacity:.6}.tabs-opt.lv-v{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
 .ro-banner{margin:0 0 12px;padding:9px 12px;border-radius:9px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:13.5px;font-weight:500}.ro-view input:disabled,.ro-view select:disabled,.ro-view textarea:disabled{opacity:.85;cursor:not-allowed}.tabs-btn{padding:3px 8px;font-size:12px}
@@ -2296,8 +2297,14 @@ function tmvHtml(){const M=UI.tmv;if(!M||UI.view!=='subcontractors')return '';co
     <div class="form"><label>Section<select class="f" data-ui="tmvTo" aria-label="Section">${d.sections.map((z,i)=>`<option value="${i}"${String(i)===to?' selected':''}>${esc(z.name||'Section '+(i+1))}${i===M.si?' (current)':''}</option>`).join('')}<option value="__new"${to==='__new'?' selected':''}>+ New section</option></select></label></div>
     <div class="toolbar" style="justify-content:flex-end"><button class="btn" data-act="tmv-close">Cancel</button><button class="btn primary" data-act="tmv-go">Move</button></div></div></div>`}
 /* Copy to…: paste a copy of a line or sub-line into many sections (as a line) and lines (as a sub-line) at once */
-function cpClean(n,keepHrs){const o={id:uid('q'),wbs:n.wbs||'',desc:n.desc||n.name||'',unit:n.unit||'',qty:keepHrs?(n.qty||''):'',pct:'',estHrs:keepHrs?(n.estHrs||''):'',spentHrs:''};if(keepHrs&&n.budHrs)o.budHrs=n.budHrs;
-  if(n.subs&&n.subs.length)o.subs=n.subs.map(c=>cpClean(c,keepHrs));return o}
+/* what to blank on the pasted copies (the original is never changed) */
+function cpOpt(M){return {desc:!!M.clrDesc,hrs:M.hrs===false||!!M.clrHrs,qty:M.hrs===false||!!M.clrQty}}
+function cpClean(n,op){if(typeof op==='boolean')op={hrs:!op,qty:!op};op=op||{};const o={id:uid('q'),wbs:n.wbs||'',desc:op.desc?'':(n.desc||n.name||''),unit:n.unit||'',qty:op.qty?'':(n.qty||''),pct:'',estHrs:op.hrs?'':(n.estHrs||''),spentHrs:''};if(!op.hrs&&n.budHrs)o.budHrs=n.budHrs;
+  if(n.subs&&n.subs.length)o.subs=n.subs.map(c=>cpClean(c,op));return o}
+function cpOptsHtml(M){const o=cpOpt(M);return `<div class="cp-clr"><span class="hint" style="font-weight:600">On the pasted copies:</span>
+    <label class="cp-opt"><input type="checkbox" data-cpclr="clrDesc" ${o.desc?'checked':''}> Clear descriptions <span class="hint">(WBS numbers are kept)</span></label>
+    <label class="cp-opt"><input type="checkbox" data-cpclr="clrHrs" ${o.hrs?'checked':''}> Clear hours <span class="hint">(estimated and budget hours)</span></label>
+    <label class="cp-opt"><input type="checkbox" data-cpclr="clrQty" ${o.qty?'checked':''}> Clear quantities</label></div>`}
 function cpParentify(tgt){if(tgt.subs&&tgt.subs.length)return;const has=num(tgt.estHrs)||num(tgt.spentHrs)||num(tgt.pct)||num(tgt.qty)||num(tgt.budHrs);tgt.subs=[];
   if(has){tgt.subs.push({id:tgt.id||uid('q'),desc:tgt.desc||'',unit:tgt.unit||'',qty:tgt.qty||'',pct:tgt.pct||'',estHrs:tgt.estHrs||'',budHrs:tgt.budHrs||'',spentHrs:tgt.spentHrs||'',newHrs:tgt.newHrs||'',hist:tgt.hist,itpFile:null});if(tgt.id)tgt.id=uid('q');delete tgt.hist}}
 /* update the ticked counts in place, so the list keeps its scroll position */
@@ -2317,7 +2324,7 @@ function cptoSecHtml(M){const srcSec=taskSecs(M.t).find(z=>z.id===M.sec);if(!src
     <div class="form"><label>Task<select class="f" data-ui="cptoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}${per[t]?` (${per[t]} ticked)`:''}</option>`).join('')}</select></label></div>
     <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button></div>
     <div class="cp-list" id="cp_list">${body}</div>
-    <label class="cp-opt" style="margin-top:10px"><input type="checkbox" data-cphrs="1" ${M.hrs!==false?'checked':''}> Copy estimated and budget hours and quantities</label>
+    ${cpOptsHtml(M)}
     <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button class="btn" data-act="cpto-close">Cancel</button><button class="btn primary" data-act="cpto-go" ${nTot&&L.length?'':'disabled'}>Paste into ${nTot} place${nTot===1?'':'s'}</button></div></div></div>`}
 function cptoHtml(){const M=UI.cpto;if(!M||UI.view!=='labour')return '';if(M.kind==='sec')return cptoSecHtml(M);const src=nodeAt(ensureTask(M.t),M.path);if(!src){UI.cpto=null;return ''}
   const tt=M.to||M.t;const d=ensureTask(tt);const secs=taskSecs(tt);const sids=secs.map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];
@@ -2331,7 +2338,7 @@ function cptoHtml(){const M=UI.cpto;if(!M||UI.view!=='labour')return '';if(M.kin
     <div class="form"><label>Task<select class="f" data-ui="cptoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}${perTask[t]?` (${perTask[t]} ticked)`:''}</option>`).join('')}</select></label></div>
     <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button></div>
     <div class="cp-list" id="cp_list">${body}</div>
-    <label class="cp-opt" style="margin-top:10px"><input type="checkbox" data-cphrs="1" ${M.hrs!==false?'checked':''}> Copy estimated and budget hours and quantities</label>
+    ${cpOptsHtml(M)}
     <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button class="btn" data-act="cpto-close">Cancel</button><button class="btn primary" data-act="cpto-go" ${nTot?'':'disabled'}>Paste into ${nTot} place${nTot===1?'':'s'}</button></div></div></div>`}
 function mvtoHtml(){const M=UI.mvto;if(!M||UI.view!=='labour')return '';const src=nodeAt(ensureTask(M.t),M.path);if(!src){UI.mvto=null;return ''}
   const tt=M.to||M.t;const secs=taskSecs(tt);const sec=M.sec||'';
@@ -3914,7 +3921,7 @@ viewEl.addEventListener('input',e=>{
       document.querySelectorAll(`[data-act=task][data-v="${X.id}"]`).forEach(b=>{const i=TASK_IDS.indexOf(X.id);b.textContent=String(i+1).padStart(3,'0')+' · '+TASKS[i]})}return}
   if(t.dataset.ui==='cptoTo'&&UI.cpto){UI.cpto.to=t.value;const y=window.scrollY;const cl=document.getElementById('cp_list');if(cl)cl.scrollTop=0;render();window.scrollTo(0,y);return}
   if(t.dataset.cpk!==undefined&&UI.cpto){const s2=new Set(UI.cpto.sel||[]);if(t.checked)s2.add(t.dataset.cpk);else s2.delete(t.dataset.cpk);UI.cpto.sel=[...s2];cptoCounts();return}
-  if(t.dataset.cphrs!==undefined&&UI.cpto){UI.cpto.hrs=t.checked;return}
+  if(t.dataset.cpclr!==undefined&&UI.cpto){const M=UI.cpto;if(M.hrs===false){M.clrHrs=true;M.clrQty=true;M.hrs=true}M[t.dataset.cpclr]=t.checked;return}
   if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoPar'&&UI.mvto){UI.mvto.par=t.value;scheduleRender(0);return}
@@ -4141,18 +4148,18 @@ document.addEventListener('click',async e=>{
     const touched=new Set();let n=0;
     /* resolve line targets first, so adding lines elsewhere can't shift them */
     const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);return {t,key,node:key.startsWith('N:')?nodeAt(ensureTask(t),key.slice(2)):null}});
-    for(const x of T){if(!x.node)continue;cpParentify(x.node);for(const ln of L)x.node.subs.push(cpClean(ln,M.hrs!==false));S.tasks[x.t]=ensureTask(x.t);touched.add(x.t);n++}
+    for(const x of T){if(!x.node)continue;cpParentify(x.node);for(const ln of L)x.node.subs.push(cpClean(ln,cpOpt(M)));S.tasks[x.t]=ensureTask(x.t);touched.add(x.t);n++}
     for(const x of M.sel){const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);if(key.startsWith('N:'))continue;const d=ensureTask(t);let sec;
       if(key==='NEW'){sec=uid('S');d.sections.push({id:sec,name:srcSec.name||'Section'})}else{sec=key.slice(2);if(!taskSecs(t).some(z=>z.id===sec))continue}
       const sids=taskSecs(t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];const idx=d.items.map((y,j)=>j).filter(j=>so(d.items[j])===sec);let at=idx.length?idx[idx.length-1]+1:d.items.length;
-      for(const ln of L){const cp=cpClean(ln,M.hrs!==false);cp.sec=sec;d.items.splice(at++,0,cp)}S.tasks[t]=d;touched.add(t);n++}
+      for(const ln of L){const cp=cpClean(ln,cpOpt(M));cp.sec=sec;d.items.splice(at++,0,cp)}S.tasks[t]=d;touched.add(t);n++}
     for(const t of touched)persist('tasks/'+t);
     UI.mvFlash={t:M.t,txt:`Pasted section “${srcSec.name||'Section'}” (${L.length} line${L.length===1?'':'s'}) into ${n} place${n===1?'':'s'}${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;render();return}
   if(act==='cpto-go'){const M=UI.cpto;if(!M||!(M.sel||[]).length)return;const src=nodeAt(ensureTask(M.t),M.path);if(!src)return;
     /* resolve every target first, so pasting into one place can't shift the others */
     const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),k=x.slice(i+1);const d=ensureTask(t);return k.startsWith('S:')?{t,d,sec:k.slice(2)}:{t,d,node:nodeAt(d,k.slice(2))}}).filter(x=>x.sec?taskSecs(x.t).some(z=>z.id===x.sec):x.node);
     const touched=new Set();let n=0;
-    for(const x of T){const cp=cpClean(src,M.hrs!==false);
+    for(const x of T){const cp=cpClean(src,cpOpt(M));
       if(x.node){cpParentify(x.node);x.node.subs.push(cp)}
       else{const sids=taskSecs(x.t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];cp.sec=x.sec;const idx=x.d.items.map((y,i)=>i).filter(i=>so(x.d.items[i])===x.sec);x.d.items.splice(idx.length?idx[idx.length-1]+1:x.d.items.length,0,cp)}
       S.tasks[x.t]=x.d;touched.add(x.t);n++}
