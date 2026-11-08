@@ -3780,7 +3780,11 @@ document.addEventListener('pointerup',rrzEnd);document.addEventListener('pointer
 document.addEventListener('dblclick',e=>{const g=e.target.closest&&e.target.closest('.rowrz');if(!g)return;const tr=g.closest('tr[data-rid]'),el=g.closest('[data-rsz]');if(!tr||!el)return;const m=RSZ[el.dataset.rsz+':rh'];if(m){delete m[tr.dataset.rid];tszSave()}tr.style.height='';tr.classList.remove('rh-set')});
 function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{try{applyRows(el)}catch(e){}const h=RSZ[el.dataset.rsz];if(h)el.style.height=h+'px';const z=RSZ[el.dataset.rsz+':z'];el.style.zoom=z&&z!==1?String(z):'';el.dataset.rszOn='1';
   el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height/(parseFloat(el.style.zoom)||1))+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
+/* while a date box is being used (calendar open, or typing day/month/year) the page isn't redrawn: a redraw would close the picker and drop the typing. It redraws when you leave the box. */
+let DATE_HOLD=false;const isDateBox=el=>el&&el.tagName==='INPUT'&&/^(date|month|time|datetime-local|week)$/.test(el.type)&&viewEl&&viewEl.contains(el);
+document.addEventListener('focusout',e=>{if(isDateBox(e.target)&&DATE_HOLD){DATE_HOLD=false;setTimeout(()=>{if(!isDateBox(document.activeElement))render()},0)}},true);
 function render(){
+  if(isDateBox(document.activeElement)){DATE_HOLD=true;return}
   syncTasks();
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
