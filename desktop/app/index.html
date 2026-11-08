@@ -2665,6 +2665,7 @@ if(a==='memall')return toMemAll(d);
     if(a==='acthr'){const A=TO.ac;A.thr=Math.min(0.97,Math.max(0.6,Math.round((A.thr+ +v)*100)/100));toAcountPlace(d,false).then(()=>{const it=d.items.find(i=>i.id===A.it);if(it&&it.how)it.how.thr=A.thr;persist('drawings/'+TO.id);const n=d.marks.filter(m=>m.it===A.it).length;A.note=`Counted ${n} at ${Math.round(A.thr*100)}% sensitivity.`;toSide()});return}
     if(a==='sdsave'){const D=TO.sdraft;TO.sdraft=null;if(D){if(D.pg!==TO.page){TO.page=D.pg;toLoadPage()}toSnapCapture(d,D.r)}return}
     if(a==='sdx'){TO.sdraft=null;toSide();toDraw();return}
+    if(a==='snclean'){const sn=(d.snaps||[]).find(x=>x.id===v);if(!sn||!sn.raw)return;undoRecord();if(sn.clean){sn.cimg=sn.img;sn.img=sn.raw;sn.clean=0}else{if(sn.cimg)sn.img=sn.cimg;sn.clean=1}persist('drawings/'+TO.id);toSide();return}
     if(a==='sndel'){undoRecord();d.snaps=(d.snaps||[]).filter(x=>x.id!==v);persist('drawings/'+TO.id);toSync();return}
     if(a==='sumtog'){COLL.has(v)?COLL.delete(v):COLL.add(v);saveColl();toSum();return}
     if(a==='appx'){TO.applied=null;toSide();return}
@@ -2845,14 +2846,14 @@ function toMatchRun(data){return new Promise(res=>{const w=toWorker();if(w){w.on
 function toMatchInline(data){let r;const g={postMessage:x=>r=x};new Function('postMessage','return '+TO_MATCH_SRC.replace('onmessage=',''))(g.postMessage)({data});return r}
 async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matching symbols…';A.res=null;A.note='';src=src||{fid:d.file.id,pg:TO.page};A.src=src;A.lastRect={fid:src.fid,pg:src.pg,r:rect.slice()};A.tpl=src.fid===d.file.id?{pg:src.pg,r:rect}:null;toSide();toDraw();
   try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];
-    let R=Math.min(3,Math.max(0.75,30/Math.min(rect[2],rect[3])));const out=[];let tplInk=null;
+    let R=Math.min(3,Math.max(0.75,30/Math.min(rect[2],rect[3])));const out=[];let tplInk=null;let keepIm=null;if(src.clean){try{keepIm=await toImgLoad(src.clean)}catch(e){}}
     for(const p of pages){const pg=await pdf.getPage(p);const vp1=pg.getViewport({scale:1});let Rp=R;if(vp1.width*vp1.height*Rp*Rp>9e6)Rp=Math.sqrt(9e6/(vp1.width*vp1.height));
       if(p===TO.page)R=Rp;const vp=pg.getViewport({scale:Rp});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);const cx=cv.getContext('2d',{willReadFrequently:true});cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
       await bgRender(pg,{canvasContext:cx,viewport:vp});const W=cv.width,H=cv.height;const px=cx.getImageData(0,0,W,H).data;const ink=new Uint8Array(W*H);
       for(let i=0,j=0;i<ink.length;i++,j+=4)ink[i]=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;
       const dil=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;if(ink[i]){dil[i]=1;if(x>0)dil[i-1]=1;if(x<W-1)dil[i+1]=1;if(y>0)dil[i-W]=1;if(y<H-1)dil[i+W]=1}}
-      if(!tplInk){if(!(src.fid===d.file.id&&p===src.pg)){const pt=await (await toPdf(src.fid)).getPage(src.pg);/* template always from the page it was drawn on */const vpt=pt.getViewport({scale:Rp});const ct=document.createElement('canvas');ct.width=Math.ceil(vpt.width);ct.height=Math.ceil(vpt.height);const cc=ct.getContext('2d',{willReadFrequently:true});cc.fillStyle='#fff';cc.fillRect(0,0,ct.width,ct.height);await bgRender(pt,{canvasContext:cc,viewport:vpt});tplInk=toTplFrom(cc.getImageData(0,0,ct.width,ct.height).data,ct.width,rect,Rp)}
-        else tplInk=toTplFrom(px,W,rect,Rp)}
+      if(!tplInk){if(!(src.fid===d.file.id&&p===src.pg)){const pt=await (await toPdf(src.fid)).getPage(src.pg);/* template always from the page it was drawn on */const vpt=pt.getViewport({scale:Rp});const ct=document.createElement('canvas');ct.width=Math.ceil(vpt.width);ct.height=Math.ceil(vpt.height);const cc=ct.getContext('2d',{willReadFrequently:true});cc.fillStyle='#fff';cc.fillRect(0,0,ct.width,ct.height);await bgRender(pt,{canvasContext:cc,viewport:vpt});tplInk=toTplFrom(cc.getImageData(0,0,ct.width,ct.height).data,ct.width,rect,Rp,keepIm)}
+        else tplInk=toTplFrom(px,W,rect,Rp,keepIm)}
       if(!tplInk.ink){A.busy='';A.note='The box is empty. Drag it tightly around one symbol.';return toSide()}
       const tps=toTplSet(tplInk,A.rot,W);const raw=await toMatchRun({ink,dil,W,H,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil})),min:0.5});
       const cand=[];for(let i=0;i<raw.length;i+=4){const t=tps[raw[i+2]];cand.push({x:(raw[i]+t.w/2)/Rp,y:(raw[i+1]+t.h/2)/Rp,s:raw[i+3]/1000})}
@@ -2862,12 +2863,17 @@ async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matc
     A.all=out.filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches. Try a lower sensitivity, or drag the box more tightly around the symbol.'}
   catch(e){console.error(e);A.busy='';A.note='Could not search this drawing.'}
   toSide();toDraw()}
-function toTplFrom(px,W,rect,R){const x0=Math.max(0,Math.floor(rect[0]*R)),y0=Math.max(0,Math.floor(rect[1]*R)),w=Math.max(2,Math.round(rect[2]*R)),h=Math.max(2,Math.round(rect[3]*R));const m=new Uint8Array(w*h);let ink=0;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const j=((y0+y)*W+(x0+x))*4;const v=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190?1:0;m[y*w+x]=v;ink+=v}
+function toTplFrom(px,W,rect,R,keepIm){const x0=Math.max(0,Math.floor(rect[0]*R)),y0=Math.max(0,Math.floor(rect[1]*R)),w=Math.max(2,Math.round(rect[2]*R)),h=Math.max(2,Math.round(rect[3]*R));const m=new Uint8Array(w*h);let ink=0;
+  /* a cleaned snapshot says which ink is the symbol; background lines in the box are left out of the template */
+  let K=null;if(keepIm){try{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.imageSmoothingQuality='high';x.drawImage(keepIm,0,0,w,h);const q=x.getImageData(0,0,w,h).data;
+    const k0=new Uint8Array(w*h);for(let i=0;i<k0.length;i++){const j=i*4;k0[i]=(q[j]*0.3+q[j+1]*0.59+q[j+2]*0.11)<235?1:0}K=new Uint8Array(w*h);for(let y=0;y<h;y++)for(let xx=0;xx<w;xx++)if(k0[y*w+xx])for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const ny=y+dy,nx=xx+dx;if(ny>=0&&nx>=0&&ny<h&&nx<w)K[ny*w+nx]=1}}catch(e){K=null}}
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const j=((y0+y)*W+(x0+x))*4;const v=(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11)<190&&(!K||K[y*w+x])?1:0;m[y*w+x]=v;ink+=v}
   /* trim empty margins so the box does not need to be exact */
   let t=h,b=-1,l=w,r=-1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(m[y*w+x]){if(y<t)t=y;if(y>b)b=y;if(x<l)l=x;if(x>r)r=x}
   if(b<0)return {ink:0};const W2=r-l+1,H2=b-t+1,m2=new Uint8Array(W2*H2);for(let y=0;y<H2;y++)for(let x=0;x<W2;x++)m2[y*W2+x]=m[(y+t)*w+x+l];return {w:W2,h:H2,m:m2,ink}}
 function toTplSet(T,rot,W){const list=[{w:T.w,h:T.h,m:T.m}];if(rot){let c=list[0];for(let k=0;k<3;k++){const w=c.h,h=c.w,m=new Uint8Array(w*h);for(let y=0;y<c.h;y++)for(let x=0;x<c.w;x++)m[x*w+(c.h-1-y)]=c.m[y*c.w+x];c={w,h,m};list.push(c)}}
+  /* flipped (mirror-image) symbols too: each turn of the symbol, mirrored left to right */
+  if(rot){for(const c of list.slice()){const m=new Uint8Array(c.w*c.h);for(let y=0;y<c.h;y++)for(let x=0;x<c.w;x++)m[y*c.w+(c.w-1-x)]=c.m[y*c.w+x];list.push({w:c.w,h:c.h,m})}}
   const seen=new Set();return list.filter(t=>{const k=t.w+'x'+t.h+':'+Array.prototype.join.call(t.m,'');if(seen.has(k))return false;seen.add(k);return true}).map(t=>{const offs=[];for(let y=0;y<t.h;y++)for(let x=0;x<t.w;x++)if(t.m[y*t.w+x])offs.push(y*W+x);const dl=new Uint8Array(t.w*t.h);for(let y=0;y<t.h;y++)for(let x=0;x<t.w;x++)if(t.m[y*t.w+x]){const i=y*t.w+x;dl[i]=1;if(x>0)dl[i-1]=1;if(x<t.w-1)dl[i+1]=1;if(y>0)dl[i-t.w]=1;if(y<t.h-1)dl[i+t.w]=1}return {w:t.w,h:t.h,offs:Int32Array.from(offs),dil:dl}})}
 function toAutoThr(){const A=TO.auto;if(!A.all)return;const off=new Set((A.res||[]).filter(c=>!c.on).map(c=>c.pts[0].join(',')));A.res=A.all.filter(c=>c.s>=A.thr).map(c=>({...c,on:!off.has(c.pts[0].join(','))}))}
 /* line-style search in the PDF vector content */
@@ -3027,27 +3033,50 @@ function toEditUp(dr){TO.snapHit=null;if(dr.moved){TO.lastVh=null;TO.noClick=Dat
 /* ---------- Take off: snapshots (saved symbols) ---------- */
 function toSnaps(){const out=[];for(const [id,d] of Object.entries(S.dwgs))for(const sn of (d.snaps||[]))out.push({...sn,did:id,dname:d.no||d.name||'Drawing',fid:d.file&&d.file.id});return out}
 /* a sharp picture of part of the drawing, drawn straight from the PDF (not the screen), so it doesn't depend on the zoom */
+/* keep only the symbol: lines running right across the box (grid, walls, cable runs) and anything touching the box edge are removed */
+function toSymClean(c){const W=c.width,H=c.height;const x=c.getContext('2d',{willReadFrequently:true});const D=x.getImageData(0,0,W,H);const px=D.data;const N=W*H;
+  const ink=new Uint8Array(N);let tot=0;for(let i=0;i<N;i++){const j=i*4;if(px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11<200){ink[i]=1;tot++}}if(!tot)return {img:c.toDataURL('image/png'),changed:false};
+  const keep=ink.slice();const E=2;
+  /* horizontal lines that cross from one side to the other */
+  const hRow=new Uint8Array(H);for(let y=0;y<H;y++){let run=0,best=0,st=0,bs=0;for(let xx=0;xx<W;xx++){if(ink[y*W+xx]){if(!run)st=xx;run++;if(run>best){best=run;bs=st}}else run=0}if(best>=W*0.92||(bs<=E&&bs+best>=W-E))hRow[y]=1}
+  for(let y=0;y<H;y++){if(!hRow[y])continue;let y1=y;while(y1+1<H&&hRow[y1+1])y1++;if(y1-y<Math.max(4,H*0.06)){for(let xx=0;xx<W;xx++){const up=y>0&&ink[(y-1)*W+xx],dn=y1<H-1&&ink[(y1+1)*W+xx];if(!(up&&dn))for(let yy=y;yy<=y1;yy++)keep[yy*W+xx]=0}}y=y1}
+  const vCol=new Uint8Array(W);for(let xx=0;xx<W;xx++){let run=0,best=0,st=0,bs=0;for(let y=0;y<H;y++){if(ink[y*W+xx]){if(!run)st=y;run++;if(run>best){best=run;bs=st}}else run=0}if(best>=H*0.92||(bs<=E&&bs+best>=H-E))vCol[xx]=1}
+  for(let xx=0;xx<W;xx++){if(!vCol[xx])continue;let x1=xx;while(x1+1<W&&vCol[x1+1])x1++;if(x1-xx<Math.max(4,W*0.06)){for(let y=0;y<H;y++){const lf=xx>0&&ink[y*W+xx-1],rt=x1<W-1&&ink[y*W+x1+1];if(!(lf&&rt))for(let q=xx;q<=x1;q++)keep[y*W+q]=0}}xx=x1}
+  /* pieces of ink: drop the ones that touch the edge of the box */
+  const lab=new Int32Array(N).fill(-1);const comps=[];const st=[];
+  for(let i=0;i<N;i++){if(!keep[i]||lab[i]>=0)continue;const id=comps.length;let n=0,edge=false,sx=0,sy=0;st.push(i);lab[i]=id;
+    while(st.length){const k=st.pop();n++;const ky=(k/W)|0,kx=k-ky*W;sx+=kx;sy+=ky;if(kx<=E||ky<=E||kx>=W-1-E||ky>=H-1-E)edge=true;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=kx+dx,ny=ky+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const q=ny*W+nx;if(keep[q]&&lab[q]<0){lab[q]=id;st.push(q)}}}
+    comps.push({n,edge,cx:sx/n,cy:sy/n})}
+  if(!comps.length)return {img:c.toDataURL('image/png'),changed:false};
+  let on=comps.map(cp=>!cp.edge&&cp.n>=Math.max(3,tot*0.002));const kept=comps.reduce((a,cp,i)=>a+(on[i]?cp.n:0),0);
+  if(kept<tot*0.08){/* the symbol itself touches the edge: keep the piece nearest the middle instead */let bi=0,bd=1e9;comps.forEach((cp,i)=>{const dd=Math.hypot(cp.cx-W/2,cp.cy-H/2)/Math.sqrt(cp.n);if(dd<bd){bd=dd;bi=i}});on[bi]=true}
+  /* keep anti-aliased edges next to kept ink; everything else goes white */
+  const out=new Uint8Array(N);for(let i=0;i<N;i++)if(lab[i]>=0&&on[lab[i]])out[i]=1;let changed=false;
+  for(let y=0;y<H;y++)for(let xx=0;xx<W;xx++){const i=y*W+xx;if(out[i])continue;let near=false;for(let dy=-1;dy<=1&&!near;dy++)for(let dx=-1;dx<=1;dx++){const nx=xx+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&out[ny*W+nx]&&!ink[i]){near=true;break}}
+    if(!near){const j=i*4;if(px[j]<250||px[j+1]<250||px[j+2]<250)changed=true;px[j]=px[j+1]=px[j+2]=255;px[j+3]=255}}
+  x.putImageData(D,0,0);return {img:c.toDataURL('image/png'),changed}}
 async function toSnapRender(fid,pg,r,maxPx){const pdf=await toPdf(fid);const p=await pdf.getPage(pg);const k=Math.min(40,(maxPx||480)/Math.max(r[2],r[3],1));const vp=p.getViewport({scale:k});
   const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(r[2]*k));c.height=Math.max(1,Math.ceil(r[3]*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-r[0]*k,-r[1]*k);
-  await bgRender(p,{canvasContext:x,viewport:vp});return c.toDataURL('image/png')}
-async function toSnapCapture(d,r){let img=null;try{img=await toSnapRender(d.file.id,TO.page,r)}catch(e){}
+  await bgRender(p,{canvasContext:x,viewport:vp});const raw=c.toDataURL('image/png');let cl={img:raw,changed:false};try{cl=toSymClean(c)}catch(e){}return {raw,img:cl.img,changed:cl.changed}}
+async function toSnapCapture(d,r){let img=null,raw=null;try{const R=await toSnapRender(d.file.id,TO.page,r);img=R.img;if(R.changed)raw=R.raw}catch(e){}
   if(!img){const cv=document.getElementById('toCv');if(!cv||!TO.vp)return;const k=cv.width/TO.vp.w;const sw=r[2]*k,sh=r[3]*k;const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw));c.height=Math.max(1,Math.round(sh));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(cv,r[0]*k,r[1]*k,sw,sh,0,0,c.width,c.height);img=c.toDataURL('image/png')}
-  undoRecord();d.snaps=d.snaps||[];const sn={id:uid('s'),name:'Snapshot '+(toSnaps().length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100),img,hq:1};d.snaps.push(sn);persist('drawings/'+TO.id);
+  undoRecord();d.snaps=d.snaps||[];const sn={id:uid('s'),name:'Snapshot '+(toSnaps().length+1),pg:TO.page,r:r.map(v=>Math.round(v*100)/100),img,hq:1,...(raw?{raw,clean:1}:{})};d.snaps.push(sn);persist('drawings/'+TO.id);
   TO.tool='snapl';TO.snapNew=sn.id;toSync();setTimeout(()=>{const n=document.getElementById('to_sn_'+sn.id);if(n){n.focus();n.select()}},30)}
 let SNUP=false;async function toSnapUpgrade(d){if(SNUP||!d||!d.file||roView()||TO.viewRev!=null)return;const old=(d.snaps||[]).filter(sn=>!sn.hq&&sn.r);if(!old.length)return;SNUP=true;
-  try{for(const sn of old){try{sn.img=await toSnapRender(d.file.id,sn.pg||1,sn.r);sn.hq=1}catch(e){sn.hq=1}}persist('drawings/'+TO.id);toSide()}finally{SNUP=false}}
+  try{for(const sn of old){try{const R=await toSnapRender(d.file.id,sn.pg||1,sn.r);sn.img=R.img;if(R.changed){sn.raw=R.raw;sn.clean=1}sn.hq=1}catch(e){sn.hq=1}}persist('drawings/'+TO.id);toSide()}finally{SNUP=false}}
 function toSnapBox(d){const L=toSnaps();setTimeout(()=>toSnapUpgrade(d),0);const busy=TO.auto.busy&&TO.auto.m==='snap';
   const draft=TO.sdraft?`<div class="to-box"><b>New snapshot</b><p class="hint" style="margin:0">Drag the corners to resize the box, or drag inside it to move it. Make it fit tightly around one symbol.</p><div class="to-row"><button class="btn primary" data-ta="sdsave">Save snapshot</button><button class="btn" data-ta="sdx">Cancel</button></div></div>`:'';
   const list=L.map(sn=>`<div class="to-snapc${TO.snapSel===sn.id?' on':''}"><img src="${sn.img}" alt=""><div style="min-width:0;flex:1;display:flex;flex-direction:column;gap:4px">
       ${sn.did===TO.id?`<input class="f" id="to_sn_${sn.id}" data-tk="sname|${sn.id}" value="${esc(sn.name)}" aria-label="Snapshot name">`:`<b style="font-size:13px">${esc(sn.name)}</b>`}
       <span class="hint" style="font-size:11px">From ${esc(sn.dname)}${sn.kind==='img'?' · added picture':sn.did===TO.id?' · page '+sn.pg:''}</span>
-      <div class="to-row"><button class="btn primary" data-ta="snapply" data-v="${sn.did}|${sn.id}" ${busy?'disabled':''}>Count on ${TO.auto.pages==='all'?'all pages':'this page'}</button>${sn.did===TO.id?`<button class="btn ghost" data-ta="sndel" data-v="${sn.id}" aria-label="Delete snapshot">✕</button>`:''}</div></div></div>`).join('');
-  return draft+`<div class="to-box to-auto"><b>Snapshots</b><p class="hint" style="margin:0">Drag a box around a fitting (for example in the legend) to save it as a snapshot, or add a picture of the symbol. Then press <b>Count</b> to find every match on this drawing. Snapshots from your other drawings are listed too.</p>${toSymDrop()}
+      <div class="to-row"><button class="btn primary" data-ta="snapply" data-v="${sn.did}|${sn.id}" ${busy?'disabled':''}>Count on ${TO.auto.pages==='all'?'all pages':'this page'}</button>${sn.did===TO.id&&sn.raw?`<button class="btn ghost" data-ta="snclean" data-v="${sn.id}" title="${sn.clean?'Put the background lines back into this snapshot':'Remove the background lines again'}">${sn.clean?'Show background':'Clean background'}</button>`:''}${sn.did===TO.id?`<button class="btn ghost" data-ta="sndel" data-v="${sn.id}" aria-label="Delete snapshot">✕</button>`:''}</div></div></div>`).join('');
+  return draft+`<div class="to-box to-auto"><b>Snapshots</b><p class="hint" style="margin:0">Drag a box around a fitting (for example in the legend) to save it as a snapshot, or add a picture of the symbol. Then press <b>Count</b> to find every match on this drawing. Background lines (grid, walls, cables) are cleaned out so only the symbol is kept, and Count also finds the symbol turned or flipped (mirror image). Snapshots from your other drawings are listed too.</p>${toSymDrop()}
     <div class="to-row"><span class="hint">Search</span><div class="to-seg">${[['this','This page'],['all','All pages']].map(([k,l])=>`<button class="seg-b${TO.auto.pages===k?' on':''}" data-ta="apg" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div class="to-snaps">${list||'<p class="hint" style="margin:0">No snapshots yet.</p>'}</div></div>`}
 async function toSnapApply(d,did,sid){const sd=dwgDoc(did);const sn=sd&&(sd.snaps||[]).find(x=>x.id===sid);if(!sn)return;
   const A=TO.auto;Object.assign(A,{m:'symbol',name:sn.name,tgt:'new',res:null,all:null});const ex=d.items.find(i=>i.snap===sid&&i.type==='count');if(ex)A.tgt=ex.id;A.snapId=sid;A.snapImg=sn.img;
-  TO.tool='auto';toSync();if(sn.kind==='img')return toFindImg(d,sn);await toFindSymbol(d,sn.r,{fid:sd.file.id,pg:sn.pg})}
+  TO.tool='auto';toSync();if(sn.kind==='img')return toFindImg(d,sn);await toFindSymbol(d,sn.r,{fid:sd.file.id,pg:sn.pg,clean:sn.clean&&sn.raw?sn.img:null})}
 /* ---------- Take off: summary after applying ---------- */
 function toAppliedBox(d){const F=TO.applied;if(!F||F.did!==TO.id)return '';
   if(F.multi){return `<div class="to-box to-applied"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>✓ Memorised take off applied</b><button class="btn ghost" data-ta="appx" aria-label="Close summary">✕</button></div>
@@ -3516,11 +3545,11 @@ async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.ge
   const P=await pageCanvas(fid,p,R0);const im=P.c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,P.c.width,P.c.height);
   await mwCall({op:'page',key,W:im.width,H:im.height,rgba:im.data.buffer},[im.data.buffer]);MWS.have.push(key);while(MWS.have.length>3)MWS.have.shift();return {key,W:im.width,H:im.height,R}}
 /* template mask from a rectangle of a page, rendered at scale R */
-async function toCropMask(fid,p,rect,R){
-  if(PGC.c&&PGC.fid===fid&&PGC.p===p&&Math.abs(PGC.R-R)<1e-3){const q=pgcCrop(PGC,rect);return toTplFrom(q.px,q.w,[0,0,q.w/R,q.h/R],R)}
+async function toCropMask(fid,p,rect,R,keepIm){
+  if(PGC.c&&PGC.fid===fid&&PGC.p===p&&Math.abs(PGC.R-R)<1e-3){const q=pgcCrop(PGC,rect);return toTplFrom(q.px,q.w,[0,0,q.w/R,q.h/R],R,keepIm)}
   const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:R});const w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));
   const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);x.translate(-rect[0]*R,-rect[1]*R);await bgRender(pg,{canvasContext:x,viewport:vp});
-  const px=x.getImageData(0,0,w,h).data;return toTplFrom(px,w,[0,0,w/R,h/R],R)}
+  const px=x.getImageData(0,0,w,h).data;return toTplFrom(px,w,[0,0,w/R,h/R],R,keepIm)}
 /* match a template on pages; T = {w,h,m} mask at scale R; returns [{pg,x,y,s}] in page units */
 async function toMatchPages(fid,pages,mkT,Rwant,rot,min,onProg){const out=[];for(let i=0;i<pages.length;i++){const p=pages[i];const PG=await mwPage(fid,p,Rwant);const T=await mkT(PG.R);if(!T||!T.ink)continue;
     const tps=toTplSet(T,rot,PG.W);const r=await mwCall({op:'match',key:PG.key,min,tps:tps.map(t=>({w:t.w,h:t.h,offs:t.offs,dil:t.dil}))},null,f=>onProg&&onProg((i+f)/pages.length));
@@ -3534,8 +3563,8 @@ const toRfor=(sz,mn)=>Math.min(4,Math.max(0.6,Math.min(30/Math.max(1,mn||sz),64/
 const toBusyErr=e=>e&&e.message==='timeout'?'That took too long and was stopped. Drag a tighter box around one symbol, or search this page only.':e&&e.message==='cancel'?'Stopped.':'Could not search this drawing.';
 /* --- replacements for the older search functions, using the engine --- */
 async function toFindSymbol(d,rect,src){const A=TO.auto;A.busy='Looking for matching symbols…';A.res=null;A.all=null;A.note='';src=src||{fid:d.file.id,pg:TO.page};A.src=src;A.lastRect={fid:src.fid,pg:src.pg,r:rect.slice()};A.tpl=src.fid===d.file.id?{pg:src.pg,r:rect}:null;toSide();toDraw();
-  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];
-    const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(src.fid,src.pg,rect,R),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),A.rot,0.5,f=>{A.busy=`Looking for matching symbols… ${Math.round(f*100)}%`;const el=document.querySelector('#toSide .to-auto .to-spin');if(el&&el.parentElement)el.parentElement.lastChild.textContent=A.busy});
+  try{const pdf=await toPdf(d.file.id);const pages=A.pages==='all'?[...Array(pdf.numPages)].map((_,i)=>i+1):[TO.page];let keepIm=null;if(src.clean){try{keepIm=await toImgLoad(src.clean)}catch(e){}}
+    const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(src.fid,src.pg,rect,R,keepIm),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),A.rot,0.5,f=>{A.busy=`Looking for matching symbols… ${Math.round(f*100)}%`;const el=document.querySelector('#toSide .to-auto .to-spin');if(el&&el.parentElement)el.parentElement.lastChild.textContent=A.busy});
     A.all=hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s,on:true})).filter(c=>toAutoKeep(d,c));toAutoThr();A.busy='';A.note=A.res.length?'':'No matches. Try a lower sensitivity, or drag the box more tightly around the symbol.'}
   catch(e){console.error(e);A.busy='';A.note=toBusyErr(e)}toSide();toDraw()}
 async function toMatchCore(d,srcPg,rect,pages,rot){const hits=await toMatchPages(d.file.id,pages,R=>toCropMask(d.file.id,srcPg,rect,R),toRfor(Math.max(rect[2],rect[3]),Math.min(rect[2],rect[3])),rot,0.6);return hits.map(h=>({pg:h.pg,pts:[[Math.round(h.x*100)/100,Math.round(h.y*100)/100]],s:h.s}))}
