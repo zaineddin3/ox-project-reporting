@@ -178,7 +178,8 @@ tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var
 .splitacts{display:flex;gap:4px;margin-top:3px}.xtask-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xtask-h h3{margin:0}.xtask-h .f{font-size:17px;font-weight:600;min-width:220px;border:1px solid var(--line);background:var(--surface)}
 .cp-list{max-height:min(52vh,460px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}.cp-sec{padding:4px 0;border-bottom:1px solid var(--line)}.cp-sec:last-child{border-bottom:0}
 .cp-opt{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.cp-secopt{font-size:14px}
-.tabs-pick{padding:6px 2px;position:sticky;left:12px;max-width:min(940px,calc(100vw - 360px))}@media (max-width:860px){.tabs-pick{max-width:calc(100vw - 64px)}}.tabs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}.tabs-opt{display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer}.tabs-btn{padding:3px 8px;font-size:12px}
+.tabs-pick{padding:6px 2px;position:sticky;left:12px;max-width:min(940px,calc(100vw - 360px))}@media (max-width:860px){.tabs-pick{max-width:calc(100vw - 64px)}}.tabs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}.tabs-opt{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 4px 3px 8px;border-radius:7px;border:1px solid var(--line)}.tabs-opt select.f{width:auto;min-width:104px;padding:3px 6px;font-size:12.5px;min-height:0}.tabs-opt.lv-h{opacity:.6}.tabs-opt.lv-v{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.ro-banner{margin:0 0 12px;padding:9px 12px;border-radius:9px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:13.5px;font-weight:500}.ro-view input:disabled,.ro-view select:disabled,.ro-view textarea:disabled{opacity:.85;cursor:not-allowed}.tabs-btn{padding:3px 8px;font-size:12px}
 .to-igrp{display:flex;gap:6px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:6px 2px;margin:4px 0 2px;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);cursor:pointer;text-align:left}
 .to-also{display:flex;flex-direction:column;gap:5px;margin:-2px 0 6px 30px;padding:6px 8px;border-left:2px solid var(--accent);font-size:12px}.to-also-r{display:flex;gap:6px;align-items:center}.to-also-r .f{padding:3px 6px;min-width:0;flex:1}.to-also-r .f.num{flex:none}.to-aq{min-width:56px;text-align:right}
 .to-also-sum{margin:-2px 0 4px 34px;font-size:11.5px}
@@ -656,6 +657,7 @@ function dataFor(p){
   if(c==='tasks')return taskDoc(id);
 }
 function persist(p){
+  if(roGuard(p))return;
   if(p.startsWith('site/'))SITEV++;
   if(!db){setSave('local');return}
   setSave('saving');clearTimeout(pending[p]);
@@ -3594,7 +3596,23 @@ function collapseAllTasks(view){let ch=false;const add=k=>{if(!COLL.has(k)){COLL
     (td.items||[]).forEach((it,j)=>{if(it.subs&&it.subs.length){add('t'+t+'_'+j);subs(t,it,String(j))}})}
   if(ch)saveColl()}
 const ALL_TABS=()=>[...VIEWS_LIST,['team','Team & users']];
-function myTabs(){const me=window.__me;if(!me||me.role==='admin'||window.__mcpMode||me.tabs==null)return null;return new Set(String(me.tabs).split(',').map(x=>x.trim()).filter(Boolean))}
+/* tabs column: "key" = can edit, "key:v" = view only, missing = hidden, null = every tab, can edit */
+function tabMap(v){if(v==null)return null;const m={};for(const x of String(v).split(',').map(x=>x.trim()).filter(Boolean)){const [k,f]=x.split(':');m[k]=f==='v'?'v':'e'}return m}
+function myTabs(){const me=window.__me;if(!me||me.role==='admin'||window.__mcpMode||me.tabs==null)return null;return new Set(Object.keys(tabMap(me.tabs)))}
+function roView(k){k=k||UI.view;const me=window.__me;if(!me||me.role==='admin'||window.__mcpMode||me.tabs==null||k==='team')return false;const m=tabMap(me.tabs);return m[k]==='v'}
+/* view-only tabs: anything changed there is put back and not saved */
+let RO_SNAP=null,RO_REST=false,RO_ACT=0,RO_PEND=false;
+['input','change','click','pointerdown','keydown','drop','paste'].forEach(ev=>document.addEventListener(ev,e=>{if(viewEl&&viewEl.contains(e.target))RO_ACT=Date.now()},true));
+function roGuard(p){if(RO_REST||!RO_SNAP||!roView()||Date.now()-RO_ACT>2500)return false;
+  if(!RO_PEND){RO_PEND=true;setTimeout(()=>{RO_PEND=false;RO_REST=true;try{roRestore(RO_SNAP)}finally{RO_REST=false}UI.roMsg='This tab is view only for you, so that change wasn’t saved.';render()},0)}return true}
+/* put back what the snapshot had, in memory only: nothing is saved and nothing is deleted on the server */
+function roRestore(snap){const cur=undoSnap();const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt',drawings:'dwgs',site:'site'};
+  for(const p in snap){if(cur[p]===snap[p])continue;const [c,id]=p.split('/');const d=JSON.parse(snap[p]);
+    if(c==='project'){if(id==='info')S.info=d;else if(id==='cashflow')S.cash=d;else if(id==='crew')S.crew=d;else if(id==='labourlog')S.llog=d;else if(id==='claim')S.claim=d}
+    else if(c==='apartments')S.apt[id]=normTrade(id,d);else if(MAP[c])S[MAP[c]][id]=d}}
+function roDecorate(){viewEl.classList.toggle('ro-view',roView());if(!roView()){RO_SNAP=null;return}if(!RO_PEND){try{RO_SNAP=undoSnap()}catch(e){RO_SNAP=null}}
+  viewEl.querySelectorAll('input[data-b],select[data-b],textarea[data-b],[contenteditable="true"]').forEach(x=>{if(x.isContentEditable)x.contentEditable='false';else x.disabled=true});
+  const b=document.createElement('div');b.className='ro-banner';b.setAttribute('role','status');b.textContent=UI.roMsg||'View only: you can look at this tab but not change it. Ask an admin if you need to edit it.';viewEl.prepend(b);UI.roMsg=''}
 const teamOn=()=>!!((HOSTED||window.__mcpMode)&&window.__me);
 function canView(k){if(k==='team')return teamOn()&&(!myTabs()||myTabs().has('team'));const T=myTabs();return !T||T.has(k)}
 function firstView(){const v=ALL_TABS().find(([k])=>canView(k));return v?v[0]:null}
@@ -3655,7 +3673,7 @@ function render(){
   renderChrome();
   const keepSc={};viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{keepSc[el.id||('vp'+i)]=el.scrollTop});
   viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+cptoHtml()+tmvHtml();
-  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
+  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
@@ -4434,20 +4452,20 @@ async function setTempPw(email,pw){const sb=window.__sb;let {data,error}=await s
   if(error)return /could not find the function|schema cache|admin_set_password/i.test(error.message)?'Temporary passwords need a one-time database update first. Ask Claude to apply “supabase-temp-password.sql”.':'Could not set the password: '+error.message;
   if(data==='no_account')return 'Their account isn’t ready yet. Try again in a minute.';
   TEAMSHARE={email,pw};return 'Temporary password set for '+email+'. Copy the message below and send it to them from your own email (Outlook) or Teams.'}
-function tabsLabel(u){if(u.tabs==null)return 'Tabs: all';const n=String(u.tabs).split(',').filter(Boolean).length;return `Tabs: ${n} of ${ALL_TABS().length}`}
-function tabsPicker(u){const on=u.tabs==null?null:new Set(String(u.tabs).split(',').filter(Boolean));const em=esc(u.email);
-  return `<tr class="sel"><td colspan="8"><div class="tabs-pick"><div class="sec-head" style="margin:0 0 8px"><div><b>Tabs ${esc(u.name||u.email)} can open</b><p class="hint" style="margin:2px 0 0">Untick a tab to hide it from them. Changes apply the next time they open or refresh the app. Admins always see every tab.</p></div>
-    <div class="toolbar"><button class="btn ghost" type="button" data-tabsall="${em}" data-v="1">All</button><button class="btn ghost" type="button" data-tabsall="${em}" data-v="0">None</button><button class="btn" type="button" data-tabsfor="">Done</button></div></div>
-    <div class="tabs-grid">${ALL_TABS().map(([k,l])=>`<label class="tabs-opt"><input type="checkbox" data-tabchk="${em}" value="${k}" ${!on||on.has(k)?'checked':''}> ${esc(l)}${k==='team'?' <span class="hint">(view only)</span>':''}</label>`).join('')}</div></div></td></tr>`}
-async function saveTabs(email,list){const all=ALL_TABS().map(x=>x[0]);const val=list.length===all.length?null:all.filter(k=>list.includes(k)).join(',');
+function tabsLabel(u){if(u.tabs==null)return 'Tabs: all';const m=tabMap(u.tabs);const n=Object.keys(m).length,v=Object.values(m).filter(x=>x==='v').length;return `Tabs: ${n} of ${ALL_TABS().length}${v?` · ${v} view only`:''}`}
+function tabsPicker(u){const m=tabMap(u.tabs);const em=esc(u.email);const lv=k=>!m?'e':m[k]||'h';
+  return `<tr class="sel"><td colspan="8"><div class="tabs-pick"><div class="sec-head" style="margin:0 0 8px"><div><b>What ${esc(u.name||u.email)} can do on each tab</b><p class="hint" style="margin:2px 0 0"><b>Can edit</b>: they can make changes. <b>View only</b>: they can look but not change anything. <b>Hidden</b>: they don’t see the tab. Changes apply the next time they open or refresh the app. Admins can always edit every tab.</p></div>
+    <div class="toolbar"><button class="btn ghost" type="button" data-tabsall="${em}" data-v="e">All can edit</button><button class="btn ghost" type="button" data-tabsall="${em}" data-v="v">All view only</button><button class="btn ghost" type="button" data-tabsall="${em}" data-v="h">Hide all</button><button class="btn" type="button" data-tabsfor="">Done</button></div></div>
+    <div class="tabs-grid">${ALL_TABS().map(([k,l])=>{const v=k==='team'&&lv(k)==='e'?'v':lv(k);return `<label class="tabs-opt lv-${v}"><span style="flex:1;min-width:0">${esc(l)}</span><select class="f" data-tabsel="${em}" data-k="${k}" aria-label="${esc(l)}">${(k==='team'?[['v','View only'],['h','Hidden']]:[['e','Can edit'],['v','View only'],['h','Hidden']]).map(([o,t])=>`<option value="${o}" ${v===o?'selected':''}>${t}</option>`).join('')}</select></label>`}).join('')}</div></div></td></tr>`}
+async function saveTabs(email,map){const all=ALL_TABS().map(x=>x[0]);if(map.team==='e')map.team='v';const val=all.every(k=>map[k]==='e'||(k==='team'&&map[k]==='v'))?null:all.filter(k=>map[k]&&map[k]!=='h').map(k=>map[k]==='v'&&k!=='team'?k+':v':k).join(',');
   const u=(TEAM||[]).find(x=>x.email===email);const {error}=await window.__sb.from('team').update({tabs:val}).eq('email',email);
   if(error){TEAMMSG=/column .*tabs|tabs.*does not exist|schema cache/i.test(error.message)?'Tab choices need a one-time database update first. Ask Claude to apply “supabase-tabs.sql”.':'Could not save tabs: '+error.message;render();return}
-  if(u)u.tabs=val;TEAMMSG=(u&&(u.name||u.email)||email)+(val===null?' can open all tabs.':val?' can open '+val.split(',').length+' tab'+(val.split(',').length===1?'':'s')+'.':' can’t open any tabs yet.');render()}
+  if(u)u.tabs=val;TEAMMSG=(u&&(u.name||u.email)||email)+(()=>{if(val===null)return ' can edit all tabs.';if(!val)return ' can’t open any tabs yet.';const m=tabMap(val),n=Object.keys(m).length,v=Object.entries(m).filter(([k,x])=>x==='v'&&k!=='team').length;return ' can open '+n+' tab'+(n===1?'':'s')+(v?', '+v+' of them view only':'')+'.'})();render()}
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-tabsfor],[data-tabsall]');if(!t)return;
-  if(t.dataset.tabsall!==undefined){const em=t.dataset.tabsall;saveTabs(em,t.dataset.v==='1'?ALL_TABS().map(x=>x[0]):[]);return}
+  if(t.dataset.tabsall!==undefined){const em=t.dataset.tabsall;const m={};ALL_TABS().forEach(([k])=>m[k]=t.dataset.v);saveTabs(em,m);return}
   UI.tabsFor=t.dataset.tabsfor&&UI.tabsFor!==t.dataset.tabsfor?t.dataset.tabsfor:null;render()});
-document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||t.dataset.tabchk===undefined)return;const em=t.dataset.tabchk;
-  const list=[...document.querySelectorAll('input[data-tabchk]')].filter(x=>x.dataset.tabchk===em&&x.checked).map(x=>x.value);saveTabs(em,list)});
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||t.dataset.tabsel===undefined)return;const em=t.dataset.tabsel;const m={};
+  document.querySelectorAll('select[data-tabsel]').forEach(x=>{if(x.dataset.tabsel===em)m[x.dataset.k]=x.value});saveTabs(em,m)});
 function pkPanel(){
   if(!PK)return '';if(PK.err)return `<div class="banner">Packages aren’t set up in the database yet (${esc(PK.err)}).</div>`;
   const admin=window.__me.role==='admin';const projs=projList().concat(Object.keys(PROJ).filter(k=>!PROJ[k].removed&&!projList().some(x=>x.id===k)).map(k=>({id:k,name:projName(k)})));
