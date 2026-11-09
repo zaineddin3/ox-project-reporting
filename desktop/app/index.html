@@ -1355,7 +1355,12 @@ function parseInvoiceText(text){
   let totalExGst=amt(/(?:total\s+ex(?:cl(?:uding)?)?\.?\s*gst|sub-?\s*total(?:\s+ex\.?\s*gst)?|nett?\s+total|amount\s+ex(?:cl)?\.?\s*gst)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
   if(totalExGst==null){const inc=amt(/(?:total\s+inc(?:l(?:uding)?)?\.?\s*gst|invoice\s+total|total\s+amount|amount\s+due|total\s+due)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);if(inc!=null)totalExGst=Math.round(inc/1.1*100)/100}
   return {invoiceNo,date,totalExGst,lines}}
-async function extractInvoice(oid,j,blob,replace){
+/* invoices that already have a PDF but no materials (attached before automatic reading) are read when their order is opened */
+const AUTOREAD=new Set();
+function invAutoRead(){if(UI.view!=='orders'||roView())return;for(const [oid,o] of Object.entries(S.orders)){if(!UI.open[oid])continue;(o.inv||[]).forEach((x,j)=>{const k=oid+'_'+j;
+  if(!x.invFile||!x.invFile.id||invLines(x).length||x.readTried||AUTOREAD.has(k)||EXT[k])return;AUTOREAD.add(k);x.readTried=1;
+  fileBlob(x.invFile).then(b=>extractInvoice(oid,j,b,true,{auto:1})).catch(e=>{console.error(e);EXT[k]={err:'Couldn’t open this invoice PDF to read it.'};render()})})}}
+async function extractInvoice(oid,j,blob,replace,opt){
   const key=oid+'_'+j;const o=S.orders[oid];const x=o&&o.inv[j];if(!x)return;
   EXT[key]={busy:'Reading the invoice…'};render();
   try{
@@ -1363,6 +1368,7 @@ async function extractInvoice(oid,j,blob,replace){
     EXT[key]={busy:'Extracting materials…'};render();
     /* the built-in reader runs first; Claude reads it when that finds nothing (scanned invoices, unusual layouts) and Claude is available */
     let out=null,how='';if(!images.length){try{const L=parseInvoiceText(text);if(L.lines.length){out=L;how='local'}}catch(e){console.error(e)}}
+    if(!out&&opt&&opt.auto){EXT[key]={err:'Couldn’t read the materials on this invoice automatically. '+(sampleFn?'Click “Read PDF” to have Claude read it, or add':'Add')+' them by hand.'};render();return}
     if(!out&&!sampleFn){EXT[key]={err:images.length?'This invoice is a scanned picture, so there’s no text to read here. Add the materials by hand, or open the app in Claude to read it.':'Couldn’t find material lines on this invoice. Add them by hand.'};render();return}
     if(!out){
     const prompt=`You are reading a supplier invoice for an Australian electrical contractor. Extract every material or item line.
@@ -1388,9 +1394,10 @@ async function uploadItp(key,file){
   if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name))){setSave('error','File must be a PDF');return}
   if(file.size>50*1024*1024){setSave('error','File is over 50 MB');return}
   UP[key]=true;render();
+  /* invoices are read straight away, while the PDF uploads */
+  const kp=key.split('|');if(kp[0]==='inv'){const x=S.orders[kp[1]]?.inv?.[+kp[2]];if(x)x.readTried=1;setTimeout(()=>extractInvoice(kp[1],+kp[2],file,!invLines(x||{}).length),0)}
   try{const old=getItp(key);const r=await assets.upload(file,{type:'application/pdf'});setItp(key,{id:r.id,name:file.name});
-    if(old&&old.id)assets.delete(old.id).catch(()=>{});
-    const kp=key.split('|');if(kp[0]==='inv')setTimeout(()=>extractInvoice(kp[1],+kp[2],file,false),0)}
+    if(old&&old.id)assets.delete(old.id).catch(()=>{})}
   catch(e){console.error(e);setSave('error',e&&e.code==='too_large'?'ITP is over 50 MB':e&&e.code==='quota_or_state'?'File storage is full':'ITP upload failed')}
   delete UP[key];render();
 }
@@ -3852,7 +3859,7 @@ function render(){
   renderChrome();
   const keepSc={};viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{keepSc[el.id||('vp'+i)]=el.scrollTop});
   viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+cptoHtml()+tmvHtml();
-  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
+  viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{setTimeout(invAutoRead,0)}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
