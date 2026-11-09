@@ -2283,7 +2283,7 @@ function msDelivered(m,it,upto){let s=0;for(let k=0;k<upto;k++)s+=num(m.dockets[
 V.msod=()=>{
   const ids=msIds();if(!ids.includes(UI.ms))UI.ms=ids[0]||'';
   const id=UI.ms;const m=S.msods[id];
-  if(m&&Array.isArray(m.suppliers)&&m.suppliers.length<6){while(m.suppliers.length<6)m.suppliers.push('');persist('msod/'+id)}
+  if(m&&Array.isArray(m.suppliers)&&!m.suppliers.length){m.suppliers.push('');persist('msod/'+id)}
   const chooser=`<div class="panel"><h3>Choose an MSOD template</h3><p class="hint" style="margin:-6px 0 12px">Each template matches one of your MSOD workbooks.</p>
     <div class="mstpl"><button class="mscard" data-act="ms-new" data-v="general"><b>General materials</b><span>Item, type, description, details and cat number. Six supplier quotes. Based on <i>OX – PROJXX – MSOD</i>.</span></button>
     <button class="mscard" data-act="ms-new" data-v="submain"><b>Submains</b><span>From, to, cable ID, number of cables, config, size, conductor, insulation and run length. Six supplier quotes. Based on <i>MOSD Blank Submain</i>.</span></button></div>
@@ -2315,7 +2315,7 @@ function msDetails(id,m){
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
-  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
+  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><button class="btn" data-act="ms-sup-add" title="Add another supplier column">+ Add supplier</button><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
     <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label>${ch>=0?msSupPoHtml(id,m,ch):''}</div>`;
   const xlMsg=UI.msXlMsg?`<div class="panel" role="status" style="padding:9px 14px;${UI.msXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.msXlMsg.t)}</div>`:'';
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
@@ -2330,7 +2330,7 @@ function msItems(id,m,C){
       <td>${delBtn('msi',id,String(i))}</td></tr>`}).join('');
   const span=cols.length+2;
   const table=`<div class="tw tall"><table class="mstable"><thead>
-    <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''} msq-drop" data-msq="${id}|${si}" title="Drop the supplier’s quote PDF here">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<div class="ms-suptot" title="Total of ${esc(msSupName(m,si))}’s prices">Total <b class="money">${C.sup[si]?money2(C.sup[si]):'—'}</b>${(()=>{const v=C.sup.filter(x=>x>0);return C.sup[si]>0&&v.length>1&&C.sup[si]===Math.min(...v)?' <span class="tag acc">lowest</span>':''})()}</div><button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button><div class="msquote">${itpCell('msqf|'+id+'|'+si,(m.quotes||[])[si],'Quote')}</div></th>`}).join('')}<th></th><th></th></tr>
+    <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''} msq-drop" data-msq="${id}|${si}" title="Drop the supplier’s quote PDF here">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<div class="ms-suptot" title="Total of ${esc(msSupName(m,si))}’s prices">Total <b class="money">${C.sup[si]?money2(C.sup[si]):'—'}</b>${(()=>{const v=C.sup.filter(x=>x>0);return C.sup[si]>0&&v.length>1&&C.sup[si]===Math.min(...v)?' <span class="tag acc">lowest</span>':''})()}</div><button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button><div class="msquote">${itpCell('msqf|'+id+'|'+si,(m.quotes||[])[si],'Quote')}</div>${ns>1?`<button class="btn ${UI.armed==='mssupdel'+id+si?'armed':'ghost'} ms-supdel" data-act="ms-sup-del" data-v="${si}" title="Remove this supplier and their rates">${UI.armed==='mssupdel'+id+si?'Confirm remove':'Remove supplier'}</button>`:''}</th>`}).join('')}<th></th><th></th></tr>
     <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th>${m.suppliers.map((_,si)=>`<th class="n${si===ch?' mson':''}">Rate</th><th class="n${si===ch?' mson':''}">Price</th>`).join('')}<th class="n">Lowest rate</th><th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${span+2*ns+2}" class="hint">No lines yet.</td></tr>`}</tbody>
     <tfoot><tr><td colspan="${span}">Total</td>${C.sup.map((v,si)=>`<td class="${si===ch?'mson':''}"></td><td class="n money${si===ch?' mson':''}">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>`;
@@ -2402,9 +2402,11 @@ function msSchedule(id,m,C){
 async function msApprPdf(id){
   const m=S.msods[id];if(!m)return;
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});const W=297;
-  pdfHeader(doc,'Material schedule & order approval');
-  const C=msCalc(m);const cols=MS_COLS[m.type]||MS_COLS.general;const a=m.appr||{};const ch=C.ch;
+  const C=msCalc(m);const ch0=C.ch;
+  /* every supplier you've entered anything for; more than five go on A3 so the columns stay readable */
+  const SI=m.suppliers.map((n,si)=>si).filter(si=>String(m.suppliers[si]||'').trim()||C.sup[si]>0||m.items.some(it=>String((it.r||[])[si]??'').trim()!=='')||((m.quotes||[])[si]&&m.quotes[si].id)||si===ch0);
+  const big=SI.length>5;const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:big?'a3':'a4',orientation:'landscape'});const W=big?420:297,PH=big?297:210;
+  pdfHeader(doc,'Material schedule & order approval');const cols=MS_COLS[m.type]||MS_COLS.general;const a=m.appr||{};const ch=C.ch;
   const f2=n=>Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});const fq=n=>Number(n||0).toLocaleString('en-AU',{maximumFractionDigits:2});
   doc.setFontSize(9.5);
   const info=[['Project',PROJ[PID]?.name||S.info.name||''],['Job no.',S.info.job||''],['MSOD',msName(m)],['Type',MS_LABEL[m.type]||m.type],['Printed',fmtDate(todayISO())]];
@@ -2412,25 +2414,23 @@ async function msApprPdf(id){
   let y=55;info.forEach(([k,v],i)=>{doc.setFont('helvetica','bold');doc.text(k+':',14,y+i*5.2);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(v||'—'),95)[0],44,y+i*5.2)});
   info2.forEach(([k,v],i)=>{doc.setFont('helvetica','bold');doc.text(k+':',160,y+i*5.2);doc.setFont('helvetica','normal');doc.text(String(v||'—'),205,y+i*5.2)});
   y+=info.length*5.2+1;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=5}
-  /* suppliers with a name or any price */
-  const SI=m.suppliers.map((n,si)=>si).filter(si=>String(m.suppliers[si]||'').trim()||C.sup[si]>0);
   const head1=[{content:'#',rowSpan:2},...cols.map(c=>({content:c[1],rowSpan:2})),{content:'Qty',rowSpan:2},...SI.map(si=>({content:msSupName(m,si)+(si===ch?'  (chosen)':''),colSpan:2,styles:{halign:'center'}})),{content:'Lowest rate',rowSpan:2}];
   const head2=SI.flatMap(()=>['Rate','Price']);
   const body=C.rows.map((x,i)=>[String(i+1),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
   const foot=[[{content:'Total',colSpan:cols.length+2,styles:{halign:'left'}},...SI.flatMap(si=>['',C.sup[si]?'$'+f2(C.sup[si]):'—']),'']];
   const firstNum=cols.length+1;const chCols=new Set();SI.forEach((si,k)=>{if(si===ch){chCols.add(firstNum+1+k*2);chCols.add(firstNum+2+k*2)}});
-  doc.autoTable({startY:y+2,head:[head1,head2],body,foot,theme:'grid',styles:{fontSize:7.5,cellPadding:1.3,overflow:'linebreak'},headStyles:{fillColor:[51,51,51],textColor:255,fontSize:7.5,valign:'middle'},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
+  doc.autoTable({startY:y+2,head:[head1,head2],body,foot,theme:'grid',styles:{fontSize:SI.length>9?6.5:7.5,cellPadding:1.3,overflow:'linebreak'},headStyles:{fillColor:[51,51,51],textColor:255,fontSize:SI.length>9?6.5:7.5,valign:'middle'},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
     margin:{left:12,right:12},showFoot:'lastPage',
     didParseCell:dt=>{const i=dt.column.index;if(i>=firstNum&&dt.section!=='head')dt.cell.styles.halign='right';if(chCols.has(i)&&dt.section==='body')dt.cell.styles.fillColor=[253,236,224]}});
   y=doc.lastAutoTable.finalY+7;
-  const need=h=>{if(y+h>200){doc.addPage();y=18}};
+  const need=h=>{if(y+h>PH-10){doc.addPage();y=18}};
   const block=(t,v)=>{if(!String(v||'').trim())return;doc.setFont('helvetica','bold');doc.setFontSize(9.5);const L=doc.splitTextToSize(String(v),W-28);need(6+L.length*4.4);doc.text(t,14,y);y+=4.6;doc.setFont('helvetica','normal');doc.text(L,14,y);y+=L.length*4.4+3};
   block('Technical evaluation & recommendation',a.rec);block('Comments',a.comments);
   /* sign-off: one row per person in the evaluation, with room to sign by hand */
   need(14+MS_APPR.length*12);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Evaluation & approval sign-off',14,y);y+=2;
   doc.autoTable({startY:y+1,head:[['Role','Name','Signature','Date']],body:MS_APPR.map(([k,l])=>[l,a[k]||'','',a[k+'Date']?fmtDate(a[k+'Date']):'']),theme:'grid',
-    styles:{fontSize:9,cellPadding:2,minCellHeight:12,valign:'middle'},headStyles:{fillColor:[51,51,51],textColor:255,minCellHeight:7},margin:{left:14,right:14},columnStyles:{0:{cellWidth:62},1:{cellWidth:70},2:{cellWidth:95},3:{cellWidth:42}}});
-  const pages=doc.internal.getNumberOfPages();for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(120);doc.text(`${msName(m)} · page ${p} of ${pages}`,W-14,203,{align:'right'});doc.setTextColor(0)}
+    styles:{fontSize:9,cellPadding:2,minCellHeight:12,valign:'middle'},headStyles:{fillColor:[51,51,51],textColor:255,minCellHeight:7},margin:{left:14,right:14},columnStyles:big?{0:{cellWidth:90},1:{cellWidth:100},2:{cellWidth:150},3:{cellWidth:52}}:{0:{cellWidth:62},1:{cellWidth:70},2:{cellWidth:95},3:{cellWidth:42}}});
+  const pages=doc.internal.getNumberOfPages();for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(120);doc.text(`${msName(m)} · page ${p} of ${pages}`,W-14,PH-7,{align:'right'});doc.setTextColor(0)}
   const name=`${(S.info.job||'MSOD').replace(/[^\w.-]+/g,'_')} ${msName(m).replace(/[^\w.-]+/g,'_')} - approval.pdf`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:doc.output('blob')})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
@@ -4250,7 +4250,7 @@ document.addEventListener('click',e=>{const btn=e.target.closest('[data-act]');i
 document.addEventListener('click',async e=>{
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act;
-  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del'&&act!=='task-del')UI.armed=null;
+  if(act!=='del'&&act!=='roll'&&act!=='pc-reopen'&&act!=='proj-remove'&&act!=='unsplit'&&act!=='imerge'&&act!=='vresubmit'&&act!=='inv-read'&&act!=='pg-submit'&&act!=='pg-retract'&&act!=='pg-retract-all'&&act!=='pc-approve'&&act!=='pc-del'&&act!=='task-del'&&act!=='ms-sup-del'&&act!=='selitemdel')UI.armed=null;
   if(act==='proj'){PEXP[btn.dataset.v]=true;savePexp();if(btn.dataset.v===PID){renderChrome();return}switchProject(btn.dataset.v);return}
   if(act==='proj-rename'){UI.renaming=btn.dataset.v;renderChrome();setTimeout(()=>{const el=document.getElementById('prename_'+btn.dataset.v);if(el){el.focus();el.select()}},30);return}
   if(act==='proj-rename-ok'){commitRename(btn.dataset.v);return}
@@ -4295,6 +4295,12 @@ document.addEventListener('click',async e=>{
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-apprpdf'){msApprPdf(id);return}
+    if(act==='ms-sup-add'){m.suppliers.push('');persist('msod/'+id);render();setTimeout(()=>{const e=document.getElementById(('mssup|'+id+'|'+(m.suppliers.length-1)).replace(/\|/g,'_'));if(e){e.focus();e.scrollIntoView({block:'nearest',inline:'center'})}},40);return}
+    if(act==='ms-sup-del'){const si=+btn.dataset.v;if(m.suppliers.length<2||!(si>=0))return;const k='mssupdel'+id+si;if(UI.armed!==k){UI.armed=k;render();setTimeout(()=>{if(UI.armed===k){UI.armed=null;render()}},4000);return}UI.armed=null;undoRecord();
+      /* take the supplier out of every line, so the other suppliers' rates, totals and the chosen supplier stay right */
+      m.suppliers.splice(si,1);for(const it of m.items)if(Array.isArray(it.r))it.r.splice(si,1);if(Array.isArray(m.quotes))m.quotes.splice(si,1);
+      if(m.chosen!==''&&m.chosen!=null){const ch=+m.chosen;if(ch===si)m.chosen='';else if(ch>si)m.chosen=String(ch-1)}
+      persist('msod/'+id);render();return}
     if(act==='ms-choose'){const v=btn.dataset.v;m.chosen=String(m.chosen)===v?'':v;persist('msod/'+id);render();return}
   }
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
