@@ -30,7 +30,11 @@
 html,body{background:var(--bg)}
 body{color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
 button,input,select,textarea{font:inherit;color:inherit}
-.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.app{display:grid;grid-template-columns:var(--railw,232px) minmax(0,1fr);min-height:100vh}
+.rail-rsz{position:fixed;top:0;bottom:0;left:calc(var(--railw,232px) - 4px);width:8px;cursor:col-resize;z-index:30;touch-action:none}
+.rail-rsz::after{content:'';position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
+.rail-rsz:hover::after,.rail-rsz.on::after,.rail-rsz:focus-visible::after{background:var(--accent)}
+body.rail-resizing{cursor:col-resize;user-select:none}
 .rail{background:var(--rail);color:var(--rail-ink);position:sticky;top:0;height:100vh;overflow-y:auto;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;display:flex;flex-direction:column;gap:18px}
 .brand{display:flex;gap:10px;align-items:center}
 .brand .mark{width:38px;height:38px;border:2px solid var(--accent);border-radius:6px;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:var(--rail-hi);letter-spacing:.04em}
@@ -397,6 +401,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
+.pcxl-dropping,.pcxl-dropping td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 8%,transparent)!important}.pcxl-btn{font-size:12px;padding:3px 8px;margin-left:8px}
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
@@ -485,6 +490,7 @@ tr.sel td{background:var(--accent-soft)}
 .yn button:focus-visible{outline:2px solid var(--accent)}
 @media (max-width:860px){
   .app{grid-template-columns:minmax(0,1fr)}
+  .rail-rsz{display:none}
   .rail{position:sticky;top:env(safe-area-inset-top,0px);height:auto;z-index:20;flex-direction:row;align-items:center;padding-block:10px;padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:auto;gap:14px}
   body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--rail)}
   .brand .t,.brand .s,.rail .foot{display:none}
@@ -506,6 +512,7 @@ tr.sel td{background:var(--accent-soft)}
 </style>
 
 <div class="app">
+  <div class="rail-rsz" role="separator" aria-orientation="vertical" aria-label="Resize the side bar" title="Drag to resize the side bar · double-click to reset" tabindex="0"></div>
   <aside class="rail" aria-label="Report sections">
     <div class="brand"><div class="mark">OX</div><div><div class="t">Project Reporting</div><div class="s">Oxford Electrical</div></div></div>
     <div class="ptree" id="ptree"></div>
@@ -1890,6 +1897,51 @@ function claimTotals(){
 const r2s=v=>(v===''||v==null)?'':String(Math.round(num(v)*100)/100);
 function pcBar(c,a){c=Math.min(Math.max(c,0),1);a=Math.min(Math.max(a,0),1);
   return `<div class="pcbar" title="${pct(c,0)} claimed · ${pct(a,0)} approved"><div class="bar"><i style="width:${(c*100).toFixed(1)}%"></i></div><div class="bar b2 thin"><i style="width:${(a*100).toFixed(1)}%"></i></div></div><div class="pcbar-l"><span>${pct(c,0)}</span><span class="hint">${pct(a,0)} appr.</span></div>`}
+/* ---------- Progress claim: fill sections from an Excel / CSV file ----------
+   columns are found by their headings (Item, Description, Contract sum / Amount, % complete, Previously approved, % approved, Ref…).
+   Dropped on a section: the lines are added to that section. Dropped on the Contract works heading (or Import Excel there):
+   rows with a name but no amount start a new section, and the lines under them go in it. */
+const PC_HDR={item:/^(item|item\s*no\.?|no\.?|#|line|code)$/,ref:/^(ref|reference|var(iation)?\s*(no|ref)|vq|scvo)/,desc:/desc|scope|^item\s*description|^works?$|^details?$/,aref:/approv\w*\s*ref|approval/,
+  sum:/contract\s*(sum|value)|^amount|^value$|^total(\s*value)?$|^price$|^sum$|tender|budget|^\$$/,pct:/%\s*(complete|claimed)|^complete|percent|^%$|progress/,prev:/prev|previous/,apct:/%\s*approved|approved\s*%/};
+function pcImportRows(area,rows,si,newSecs){const d=claimDoc();const norm=t=>String(t||'').toLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();
+  const fields=area==='c'?['item','desc','sum','pct','prev','apct']:['ref','desc','aref','sum','pct','prev','apct'];
+  let hi=-1,map=null;
+  for(let r=0;r<Math.min(rows.length,12)&&hi<0;r++){const M={};let hits=0;rows[r].forEach((c,ci)=>{const h=norm(c);if(!h)return;
+      /* the % columns first, so "% approved" isn't read as an amount */
+      for(const f of ['apct','pct','prev','aref',...fields])if(fields.includes(f)&&PC_HDR[f]&&PC_HDR[f].test(h)&&!Object.values(M).includes(f)){M[ci]=f;hits++;return}});
+    if(hits>=2&&Object.values(M).includes('desc')){hi=r;map=M}}
+  if(!map){map={};(area==='c'?['item','desc','sum','pct']:['ref','desc','sum','pct']).forEach((f,i)=>map[i]=f)}
+  const money=v=>{const t=String(v||'').replace(/[$,\s]/g,'').replace(/^\((.*)\)$/,'-$1');return t===''||isNaN(+t)?'':String(Math.round(+t*100)/100)};
+  const pctv=(v,all)=>{const t=String(v||'').replace(/[%\s]/g,'');if(t===''||isNaN(+t))return '';let n=+t;if(all&&n<=1&&!/%/.test(String(v)))n=n*100;return String(Math.round(n*100)/100)};
+  const body=rows.slice(hi+1).filter(r=>r.some(c=>String(c).trim()));
+  /* Excel percentages come through as 0.45: if every % in the sheet is 1 or less, read them as fractions */
+  const pcols=Object.entries(map).filter(([,f])=>f==='pct'||f==='apct').map(([ci])=>+ci);
+  const frac=pcols.length&&body.every(r=>pcols.every(ci=>{const t=String(r[ci]||'').replace(/\s/g,'');return t===''||/%/.test(t)||(+t>=0&&+t<=1)}))&&body.some(r=>pcols.some(ci=>/\./.test(String(r[ci]||''))));
+  const out=[];let cur=null;
+  for(const r of body){const l={...newPcLine()};if(area==='p')l.status='Submitted';
+    for(const [ci,f] of Object.entries(map)){const v=String(r[+ci]??'').trim();if(!v)continue;l[f]=f==='sum'||f==='prev'?money(v):f==='pct'||f==='apct'?pctv(v,frac):v}
+    const label=String(l.desc||l.item||l.ref||'').trim();if(/^\s*(sub\s*)?total\b|^grand\s*total|^contract\s*(works\s*)?total/i.test(label)||/^\s*(sub\s*)?total\b/i.test(String(l.item||'')))continue;
+    const hasNum=['sum','pct','prev','apct'].some(f=>l[f]!==''&&l[f]!=null);
+    if(!hasNum){if(newSecs&&area==='c'&&label){cur={id:uid('C'),name:label,lines:[]};out.push(cur)}continue}/* a row with a name and no amounts is a section heading */
+    if(!l.desc&&!l.sum)continue;
+    if(newSecs&&area==='c'&&!cur){cur={id:uid('C'),name:'',lines:[]};out.push(cur)}
+    (newSecs&&area==='c'?cur.lines:out).push(l)}
+  const blank=l=>!String(l.desc||'').trim()&&!num(l.sum)&&!num(l.pct)&&!num(l.prev);
+  let n=0,ns=0;
+  if(area==='c'&&newSecs){const secs=out.filter(x=>x.lines.length);secs.forEach(x=>n+=x.lines.length);ns=secs.length;
+    /* an untouched starting section (no name or the default name, and no amounts) is replaced */
+    d.secs=d.secs.filter(x=>!((!x.name.trim()||x.name.trim()==='Contract works')&&x.lines.every(blank)));
+    secs.forEach((x,k)=>{if(!x.name)x.name='Imported '+(k+1);const no=d.secs.length+1;x.lines.forEach((l,i)=>{if(!String(l.item||'').trim())l.item=no+'.'+(i+1)});d.secs.push(x)})}
+  else{const L=area==='c'?d.secs[si].lines:area==='a'?d.av:d.pv;const keep=L.filter(l=>!blank(l));const base=keep.length;
+    out.forEach((l,i)=>{if(area==='c'&&!l.item)l.item=String(si+1)+'.'+(base+i+1)});n=out.length;
+    if(area==='c')d.secs[si].lines=keep.concat(out);else if(area==='a')d.av=keep.concat(out);else d.pv=keep.concat(out)}
+  if(n)persist('project/claim');return {n,ns,headed:hi>=0}}
+async function pcImportFile(area,si,newSecs,file){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}
+  UI.pcXlMsg={t:'Reading '+(file.name||'the file')+'…'};render();
+  try{const rows=await sheetRows(file);try{undoRecord()}catch(e){}const R=pcImportRows(area,rows,si,newSecs);const where=area==='a'?'approved variations':area==='p'?'pending variations':newSecs?(R.ns+' section'+(R.ns===1?'':'s')):'“'+(claimDoc().secs[si]?.name||'the section')+'”';
+    UI.pcXlMsg=R.n?{ok:1,t:`Added ${R.n} line${R.n===1?'':'s'} to ${where} from ${file.name}${R.headed?'':' (no headings found, so the columns were read as Item, Description, Contract sum, % complete)'}. Please check them.`}:{err:1,t:'No lines were found in '+file.name+'. Use a sheet with headings such as Item, Description, Contract sum, % complete.'}}
+  catch(e){console.error(e);UI.pcXlMsg={err:1,t:'Couldn’t read '+(file.name||'that file')+'. Save it as .xlsx or .csv and try again.'}}
+  render()}
 function pcRows(area,lines,si,opt={}){
   return lines.map((l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;
     return `<tr><td style="width:86px">${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td>
@@ -1934,15 +1986,16 @@ V.claim=()=>{
     <div class="panel"><h3>Payment summary</h3><table class="ledger"><tbody>${r('Contract work approved to date',T.c.assessed)}${r('Variation work approved to date',T.a.assessed+T.p.assessed)}${r('Total approved to date',T.all.assessed,'total')}${r('Less previously approved',-T.all.prev)}${r('This claim',T.all.pay,'total')}${r('Add GST (10%)',gst)}${r('Payment amount incl. GST',T.all.pay+gst,'total')}<tr class="sub"><td colspan="2" style="padding-top:12px;text-align:left">From claim history</td></tr>${r('Total approved to date',T.ha)}${r('Retention held to date',T.ret)}${r('Approved less retention',T.ha-T.ret,'total')}</tbody></table></div>
   </div>
   ${contractWarn('claim')}
-  <div class="${pcLocked()?'pc-locked':''}"><div><div class="sec-head"><div><h3>Contract works</h3><p class="hint">Contract sums must add up to the original tendered amount. Leave % approved blank until ${esc(A)} assesses the claim; until then it follows your % complete. Percentages and amounts are linked: type either and the other updates. Changing the approved % also sets % complete to match. The top bar is claimed, the thin bar approved.</p></div><button class="btn primary" data-act="pc-addsec">+ Add section</button></div>
+  <div class="${pcLocked()?'pc-locked':''}"><div><div class="sec-head pcxl-t" data-pcxl="n|0"><div><h3>Contract works</h3><p class="hint">Contract sums must add up to the original tendered amount. Leave % approved blank until ${esc(A)} assesses the claim; until then it follows your % complete. Percentages and amounts are linked: type either and the other updates. Changing the approved % also sets % complete to match. The top bar is claimed, the thin bar approved. <b>Drop an Excel file</b> on a section row to add its lines there, or here to make sections from it (rows with a name and no amount become sections).</p></div><div class="toolbar"><label class="btn" for="pcxlf_n" title="Make sections and lines from an Excel or CSV file">Import Excel</label><input type="file" hidden id="pcxlf_n" data-pcxlf="n|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn primary" data-act="pc-addsec">+ Add section</button></div></div>
+  ${UI.pcXlMsg?`<div class="panel" role="status" style="padding:9px 14px;margin:0 0 10px;${UI.pcXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.pcXlMsg.t)} <button class="btn ghost" data-act="pc-xlmsg-x" aria-label="Dismiss">✕</button></div>`:''}
   <div class="tw"><table style="min-width:1600px">${pcHead()}<tbody>
-  ${d.secs.map((sc,si)=>{const t=pcSum(sc.lines);return `<tr class="secrow"><td colspan="3">${inp('pcsec|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Building E wiring'})}</td><td colspan="${NC-4}" class="hint">${sc.lines.length} line${sc.lines.length===1?'':'s'} · <span class="money">${money(t.claimed)} / ${money(t.sum)}</span> claimed · this claim <span class="money">${money(t.this)}</span></td><td style="text-align:right">${delBtn('pcsec','x',String(si),'Remove section')}</td></tr>`+
+  ${d.secs.map((sc,si)=>{const t=pcSum(sc.lines);return `<tr class="secrow pcxl-t" data-pcxl="c|${si}" title="Drop an Excel file here to add its lines to this section"><td colspan="3">${inp('pcsec|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Building E wiring'})}</td><td colspan="${NC-4}" class="hint">${sc.lines.length} line${sc.lines.length===1?'':'s'} · <span class="money">${money(t.claimed)} / ${money(t.sum)}</span> claimed · this claim <span class="money">${money(t.this)}</span> <label class="btn ghost pcxl-btn" for="pcxlf_c_${si}" title="Add lines to this section from an Excel or CSV file (or drop the file on this row)">Import Excel</label><input type="file" hidden id="pcxlf_c_${si}" data-pcxlf="c|${si}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></td><td style="text-align:right">${delBtn('pcsec','x',String(si),'Remove section')}</td></tr>`+
     pcRows('c',sc.lines,si)+`<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="pc-addline" data-a="c" data-s="${si}">+ Add line to ${esc(sc.name||'this section')}</button></td></tr>`+pcFoot(t,'Subtotal · '+esc(sc.name||'section'),3)}).join('')}
   ${pcFoot(T.c,'Contract works total (ex GST)',3,1)}
   </tbody></table></div></div>
-  <div><div class="sec-head"><div><h3>Approved variations</h3><p class="hint">Order amendments agreed to the original contract sum.</p></div><div class="toolbar"><button class="btn" data-act="pc-import" data-a="a">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="a" data-s="0">+ Add variation</button></div></div>
+  <div><div class="sec-head pcxl-t" data-pcxl="a|0"><div><h3>Approved variations</h3><p class="hint">Order amendments agreed to the original contract sum. Drop an Excel file here to add them.</p></div><div class="toolbar"><label class="btn" for="pcxlf_a">Import Excel</label><input type="file" hidden id="pcxlf_a" data-pcxlf="a|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn" data-act="pc-import" data-a="a">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="a" data-s="0">+ Add variation</button></div></div>
   <div class="tw"><table style="min-width:1700px">${pcHead({var:1,area:'a'})}<tbody>${pcRows('a',d.av,0,{var:1})||`<tr><td colspan="15" class="empty">No approved variations on this claim.</td></tr>`}${pcFoot(T.a,'Approved variations total (ex GST)',4,1)}</tbody></table></div></div>
-  <div><div class="sec-head"><div><h3>Pending variations</h3><p class="hint">Variations submitted but not yet agreed.</p></div><div class="toolbar"><button class="btn" data-act="pc-import" data-a="p">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="p" data-s="0">+ Add variation</button></div></div>
+  <div><div class="sec-head pcxl-t" data-pcxl="p|0"><div><h3>Pending variations</h3><p class="hint">Variations submitted but not yet agreed. Drop an Excel file here to add them.</p></div><div class="toolbar"><label class="btn" for="pcxlf_p">Import Excel</label><input type="file" hidden id="pcxlf_p" data-pcxlf="p|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn" data-act="pc-import" data-a="p">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="p" data-s="0">+ Add variation</button></div></div>
   <div class="tw"><table style="min-width:1800px">${pcHead({var:1,area:'p'})}<tbody>${pcRows('p',d.pv,0,{var:1})||`<tr><td colspan="16" class="empty">No pending variations on this claim.</td></tr>`}${pcFoot(T.p,'Pending variations total (ex GST)',5,1)}</tbody></table></div></div>
   </div><div class="panel"><div class="sec-head"><div><h3>Claim history</h3><p class="hint">Submitted, approved, retention and monthly cost for each claim. Edit any figure after submission to record the client’s reassessment, or reopen the latest claim to change line percentages and resubmit.</p></div><div class="toolbar"><label>Max retention<span style="width:70px">${inp('pcret',d.retMax,{num:1,label:'Max retention %'})}</span>%</label><button class="btn" data-act="pc-addhist">+ Add claim</button></div></div>
   <div class="tw"><table style="min-width:1300px"><thead><tr><th></th><th>Claim no.</th><th>Status</th><th>Date</th><th class="n">Submitted</th><th class="n">Approved</th><th class="n">Difference</th><th class="n">Retention %</th><th class="n">Retention held</th><th class="n">Paid ex retention</th><th class="n">Monthly cost</th><th class="n">Margin</th></tr></thead><tbody>
@@ -4141,6 +4194,28 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
+/* ---------- side bar: drag its edge to resize (remembered on this device) ---------- */
+(()=>{const h=document.querySelector('.rail-rsz');if(!h)return;const MIN=170,MAX=520,DEF=232;const root=document.documentElement;
+  const set=w=>{w=Math.round(Math.min(Math.max(w,MIN),Math.min(MAX,window.innerWidth-360)));root.style.setProperty('--railw',w+'px');h.setAttribute('aria-valuenow',String(w));return w};
+  let saved=null;try{saved=+localStorage.getItem('ox_railw')}catch(e){}if(saved>0)set(saved);
+  const keep=w=>{try{localStorage.setItem('ox_railw',String(w))}catch(e){}};
+  h.addEventListener('pointerdown',e=>{e.preventDefault();h.setPointerCapture(e.pointerId);h.classList.add('on');document.body.classList.add('rail-resizing');
+    const mv=ev=>set(ev.clientX);const up=ev=>{h.releasePointerCapture(e.pointerId);h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.classList.remove('on');document.body.classList.remove('rail-resizing');keep(set(ev.clientX))};
+    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up)});
+  h.addEventListener('dblclick',()=>{set(DEF);try{localStorage.removeItem('ox_railw')}catch(e){}});
+  h.addEventListener('keydown',e=>{const cur=parseInt(getComputedStyle(root).getPropertyValue('--railw'))||DEF;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();keep(set(cur+(e.key==='ArrowLeft'?-16:16)))}});
+})();
+
+/* ---------- Progress claim: drop an Excel file on a section ---------- */
+const pcXlTarget=e=>{if(UI.view!=='claim')return null;const t=e.target.closest&&e.target.closest('[data-pcxl]');if(t)return t;
+  /* a drop on a section's lines counts as that section */const tr=e.target.closest&&e.target.closest('tr');if(!tr)return null;let p=tr;while(p&&!(p.dataset&&p.dataset.pcxl))p=p.previousElementSibling;return p&&p.dataset.pcxl&&p.dataset.pcxl.startsWith('c|')?p:null};
+const pcStartRun=(spec,f)=>{const [a,i]=spec.split('|');pcImportFile(a==='n'?'c':a,+i,a==='n',f)};
+viewEl.addEventListener('dragover',e=>{if(!ordHasFiles(e))return;const t=pcXlTarget(e);if(!t)return;e.preventDefault();document.querySelectorAll('.pcxl-dropping').forEach(x=>x!==t&&x.classList.remove('pcxl-dropping'));t.classList.add('pcxl-dropping')});
+viewEl.addEventListener('dragleave',e=>{if(UI.view!=='claim')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget))document.querySelectorAll('.pcxl-dropping').forEach(x=>x.classList.remove('pcxl-dropping'))});
+viewEl.addEventListener('drop',e=>{if(!ordHasFiles(e))return;const t=pcXlTarget(e);document.querySelectorAll('.pcxl-dropping').forEach(x=>x.classList.remove('pcxl-dropping'));if(!t)return;e.preventDefault();
+  const f=[...e.dataTransfer.files].find(f=>/\.(xlsx|csv)$/i.test(f.name||'')||/spreadsheetml|text\/csv/.test(f.type||''));if(!f){setSave('error','Drop an Excel (.xlsx) or CSV file to fill the claim');return}pcStartRun(t.dataset.pcxl,f)});
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.pcxlf===undefined)return;const f=t.files&&t.files[0];if(f)pcStartRun(t.dataset.pcxlf,f);t.value=''});
+
 /* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
@@ -4473,7 +4548,8 @@ document.addEventListener('click',async e=>{
   if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
   if(act==='llog-add'){S.llog.rows.push({date:todayISO(),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
-  if(act==='pc-addsec'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+  if(act==='pc-xlmsg-x'){UI.pcXlMsg=null;render();return}
+if(act==='pc-addsec'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const a=btn.dataset.a;const L=a==='c'?d.secs[+btn.dataset.s].lines:a==='a'?d.av:d.pv;L.push(a==='p'?{...newPcLine(),status:'Submitted'}:newPcLine());persist('project/claim');render();return}
   if(act==='pc-hcost'){const d=claimDoc();const h=d.hist[+btn.dataset.i];if(!h||!/^\d{4}-\d{2}/.test(h.date||''))return;h.cost=String(Math.round(cashMonthCost(h.date.slice(0,7))*100)/100);persist('project/claim');render();return}
   if(act==='pc-addhist'){const d=claimDoc();const mc=cashMonthCost(todayISO().slice(0,7));d.hist.push({no:String(d.hist.length+1),date:todayISO(),submitted:'',approved:'',ret:'',cost:mc?String(Math.round(mc*100)/100):''});persist('project/claim');render();return}
