@@ -397,6 +397,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
+.ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
 .msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
@@ -2307,6 +2308,7 @@ function msDetails(id,m){
     ${F('jobName','Job name')}${F('jobNo','Job no.')}${F('contact','Site contact')}${F('contactPhone','Site contact phone no.')}${F('address','Delivery address',{wide:1})}</div></div>`;
 }
 /* item schedule filters, like a spreadsheet: text columns match what you type (or pick from the list of values), rate columns by blank / has rate */
+const msGrpF=m=>m.type==='submain'?'size':'type';/* the column lines are grouped by for rates: Type (cable size for submains) */
 function msFlt(id){UI.msFlt=UI.msFlt||{};return UI.msFlt[id]=UI.msFlt[id]||{}}
 function msFltOn(id){return Object.values(msFlt(id)).some(v=>String(v||'').trim())}
 function msVisible(id,m){const F=msFlt(id);const cols=MS_COLS[m.type]||MS_COLS.general;const on=msFltOn(id);
@@ -2328,14 +2330,24 @@ function msItems(id,m,C){
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
   const VIS=msVisible(id,m);const FL=msFlt(id);const fOn=msFltOn(id);const nLines=m.items.filter(x=>!x.head).length;const nShown=m.items.filter((x,i)=>!x.head&&VIS[i]).length;
   const fsi=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<ns?+UI.msFillS:(ch>=0?ch:0);
+  const GFL=(cols.find(c=>c[0]===msGrpF(m))||[0,'Type'])[1];
+  const byType=UI.msByType?(()=>{const G={};m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;const t=String(it[msGrpF(m)]??'').trim();(G[t]=G[t]||[]).push(it)});
+    const keys=Object.keys(G).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));UI.msTR=UI.msTR||{};
+    const cur=L=>{const v=L.map(it=>num((it.r||[])[fsi])).filter(x=>x>0);if(!v.length)return '<span class="hint">no rates</span>';const lo=Math.min(...v),hi=Math.max(...v);return money2(lo)+(hi!==lo?' – '+money2(hi):'')+(v.length<L.length?` <span class="hint">(${L.length-v.length} blank)</span>`:'')};
+    return `<div class="ms-bytype"><p class="hint" style="margin:0 0 6px">Type a rate against each ${esc(GFL.toLowerCase())} and apply: every ${fOn?'line shown by the filter':'line'} of that ${esc(GFL.toLowerCase())} gets the rate for <b>${esc(msSupName(m,fsi))}</b> (pick the supplier above). Leave a box empty to skip that ${esc(GFL.toLowerCase())}.</p>
+      ${keys.length?`<table class="kv ms-bytype-t"><thead><tr><th>${esc(GFL)}</th><th class="n">Lines</th><th class="n">${esc(msSupName(m,fsi))} rate now</th><th class="n">New rate</th></tr></thead><tbody>${keys.map((k,ki)=>`<tr><td>${k?esc(k):'<span class="hint">(blank)</span>'}</td><td class="n">${G[k].length}</td><td class="n money">${cur(G[k])}</td><td class="n"><div class="cur"><input class="f num" id="mstr_${id}_${ki}" data-mstr="${esc(k)}" inputmode="decimal" value="${esc(UI.msTR[k]??'')}" placeholder="Rate" aria-label="Rate for ${esc(k||'blank')}" style="width:110px"></div></td></tr>`).join('')}</tbody></table>
+      <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-bytype-apply">Apply rates to ${esc(msSupName(m,fsi))}</button><span class="hint">${UI.msFillE?'Only lines with no rate yet are filled (untick above to overwrite).':'Existing rates are overwritten (tick “only lines with no rate yet” to keep them).'}</span>${UI.msTRMsg?`<span class="hint" role="status"><b>${esc(UI.msTRMsg)}</b></span>`:''}</div>`:'<p class="hint">No lines to group.</p>'}</div>`})():'';
   const fill=`<div class="toolbar ms-fill"><b>Fill rate</b><span class="hint">Put one rate on every ${fOn?'line shown by the filter':'line'} for</span>${`<select class="f" id="ms_fill_s" data-ui="msFillS" aria-label="Supplier to fill" style="width:auto;min-width:170px;flex:0 0 auto">${m.suppliers.map((s,si)=>`<option value="${si}" ${si===fsi?'selected':''}>${esc(msSupName(m,si))}${si===ch?' (chosen)':''}</option>`).join('')}</select>`}
     <div class="cur"><input class="f num" id="ms_fill_v" data-ui="msFillV" inputmode="decimal" value="${esc(UI.msFillV||'')}" placeholder="Rate" aria-label="Rate to fill" style="width:110px"></div>
     <label class="hint"><input type="checkbox" data-ui-check="msFillE" ${UI.msFillE?'checked':''}> only lines with no rate yet</label>
     <button class="btn primary" data-act="ms-fillrate" ${String(UI.msFillV||'').trim()!==''&&nShown?'':'disabled'}>Fill ${nShown} line${nShown===1?'':'s'}</button>
     ${UI.msFillMsg?`<span class="hint" role="status">${esc(UI.msFillMsg)}</span>`:''}<span style="flex:1"></span>
-    ${fOn?`<span class="hint">Showing <b>${nShown}</b> of ${nLines} lines</span><button class="btn ghost" data-act="ms-flt-clr">Clear filters</button>`:'<span class="hint">Filter with the boxes under the column headings</span>'}</div>`;
+    <button class="btn" data-act="ms-bytype" aria-expanded="${!!UI.msByType}">Rates by ${GFL.toLowerCase()}</button>
+    ${fOn?`<span class="hint">Showing <b>${nShown}</b> of ${nLines} lines</span><button class="btn ghost" data-act="ms-flt-clr">Clear filters</button>`:'<span class="hint">Filter with the boxes under the column headings</span>'}</div>${byType}`;
   const dl=f=>{const vals=[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[f]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).slice(0,300);return `<datalist id="msfl_${id}_${f}">${vals.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`};
-  const fltRow=`<tr class="ms-fltrow"><th><span class="hint" title="Filter">⏷</span></th>${cols.map(([f,l])=>`<th><input class="f" id="msf_${id}_${f}" data-msflt="${f}" list="msfl_${id}_${f}" value="${esc(FL[f]||'')}" placeholder="Filter" aria-label="Filter ${esc(l)}">${dl(f)}</th>`).join('')}<th></th>${m.suppliers.map((_,si)=>`<th colspan="2"><select class="f" id="msf_${id}_r${si}" data-msflt="r${si}" aria-label="Filter ${esc(msSupName(m,si))} rate"><option value="">All rates</option><option value="empty" ${FL['r'+si]==='empty'?'selected':''}>No rate</option><option value="filled" ${FL['r'+si]==='filled'?'selected':''}>Has rate</option></select></th>`).join('')}<th></th><th></th></tr>`;
+  const GF=msGrpF(m);const gVals=[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[GF]??'').trim()))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const gSel=l=>`<th><select class="f" id="msf_${id}_${GF}" data-msflt="${GF}" aria-label="Filter ${esc(l)}"><option value="">All ${esc(l.toLowerCase())}s</option>${gVals.map(v=>`<option value="=${esc(v)}" ${String(FL[GF]||'').toLowerCase()==='='+v.toLowerCase()?'selected':''}>${v?esc(v):'(blank)'}</option>`).join('')}</select></th>`;
+  const fltRow=`<tr class="ms-fltrow"><th><span class="hint" title="Filter">⏷</span></th>${cols.map(([f,l])=>f===GF?gSel(l):`<th><input class="f" id="msf_${id}_${f}" data-msflt="${f}" list="msfl_${id}_${f}" value="${esc(FL[f]||'')}" placeholder="Filter" aria-label="Filter ${esc(l)}">${dl(f)}</th>`).join('')}<th></th>${m.suppliers.map((_,si)=>`<th colspan="2"><select class="f" id="msf_${id}_r${si}" data-msflt="r${si}" aria-label="Filter ${esc(msSupName(m,si))} rate"><option value="">All rates</option><option value="empty" ${FL['r'+si]==='empty'?'selected':''}>No rate</option><option value="filled" ${FL['r'+si]==='filled'?'selected':''}>Has rate</option></select></th>`).join('')}<th></th><th></th></tr>`;
   let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
     if(!VIS[i]){if(!it.head)lineNo++;return ''}
     if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${cols.length+1+ns*2+1}">${inp(k+'desc',it.desc||'',{label:'Heading',ph:'Heading, e.g. Level 1 or Lighting'})}</td><td>${delBtn('msi',id,String(i),'Remove heading')}</td></tr>`;lineNo++;
@@ -4260,7 +4272,8 @@ viewEl.addEventListener('input',e=>{
   if(t.dataset.ui==='cptoTo'&&UI.cpto){UI.cpto.to=t.value;const y=window.scrollY;const cl=document.getElementById('cp_list');if(cl)cl.scrollTop=0;render();window.scrollTo(0,y);return}
   if(t.dataset.cpk!==undefined&&UI.cpto){const s2=new Set(UI.cpto.sel||[]);if(t.checked)s2.add(t.dataset.cpk);else s2.delete(t.dataset.cpk);UI.cpto.sel=[...s2];cptoCounts();return}
   if(t.dataset.cpclr!==undefined&&UI.cpto){const M=UI.cpto;if(M.hrs===false){M.clrHrs=true;M.clrQty=true;M.hrs=true}M[t.dataset.cpclr]=t.checked;return}
-  if(t.dataset.msflt!==undefined&&UI.ms){msFlt(UI.ms)[t.dataset.msflt]=t.value;UI.msFillMsg='';scheduleRender(t.tagName==='SELECT'?0:250);return}
+  if(t.dataset.mstr!==undefined){UI.msTR=UI.msTR||{};UI.msTR[t.dataset.mstr]=t.value;return}
+  if(t.dataset.msflt!==undefined&&UI.ms){msFlt(UI.ms)[t.dataset.msflt]=t.value;UI.msFillMsg='';UI.msTRMsg='';scheduleRender(t.tagName==='SELECT'?0:250);return}
   if(t.dataset.ui==='msFillV'||t.dataset.ui==='msFillS')UI.msFillMsg='';
   if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
@@ -4322,6 +4335,12 @@ document.addEventListener('click',async e=>{
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-apprpdf'){msApprPdf(id);return}
+    if(act==='ms-bytype'){UI.msByType=!UI.msByType;UI.msTRMsg='';render();return}
+    if(act==='ms-bytype-apply'){const si=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<m.suppliers.length?+UI.msFillS:Math.max(msChosen(m),0);const TR=UI.msTR||{};const GF=msGrpF(m);const VIS=msVisible(id,m);let n=0,t=0;try{undoRecord()}catch(e){}
+      const R={};for(const [k,v] of Object.entries(TR)){const c=String(v??'').replace(/[$,\s]/g,'');if(c!==''&&!isNaN(+c))R[k]=c}
+      const G=new Set();m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;const k=String(it[GF]??'').trim();if(!(k in R))return;it.r=it.r||[];G.add(k);if(UI.msFillE&&String(it.r[si]??'').trim()!=='')return;it.r[si]=R[k];n++});
+      t=G.size;UI.msTRMsg=!Object.keys(R).length?'Type a rate against at least one row first.':!t?'None of the lines shown match those rows.':n?`Filled ${n} line${n===1?'':'s'} across ${t} group${t===1?'':'s'} for ${msSupName(m,si)}.`:'No lines to fill (they all have a rate).';
+      if(n)persist('msod/'+id);render();return}
     if(act==='ms-flt-clr'){if(UI.msFlt)delete UI.msFlt[id];render();return}
     if(act==='ms-fillrate'){const v=String(UI.msFillV||'').replace(/[$,\s]/g,'');if(v===''||isNaN(+v))return;const si=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<m.suppliers.length?+UI.msFillS:Math.max(msChosen(m),0);
       const VIS=msVisible(id,m);let n=0;try{undoRecord()}catch(e){}
