@@ -2311,23 +2311,28 @@ function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math
   <tbody>${rows||`<tr><td colspan="${m.locs.length+4}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
   <tfoot><tr><td colspan="${m.type==='submain'?4:3}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>{if(it.toLink){const Q=msQty(m,it);return a+num(Q.per&&Q.per[l.id])}return a+num(it.q?.[l.id])},0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
 }
+/* notes for every delivery on this MSOD: shown on the Deliveries tab even before the first request, and printed on each delivery request */
+function msGenNotes(id,m){const L=m.dnotes||[];return `<div class="panel"><div class="sec-head"><div><h3>Notes for all deliveries</h3><p class="hint">Standing instructions for this MSOD: site access, delivery hours, unloading, who to call. They print on every delivery request.</p></div><button class="btn" data-act="ms-add-gnote">+ Add note</button></div>
+  ${L.length?`<div class="msnotes">${L.map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msgn|'+id+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msgn',id,String(ni),'Remove note')}</div><textarea class="f" id="msgn_${id}_${ni}_text" data-b="msgn|${id}|${ni}|text" rows="3" aria-label="Note ${ni+1} for all deliveries" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>`}
 function msDeliveries(id,m,C){
   const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
   const chips=`<div class="chips" role="group" aria-label="Delivery request">${m.dockets.map((d,k)=>`<button class="chip" data-act="ms-dk" data-v="${k}" aria-pressed="${k===di}">MOSD ${k+1}${d.delivery?' · '+fmtDate(d.delivery):''}</button>`).join('')}<button class="chip add" data-act="ms-add-dk">+ New delivery request</button></div>`;
-  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it.</div>`;
+  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request has its own notes, and a note box on every line.</div>${msGenNotes(id,m)}`;
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
   const rows=C.rows.map((x,i)=>{const it=x.it;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
-    if(out&&!(x.q-prev>0)&&!num(th))return '';
+    if(out&&!(x.q-prev>0)&&!num(th)&&!(d.ln||{})[it.id])return '';
     return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
-    <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
+    <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
+    <td style="min-width:200px">${inp('msdn|'+id+'|'+di+'|'+it.id,(d.ln||{})[it.id]||'',{label:'Note for line '+(i+1),ph:'e.g. short 2, damaged, back order'})}</td></tr>`}).join('');
   return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button><button class="btn ${UI.armed==='msdk'+id+di?'armed':''}" data-act="del" data-kind="msdk" data-id="${id}" data-x="${di}" style="white-space:nowrap">${UI.armed==='msdk'+id+di?'Confirm: remove MOSD '+(di+1):'Remove MOSD '+(di+1)}</button></div></div>
     <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label></div></div>
-  <div class="panel"><div class="sec-head"><div><h3>Notes</h3><p class="hint">Delivery instructions, access, missing or damaged items. Notes print on the delivery request PDF.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
+  <div class="panel"><div class="sec-head"><div><h3>Notes for MOSD ${di+1}</h3><p class="hint">Delivery instructions, access, missing or damaged items for this request. Notes print on the delivery request PDF. There’s also a note box on every line below.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
   ${msNotes(d).length?`<div class="msnotes">${msNotes(d).map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msnt|'+id+'|'+di+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msnt',id,di+'.'+ni,'Remove note')}</div><textarea class="f" id="msnt_${id}_${di}_${ni}_text" data-b="msnt|${id}|${di}|${ni}|text" rows="3" aria-label="Note ${ni+1}" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>
   <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
-  <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="7" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>`;
+  <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th><th>Line note</th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="8" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td><td></td></tr></tfoot></table></div>
+  ${msGenNotes(id,m)}`;
 }
 function msSchedule(id,m,C){
   const D=m.dockets;let tv=0,dv=0;
@@ -2349,15 +2354,15 @@ async function msPdf(id,di){
   let y=55;L.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',14,y+i*5.5);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(b||'—'),80)[0],48,y+i*5.5)});
   R.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',128,y+i*5.5);doc.setFont('helvetica','normal');doc.text(String(b||'—'),158,y+i*5.5)});
   y+=L.length*5.5+2;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=6}
-  const NL=msNotes(d).filter(n=>(n.text||'').trim());
+  const NL=[...(m.dnotes||[]),...msNotes(d)].filter(n=>(n.text||'').trim());const LN=d.ln||{};const hasLN=Object.values(LN).some(v=>String(v).trim());
   const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
   const C=msCalc(m);
   const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.q||r.th||msDesc(m,r.x.it))
-    .map(({i,x,prev,th})=>[String(i+1),msDesc(m,x.it),msCat(m,x.it),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)]);
-  doc.autoTable({startY:y+2,head:[['Item','Description',m.type==='submain'?'Cable ID':'Cat number','Original order','Delivered to date','This delivery','Balance outstanding']],body,theme:'grid',
+    .map(({i,x,prev,th})=>{const r=[String(i+1),msDesc(m,x.it),msCat(m,x.it),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)];if(hasLN)r.push(String(LN[x.it.id]||''));return r});
+  doc.autoTable({startY:y+2,head:[['Item','Description',m.type==='submain'?'Cable ID':'Cat number','Original order','Delivered to date','This delivery','Balance outstanding',...(hasLN?['Note']:[])]],body,theme:'grid',
     styles:{fontSize:8.5,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:11},1:{cellWidth:'auto'},2:{cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:19},5:{halign:'right',cellWidth:18,fontStyle:'bold'},6:{halign:'right',cellWidth:20}},
-    didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=3)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
+    columnStyles:{0:{cellWidth:11},1:{cellWidth:'auto'},2:{cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:19},5:{halign:'right',cellWidth:18,fontStyle:'bold'},6:{halign:'right',cellWidth:20},...(hasLN?{7:{cellWidth:34,fontSize:8}}:{})},
+    didParseCell:dt=>{if(dt.section==='head'&&dt.column.index>=3&&dt.column.index<=6)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
   y=doc.lastAutoTable.finalY+8;
   if(NL.length){if(y>250){doc.addPage();y=20}doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Notes',14,y);y+=5;doc.setFontSize(9);
     for(const n of NL){const t=doc.splitTextToSize((n.date?fmtDate(n.date)+' – ':'')+n.text.trim(),W-28);if(y+t.length*4.4>280){doc.addPage();y=20}doc.setFont('helvetica','normal');doc.text(t,14,y);y+=t.length*4.4+2}}
@@ -4029,6 +4034,8 @@ function apply(parts,v){
     else if(kind==='mspo'){m.po=m.po||{};m.po[b]=kind==='mspo'&&b==='sub'?v==='1':v}
     else if(kind==='msqf'){m.quotes=m.quotes||[];while(m.quotes.length<m.suppliers.length)m.quotes.push(null);m.quotes[+b]=v}
     else if(kind==='msdq'){const d=m.dockets[+b];if(!d)return;d.q=d.q||{};d.q[c]=v}
+    else if(kind==='msdn'){const d=m.dockets[+b];if(!d)return;d.ln=d.ln||{};if(String(v).trim())d.ln[c]=v;else delete d.ln[c]}
+    else if(kind==='msgn'){const L=m.dnotes=m.dnotes||[];const n=L[+b];if(!n)return;n[c]=v}
     else return;
     persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
@@ -4138,6 +4145,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-add-loc'){m.locs.push({id:uid('L'),name:'PS'+(m.locs.length+1)});persist('msod/'+id);render();return}
     if(act==='ms-add-dk'){m.dockets.push({id:uid('d'),date:todayISO(),delivery:'',q:{}});UI.msd=m.dockets.length-1;persist('msod/'+id);render();return}
     if(act==='ms-fill'){const di=UI.msd;const d=m.dockets[di];if(!d)return;d.q=d.q||{};for(const it of m.items){const left=msQty(m,it).qty-msDelivered(m,it,di);if(left>0)d.q[it.id]=String(Math.round(left*100)/100)}persist('msod/'+id);render();return}
+    if(act==='ms-add-gnote'){const L=m.dnotes=m.dnotes||[];L.push({id:uid('n'),date:todayISO(),text:''});persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('msgn_'+id+'_'+(L.length-1)+'_text');if(el)el.focus()},60);return}
     if(act==='ms-add-note'){const d=m.dockets[UI.msd];if(!d)return;const L=msNotes(d);delete d.notes;L.push({id:uid('n'),date:todayISO(),text:''});persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('msnt_'+id+'_'+UI.msd+'_'+(L.length-1)+'_text');if(el)el.focus()},60);return}
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
@@ -4397,6 +4405,7 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
     else if(kind==='msi'){const m=S.msods[id];if(m){const it=m.items.splice(+x,1)[0];if(it)for(const d of m.dockets)if(d.q)delete d.q[it.id];persist('msod/'+id)}}
     else if(kind==='msloc'){const m=S.msods[id];if(m){const l=m.locs.splice(+x,1)[0];if(l)for(const it of m.items)if(it.q)delete it.q[l.id];persist('msod/'+id)}}
     else if(kind==='msnt'){const m=S.msods[id];const [a,b]=x.split('.').map(Number);const d=m&&m.dockets[a];if(d){msNotes(d).splice(b,1);delete d.notes;persist('msod/'+id)}}
+  if(kind==='msgn'){const m=S.msods[id];if(m&&m.dnotes){m.dnotes.splice(+x,1);persist('msod/'+id)}}
     else if(kind==='msdk'){const m=S.msods[id];if(m){m.dockets.splice(+x,1);UI.msd=null;persist('msod/'+id)}}
     else if(kind==='invl'){const [j,li]=x.split('.').map(Number);const iv=S.orders[id]?.inv?.[j];if(iv&&iv.lines){iv.lines.splice(li,1);persist('orders/'+id)}}
     else if(kind==='inv'){const f=S.orders[id].inv[+x]?.invFile;if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{});S.orders[id].inv.splice(+x,1);persist('orders/'+id)}
