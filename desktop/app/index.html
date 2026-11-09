@@ -421,6 +421,9 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
 .pcxl-dropping,.pcxl-dropping td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 8%,transparent)!important}.pcxl-btn{font-size:12px;padding:3px 8px;margin-left:8px}
+.ms-rn{white-space:nowrap;width:1%}.ms-rn label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.ms-ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.mstable tr.ms-selrow>td{background:color-mix(in srgb,var(--accent) 12%,transparent)!important}.mstable tr.ms-selrow>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.ms-selbar{margin:0 0 8px;padding:6px 4px}.ms-selbar.on{position:sticky;top:8px;z-index:6;background:var(--panel,#fff);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:10px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.08)}.btn.danger-t{color:var(--neg,#c0392b)}
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
@@ -2391,6 +2394,30 @@ function msVisible(id,m){const F=msFlt(id);const cols=MS_COLS[m.type]||MS_COLS.g
   /* a heading shows when any line under it shows */
   m.items.forEach((it,i)=>{if(!it.head||!on)return;let j=i+1,any=false;while(j<m.items.length&&!m.items[j].head){if(vis[j])any=true;j++}vis[i]=any});
   return vis}
+/* ---------- item schedule: select rows like a spreadsheet, then copy, cut, paste, duplicate or delete them ---------- */
+function msSel(id){UI.msSel=UI.msSel||{};return UI.msSel[id]=UI.msSel[id]||new Set()}
+function msSelItems(id,m){const S_=msSel(id);for(const k of [...S_])if(!m.items.some(it=>it.id===k))S_.delete(k);return m.items.filter(it=>S_.has(it.id))}
+function msClipTsv(m,items){const cols=MS_COLS[m.type]||MS_COLS.general;const qty=m.type!=='submain';const si=m.suppliers.map((s,i)=>i).filter(i=>String(m.suppliers[i]||'').trim());
+  const clean=v=>String(v??'').replace(/[\t\r\n]+/g,' ');
+  const head=[...cols.map(c=>c[1]),...(qty?['Qty']:[]),...si.map(i=>m.suppliers[i])];
+  const rows=items.map(it=>it.head?[...cols.map(c=>c[0]==='desc'||(c===cols[0]&&!cols.some(x=>x[0]==='desc'))?clean(it.desc):''),...(qty?['']:[]),...si.map(()=>'')]:[...cols.map(c=>clean(it[c[0]])),...(qty?[clean(msQty(m,it).qty||'')]:[]),...si.map(i=>clean((it.r||[])[i]))]);
+  return [head,...rows].map(r=>r.join('\t')).join('\n')}
+function msCopySel(id,cut){const m=S.msods[id];if(!m)return null;const items=msSelItems(id,m);if(!items.length)return null;
+  UI.msClip={type:m.type,items:JSON.parse(JSON.stringify(items)),tsv:msClipTsv(m,items)};
+  if(cut)msDelSel(id,true);UI.msSelMsg=`${cut?'Cut':'Copied'} ${items.length} row${items.length===1?'':'s'}. Select a row and paste to put ${items.length===1?'it':'them'} below it, or paste into Excel.`;return UI.msClip.tsv}
+function msDelSel(id,quiet){const m=S.msods[id];if(!m)return 0;const items=msSelItems(id,m);if(!items.length)return 0;try{undoRecord()}catch(e){}
+  const gone=new Set(items.map(it=>it.id));m.items=m.items.filter(it=>!gone.has(it.id));for(const d of m.dockets)if(d.q)for(const k of gone)delete d.q[k];
+  msSel(id).clear();persist('msod/'+id);if(!quiet)UI.msSelMsg=`Deleted ${items.length} row${items.length===1?'':'s'}. Use Undo at the top to bring ${items.length===1?'it':'them'} back.`;return items.length}
+/* where pasted rows go: below the last selected row, else at the end */
+function msPasteAt(id,m){const sel=msSel(id);let at=-1;m.items.forEach((it,i)=>{if(sel.has(it.id))at=i});return at<0?m.items.length:at+1}
+function msPasteClip(id){const m=S.msods[id];const C=UI.msClip;if(!m||!C||!C.items.length)return 0;try{undoRecord()}catch(e){}
+  const add=JSON.parse(JSON.stringify(C.items)).map(it=>({...it,id:uid('i')}));const at=msPasteAt(id,m);m.items.splice(at,0,...add);
+  const sel=msSel(id);sel.clear();add.forEach(it=>sel.add(it.id));persist('msod/'+id);UI.msSelMsg=`Pasted ${add.length} row${add.length===1?'':'s'}.`;return add.length}
+function msPasteText(id,text){const m=S.msods[id];if(!m)return 0;if(UI.msClip&&String(text).trim()===UI.msClip.tsv.trim())return msPasteClip(id);
+  const rows=String(text).split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split('\t').map(c=>c.trim()));if(!rows.length)return 0;try{undoRecord()}catch(e){}
+  const at=msPasteAt(id,m);const before=new Set(m.items.map(it=>it.id));const anchor=at>0?m.items[at-1].id:null;const R=msImportRows(id,rows);if(!R.n)return 0;
+  const added=m.items.filter(it=>!before.has(it.id));m.items=m.items.filter(it=>before.has(it.id));const k=anchor?m.items.findIndex(it=>it.id===anchor)+1:(at===0?0:m.items.length);m.items.splice(k<0?m.items.length:k,0,...added);
+  const sel=msSel(id);sel.clear();added.forEach(it=>sel.add(it.id));persist('msod/'+id);UI.msSelMsg=`Pasted ${added.length} row${added.length===1?'':'s'} from the clipboard.`;return added.length}
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
@@ -2409,6 +2436,8 @@ function msItems(id,m,C){
     return `<div class="ms-bytype"><p class="hint" style="margin:0 0 6px">Type a rate against each ${esc(GFL.toLowerCase())} and apply: every ${fOn?'line shown by the filter':'line'} of that ${esc(GFL.toLowerCase())} gets the rate for <b>${esc(msSupName(m,fsi))}</b> (pick the supplier above). Leave a box empty to skip that ${esc(GFL.toLowerCase())}.</p>
       ${keys.length?`<table class="kv ms-bytype-t"><thead><tr><th>${esc(GFL)}</th><th class="n">Lines</th><th class="n">${esc(msSupName(m,fsi))} rate now</th><th class="n">New rate</th></tr></thead><tbody>${keys.map((k,ki)=>`<tr><td>${k?esc(k):'<span class="hint">(blank)</span>'}</td><td class="n">${G[k].length}</td><td class="n money">${cur(G[k])}</td><td class="n"><div class="cur"><input class="f num" id="mstr_${id}_${ki}" data-mstr="${esc(k)}" inputmode="decimal" value="${esc(UI.msTR[k]??'')}" placeholder="Rate" aria-label="Rate for ${esc(k||'blank')}" style="width:110px"></div></td></tr>`).join('')}</tbody></table>
       <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-bytype-apply">Apply rates to ${esc(msSupName(m,fsi))}</button><span class="hint">${UI.msFillE?'Only lines with no rate yet are filled (untick above to overwrite).':'Existing rates are overwritten (tick “only lines with no rate yet” to keep them).'}</span>${UI.msTRMsg?`<span class="hint" role="status"><b>${esc(UI.msTRMsg)}</b></span>`:''}</div>`:'<p class="hint">No lines to group.</p>'}</div>`})():'';
+  const SEL=msSel(id);const nSel=msSelItems(id,m).length;
+  const selBar=`<div class="toolbar ms-selbar${nSel?' on':''}">${nSel?`<b>${nSel} row${nSel===1?'':'s'} selected</b><button class="btn" data-act="ms-sel-copy" title="Ctrl+C">Copy</button><button class="btn" data-act="ms-sel-cut" title="Ctrl+X">Cut</button><button class="btn" data-act="ms-sel-dup">Duplicate</button>${UI.msClip?`<button class="btn" data-act="ms-sel-paste" title="Ctrl+V">Paste ${UI.msClip.items.length} below</button>`:''}<button class="btn danger-t" data-act="ms-sel-del" title="Delete key">Delete</button><button class="btn ghost" data-act="ms-sel-none" title="Esc">Clear selection</button>`:`<span class="hint">Tick rows (Shift-click for a range, Ctrl/⌘-click to add) to copy, cut, paste, duplicate or delete them. Ctrl+C, Ctrl+X, Ctrl+V and Delete work too.</span>${UI.msClip?`<button class="btn" data-act="ms-sel-paste">Paste ${UI.msClip.items.length} row${UI.msClip.items.length===1?'':'s'} at the end</button>`:''}`}${UI.msSelMsg?`<span class="hint" role="status">${esc(UI.msSelMsg)}</span>`:''}</div>`;
   const fill=`<div class="toolbar ms-fill"><b>Fill rate</b><span class="hint">Put one rate on every ${fOn?'line shown by the filter':'line'} for</span>${`<select class="f" id="ms_fill_s" data-ui="msFillS" aria-label="Supplier to fill" style="width:auto;min-width:170px;flex:0 0 auto">${m.suppliers.map((s,si)=>`<option value="${si}" ${si===fsi?'selected':''}>${esc(msSupName(m,si))}${si===ch?' (chosen)':''}</option>`).join('')}</select>`}
     <div class="cur"><input class="f num" id="ms_fill_v" data-ui="msFillV" inputmode="decimal" value="${esc(UI.msFillV||'')}" placeholder="Rate" aria-label="Rate to fill" style="width:110px"></div>
     <label class="hint"><input type="checkbox" data-ui-check="msFillE" ${UI.msFillE?'checked':''}> only lines with no rate yet</label>
@@ -2422,9 +2451,10 @@ function msItems(id,m,C){
   const fltRow=`<tr class="ms-fltrow"><th><span class="hint" title="Filter">⏷</span></th>${cols.map(([f,l])=>f===GF?gSel(l):`<th><input class="f" id="msf_${id}_${f}" data-msflt="${f}" list="msfl_${id}_${f}" value="${esc(FL[f]||'')}" placeholder="Filter" aria-label="Filter ${esc(l)}">${dl(f)}</th>`).join('')}<th></th>${m.suppliers.map((_,si)=>`<th colspan="2"><select class="f" id="msf_${id}_r${si}" data-msflt="r${si}" aria-label="Filter ${esc(msSupName(m,si))} rate"><option value="">All rates</option><option value="empty" ${FL['r'+si]==='empty'?'selected':''}>No rate</option><option value="filled" ${FL['r'+si]==='filled'?'selected':''}>Has rate</option></select></th>`).join('')}<th></th><th></th></tr>`;
   let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
     if(!VIS[i]){if(!it.head)lineNo++;return ''}
-    if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${cols.length+1+ns*2+1}">${inp(k+'desc',it.desc||'',{label:'Heading',ph:'Heading, e.g. Level 1 or Lighting'})}</td><td>${delBtn('msi',id,String(i),'Remove heading')}</td></tr>`;lineNo++;
+    const ck=`<input type="checkbox" class="ms-ck" data-mssel="${it.id}" ${SEL.has(it.id)?'checked':''} aria-label="Select row">`;
+    if(it.head)return `<tr class="ms-hrow${SEL.has(it.id)?' ms-selrow':''}" data-msrow="${it.id}"><td class="ms-rn">${ck}</td><td colspan="${cols.length+1+ns*2+1}">${inp(k+'desc',it.desc||'',{label:'Heading',ph:'Heading, e.g. Level 1 or Lighting'})}</td><td>${delBtn('msi',id,String(i),'Remove heading')}</td></tr>`;lineNo++;
     const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='drawing'?'from drawings':x.src==='takeoff'?'from take off':'cables × run'}</span>`;
-    return `<tr><td class="hint">${lineNo}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
+    return `<tr class="${SEL.has(it.id)?'ms-selrow':''}" data-msrow="${it.id}"><td class="hint ms-rn"><label>${ck}<span>${lineNo}</span></label></td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
       ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}"><div class="cur">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</div></td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
       <td class="n money">${x.lo?money2(x.lo):'—'}</td>
@@ -2432,7 +2462,7 @@ function msItems(id,m,C){
   const span=cols.length+2;
   const table=`<div class="tw tall"><table class="mstable"><thead>
     <tr><th colspan="${span}"></th>${m.suppliers.map((s,si)=>{const on=si===ch;return `<th colspan="2" class="msgrp${on?' mson':''} msq-drop" data-msq="${id}|${si}" title="Drop the supplier’s quote PDF here">${inp('mssup|'+id+'|'+si,s,{label:'Supplier '+(si+1)+' name',ph:'Supplier '+(si+1)})}<div class="ms-suptot" title="Total of ${esc(msSupName(m,si))}’s prices">Total <b class="money">${C.sup[si]?money2(C.sup[si]):'—'}</b>${(()=>{const v=C.sup.filter(x=>x>0);return C.sup[si]>0&&v.length>1&&C.sup[si]===Math.min(...v)?' <span class="tag acc">lowest</span>':''})()}</div><button class="mspick" data-act="ms-choose" data-v="${si}" aria-pressed="${on}">${on?'✓ Chosen':'Choose'}</button><div class="msquote">${itpCell('msqf|'+id+'|'+si,(m.quotes||[])[si],'Quote')}</div>${ns>1?`<button class="btn ${UI.armed==='mssupdel'+id+si?'armed':'ghost'} ms-supdel" data-act="ms-sup-del" data-v="${si}" title="Remove this supplier and their rates">${UI.armed==='mssupdel'+id+si?'Confirm remove':'Remove supplier'}</button>`:''}</th>`}).join('')}<th></th><th></th></tr>
-    <tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th>${m.suppliers.map((_,si)=>`<th class="n${si===ch?' mson':''}">Rate</th><th class="n${si===ch?' mson':''}">Price</th>`).join('')}<th class="n">Lowest rate</th><th></th></tr>${fltRow}</thead>
+    <tr><th class="ms-rn"><label title="Select all rows shown"><input type="checkbox" class="ms-ck" data-msselall="1" ${(()=>{const shown=m.items.filter((x,i)=>VIS[i]);return shown.length&&shown.every(x=>SEL.has(x.id))?'checked':''})()} aria-label="Select all rows shown"><span>#</span></label></th>${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th class="n">Qty</th>${m.suppliers.map((_,si)=>`<th class="n${si===ch?' mson':''}">Rate</th><th class="n${si===ch?' mson':''}">Price</th>`).join('')}<th class="n">Lowest rate</th><th></th></tr>${fltRow}</thead>
     <tbody>${rows||`<tr><td colspan="${span+2*ns+2}" class="hint">${fOn?'No lines match the filters.':'No lines yet.'}</td></tr>`}</tbody>
     <tfoot><tr><td colspan="${span}">Total${fOn?' <span class="hint" style="font-weight:400">(all lines, not just the filtered ones)</span>':''}</td>${C.sup.map((v,si)=>`<td class="${si===ch?'mson':''}"></td><td class="n money${si===ch?' mson':''}">${v?money2(v):'—'}</td>`).join('')}<td></td><td></td></tr></tfoot></table></div>`;
   const a=m.appr||{};const ka='msa|'+id+'|';
@@ -2450,7 +2480,7 @@ function msItems(id,m,C){
     <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
     ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
     <label class="wide">Comments${inp(ka+'comments',a.comments||'',{label:'Comments'})}</label></div></div></div>`;
-  return `<div class="panel" style="padding:12px 14px">${tool}${fill}</div>${xlMsg}${paste}<div class="ms-xl-drop" data-msxl="${id}">${table}</div>${summary}${msPoPanel(id,m,C)}`;
+  return `<div class="panel" style="padding:12px 14px">${tool}${fill}</div>${xlMsg}${paste}<div class="ms-xl-drop" data-msxl="${id}">${selBar}${table}</div>${summary}${msPoPanel(id,m,C)}`;
 }
 function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(id);if(!d)continue;for(const z of d.zones){const n=(z.name||'').trim();if(n&&!s.has(n.toLowerCase()))s.set(n.toLowerCase(),n)}}return [...s.values()]}
 function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
@@ -4213,6 +4243,26 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
+/* ---------- MSOD item schedule: row selection, keys and clipboard ---------- */
+let MS_LASTSEL=null;
+viewEl.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('input[data-mssel],input[data-msselall]');if(!c||UI.view!=='msod')return;const id=UI.ms;const m=S.msods[id];if(!m)return;const sel=msSel(id);
+  const vis=msVisible(id,m);const shown=m.items.filter((x,i)=>vis[i]).map(x=>x.id);UI.msSelMsg='';
+  if(c.dataset.msselall){if(c.checked)shown.forEach(k=>sel.add(k));else shown.forEach(k=>sel.delete(k));MS_LASTSEL=null;render();return}
+  const k=c.dataset.mssel;
+  if(e.shiftKey&&MS_LASTSEL&&shown.includes(MS_LASTSEL)){const a=shown.indexOf(MS_LASTSEL),b=shown.indexOf(k);const [lo,hi]=a<b?[a,b]:[b,a];if(!(e.ctrlKey||e.metaKey))sel.clear();shown.slice(lo,hi+1).forEach(x=>sel.add(x))}
+  else{if(c.checked)sel.add(k);else sel.delete(k)}
+  MS_LASTSEL=k;render();setTimeout(()=>{const el=document.querySelector(`input[data-mssel="${k}"]`);if(el)el.focus({preventScroll:true})},0)});
+const msKeysOn=()=>UI.view==='msod'&&UI.mst==='items'&&UI.ms&&S.msods[UI.ms];
+const typing=el=>el&&(el.tagName==='TEXTAREA'||el.tagName==='SELECT'||(el.tagName==='INPUT'&&el.type!=='checkbox')||el.isContentEditable);
+document.addEventListener('keydown',e=>{if(!msKeysOn()||typing(document.activeElement))return;const id=UI.ms;const n=msSelItems(id,S.msods[id]).length;
+  if((e.key==='Delete'||e.key==='Backspace')&&n){e.preventDefault();msDelSel(id);render();return}
+  if(e.key==='Escape'&&n){msSel(id).clear();UI.msSelMsg='';render();return}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.mstable')){e.preventDefault();const m=S.msods[id];const vis=msVisible(id,m);m.items.forEach((x,i)=>{if(vis[i])msSel(id).add(x.id)});render()}});
+document.addEventListener('copy',e=>{if(!msKeysOn()||typing(document.activeElement))return;const t=msCopySel(UI.ms,false);if(!t)return;e.preventDefault();e.clipboardData.setData('text/plain',t);render()});
+document.addEventListener('cut',e=>{if(!msKeysOn()||typing(document.activeElement))return;const t=msCopySel(UI.ms,true);if(!t)return;e.preventDefault();e.clipboardData.setData('text/plain',t);render()});
+document.addEventListener('paste',e=>{if(!msKeysOn()||typing(document.activeElement))return;const t=e.clipboardData&&e.clipboardData.getData('text/plain');if(!t&&!UI.msClip)return;e.preventDefault();
+  if(t)msPasteText(UI.ms,t);else msPasteClip(UI.ms);render()});
+
 /* ---------- side bar: drag its edge to resize (remembered on this device) ---------- */
 (()=>{const h=document.querySelector('.rail-rsz');if(!h)return;const MIN=170,MAX=520,DEF=232;const root=document.documentElement;
   const set=w=>{w=Math.round(Math.min(Math.max(w,MIN),Math.min(MAX,window.innerWidth-360)));root.style.setProperty('--railw',w+'px');h.setAttribute('aria-valuenow',String(w));return w};
@@ -4429,6 +4479,12 @@ document.addEventListener('click',async e=>{
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-apprpdf'){msApprPdf(id);return}
+    if(act==='ms-sel-copy'){const t=msCopySel(id,false);if(t&&navigator.clipboard)navigator.clipboard.writeText(t).catch(()=>{});render();return}
+    if(act==='ms-sel-cut'){const t=msCopySel(id,true);if(t&&navigator.clipboard)navigator.clipboard.writeText(t).catch(()=>{});render();return}
+    if(act==='ms-sel-paste'){msPasteClip(id);render();return}
+    if(act==='ms-sel-dup'){const keep=UI.msClip;msCopySel(id,false);msPasteClip(id);const n=UI.msClip.items.length;UI.msClip=keep;UI.msSelMsg=`Duplicated ${n} row${n===1?'':'s'}.`;render();return}
+    if(act==='ms-sel-del'){msDelSel(id);render();return}
+    if(act==='ms-sel-none'){msSel(id).clear();UI.msSelMsg='';render();return}
     if(act==='ms-bytype'){UI.msByType=!UI.msByType;UI.msTRMsg='';render();return}
     if(act==='ms-bytype-apply'){const si=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<m.suppliers.length?+UI.msFillS:Math.max(msChosen(m),0);const TR=UI.msTR||{};const GF=msGrpF(m);const VIS=msVisible(id,m);let n=0,t=0;try{undoRecord()}catch(e){}
       const R={};for(const [k,v] of Object.entries(TR)){const c=String(v??'').replace(/[$,\s]/g,'');if(c!==''&&!isNaN(+c))R[k]=c}
