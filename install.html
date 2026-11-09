@@ -58,14 +58,14 @@ code{display:block;background:var(--code);border-radius:8px;padding:10px 12px;fo
 
   <section class="card" id="c-win">
     <h2>Windows PC</h2>
-    <div class="btns"><a class="btn primary" href="https://github.com/zaineddin3/ox-project-reporting/releases/latest/download/OX-Project-Reporting-Setup-1.0.0.exe">Download for Windows</a><button class="btn pwa-alt" hidden>Or install from the browser</button></div>
+    <div class="btns"><a class="btn primary" href="downloads/OX-Project-Reporting-Setup-1.0.0.exe">Download for Windows</a><button class="btn pwa-alt" hidden>Or install from the browser</button></div>
     <ol><li>Run the downloaded <b>OX-Project-Reporting-Setup</b> file.</li><li>If Windows shows “Windows protected your PC”, click <b>More info</b> then <b>Run anyway</b>. (This shows because the app isn't code-signed yet.)</li><li>Open <b>OX Project Reporting</b> from the Start menu and sign in.</li></ol>
     <p class="hint small">Can't run installers on your work PC? Open the app in Edge or Chrome and choose <b>Install</b> from the address bar or the ⋯ menu instead.</p>
   </section>
 
   <section class="card" id="c-mac">
     <h2>Mac</h2>
-    <div class="btns"><a class="btn primary" id="mac-arm" href="https://github.com/zaineddin3/ox-project-reporting/releases/latest/download/OX-Project-Reporting-1.0.0-mac-arm64.zip">Download for Mac (M1 or later)</a><a class="btn" id="mac-intel" href="https://github.com/zaineddin3/ox-project-reporting/releases/latest/download/OX-Project-Reporting-1.0.0-mac-x64.zip">Download for Intel Mac</a></div>
+    <div class="btns"><a class="btn primary" id="mac-arm" href="downloads/OX-Project-Reporting-1.0.0-mac-arm64.zip">Download for Mac (M1 or later)</a><a class="btn" id="mac-intel" href="downloads/OX-Project-Reporting-1.0.0-mac-x64.zip">Download for Intel Mac</a></div>
     <p class="hint small">Not sure which? Apple menu  → <b>About This Mac</b>: “Chip Apple M…” means M1 or later; “Processor Intel” means Intel.</p>
     <ol><li>Open the downloaded zip and drag <b>OX Project Reporting</b> into <b>Applications</b>.</li><li>The app isn't signed with an Apple certificate yet, so run this once in <b>Terminal</b> (Applications → Utilities → Terminal):<code>xattr -cr "/Applications/OX Project Reporting.app" &amp;&amp; codesign --force --deep --sign - "/Applications/OX Project Reporting.app"</code></li><li>Open the app from Applications and sign in.</li></ol>
     <p class="hint small">Prefer not to use Terminal? Open the app in Chrome or Edge and choose <b>Install</b> from the address bar, or in Safari choose <b>File → Add to Dock</b>.</p>
