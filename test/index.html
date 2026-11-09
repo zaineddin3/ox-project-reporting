@@ -1451,9 +1451,16 @@ const GST=0.1;
 /* retention on an order: a % of the PO value (5% unless you set another); what's held so far is that % of what's been invoiced, up to the PO */
 const retPct=o=>{const v=o&&o.retPct;return v!==undefined&&v!==null&&String(v).trim()!==''?num(v):5};
 function retOf(o){if(!o||!o.retention)return {pct:0,val:0,held:0};const p=retPct(o)/100,po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0);return {pct:p*100,val:po*p,held:Math.min(inv,po||inv)*p}}
-/* orders in the order you've arranged them (moved with ▲ ▼), otherwise the order they were added */
-const ordKey=o=>o.pos!=null&&o.pos!==''?num(o.pos):(o.created||0);
-function ordRows(){return Object.entries(S.orders).sort((a,b)=>ordKey(a[1])-ordKey(b[1])||(a[1].created||0)-(b[1].created||0))}
+/* orders sorted by PO number (natural order: 20000, 20003, 20004 … 20018), then PO date, then when they were added.
+   Once you move one with ▲ ▼, the list keeps the order you set until you press "Sort by PO number" */
+const ordCmp=(a,b)=>{const pa=String(a.poNo||'').trim(),pb=String(b.poNo||'').trim();if(pa&&!pb)return -1;if(!pa&&pb)return 1;
+  if(pa&&pb){const c=pa.localeCompare(pb,'en',{numeric:true,sensitivity:'base'});if(c)return c}
+  const da=a.date||'',db=b.date||'';if(da!==db){if(!da)return 1;if(!db)return -1;return da<db?-1:1}return (a.created||0)-(b.created||0)};
+function ordRows(){const E=Object.entries(S.orders);const manual=E.some(([,o])=>o.pos!=null&&o.pos!=='');
+  if(!manual)return E.sort((a,b)=>ordCmp(a[1],b[1]));
+  /* manual order: orders added since keep their PO-number place among the moved ones */
+  return E.sort((a,b)=>{const ha=a[1].pos!=null&&a[1].pos!=='',hb=b[1].pos!=null&&b[1].pos!=='';if(ha&&hb)return num(a[1].pos)-num(b[1].pos)||ordCmp(a[1],b[1]);if(!ha&&!hb)return ordCmp(a[1],b[1]);
+    return ha?-1:1}).reduce((out,e)=>{if(e[1].pos!=null&&e[1].pos!==''){out.push(e)}else{const i=out.findIndex(x=>ordCmp(e[1],x[1])<0);if(i<0)out.push(e);else out.splice(i,0,e)}return out},[])}
 function extraAdj(o){const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0),ant=num(o.anticipated);const left=po-inv;return left<0?Math.max(ant+left,0):ant}
 const money2=n=>(n<0?'−$':'$')+Math.abs(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
 const invLines=x=>Array.isArray(x.lines)?x.lines:[];
@@ -1545,7 +1552,7 @@ document.addEventListener('change',e=>{const id=e.target.dataset&&e.target.datas
 V.orders=()=>{
   const c=calc();const PX=priceIndex();
   const rows=ordRows();
-  return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.','<button class="btn primary" data-act="add-order">+ Add order</button>')}
+  return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. Orders are listed by PO number, then PO date; move them with ▲ ▼ to set your own order. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.',`${Object.values(S.orders).some(o=>o.pos!=null&&o.pos!=='')?'<button class="btn" data-act="ord-sort" title="Put the orders back in PO number order">Sort by PO number</button>':''}<button class="btn primary" data-act="add-order">+ Add order</button>`)}
   <div class="statgrid"><div class="mini"><span class="l">Committed</span><span class="v">${money(c.poTotal)}</span></div><div class="mini"><span class="l">Invoiced</span><span class="v">${money(c.matInv)}</span></div><div class="mini"><span class="l">Left on POs</span><span class="v">${money(c.poTotal-c.matInv)}</span></div><div class="mini"><span class="l">Retention held</span><span class="v">${money(c.ret)}</span></div></div>
   ${rows.length?`<div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>PO number</th><th style="min-width:200px">Supplier / subcontractor</th><th>PO date</th><th class="n">PO amount</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">% left</th><th class="n">Extra outside PO</th><th>Subbie retention</th><th class="n" title="Retention % × PO amount">Retention value</th><th></th></tr></thead><tbody>
   ${rows.map(([id,o],ri)=>{const k='ord|'+id+'|';const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0);const open=UI.open[id];
@@ -4245,6 +4252,7 @@ document.addEventListener('click',async e=>{
   if(act==='invl-move'){const o=S.orders[btn.dataset.id];const x=o&&o.inv[+btn.dataset.x];if(!x)return;x.lines=invLines(x);const i=+btn.dataset.l,dd=+btn.dataset.d,k2=i+dd;if(k2<0||k2>=x.lines.length)return;[x.lines[i],x.lines[k2]]=[x.lines[k2],x.lines[i]];persist('orders/'+btn.dataset.id);render();
     setTimeout(()=>{const b=document.querySelector(`[data-act=invl-move][data-id="${btn.dataset.id}"][data-x="${btn.dataset.x}"][data-l="${k2}"][data-d="${dd}"]`);if(b&&!b.disabled)b.focus()},30);return}
   if(act==='ms-openord'){const oid=btn.dataset.id;if(!S.orders[oid])return;UI.open[oid]=true;UI.view='orders';try{history.replaceState(null,'','#orders')}catch(e){}render();setTimeout(()=>{const r=document.querySelector(`tr[data-ord="${oid}"]`);if(r)r.scrollIntoView({block:'center'})},60);return}
+  if(act==='ord-sort'){for(const [oid,o] of Object.entries(S.orders))if(o.pos!=null&&o.pos!==''){delete o.pos;persist('orders/'+oid)}render();return}
   if(act==='ord-move'){const id=btn.dataset.id,dd=+btn.dataset.d;const L=ordRows().map(r=>r[0]);const i=L.indexOf(id),j=i+dd;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];
     L.forEach((oid,n)=>{const o=S.orders[oid];if(String(o.pos)!==String(n+1)){o.pos=n+1;persist('orders/'+oid)}});render();setTimeout(()=>{const b=document.querySelector(`[data-act=ord-move][data-id="${id}"][data-d="${dd}"]`);if(b&&!b.disabled)b.focus();else document.querySelector(`[data-act=ord-move][data-id="${id}"]:not([disabled])`)?.focus()},30);return}
   if(act==='task-move'){const id=btn.dataset.v,dd=+btn.dataset.d;const O=TASK_IDS.slice();const i=O.indexOf(id),j=i+dd;if(i<0||j<0||j>=O.length)return;[O[i],O[j]]=[O[j],O[i]];
