@@ -432,6 +432,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .mstable tr.ms-selrow>td{background:color-mix(in srgb,var(--accent) 12%,transparent)!important}.mstable tr.ms-selrow>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 .ms-selbar{margin:0 0 8px;padding:6px 4px}.ms-selbar.on{position:sticky;top:8px;z-index:6;background:var(--panel,#fff);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:10px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.08)}.btn.danger-t{color:var(--neg,#c0392b)}
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
+.ms-fltbar{padding:10px 14px}.ms-fltbar .toolbar{gap:12px}.ms-fltbar label{display:inline-flex;align-items:center;gap:6px}.ms-fltbar .f{width:auto}
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
 .msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
@@ -2383,7 +2384,7 @@ V.msod=()=>{
   const C=msCalc(m);const tab=UI.mst||'items';const armed=UI.armed==='msod'+id;
   const chips=`<div class="chips" role="group" aria-label="MSOD">${ids.map((x,i)=>`<button class="chip" data-act="ms-pick" data-v="${x}" aria-pressed="${x===id}">${esc(msName(S.msods[x],i))} <span class="chiptag">${MS_LABEL[S.msods[x].type]||''}</span></button>`).join('')}<button class="chip add" data-act="ms-newpick">+ New MSOD</button></div>`;
   const tabs=[['details','Details'],['items','Item schedule'],['takeoff','Take off'],['deliv','Deliveries'],['sched','Delivery schedule']];
-  const body=tab==='details'?msDetails(id,m):tab==='takeoff'?msTakeoff(id,m,C):tab==='deliv'?msDeliveries(id,m,C):tab==='sched'?msSchedule(id,m,C):msItems(id,m,C);
+  const body=(tab==='details'?'':msFltBar(id,m))+(tab==='details'?msDetails(id,m):tab==='takeoff'?msTakeoff(id,m,C):tab==='deliv'?msDeliveries(id,m,C):tab==='sched'?msSchedule(id,m,C):msItems(id,m,C));
   return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.',`<button class="btn ${armed?'armed':''}" data-act="del" data-kind="msod" data-id="${id}" data-x="">${armed?'Confirm: remove '+esc(msName(m,ids.indexOf(id))):'Remove MSOD'}</button>`)}
   ${chips}${UI.msNew?chooser:''}
   <div class="kpis"><div class="kpi"><span class="l">${esc(MS_LABEL[m.type]||'')}</span><span class="v">${m.items.length} items</span><span class="d">${esc(m.title||'Add what this MSOD is for under Details')}</span></div>
@@ -2439,6 +2440,15 @@ function msPasteText(id,text){const m=S.msods[id];if(!m)return 0;if(UI.msClip&&S
   const at=msPasteAt(id,m);const before=new Set(m.items.map(it=>it.id));const anchor=at>0?m.items[at-1].id:null;const R=msImportRows(id,rows);if(!R.n)return 0;
   const added=m.items.filter(it=>!before.has(it.id));m.items=m.items.filter(it=>before.has(it.id));const k=anchor?m.items.findIndex(it=>it.id===anchor)+1:(at===0?0:m.items.length);m.items.splice(k<0?m.items.length:k,0,...added);
   const sel=msSel(id);sel.clear();added.forEach(it=>sel.add(it.id));persist('msod/'+id);UI.msSelMsg=`Pasted ${added.length} row${added.length===1?'':'s'} from the clipboard.`;return added.length}
+/* the Type + Description filter bar, shown on every MSOD tab with lines (it shares the item schedule's column filters) */
+const msTxtF=m=>m.type==='submain'?'cable':'desc';
+function msFltBar(id,m){const GF=msGrpF(m),TF=msTxtF(m);const cols=MS_COLS[m.type]||MS_COLS.general;const FL=msFlt(id);const lab=f=>(cols.find(c=>c[0]===f)||[0,f])[1];
+  const gVals=[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[GF]??'').trim()))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const VIS=msVisible(id,m);const nL=m.items.filter(x=>!x.head).length,nS=m.items.filter((x,i)=>!x.head&&VIS[i]).length;const on=msFltOn(id);
+  return `<div class="panel ms-fltbar"><div class="toolbar"><b>Filter</b>
+    <label class="hint">${esc(lab(GF))} <select class="f" id="msfb_${id}_${GF}" data-msflt="${GF}" aria-label="Filter by ${esc(lab(GF).toLowerCase())}"><option value="">All</option>${gVals.map(v=>`<option value="=${esc(v)}" ${String(FL[GF]||'').toLowerCase()==='='+v.toLowerCase()?'selected':''}>${v?esc(v):'(blank)'}</option>`).join('')}</select></label>
+    <label class="hint">${esc(lab(TF))} <input class="f" id="msfb_${id}_${TF}" data-msflt="${TF}" list="msfbl_${id}" value="${esc(FL[TF]||'')}" placeholder="Type to search, e.g. GPO" aria-label="Filter by ${esc(lab(TF).toLowerCase())}" style="min-width:240px"><datalist id="msfbl_${id}">${[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[TF]??'').trim()).filter(Boolean))].sort().slice(0,300).map(v=>`<option value="${esc(v)}">`).join('')}</datalist></label>
+    <span style="flex:1"></span>${on?`<span class="hint">Showing <b>${nS}</b> of ${nL} lines</span><button class="btn ghost" data-act="ms-flt-clr">Clear filters</button>`:`<span class="hint">${nL} lines</span>`}</div></div>`}
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
@@ -2507,7 +2517,7 @@ function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(
 function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
   const linkOpts=[['','Typed in'],...keys.map(k=>[k.k,k.name+' ('+TO_TYPE[k.type].toLowerCase()+')'])];
   if(keys.length)for(const x of C.rows)if(x.it.toLink&&!keys.some(k=>k.k===x.it.toLink))linkOpts.push([x.it.toLink,'Missing: '+x.it.toLink.split('|')[0]]);
-  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const Q=it.toLink?msQty(m,it):null;
+  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]){if(!it.head)lineNo++;return ''}const Q=it.toLink?msQty(m,it):null;
     if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+1+(m.type==='submain'?1:0)+m.locs.length+1}">${inp('msi|'+id+'|'+i+'|desc',it.desc||'',{label:'Heading',ph:'Heading'})}</td></tr>`;lineNo++;
     /* the same columns as the item schedule, so the two match and editing one changes the other */
     return `<tr><td class="hint">${lineNo}</td>${(MS_COLS[m.type]||MS_COLS.general).map(([f,l,w,isNum])=>`<td style="min-width:${w}px">${inp('msi|'+id+'|'+i+'|'+f,it[f]??'',{label:l+' line '+(i+1),ph:l,...(isNum?{num:1}:{})})}</td>`).join('')}
@@ -2529,7 +2539,7 @@ function msDeliveries(id,m,C){
   if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request can have its own notes too.</div>${msGenNotes(id,m)}`;
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
-  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="6"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
+  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="6"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
     if(out&&!(x.q-prev>0)&&!num(th))return '';
     return `<tr><td class="hint">${lineNo}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
     <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
@@ -2544,8 +2554,9 @@ function msDeliveries(id,m,C){
 }
 function msSchedule(id,m,C){
   const D=m.dockets;let tv=0,dv=0;
-  const rows=C.rows.map((x,i)=>{const it=x.it;tv+=x.total;dv+=x.del*x.rate;
-    return `<tr><td class="hint">${i+1}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
+  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;tv+=x.total;dv+=x.del*x.rate;
+    if(!VIS[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${8+D.length}"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;
+    return `<tr><td class="hint">${lineNo}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
     <td class="n money">${x.rate?money2(x.rate):'—'}</td><td class="n money">${money2(x.total)}</td><td class="n money">${money2(x.del*x.rate)}</td><td class="n money">${money2(x.bal*x.rate)}</td>
     ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
   return `${C.ch<0?'<div class="panel" style="padding:10px 14px"><span class="hint">No supplier chosen yet, so each line is priced at its lowest quote. Choose a supplier in the item schedule to use their rates.</span></div>':''}<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price<br><span class="hint" style="font-weight:400">${C.ch<0?'Lowest quote':esc(msSupName(m,C.ch))}</span></th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
