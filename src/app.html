@@ -397,6 +397,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
+.ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
 .msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
 .ms-appr-tile{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent)}.ms-appr-tile .hint{font-size:12px;max-width:420px}
 .ms-suptot{font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;margin:3px 0;white-space:nowrap}.ms-suptot b{font-size:13px}
@@ -1223,8 +1224,8 @@ function itpCell(key,f,L='ITP'){
     return `<div class="itp"><a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(f.id)}" data-file="${esc(f.id)}" target="_blank" rel="noopener" title="${esc(f.name||L+'.pdf')}">${L}</a>${assets?`<label class="btn ghost itp-act" for="${eid}">Replace</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden><button class="btn ${armed?'armed':'ghost'} itp-act" data-act="del" data-kind="itpf" data-id="${esc(key)}" data-x="" aria-label="Remove ${L}">${armed?'Confirm':'✕'}</button>`:''}</div>`}
   return assets?`<label class="btn itp-up" for="${eid}">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
 }
-function setItp(key,v){const parts=key.split('|');if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
-function getItp(key){const [k,a,b,c]=key.split('|');if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+function setItp(key,v){const parts=key.split('|');if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
@@ -1501,12 +1502,27 @@ function ordPoSum(o){const L=ordPoLines(o);const sub=L.reduce((a,x)=>a+x.qty*x.r
 function ordPoTotals(id){const o=S.orders[id];const el=document.getElementById('opo_tot_'+id);if(!o||!el)return;const T=ordPoSum(o);
   el.innerHTML=`Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b>`;
   (o.lines||[]).forEach((l,i)=>{const c=document.getElementById('opo_lt_'+id+'_'+i);if(c)c.textContent=num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''})}
+/* terms & conditions: a PDF kept on the order; its pages are added to the end of the raised PO's PDF, so they're seen wherever the PO is opened */
+function poTcTile(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.id)return '';const has=o.tcFile&&o.tcFile.id;
+  return `<div class="ms-appr-tile po-tc" data-potc="${oid}" title="Drop the terms & conditions PDF here"><div><b>Terms & conditions</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':has?(o.poFile.tc===o.tcFile.id?`On the PO: its pages are at the end of PO ${esc(o.poNo||'')} Rev ${num(o.poFile.rev)}.`:'Attached.'):'Attach or drop the terms & conditions PDF. Its pages are added to the end of the PO PDF, and to every revision you raise after.'}</div></div>${itpCell('potc|'+oid,o.tcFile,'Terms & conditions')}</div>`}
+async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.id)return;
+  const base=o.poBase&&o.poFile.tc?o.poBase:o.poFile;/* the PO without terms */
+  if(!o.tcFile||!o.tcFile.id){if(o.poFile.tc&&o.poBase){o.poFile={...o.poBase};delete o.poBase;persist('orders/'+oid);render()}return}
+  if(o.poFile.tc===o.tcFile.id&&o.poBase)return;
+  UI.tcBusy=oid;render();
+  try{if(!window.PDFLib)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');const {PDFDocument}=window.PDFLib;
+    const [a,b]=await Promise.all([fileBlob(base),fileBlob(o.tcFile)]);const out=await PDFDocument.create();
+    for(const bl of [a,b]){const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p))}
+    const bytes=await out.save();const r=await assets.upload(new File([bytes],base.name||'PO.pdf',{type:'application/pdf'}),{type:'application/pdf'});
+    o.poBase={...base};o.poFile={...base,id:r.id,tc:o.tcFile.id};persist('orders/'+oid);setSave('saved')}
+  catch(e){console.error(e);setSave('error','Couldn’t add the terms & conditions to the PO PDF')}
+  UI.tcBusy=null;render()}
 function ordPoPanel(id,o){
   const ms=o.fromMsod&&S.msods[o.fromMsod];const pf=o.poFile&&o.poFile.id?o.poFile:null;
-  if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MSOD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MSOD</button></div></div>`;
+  if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MSOD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MSOD</button></div></div>${pf?poTcTile(id):''}`;
   const pm=o.poMeta||{};const k='opm|'+id+'|';const T=ordPoSum(o);const lines=o.lines||[];
   const raiser=pm.printName??(window.__me?(window.__me.name||window.__me.email):'');
-  return `<div class="opo opo-drop" data-opo="${id}"><div class="opo-h"><b>Purchase order${pf?` · <span class="tag">Rev ${num(pf.rev)}</span>`:''}</b><span class="hint">Type the line items, or drop an Excel sheet (.xlsx or .csv) here with description, qty, unit and rate columns. The PO number and date are in the row above; leave the PO number blank to number it automatically.</span></div>
+  return `${pf?poTcTile(id):''}<div class="opo opo-drop" data-opo="${id}"><div class="opo-h"><b>Purchase order${pf?` · <span class="tag">Rev ${num(pf.rev)}</span>`:''}</b><span class="hint">Type the line items, or drop an Excel sheet (.xlsx or .csv) here with description, qty, unit and rate columns. The PO number and date are in the row above; leave the PO number blank to number it automatically.</span></div>
     <div class="tw" style="margin:6px 0"><table class="opo-t"><thead><tr><th>#</th><th style="min-width:280px">Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate (ex GST)</th><th class="n">Total</th><th></th></tr></thead><tbody>
     ${lines.map((l,i)=>{const kl='opl|'+id+'|'+i+'|';return `<tr><td class="hint">${i+1}</td><td>${inp(kl+'desc',l.desc||'',{label:'Description line '+(i+1),ph:'e.g. Double GPO white'})}</td><td style="width:90px">${inp(kl+'qty',l.qty??'',{num:1,label:'Qty line '+(i+1),ph:'0'})}</td><td style="width:80px">${inp(kl+'unit',l.unit||'',{label:'Unit line '+(i+1),ph:'ea'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate??'',{num:1,label:'Rate line '+(i+1),ph:'0'})}</div></td><td class="n money" id="opo_lt_${id}_${i}">${num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''}</td><td>${delBtn('opl',id,String(i),'Remove')}</td></tr>`}).join('')||`<tr><td colspan="7" class="hint">No lines yet. Add a line or drop an Excel sheet here.</td></tr>`}
     </tbody></table></div>
@@ -1530,7 +1546,7 @@ async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMet
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
   UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
-  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};saved=true}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
+  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(o.tcFile&&o.tcFile.id)setTimeout(()=>poMergeTc(id),0)}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
   persist('orders/'+id);UI.opoBusy=null;UI.opoMsg={id,t:saved?`Raised PO ${no} Rev ${rev} for ${money2(amt)} ex GST.`:'PDF downloaded, but it could not be saved on the order here.'};render();
   if(!saved&&downloads){try{await downloads.save({filename:fname,data:blob})}catch(e){}}}
 function poParseRows(rows){const clean=v=>v==null?'':String(v).trim();const isNum=v=>v!==''&&!isNaN(num(String(v).replace(/[$,\s]/g,'')));const n=v=>num(String(v).replace(/[$,\s]/g,''));
@@ -2117,6 +2133,7 @@ function msDesc(m,it){
 }
 const msCat=(m,it)=>m.type==='submain'?(it.cable||''):(it.cat||'');
 function msQty(m,it){
+  if(it.head)return {qty:0,src:'head'};/* a heading row: no quantity or prices */
   if(it.toLink){const tot=toKeyQty(it.toLink,null);const per={};let any=false;for(const l of m.locs){const q=toKeyQty(it.toLink,l.name||'');per[l.id]=q;if(q!=null)any=true}
     return {qty:Math.round((tot||0)*100)/100,src:'drawing',per:any?per:null,found:tot!=null}}
   const has=m.locs.some(l=>it.q&&it.q[l.id]!==undefined&&it.q[l.id]!=='');
@@ -2179,6 +2196,7 @@ function msPoPanel(id,m,C){
     <button class="btn primary" data-act="ms-po" ${L.length&&!UI.msPoBusy?'':'disabled'}>${(()=>{const no=String(po.no??(m.hdr?.orderNo||'')).trim();const oid=msPoOrderId(m,no);const pf=oid&&S.orders[oid].poFile;return UI.msPoBusy?'Raising…':pf&&pf.id?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'})()}</button></div>
     ${(()=>{const no=String(po.no??(m.hdr?.orderNo||'')).trim();const oid=msPoOrderId(m,no);const pf=oid&&S.orders[oid].poFile;return pf&&pf.id?`<p class="hint" style="margin:0 0 10px">PO ${esc(no)} is raised at Rev ${num(pf.rev)}. Change the lines, rates or details above, then amend: a new revision PDF is made and the earlier ones are kept in the order’s history. To raise a separate PO instead, change the PO #.</p>`:''})()}
     ${UI.msPoMsg?`<div class="banner" style="margin:0 0 10px">${esc(UI.msPoMsg)}</div>`:''}
+    ${(()=>{const no=String(po.no??(m.hdr?.orderNo||'')).trim();const oid=msPoOrderId(m,no);return oid?poTcTile(oid):''})()}
     <div class="form">
       <label>PO #${inp(k+'no',po.no??(m.hdr?.orderNo||''),{label:'PO number',ph:'e.g. '+(S.info.job||'OX63')+'-PO-001'})}</label>
       <label>Date${inp(k+'date',po.date||todayISO(),{type:'date',label:'PO date'})}</label>
@@ -2246,7 +2264,7 @@ async function msPo(id){
   if(oid){Object.assign(S.orders[oid],{poNo:no,supplier:desc,po:String(amt),date})}else{oid=uid('o');S.orders[oid]={created:Date.now(),inv:[],retention:false,date,poNo:no,supplier:desc,po:String(amt),fromMsod:id}}
   const o=S.orders[oid];o.raisedBy=raisedBy;let saved=false;
   if(assets){try{const old=o.poFile;const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});
-    if(old&&old.id&&old.id!==r.id)o.poHist=[...(o.poHist||[]),old];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};saved=true}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
+    if(old&&old.id&&old.id!==r.id)o.poHist=[...(o.poHist||[]),old];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(o.tcFile&&o.tcFile.id)setTimeout(()=>poMergeTc(oid),0)}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
   persist('orders/'+oid);
   m.poLog=[...(m.poLog||[]),{no,date,supplier:d.supplier,total:amt,lines:L.length,orderId:oid,by:raisedBy,pdf:saved,rev}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}persist('msod/'+id);
   UI.msPoBusy=false;UI.msPoDone=oid;render();
@@ -2290,15 +2308,16 @@ function msDetails(id,m){
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
-  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><button class="btn" data-act="ms-sup-add" title="Add another supplier column">+ Add supplier</button><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
+  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-add-head" title="Add a heading row to group the lines below it">+ Add heading</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><button class="btn" data-act="ms-sup-add" title="Add another supplier column">+ Add supplier</button><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
     <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label>${ch>=0?msSupPoHtml(id,m,ch):''}</div>`;
   const xlMsg=UI.msXlMsg?`<div class="panel" role="status" style="padding:9px 14px;${UI.msXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.msXlMsg.t)}</div>`:'';
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
     <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
-  const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
+  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
+    if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${cols.length+1+ns*2+1}">${inp(k+'desc',it.desc||'',{label:'Heading',ph:'Heading, e.g. Level 1 or Lighting'})}</td><td>${delBtn('msi',id,String(i),'Remove heading')}</td></tr>`;lineNo++;
     const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='drawing'?'from drawings':x.src==='takeoff'?'from take off':'cables × run'}</span>`;
-    return `<tr><td class="hint">${i+1}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
+    return `<tr><td class="hint">${lineNo}</td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
       ${m.suppliers.map((s,si)=>{const r=(it.r||[])[si]??'';const best=x.lo&&num(r)===x.lo;const on=si===ch;return `<td style="min-width:90px" class="${best?'msbest':''}${on?' mson':''}"><div class="cur">${inp('msr|'+id+'|'+i+'|'+si,r,{num:1,label:msSupName(m,si)+' rate line '+(i+1)})}</div></td><td class="n money ${on?'mson':'hint'}">${num(r)?money2(x.q*num(r)):''}</td>`}).join('')}
       <td class="n money">${x.lo?money2(x.lo):'—'}</td>
@@ -2330,9 +2349,10 @@ function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(
 function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
   const linkOpts=[['','Typed in'],...keys.map(k=>[k.k,k.name+' ('+TO_TYPE[k.type].toLowerCase()+')'])];
   if(keys.length)for(const x of C.rows)if(x.it.toLink&&!keys.some(k=>k.k===x.it.toLink))linkOpts.push([x.it.toLink,'Missing: '+x.it.toLink.split('|')[0]]);
-  const rows=C.rows.map((x,i)=>{const it=x.it;const Q=it.toLink?msQty(m,it):null;
+  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const Q=it.toLink?msQty(m,it):null;
+    if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+1+(m.type==='submain'?1:0)+m.locs.length+1}">${inp('msi|'+id+'|'+i+'|desc',it.desc||'',{label:'Heading',ph:'Heading'})}</td></tr>`;lineNo++;
     /* the same columns as the item schedule, so the two match and editing one changes the other */
-    return `<tr><td class="hint">${i+1}</td>${(MS_COLS[m.type]||MS_COLS.general).map(([f,l,w,isNum])=>`<td style="min-width:${w}px">${inp('msi|'+id+'|'+i+'|'+f,it[f]??'',{label:l+' line '+(i+1),ph:l,...(isNum?{num:1}:{})})}</td>`).join('')}
+    return `<tr><td class="hint">${lineNo}</td>${(MS_COLS[m.type]||MS_COLS.general).map(([f,l,w,isNum])=>`<td style="min-width:${w}px">${inp('msi|'+id+'|'+i+'|'+f,it[f]??'',{label:l+' line '+(i+1),ph:l,...(isNum?{num:1}:{})})}</td>`).join('')}
     <td style="min-width:170px">${keys.length||it.toLink?sel('msi|'+id+'|'+i+'|toLink',it.toLink||'',linkOpts,{label:'Quantity from drawing, line '+(i+1)}):'<span class="hint">No drawing take off yet</span>'}</td>
     ${m.type==='submain'?`<td class="n money hint">${it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!==''?(num(it.n)*num(it.run)).toLocaleString('en-AU',{maximumFractionDigits:2}):'—'}</td>`:''}
     ${m.locs.map(l=>Q?`<td class="n money hint" style="min-width:80px" title="From drawing sections named ${esc(l.name||'')}">${Q.per?fmtq(Q.per[l.id]):''}</td>`:`<td style="min-width:80px">${inp('msq|'+id+'|'+i+'|'+l.id,it.q?.[l.id]??'',{num:1,label:(l.name||'Location')+' qty line '+(i+1)})}</td>`).join('')}
@@ -2351,9 +2371,9 @@ function msDeliveries(id,m,C){
   if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request can have its own notes too.</div>${msGenNotes(id,m)}`;
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
-  const rows=C.rows.map((x,i)=>{const it=x.it;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
+  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="6"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
     if(out&&!(x.q-prev>0)&&!num(th))return '';
-    return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
+    return `<tr><td class="hint">${lineNo}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
     <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
   return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button><button class="btn ${UI.armed==='msdk'+id+di?'armed':''}" data-act="del" data-kind="msdk" data-id="${id}" data-x="${di}" style="white-space:nowrap">${UI.armed==='msdk'+id+di?'Confirm: remove MOSD '+(di+1):'Remove MOSD '+(di+1)}</button></div></div>
     <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label></div></div>
@@ -2391,7 +2411,8 @@ async function msApprPdf(id){
   y+=info.length*5.2+1;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=5}
   const head1=[{content:'#',rowSpan:2},...cols.map(c=>({content:c[1],rowSpan:2})),{content:'Qty',rowSpan:2},...SI.map(si=>({content:msSupName(m,si)+(si===ch?'  (chosen)':''),colSpan:2,styles:{halign:'center'}})),{content:'Lowest rate',rowSpan:2}];
   const head2=SI.flatMap(()=>['Rate','Price']);
-  const body=C.rows.map((x,i)=>[String(i+1),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
+  let ln=0;const NC=cols.length+3+SI.length*2;
+  const body=C.rows.map(x=>x.it.head?[{content:String(x.it.desc||''),colSpan:NC,styles:{fontStyle:'bold',fillColor:[245,240,235],halign:'left'}}]:[String(++ln),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
   const foot=[[{content:'Total',colSpan:cols.length+2,styles:{halign:'left'}},...SI.flatMap(si=>['',C.sup[si]?'$'+f2(C.sup[si]):'—']),'']];
   const firstNum=cols.length+1;const chCols=new Set();SI.forEach((si,k)=>{if(si===ch){chCols.add(firstNum+1+k*2);chCols.add(firstNum+2+k*2)}});
   doc.autoTable({startY:y+2,head:[head1,head2],body,foot,theme:'grid',styles:{fontSize:SI.length>9?6.5:7.5,cellPadding:1.3,overflow:'linebreak'},headStyles:{fillColor:[51,51,51],textColor:255,fontSize:SI.length>9?6.5:7.5,valign:'middle'},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
@@ -2424,8 +2445,8 @@ async function msPdf(id,di){
   const NL=[...(m.dnotes||[]),...msNotes(d)].filter(n=>(n.text||'').trim());const LN={};const hasLN=false;
   const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
   const C=msCalc(m);
-  const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.q||r.th||msDesc(m,r.x.it))
-    .map(({i,x,prev,th})=>{const r=[String(i+1),msDesc(m,x.it),msCat(m,x.it),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)];if(hasLN)r.push(String(LN[x.it.id]||''));return r});
+  let dl=0;const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.it.head?String(r.x.it.desc||'').trim():(r.x.q||r.th||msDesc(m,r.x.it)))
+    .map(({i,x,prev,th})=>{if(x.it.head)return [{content:String(x.it.desc||''),colSpan:7+(hasLN?1:0),styles:{fontStyle:'bold',fillColor:[245,240,235]}}];i=dl++;const r=[String(i+1),msDesc(m,x.it),msCat(m,x.it),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)];if(hasLN)r.push(String(LN[x.it.id]||''));return r});
   doc.autoTable({startY:y+2,head:[['Item','Description',m.type==='submain'?'Cable ID':'Cat number','Original order','Delivered to date','This delivery','Balance outstanding',...(hasLN?['Note']:[])]],body,theme:'grid',
     styles:{fontSize:8.5,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:11},1:{cellWidth:'auto'},2:{cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:19},5:{halign:'right',cellWidth:18,fontStyle:'bold'},6:{halign:'right',cellWidth:20},...(hasLN?{7:{cellWidth:34,fontSize:8}}:{})},
@@ -4085,6 +4106,12 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
+/* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
+viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
+viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
+viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
+  const f=[...e.dataTransfer.files].find(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));if(!f){setSave('error','Drop the terms & conditions as a PDF');return}if(!assets){setSave('error','File storage is not available in this view');return}uploadItp('potc|'+t.dataset.potc,f)},true);
+
 /* ---------- MSOD: drop an Excel file on the item schedule to fill it ---------- */
 const isSheet=f=>/\.(xlsx|csv)$/i.test(f.name||'')||/spreadsheetml|text\/csv/.test(f.type||'');
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;if(e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]')))return;const t=e.target.closest&&e.target.closest('[data-msxl]');if(!t)return;e.preventDefault();t.classList.add('msxl-dropping')});
@@ -4270,6 +4297,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
     if(act==='ms-apprpdf'){msApprPdf(id);return}
+    if(act==='ms-add-head'){const it=msItem();it.head=true;m.items.push(it);persist('msod/'+id);render();setTimeout(()=>{const e=document.querySelector(`input[data-b="msi|${id}|${m.items.length-1}|desc"]`);if(e){e.focus();e.scrollIntoView({block:'center'})}},40);return}
     if(act==='ms-sup-add'){m.suppliers.push('');persist('msod/'+id);render();setTimeout(()=>{const e=document.getElementById(('mssup|'+id+'|'+(m.suppliers.length-1)).replace(/\|/g,'_'));if(e){e.focus();e.scrollIntoView({block:'nearest',inline:'center'})}},40);return}
     if(act==='ms-sup-del'){const si=+btn.dataset.v;if(m.suppliers.length<2||!(si>=0))return;const k='mssupdel'+id+si;if(UI.armed!==k){UI.armed=k;render();setTimeout(()=>{if(UI.armed===k){UI.armed=null;render()}},4000);return}UI.armed=null;undoRecord();
       /* take the supplier out of every line, so the other suppliers' rates, totals and the chosen supplier stay right */
