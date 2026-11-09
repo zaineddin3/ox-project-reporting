@@ -1248,6 +1248,9 @@ let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
   await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');return window.pdfjsLib}
+/* pictures of the first pages, for text recognition */
+async function pdfPageImages(blob,scale){const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;const out=[];
+  for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:scale||2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;out.push(await new Promise(r=>c.toBlob(r,'image/png')))}return out}
 async function readPdf(blob){
   const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;
   const pages=[];let text='';
@@ -1326,26 +1329,40 @@ async function fetchFile(id){
     if(!error&&data){sbMirror(window.__sb,id,data);fcPut(id,data);return data}
     const b=await sbBlobRead(window.__sb,id);if(b){fcPut(id,b);return b}throw error||new Error('not found')}
   const r=await fetch('/_blob/'+encodeURIComponent(id));if(!r.ok)throw new Error('fetch '+r.status);return r.blob()}
+/* scanned invoices (pictures, no text): read the words with text recognition, on this device */
+const OCR_V='5.1.1';let OCRW=null;
+async function ocrImages(images,onPage){if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/tesseract.min.js');
+  if(!OCRW)OCRW=await Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@'+OCR_V,langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int',gzip:true});
+  await OCRW.setParameters({preserve_interword_spaces:'1'});let text='';let i=0;
+  for(const im of images){i++;onPage&&onPage(i,images.length);const r=await OCRW.recognize(im);text+=`\n--- page ${i} ---\n`+(r.data.text||'')}return text}
 /* built-in invoice reader (no Claude needed): finds rows where quantity × unit price ≈ line total, plus the invoice number, date and ex-GST total */
-const INV_UNITS=/^(ea|each|m|mtr|mtrs|metre|metres|lm|rl|roll|rolls|len|lth|lgth|length|bx|box|pk|pkt|pack|set|pr|pair|kg|l|ltr|hr|hrs|100m|500m|drum)$/i;
+const INV_UNITS=/^(ea|each|m|mtr|mtrs|metre|metres|lm|rl|roll|rolls|len|lth|lgth|length|bx|box|pk|pkt|pack|set|pr|pair|kg|l|ltr|hr|hrs|drum)$/i;
 const INV_SKIP=/\b(sub-?total|total|gst|tax|balance|amount due|amount payable|payment|paid|bsb|account|abn|terms|carried forward|brought forward|rounding|credit card|surcharge)\b/i;
 function invNum(t){t=String(t).trim().replace(/^\$/,'').replace(/,/g,'');if(/^\(.*\)$/.test(t))t='-'+t.slice(1,-1);return /^-?\d+(\.\d+)?$/.test(t)?parseFloat(t):null}
-function parseInvoiceText(text){
-  const rows=text.split('\n').map(r=>r.trim()).filter(r=>r&&!/^--- page \d+ ---$/.test(r));const lines=[];const flat=text.replace(/\s+/g,' ');
-  for(const row of rows){const tk=row.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean);if(tk.length<3)continue;
-    const all=tk.map((t,i)=>({i,v:invNum(t),pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null}));const N=all.filter(n=>n.v!==null);if(N.length<2)continue;
+function invRowLine(tk){if(tk.length<3)return null;
+    const all=tk.map((t,i)=>({i,v:invNum(t),pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null}));const N=all.filter(n=>n.v!==null);if(N.length<2)return null;
+    /* a quantity is usually written without cents (12), a price with them (45.50) */
+    const qtyish=n=>Math.abs(n.v-Math.round(n.v))<1e-9&&!/\.\d{2,}$/.test(tk[n.i]);
     let best=null;
-    for(let a=0;a<N.length;a++)for(let b=a+1;b<N.length;b++)for(let c=b+1;c<N.length;c++){const q=N[a].v,r=N[b].v,t=N[c].v;if(!(q>0)||!(r>0)||!(t>0)||q>100000)continue;
+    for(let a=0;a<N.length;a++)for(let b=a+1;b<N.length;b++)for(let c=b+1;c<N.length;c++){let Q=N[a],R=N[b];const t=N[c].v;
+      /* quantity can come before or after the unit price: the whole-number one is the quantity */
+      if(!qtyish(Q)&&qtyish(R))[Q,R]=[R,Q];const q=Q.v,r=R.v;if(!(q>0)||!(r>0)||!(t>0)||q>100000)continue;
       const disc=all.slice(N[b].i+1,N[c].i).map(n=>n.pct).find(x=>x!=null);
       /* a printed net price between unit price and total also counts */
       const mids=N.filter(n=>n.i>N[b].i&&n.i<N[c].i).map(n=>n.v);
       const tol=Math.max(0.02,t*0.015);const fits=x=>Math.abs(x-t)<=tol;
-      const ok=fits(q*r)||(disc!=null&&fits(q*r*(1-disc/100)))||mids.some(m=>fits(q*m));
-      if(ok&&(!best||N[c].i>best.c.i||(N[c].i===best.c.i&&N[a].i>best.a.i)))best={a:N[a],b:N[b],c:N[c],rate:t/q}}
-    if(!best)continue;
-    const desc=tk.slice(0,best.a.i).filter(t=>/[A-Za-z]/.test(t)&&!INV_UNITS.test(t));if(!desc.length)continue;const ds=desc.join(' ');if(INV_SKIP.test(ds)&&ds.length<40)continue;
-    const unit=tk.slice(best.a.i+1,best.b.i).concat(tk.slice(0,best.a.i)).find(t=>INV_UNITS.test(t))||'';
-    lines.push({mat:ds.replace(/\s+/g,' ').slice(0,300),qty:best.a.v,unit:unit.toLowerCase(),rate:best.rate})}
+      let rate=null;
+      if(fits(q*r)||(disc!=null&&fits(q*r*(1-disc/100)))||mids.some(m=>fits(q*m)))rate=t/q;
+      else if(fits(q*r*1.1)||(disc!=null&&fits(q*r*(1-disc/100)*1.1)))rate=t/1.1/q;/* line total printed including GST */
+      if(rate!=null&&(!best||N[c].i>best.c.i||(N[c].i===best.c.i&&Math.min(Q.i,R.i)>Math.min(best.q.i,best.r.i))))best={q:Q,r:R,c:N[c],rate}}
+    if(!best)return null;const first=Math.min(best.q.i,best.r.i);
+    const desc=tk.slice(0,first).filter(t=>!/^\$$/.test(t));if(desc.length>1&&INV_UNITS.test(desc[desc.length-1]))desc.pop();const ds=desc.join(' ');if(!/[A-Za-z]{2,}/.test(ds))return null;if(INV_SKIP.test(ds)&&ds.length<40)return null;
+    const unit=tk.slice(first+1,Math.max(best.q.i,best.r.i)).concat(tk.slice(0,first)).find(t=>INV_UNITS.test(t))||'';
+    return {mat:ds.replace(/\s+/g,' ').slice(0,300),qty:best.q.v,unit:unit.toLowerCase(),rate:best.rate}}
+function parseInvoiceText(text){
+  const rows=text.split('\n').map(r=>r.trim()).filter(r=>r&&!/^--- page \d+ ---$/.test(r));const lines=[];const flat=text.replace(/\s+/g,' ');
+  /* columns are split on wide gaps; scanned (OCR) text and tight layouts only have single spaces, so those rows are tried word by word */
+  for(const row of rows){const L=invRowLine(row.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean))||invRowLine(row.split(/\s+/).filter(Boolean));if(L)lines.push(L)}
   const pick=re=>{const m=flat.match(re);return m?m[m.length-1]:''};
   const invoiceNo=pick(/\b(?:tax\s+)?invoice\s*(?:no\.?|number|num|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binvoice\s*[:#]\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i);
   const MO={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const iso=(d,m,y)=>{y=+y;if(y<100)y+=2000;return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')};
@@ -1353,9 +1370,21 @@ function parseInvoiceText(text){
   let date='';{const D='(\\d{1,2})[\\/.\\-](\\d{1,2})[\\/.\\-](\\d{2,4})',W='(\\d{1,2})[\\s\\-]+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?,?[\\s\\-]+(\\d{2,4})';
     const tries=[new RegExp('invoice\\s*date\\s*[:#]?\\s*'+D,'i'),new RegExp('invoice\\s*date\\s*[:#]?\\s*'+W,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch)\\s*)\\bdate\\s*[:#]?\\s*'+D,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch)\\s*)\\bdate\\s*[:#]?\\s*'+W,'i'),new RegExp('\\b'+D+'\\b'),new RegExp('\\b'+W,'i')];
     for(const re of tries){const m=flat.match(re);if(!m)continue;const mo=isNaN(+m[2])?MO[m[2].slice(0,3).toLowerCase()]:+m[2];if(mo>=1&&mo<=12&&+m[1]>=1&&+m[1]<=31){date=iso(m[1],mo,m[3]);break}}}
-  const amt=re=>{const m=flat.match(re);return m?invNum(m[1]):null};
-  let totalExGst=amt(/(?:total\s+ex(?:cl(?:uding)?)?\.?\s*gst|sub-?\s*total(?:\s+ex\.?\s*gst)?|nett?\s+total|amount\s+ex(?:cl)?\.?\s*gst)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
-  if(totalExGst==null){const inc=amt(/(?:total\s+inc(?:l(?:uding)?)?\.?\s*gst|invoice\s+total|total\s+amount|amount\s+due|total\s+due)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);if(inc!=null)totalExGst=Math.round(inc/1.1*100)/100}
+  /* the subtotal excluding GST: "Total ex GST" / "Sub total" / "Nett total"; checked against GST + total when they're shown.
+     Without one, total less GST, or total including GST ÷ 1.1 */
+  const amts=re=>{const out=[];const g=new RegExp(re.source,'gi');let m;while((m=g.exec(flat))){const v=invNum(m[1]);if(v!=null)out.push(v)}return out};
+  const exA=amts(/(?:total\s+ex(?:cl(?:uding|\.)?)?\.?\s*(?:of\s+)?gst|sub-?\s*total(?:\s+ex(?:cl)?\.?\s*gst)?|nett?\s+(?:total|amount)|amount\s+ex(?:cl)?\.?\s*gst|total\s+before\s+gst)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
+  const gstA=amts(/\bgst(?:\s+(?:amount|total|10%|@\s*10%))?(?!\s*(?:no|reg|inc|incl))[^0-9$\-a-z]{0,20}\$?\s*([\d,]+\.\d{2})/i);
+  const incA=amts(/(?:total\s+inc(?:l(?:uding|\.)?)?\.?\s*gst|invoice\s+total|total\s+amount|amount\s+due|total\s+due|balance\s+due|total\s+payable|(?<![a-z]\s)total)(?!\s*ex)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
+  const close=(a,b)=>Math.abs(a-b)<=Math.max(0.05,b*0.002);let totalExGst=null;
+  for(const ex of exA){if(gstA.some(g=>incA.some(t=>close(ex+g,t)))||gstA.some(g=>close(g,ex*0.1))){totalExGst=ex;break}}
+  if(totalExGst==null&&exA.length)totalExGst=Math.max(...exA.filter(v=>!incA.length||v<Math.max(...incA)+0.01).concat([0]))||exA[0];
+  if(totalExGst==null&&incA.length){const t=Math.max(...incA);const g=gstA.find(g=>close(g,t/11));totalExGst=Math.round((g!=null?t-g:t/1.1)*100)/100}
+  /* a lump-sum or progress-claim invoice has no quantity × price lines: use one line for the ex-GST total, described by the line that carries that amount */
+  if(!lines.length&&totalExGst>0){const near=v=>x=>Math.abs(x-v)<=Math.max(0.02,v*0.002);let ds='';
+    for(const row of rows){const ws=row.split(/\s+/);const nums=ws.map(invNum).filter(v=>v!=null);if(!nums.some(near(totalExGst))&&!nums.some(near(totalExGst*1.1)))continue;const words=row.split(/\s{2,}|\s(?=\$?[\d,]+\.\d{2}\b)/).filter(t=>/[A-Za-z]{3,}/.test(t)&&!INV_SKIP.test(t));if(words.length){ds=words.join(' ');break}}
+    if(!ds){const r=rows.find(r=>/(progress\s+claim|claim\s*(no\.?|#)?\s*\d|deposit|down\s+payment|retention|supply|install|works|stage)/i.test(r)&&!INV_SKIP.test(r));if(r)ds=r}
+    lines.push({mat:(ds||('Invoice '+(invoiceNo||''))).replace(/\s+/g,' ').trim().slice(0,300),qty:1,unit:'',rate:totalExGst,lump:true})}
   return {invoiceNo,date,totalExGst,lines}}
 /* invoices that already have a PDF but no materials (attached before automatic reading) are read when their order is opened */
 const AUTOREAD=new Set();
@@ -1370,8 +1399,12 @@ async function extractInvoice(oid,j,blob,replace,opt){
     EXT[key]={busy:'Extracting materials…'};render();
     /* the built-in reader runs first; Claude reads it when that finds nothing (scanned invoices, unusual layouts) and Claude is available */
     let out=null,how='';if(!images.length){try{const L=parseInvoiceText(text);if(L.lines.length){out=L;how='local'}}catch(e){console.error(e)}}
+    /* a scan: read it with text recognition here, unless Claude is about to read it (Claude reads scans better) */
+    /* little text and nothing found (a scan with a typed header, say): try the page pictures too */
+    if(!out&&(!sampleFn||(opt&&opt.auto))&&!images.length&&text.replace(/--- page \d+ ---/g,'').trim().length<1500){try{const t=await ocrImages(await pdfPageImages(blob),(i,n)=>{EXT[key]={busy:`Reading the invoice picture… (page ${i} of ${n})`};render()});const L=parseInvoiceText(t+'\n'+text);if(L.lines.length&&!L.lines[0].lump||L.lines.length&&!parseInvoiceText(text).lines.length){out=L;how='ocr'}}catch(e){console.error(e)}}
+    else if(!out&&images.length&&(!sampleFn||(opt&&opt.auto))){try{const t=await ocrImages(await pdfPageImages(blob),(i,n)=>{EXT[key]={busy:`Reading the scanned invoice… (page ${i} of ${n})`};render()});const L=parseInvoiceText(t);if(L.lines.length){out=L;how='ocr'}}catch(e){console.error(e)}}
     if(!out&&opt&&opt.auto){EXT[key]={err:'Couldn’t read the materials on this invoice automatically. '+(sampleFn?'Click “Read PDF” to have Claude read it, or add':'Add')+' them by hand.'};render();return}
-    if(!out&&!sampleFn){EXT[key]={err:images.length?'This invoice is a scanned picture, so there’s no text to read here. Add the materials by hand, or open the app in Claude to read it.':'Couldn’t find material lines on this invoice. Add them by hand.'};render();return}
+    if(!out&&!sampleFn){EXT[key]={err:images.length?'Couldn’t read this scanned invoice. Add the materials by hand, or open the app in Claude to read it.':'Couldn’t find material lines or a total on this invoice. Add them by hand.'};render();return}
     if(!out){
     const prompt=`You are reading a supplier invoice for an Australian electrical contractor. Extract every material or item line.
 Reply with only JSON in exactly this shape:
@@ -1387,7 +1420,7 @@ ${images.length?'The invoice is attached as page images (it has no readable text
     if(/^\d{4}-\d{2}-\d{2}$/.test(out.date||'')){x.date=out.date;x.datePdf=out.date}
     persist('orders/'+oid);UI.open['invm'+oid+'_'+j]=true;
     const sum=linesSum(x),tot=num(out.totalExGst);
-    EXT[key]={ok:`Read ${lines.length} material line${lines.length===1?'':'s'}${how==='claude'?' (with Claude)':''} and a total of ${money2(invAmt(x))} ex GST from the PDF, added to the invoiced total. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
+    EXT[key]={ok:`Read ${out.lines&&out.lines.length===1&&out.lines[0].lump?'a lump-sum invoice':lines.length+' material line'+(lines.length===1?'':'s')}${how==='claude'?' (with Claude)':how==='ocr'?' from the scan':''} and a total of ${money2(invAmt(x))} ex GST from the PDF, added to the invoiced total. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
   }catch(e){console.error(e);EXT[key]={err:e&&e.code==='not_granted'?'Reading needs your permission to use Claude. Click “Read PDF” to try again and allow it.':e&&e.code==='rate_limited'?'Too many requests just now. Try again in a minute.':e&&e.code==='invalid_json'?'Couldn’t make sense of this invoice. Try again, or add the materials by hand.':'Couldn’t read this PDF. Add the materials by hand.'}}
   render();
 }
