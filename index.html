@@ -422,6 +422,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
+.msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
 .ms-appr-tile{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent)}.ms-appr-tile .hint{font-size:12px;max-width:420px}
 .ms-suptot{font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;margin:3px 0;white-space:nowrap}.ms-suptot b{font-size:13px}
 .msq-dropping{outline:2px dashed var(--accent);outline-offset:-3px;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}
@@ -2314,8 +2315,9 @@ function msDetails(id,m){
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
-  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><span style="flex:1"></span>
+  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
     <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label>${ch>=0?msSupPoHtml(id,m,ch):''}</div>`;
+  const xlMsg=UI.msXlMsg?`<div class="panel" role="status" style="padding:9px 14px;${UI.msXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.msXlMsg.t)}</div>`:'';
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
     <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
@@ -2347,7 +2349,7 @@ function msItems(id,m,C){
     <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
     ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
     <label class="wide">Comments${inp(ka+'comments',a.comments||'',{label:'Comments'})}</label></div></div></div>`;
-  return `<div class="panel" style="padding:12px 14px">${tool}</div>${paste}${table}${summary}${msPoPanel(id,m,C)}`;
+  return `<div class="panel" style="padding:12px 14px">${tool}</div>${xlMsg}${paste}<div class="ms-xl-drop" data-msxl="${id}">${table}</div>${summary}${msPoPanel(id,m,C)}`;
 }
 function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(id);if(!d)continue;for(const z of d.zones){const n=(z.name||'').trim();if(n&&!s.has(n.toLowerCase()))s.set(n.toLowerCase(),n)}}return [...s.values()]}
 function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
@@ -2463,6 +2465,43 @@ async function msPdf(id,di){
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
 }
+/* read an Excel (.xlsx) or CSV file into rows of cells */
+async function sheetRows(file){const name=file.name||'';let rows=[];
+  if(/\.csv$/i.test(name)||file.type==='text/csv'){const txt=await file.text();rows=txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===','){out.push(cur);cur=''}else cur+=c}out.push(cur);return out})}
+  else{if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');const wb=new window.ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+    const ws=wb.worksheets.find(w=>w.actualRowCount>0)||wb.worksheets[0];ws.eachRow({includeEmpty:false},r=>{const a=[];r.eachCell({includeEmpty:true},(c,ci)=>{let v=llogCell(c.value);if(v instanceof Date)v=v.toISOString().slice(0,10);a[ci-1]=v==null?'':String(v)});rows.push(a)})}
+  return rows.map(r=>Array.from(r,v=>v==null?'':String(v).trim()))}
+/* MSOD item schedule from a spreadsheet: columns are matched by their heading (Description, Cat number, Qty, a supplier's name for their rates,
+   a location's name for its quantities…); a sheet without headings is read in the item schedule's column order */
+const MS_HDR={type:/^(item\s*)?type$|^category$/,desc:/desc|^item$|^material|^product$/,details:/detail|spec|rating/,cat:/cat(alogue)?\.?\s*(no|number|#)?$|part\s*(no|number)|^code$|sku|product\s*code|^cat/,
+  qty:/^(qty|quantity|total\s*qty|order\s*qty)$/,from:/^from$/,to:/^to$/,cable:/cable\s*(id|no|tag|ref)|^id$|^tag$|^cable$/,n:/no\.?\s*of\s*cables|^qty\s*cables|^no\.?$|cables$/,config:/config/,size:/size|csa|mm2|mm²/,cond:/conductor|^cu|^al|material$/,ins:/insul/,run:/run|length/};
+function msImportRows(id,rows){const m=S.msods[id];if(!m)return {n:0};const cols=(MS_COLS[m.type]||MS_COLS.general).map(c=>c[0]);const fields=m.type==='submain'?cols:cols.concat(['qty']);
+  const norm=t=>String(t||'').toLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();
+  const supIdx=t=>{const h=norm(t).replace(/\s*(rate|price|unit|\$)\s*$/,'').trim();if(!h)return -1;return m.suppliers.findIndex(s=>norm(s)&&(norm(s)===h||h.startsWith(norm(s))))};
+  const locIdx=t=>{const h=norm(t);return h?m.locs.findIndex(l=>norm(l.name)===h):-1};
+  /* the heading row: the first of the top ten rows with two or more recognised headings */
+  let hi=-1,map=null;
+  for(let r=0;r<Math.min(rows.length,10)&&hi<0;r++){const M={};let hits=0;rows[r].forEach((c,ci)=>{const h=norm(c);if(!h)return;
+      for(const f of fields)if(MS_HDR[f]&&MS_HDR[f].test(h)&&!Object.values(M).some(x=>x.f===f)){M[ci]={f};hits++;return}
+      const si=supIdx(c);if(si>=0){M[ci]={sup:si};hits++;return}const li=locIdx(c);if(li>=0){M[ci]={loc:m.locs[li].id};hits++}});
+    if(hits>=2){hi=r;map=M}}
+  if(!map){map={};fields.forEach((f,i)=>map[i]={f})}
+  const blank=it=>!cols.some(c=>it[c])&&!it.qty&&!Object.values(it.q||{}).some(v=>v!=='')&&!(it.r||[]).some(v=>v!=='');
+  let n=0;const add=[];
+  for(const row of rows.slice(hi+1)){if(!row.some(c=>c))continue;const it=msItem();
+    for(const [ci,t] of Object.entries(map)){const v=(row[+ci]||'').trim();if(!v)continue;
+      if(t.f){it[t.f]=t.f==='qty'||t.f==='n'||t.f==='run'?String(num(v.replace(/[$,]/g,''))||v):v}
+      else if(t.sup!=null){it.r=it.r||[];it.r[t.sup]=String(num(v.replace(/[$,]/g,'')))}
+      else if(t.loc){it.q[t.loc]=String(num(v.replace(/,/g,'')))}}
+    const label=cols.map(c=>it[c]||'').join(' ');if(/^\s*(sub\s*)?total\b/i.test(label))continue;
+    if(cols.some(c=>it[c])||Object.keys(it.q).length){add.push(it);n++}}
+  if(n){m.items=m.items.filter(x=>!blank(x)).concat(add);persist('msod/'+id)}
+  return {n,headed:hi>=0,cols:Object.values(map).length}}
+async function msImportFile(id,file){UI.msXlMsg={t:'Reading '+(file.name||'the file')+'…'};render();
+  try{const rows=await sheetRows(file);const R=msImportRows(id,rows);
+    UI.msXlMsg=R.n?{ok:1,t:`Added ${R.n} line${R.n===1?'':'s'} from ${file.name}${R.headed?'':' (no headings found, so the columns were read in the item schedule’s order)'}. Please check them.`}:{err:1,t:'No lines were found in '+file.name+'. Use a sheet with a heading row such as Description, Cat number, Qty.'}}
+  catch(e){console.error(e);UI.msXlMsg={err:1,t:'Couldn’t read '+(file.name||'that file')+'. Save it as .xlsx or .csv and try again.'}}
+  render()}
 function msPasteRows(id){
   const m=S.msods[id];if(!m)return 0;const cols=(MS_COLS[m.type]||MS_COLS.general).map(c=>c[0]);if(m.type!=='submain')cols.push('qty');
   const blank=it=>!cols.some(c=>it[c])&&!Object.values(it.q||{}).some(v=>v!=='')&&!(it.r||[]).some(v=>v!=='');
@@ -4070,6 +4109,14 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   if(t.dataset.inv){const [id,j]=t.dataset.inv.split('|');const o=S.orders[id];if(!o)return;uploadItp('inv|'+id+'|'+j,fs[0]);fs.slice(1).forEach(f=>{o.inv.push({date:todayISO(),ref:'',amount:''});uploadItp('inv|'+id+'|'+(o.inv.length-1),f)});persist('orders/'+id);return}
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
+
+/* ---------- MSOD: drop an Excel file on the item schedule to fill it ---------- */
+const isSheet=f=>/\.(xlsx|csv)$/i.test(f.name||'')||/spreadsheetml|text\/csv/.test(f.type||'');
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;if(e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]')))return;const t=e.target.closest&&e.target.closest('[data-msxl]');if(!t)return;e.preventDefault();t.classList.add('msxl-dropping')});
+viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-msxl]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msxl-dropping')});
+viewEl.addEventListener('drop',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;if(e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]')))return;const t=e.target.closest&&e.target.closest('[data-msxl]');document.querySelectorAll('.msxl-dropping').forEach(x=>x.classList.remove('msxl-dropping'));if(!t)return;
+  const f=[...e.dataTransfer.files].find(isSheet);if(!f){const pdf=[...e.dataTransfer.files].some(f=>/\.pdf$/i.test(f.name));if(!pdf){e.preventDefault();setSave('error','Drop an Excel (.xlsx) or CSV file to fill the item schedule')}return}e.preventDefault();msImportFile(t.dataset.msxl,f)});
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.msxlf===undefined)return;const f=t.files&&t.files[0];if(f)msImportFile(t.dataset.msxlf,f);t.value=''});
 
 /* ---------- MSOD: drag a quote PDF onto a supplier in the item schedule ---------- */
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;const t=e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]'));document.querySelectorAll('.msq-dropping').forEach(x=>{if(x!==t)x.classList.remove('msq-dropping')});if(!t)return;e.preventDefault();t.classList.add('msq-dropping');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
