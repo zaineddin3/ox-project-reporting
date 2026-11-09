@@ -422,6 +422,7 @@ th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,trans
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
 .ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
+.ms-appr-tile{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent)}.ms-appr-tile .hint{font-size:12px;max-width:420px}
 .ms-suptot{font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;margin:3px 0;white-space:nowrap}.ms-suptot b{font-size:13px}
 .msq-dropping{outline:2px dashed var(--accent);outline-offset:-3px;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}
 .ret-pct{display:flex;align-items:center;gap:4px;margin-top:4px;justify-content:center}.ret-pct .f{width:52px;padding:3px 5px;text-align:right;min-height:0}.ret-pct span{font-size:11px;color:var(--muted);white-space:nowrap}
@@ -1137,7 +1138,7 @@ function buPanel(id,v,ri){
 }
 let downloads=null;
 function pdfHeader(doc,title){
-  const W=210;try{doc.addImage(LOGO,'PNG',14,10,20,24)}catch(e){}
+  const W=doc.internal.pageSize.getWidth();try{doc.addImage(LOGO,'PNG',14,10,20,24)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(0);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
   doc.setDrawColor(176,84,28);doc.setLineWidth(.6);doc.line(14,38,W-14,38);
@@ -1246,8 +1247,8 @@ function itpCell(key,f,L='ITP'){
     return `<div class="itp"><a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(f.id)}" data-file="${esc(f.id)}" target="_blank" rel="noopener" title="${esc(f.name||L+'.pdf')}">${L}</a>${assets?`<label class="btn ghost itp-act" for="${eid}">Replace</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden><button class="btn ${armed?'armed':'ghost'} itp-act" data-act="del" data-kind="itpf" data-id="${esc(key)}" data-x="" aria-label="Remove ${L}">${armed?'Confirm':'✕'}</button>`:''}</div>`}
   return assets?`<label class="btn itp-up" for="${eid}">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
 }
-function setItp(key,v){const parts=key.split('|');parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
-function getItp(key){const [k,a,b,c]=key.split('|');if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+function setItp(key,v){const parts=key.split('|');if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
@@ -2340,7 +2341,9 @@ function msItems(id,m,C){
     <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${ch<0?'—':money2(C.gain)}</b></td></tr>
     <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud&&ch>=0?pct(C.gp):'—'}</td></tr></tbody></table>
     <p class="hint" style="margin-top:8px">${ch<0?'Choose a supplier to set the proposed order value. Their rates are also used in the delivery schedule, which uses each line’s lowest quote until then.':'The proposed order value is '+esc(msSupName(m,ch))+'’s total. Their rates are also used in the delivery schedule.'}</p></div>
-    <div class="panel"><h3>Evaluation & approvals</h3><div class="form">
+    <div class="panel"><div class="sec-head"><h3>Evaluation & approvals</h3><button class="btn" data-act="ms-apprpdf" title="The whole item schedule, the evaluation and a sign-off table for everyone below">Print approval PDF</button></div>
+    <div class="ms-appr-tile" data-msap="${id}" title="Drop the signed approval PDF here"><div><b>Approval</b><div class="hint">${m.approval&&m.approval.id?'Signed approval attached':'Print the approval PDF, have everyone sign it, then attach the signed copy here (or drop it on this tile).'}</div></div>${itpCell('msap|'+id,m.approval,'Approval')}</div>
+    <div class="form">
     <label class="wide">Technical evaluation & recommendation${inp(ka+'rec',a.rec||'',{label:'Technical evaluation and recommendation'})}</label>
     ${MS_APPR.map(([f,l])=>`<label>${l}${inp(ka+f,a[f]||'',{label:l,ph:'Name'})}</label><label>Date${inp(ka+f+'Date',a[f+'Date']||'',{type:'date',label:l+' date'})}</label>`).join('')}
     <label class="wide">Comments${inp(ka+'comments',a.comments||'',{label:'Comments'})}</label></div></div></div>`;
@@ -2351,17 +2354,16 @@ function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math
   const linkOpts=[['','Typed in'],...keys.map(k=>[k.k,k.name+' ('+TO_TYPE[k.type].toLowerCase()+')'])];
   if(keys.length)for(const x of C.rows)if(x.it.toLink&&!keys.some(k=>k.k===x.it.toLink))linkOpts.push([x.it.toLink,'Missing: '+x.it.toLink.split('|')[0]]);
   const rows=C.rows.map((x,i)=>{const it=x.it;const Q=it.toLink?msQty(m,it):null;
-    const itF=m.type==='submain'?'cable':'desc';
-    return `<tr><td class="hint">${i+1}</td><td style="min-width:220px">${inp('msi|'+id+'|'+i+'|'+itF,it[itF]||'',{label:'Item line '+(i+1),ph:m.type==='submain'?'Cable ID':'Item / description'})}${(()=>{const full=msDesc(m,it);return full&&full!==(it[itF]||'')?`<div class="hint" style="font-size:11px;margin-top:2px">${esc(full)}</div>`:''})()}</td>
-    <td style="min-width:120px">${inp('msi|'+id+'|'+i+'|from',it.from||'',{label:'From line '+(i+1),ph:'From'})}</td><td style="min-width:120px">${inp('msi|'+id+'|'+i+'|to',it.to||'',{label:'To line '+(i+1),ph:'To'})}</td>
+    /* the same columns as the item schedule, so the two match and editing one changes the other */
+    return `<tr><td class="hint">${i+1}</td>${(MS_COLS[m.type]||MS_COLS.general).map(([f,l,w,isNum])=>`<td style="min-width:${w}px">${inp('msi|'+id+'|'+i+'|'+f,it[f]??'',{label:l+' line '+(i+1),ph:l,...(isNum?{num:1}:{})})}</td>`).join('')}
     <td style="min-width:170px">${keys.length||it.toLink?sel('msi|'+id+'|'+i+'|toLink',it.toLink||'',linkOpts,{label:'Quantity from drawing, line '+(i+1)}):'<span class="hint">No drawing take off yet</span>'}</td>
     ${m.type==='submain'?`<td class="n money hint">${it.n!==undefined&&it.n!==''&&it.run!==undefined&&it.run!==''?(num(it.n)*num(it.run)).toLocaleString('en-AU',{maximumFractionDigits:2}):'—'}</td>`:''}
     ${m.locs.map(l=>Q?`<td class="n money hint" style="min-width:80px" title="From drawing sections named ${esc(l.name||'')}">${Q.per?fmtq(Q.per[l.id]):''}</td>`:`<td style="min-width:80px">${inp('msq|'+id+'|'+i+'|'+l.id,it.q?.[l.id]??'',{num:1,label:(l.name||'Location')+' qty line '+(i+1)})}</td>`).join('')}
     <td class="n money"><b>${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
-  return `<div class="panel" style="padding:12px 14px"><div class="toolbar"><p class="hint" style="margin:0;flex:1">Type the item, where it runs from and to, and the quantities by location. Or link a line to a take off item under <b>Qty from drawing</b> and its quantity comes straight from the drawings (split by location where a drawing section has the same name). When a line has take-off quantities, their total becomes its qty in the item schedule${m.type==='submain'?'. Otherwise it uses number of cables × run length':''}.</p>${keys.length&&toZoneNames().length?'<button class="btn" data-act="ms-loc-dwg" title="Add a location for each section drawn on the drawings">Locations from drawing sections</button>':''}<button class="btn primary" data-act="ms-add-loc">+ Add location</button></div></div>
-  <div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th>From</th><th>To</th><th title="Link the line to a drawing take off item to take its quantity from the drawings">Qty from drawing</th>${m.type==='submain'?'<th class="n">Cables × run (m)</th>':''}${m.locs.map((l,li)=>`<th><div class="msloc">${inp('msloc|'+id+'|'+li,l.name,{label:'Location '+(li+1)+' name',ph:'Location'})}${delBtn('msloc',id,String(li))}</div></th>`).join('')}<th class="n">Total qty</th></tr></thead>
-  <tbody>${rows||`<tr><td colspan="${m.locs.length+6}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
-  <tfoot><tr><td colspan="${m.type==='submain'?6:5}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>{if(it.toLink){const Q=msQty(m,it);return a+num(Q.per&&Q.per[l.id])}return a+num(it.q?.[l.id])},0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
+  return `<div class="panel" style="padding:12px 14px"><div class="toolbar"><p class="hint" style="margin:0;flex:1">The item columns match the item schedule (change either and both update), then type the quantities by location. Or link a line to a take off item under <b>Qty from drawing</b> and its quantity comes straight from the drawings (split by location where a drawing section has the same name). When a line has take-off quantities, their total becomes its qty in the item schedule${m.type==='submain'?'. Otherwise it uses number of cables × run length':''}.</p>${keys.length&&toZoneNames().length?'<button class="btn" data-act="ms-loc-dwg" title="Add a location for each section drawn on the drawings">Locations from drawing sections</button>':''}<button class="btn primary" data-act="ms-add-loc">+ Add location</button></div></div>
+  <div class="tw tall"><table class="mstable"><thead><tr><th>#</th>${(MS_COLS[m.type]||MS_COLS.general).map(c=>`<th${c[3]?' class="n"':''}>${esc(c[1])}</th>`).join('')}<th title="Link the line to a drawing take off item to take its quantity from the drawings">Qty from drawing</th>${m.type==='submain'?'<th class="n">Cables × run (m)</th>':''}${m.locs.map((l,li)=>`<th><div class="msloc">${inp('msloc|'+id+'|'+li,l.name,{label:'Location '+(li+1)+' name',ph:'Location'})}${delBtn('msloc',id,String(li))}</div></th>`).join('')}<th class="n">Total qty</th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="${m.locs.length+4+(MS_COLS[m.type]||MS_COLS.general).length}" class="hint">Add lines in the item schedule first.</td></tr>`}</tbody>
+  <tfoot><tr><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+2+(m.type==='submain'?1:0)}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>{if(it.toLink){const Q=msQty(m,it);return a+num(Q.per&&Q.per[l.id])}return a+num(it.q?.[l.id])},0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
 }
 /* notes for every delivery on this MSOD: shown on the Deliveries tab even before the first request, and printed on each delivery request */
 function msGenNotes(id,m){const L=m.dnotes||[];return `<div class="panel"><div class="sec-head"><div><h3>Notes for all deliveries</h3><p class="hint">Standing instructions for this MSOD: site access, delivery hours, unloading, who to call. They print on every delivery request.</p></div><button class="btn" data-act="ms-add-gnote">+ Add note</button></div>
@@ -2393,6 +2395,43 @@ function msSchedule(id,m,C){
     ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
   return `${C.ch<0?'<div class="panel" style="padding:10px 14px"><span class="hint">No supplier chosen yet, so each line is priced at its lowest quote. Choose a supplier in the item schedule to use their rates.</span></div>':''}<div class="tw tall"><table class="mstable"><thead><tr><th>#</th><th>Item</th><th class="n">Qty ordered</th><th class="n">Delivered</th><th class="n">Balance to deliver</th><th class="n">Price<br><span class="hint" style="font-weight:400">${C.ch<0?'Lowest quote':esc(msSupName(m,C.ch))}</span></th><th class="n">Total</th><th class="n">Delivered value</th><th class="n">Balance value</th>${D.map((d,k)=>`<th class="n">MOSD ${k+1}<br><span class="hint" style="font-weight:400">${d.delivery?fmtDate(d.delivery):'No date'}</span></th>`).join('')}</tr></thead>
   <tbody>${rows}</tbody><tfoot><tr><td colspan="6">Total</td><td class="n money">${money2(tv)}</td><td class="n money">${money2(dv)}</td><td class="n money">${money2(tv-dv)}</td>${D.map(d=>`<td class="n money">${money2(C.rows.reduce((a,x)=>a+num(d.q?.[x.it.id])*x.rate,0))}</td>`).join('')}</tr></tfoot></table></div>`;
+}
+/* the whole item schedule with the evaluation, for everyone on the approval list to sign by hand */
+async function msApprPdf(id){
+  const m=S.msods[id];if(!m)return;
+  if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});const W=297;
+  pdfHeader(doc,'Material schedule & order approval');
+  const C=msCalc(m);const cols=MS_COLS[m.type]||MS_COLS.general;const a=m.appr||{};const ch=C.ch;
+  const f2=n=>Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});const fq=n=>Number(n||0).toLocaleString('en-AU',{maximumFractionDigits:2});
+  doc.setFontSize(9.5);
+  const info=[['Project',PROJ[PID]?.name||S.info.name||''],['Job no.',S.info.job||''],['MSOD',msName(m)],['Type',MS_LABEL[m.type]||m.type],['Printed',fmtDate(todayISO())]];
+  const info2=[['Budget',C.bud?'$'+f2(C.bud):'—'],['Chosen supplier',ch>=0?msSupName(m,ch):'Not chosen yet'],['Proposed order value',ch>=0?'$'+f2(C.proposed):'—'],['Gain / loss',ch>=0?(C.gain<0?'-$':'$')+f2(Math.abs(C.gain))+(C.bud?'  ('+(C.gp*100).toFixed(1)+'%)':''):'—']];
+  let y=55;info.forEach(([k,v],i)=>{doc.setFont('helvetica','bold');doc.text(k+':',14,y+i*5.2);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(v||'—'),95)[0],44,y+i*5.2)});
+  info2.forEach(([k,v],i)=>{doc.setFont('helvetica','bold');doc.text(k+':',160,y+i*5.2);doc.setFont('helvetica','normal');doc.text(String(v||'—'),205,y+i*5.2)});
+  y+=info.length*5.2+1;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=5}
+  /* suppliers with a name or any price */
+  const SI=m.suppliers.map((n,si)=>si).filter(si=>String(m.suppliers[si]||'').trim()||C.sup[si]>0);
+  const head1=[{content:'#',rowSpan:2},...cols.map(c=>({content:c[1],rowSpan:2})),{content:'Qty',rowSpan:2},...SI.map(si=>({content:msSupName(m,si)+(si===ch?'  (chosen)':''),colSpan:2,styles:{halign:'center'}})),{content:'Lowest rate',rowSpan:2}];
+  const head2=SI.flatMap(()=>['Rate','Price']);
+  const body=C.rows.map((x,i)=>[String(i+1),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
+  const foot=[[{content:'Total',colSpan:cols.length+2,styles:{halign:'left'}},...SI.flatMap(si=>['',C.sup[si]?'$'+f2(C.sup[si]):'—']),'']];
+  const firstNum=cols.length+1;const chCols=new Set();SI.forEach((si,k)=>{if(si===ch){chCols.add(firstNum+1+k*2);chCols.add(firstNum+2+k*2)}});
+  doc.autoTable({startY:y+2,head:[head1,head2],body,foot,theme:'grid',styles:{fontSize:7.5,cellPadding:1.3,overflow:'linebreak'},headStyles:{fillColor:[51,51,51],textColor:255,fontSize:7.5,valign:'middle'},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
+    margin:{left:12,right:12},showFoot:'lastPage',
+    didParseCell:dt=>{const i=dt.column.index;if(i>=firstNum&&dt.section!=='head')dt.cell.styles.halign='right';if(chCols.has(i)&&dt.section==='body')dt.cell.styles.fillColor=[253,236,224]}});
+  y=doc.lastAutoTable.finalY+7;
+  const need=h=>{if(y+h>200){doc.addPage();y=18}};
+  const block=(t,v)=>{if(!String(v||'').trim())return;doc.setFont('helvetica','bold');doc.setFontSize(9.5);const L=doc.splitTextToSize(String(v),W-28);need(6+L.length*4.4);doc.text(t,14,y);y+=4.6;doc.setFont('helvetica','normal');doc.text(L,14,y);y+=L.length*4.4+3};
+  block('Technical evaluation & recommendation',a.rec);block('Comments',a.comments);
+  /* sign-off: one row per person in the evaluation, with room to sign by hand */
+  need(14+MS_APPR.length*12);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Evaluation & approval sign-off',14,y);y+=2;
+  doc.autoTable({startY:y+1,head:[['Role','Name','Signature','Date']],body:MS_APPR.map(([k,l])=>[l,a[k]||'','',a[k+'Date']?fmtDate(a[k+'Date']):'']),theme:'grid',
+    styles:{fontSize:9,cellPadding:2,minCellHeight:12,valign:'middle'},headStyles:{fillColor:[51,51,51],textColor:255,minCellHeight:7},margin:{left:14,right:14},columnStyles:{0:{cellWidth:62},1:{cellWidth:70},2:{cellWidth:95},3:{cellWidth:42}}});
+  const pages=doc.internal.getNumberOfPages();for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(120);doc.text(`${msName(m)} · page ${p} of ${pages}`,W-14,203,{align:'right'});doc.setTextColor(0)}
+  const name=`${(S.info.job||'MSOD').replace(/[^\w.-]+/g,'_')} ${msName(m).replace(/[^\w.-]+/g,'_')} - approval.pdf`;
+  if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:doc.output('blob')})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
 }
 async function msPdf(id,di){
   const m=S.msods[id];const d=m&&m.dockets[di];if(!d)return;
@@ -4033,9 +4072,10 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
 /* ---------- MSOD: drag a quote PDF onto a supplier in the item schedule ---------- */
-viewEl.addEventListener('dragover',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;const t=e.target.closest&&e.target.closest('[data-msq]');document.querySelectorAll('.msq-dropping').forEach(x=>{if(x!==t)x.classList.remove('msq-dropping')});if(!t)return;e.preventDefault();t.classList.add('msq-dropping');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
-viewEl.addEventListener('dragleave',e=>{if(UI.view!=='msod')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget)||!e.relatedTarget.closest('[data-msq]'))document.querySelectorAll('.msq-dropping').forEach(x=>x.classList.remove('msq-dropping'))});
-viewEl.addEventListener('drop',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;const t=e.target.closest&&e.target.closest('[data-msq]');document.querySelectorAll('.msq-dropping').forEach(x=>x.classList.remove('msq-dropping'));if(!t)return;e.preventDefault();
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;const t=e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]'));document.querySelectorAll('.msq-dropping').forEach(x=>{if(x!==t)x.classList.remove('msq-dropping')});if(!t)return;e.preventDefault();t.classList.add('msq-dropping');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
+viewEl.addEventListener('dragleave',e=>{if(UI.view!=='msod')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget)||!(e.relatedTarget.closest('[data-msq]')||e.relatedTarget.closest('[data-msap]')))document.querySelectorAll('.msq-dropping').forEach(x=>x.classList.remove('msq-dropping'))});
+viewEl.addEventListener('drop',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;const t=e.target.closest&&(e.target.closest('[data-msq]')||e.target.closest('[data-msap]'));document.querySelectorAll('.msq-dropping').forEach(x=>x.classList.remove('msq-dropping'));if(!t)return;e.preventDefault();
+  if(t.dataset.msap){const f=[...e.dataTransfer.files].find(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));if(!f){setSave('error','Drop the signed approval as a PDF');return}if(!assets){setSave('error','File storage is not available in this view');return}uploadItp('msap|'+t.dataset.msap,f);return}
   const f=[...e.dataTransfer.files].find(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));if(!f){setSave('error','Drop the quote as a PDF');return}
   if(!assets){setSave('error','File storage is not available in this view');return}const [id,si]=t.dataset.msq.split('|');uploadItp('msqf|'+id+'|'+si,f)});
 
@@ -4207,6 +4247,7 @@ document.addEventListener('click',async e=>{
     if(act==='ms-add-note'){const d=m.dockets[UI.msd];if(!d)return;const L=msNotes(d);delete d.notes;L.push({id:uid('n'),date:todayISO(),text:''});persist('msod/'+id);render();setTimeout(()=>{const el=document.getElementById('msnt_'+id+'_'+UI.msd+'_'+(L.length-1)+'_text');if(el)el.focus()},60);return}
     if(act==='ms-po'){msPo(id);return}
     if(act==='ms-pdf'){msPdf(id,UI.msd);return}
+    if(act==='ms-apprpdf'){msApprPdf(id);return}
     if(act==='ms-choose'){const v=btn.dataset.v;m.chosen=String(m.chosen)===v?'':v;persist('msod/'+id);render();return}
   }
   if(act==='add-trade'){const id=uid('t');S.apt[id]=normTrade(id,{name:'New trade',created:Date.now(),stages:[{id:'s0',name:'Complete',rate:'0'}],itps:[],sections:[{id:uid('S'),name:'Section 1',lines:[newLine()]}]});structDirty.add(id);UI.bld=id;UI.setup=true;UI.level='all';UI.q='';persist('apartments/'+id);render();setTimeout(()=>{const el=document.getElementById('trade_'+id+'_name');if(el){el.focus();el.select()}},60);return}
