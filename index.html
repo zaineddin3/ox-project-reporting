@@ -2317,21 +2317,20 @@ function msGenNotes(id,m){const L=m.dnotes||[];return `<div class="panel"><div c
 function msDeliveries(id,m,C){
   const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
   const chips=`<div class="chips" role="group" aria-label="Delivery request">${m.dockets.map((d,k)=>`<button class="chip" data-act="ms-dk" data-v="${k}" aria-pressed="${k===di}">MOSD ${k+1}${d.delivery?' · '+fmtDate(d.delivery):''}</button>`).join('')}<button class="chip add" data-act="ms-add-dk">+ New delivery request</button></div>`;
-  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request has its own notes, and a note box on every line.</div>${msGenNotes(id,m)}`;
+  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request can have its own notes too.</div>${msGenNotes(id,m)}`;
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
   const rows=C.rows.map((x,i)=>{const it=x.it;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
-    if(out&&!(x.q-prev>0)&&!num(th)&&!(d.ln||{})[it.id])return '';
+    if(out&&!(x.q-prev>0)&&!num(th))return '';
     return `<tr><td class="hint">${i+1}</td><td style="min-width:240px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="mono hint">${esc(msCat(m,it))}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
-    <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
-    <td style="min-width:200px">${inp('msdn|'+id+'|'+di+'|'+it.id,(d.ln||{})[it.id]||'',{label:'Note for line '+(i+1),ph:'e.g. short 2, damaged, back order'})}</td></tr>`}).join('');
+    <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
   return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button><button class="btn ${UI.armed==='msdk'+id+di?'armed':''}" data-act="del" data-kind="msdk" data-id="${id}" data-x="${di}" style="white-space:nowrap">${UI.armed==='msdk'+id+di?'Confirm: remove MOSD '+(di+1):'Remove MOSD '+(di+1)}</button></div></div>
     <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label></div></div>
-  <div class="panel"><div class="sec-head"><div><h3>Notes for MOSD ${di+1}</h3><p class="hint">Delivery instructions, access, missing or damaged items for this request. Notes print on the delivery request PDF. There’s also a note box on every line below.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
+  <div class="panel"><div class="sec-head"><div><h3>Notes for MOSD ${di+1}</h3><p class="hint">Delivery instructions, access, missing or damaged items for this request. Notes print on the delivery request PDF.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
   ${msNotes(d).length?`<div class="msnotes">${msNotes(d).map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msnt|'+id+'|'+di+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msnt',id,di+'.'+ni,'Remove note')}</div><textarea class="f" id="msnt_${id}_${di}_${ni}_text" data-b="msnt|${id}|${di}|${ni}|text" rows="3" aria-label="Note ${ni+1}" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>
   <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
-  <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th><th>Line note</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="8" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td><td></td></tr></tfoot></table></div>
+  <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="7" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>
   ${msGenNotes(id,m)}`;
 }
 function msSchedule(id,m,C){
@@ -2354,7 +2353,7 @@ async function msPdf(id,di){
   let y=55;L.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',14,y+i*5.5);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(b||'—'),80)[0],48,y+i*5.5)});
   R.forEach(([a,b],i)=>{doc.setFont('helvetica','bold');doc.text(a+':',128,y+i*5.5);doc.setFont('helvetica','normal');doc.text(String(b||'—'),158,y+i*5.5)});
   y+=L.length*5.5+2;if(m.title){doc.setFont('helvetica','italic');doc.text(doc.splitTextToSize(m.title,W-28),14,y);y+=6}
-  const NL=[...(m.dnotes||[]),...msNotes(d)].filter(n=>(n.text||'').trim());const LN=d.ln||{};const hasLN=Object.values(LN).some(v=>String(v).trim());
+  const NL=[...(m.dnotes||[]),...msNotes(d)].filter(n=>(n.text||'').trim());const LN={};const hasLN=false;
   const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
   const C=msCalc(m);
   const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.q||r.th||msDesc(m,r.x.it))
