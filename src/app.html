@@ -787,7 +787,7 @@ function calc(){syncTasks();
     trades:TR,subTotal,subClaimed,pctCost:fcCost?costToDate/fcCost:0,pctHrs:lEst?lEarned/lEst:0,pctSub:subTotal?subClaimed/subTotal:0};
 }
 function months(){
-  let st=S.cash.start;if(!/^\d{4}-\d{2}$/.test(st||'')){const d=new Date();st=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+  let st=projStartMonth()||S.cash.start;if(!/^\d{4}-\d{2}$/.test(st||'')){const d=new Date();st=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
   let [y,m]=st.split('-').map(Number);const out=[];
   for(let i=0;i<30;i++){out.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++}}
   return out;
@@ -931,17 +931,19 @@ function actCosts(){const M={};const add=(k,f,v)=>{if(!/^\d{4}-\d{2}$/.test(k)||
 const thisMonth=()=>todayISO().slice(0,7);
 const addMonths=(k,n)=>{let [y,m]=k.split('-').map(Number);m+=n;while(m>12){m-=12;y++}while(m<1){m+=12;y--}return y+'-'+String(m).padStart(2,'0')};
 /* the month remaining costs are spread to: set on the Cash flow tab, or the last month with a claims forecast, or six months on */
-function cashEnd(){const tm=thisMonth();if(/^\d{4}-\d{2}$/.test(S.cash.end||''))return S.cash.end<tm?tm:S.cash.end;const fut=Object.keys(S.cash.m||{}).filter(k=>k>=tm&&num(S.cash.m[k].sales)>0).sort();return fut.length?fut[fut.length-1]:addMonths(tm,5)}
+const projStartMonth=()=>/^\d{4}-\d{2}/.test(S.info.startDate||'')?S.info.startDate.slice(0,7):'';
+const projEndMonth=()=>/^\d{4}-\d{2}/.test(S.info.endDate||'')?S.info.endDate.slice(0,7):'';
+function cashEnd(){const tm=thisMonth();if(/^\d{4}-\d{2}$/.test(S.cash.end||''))return S.cash.end;if(projEndMonth())return projEndMonth();const fut=Object.keys(S.cash.m||{}).filter(k=>k>=tm&&num(S.cash.m[k].sales)>0).sort();return fut.length?fut[fut.length-1]:addMonths(tm,5)}
 /* forecast cost by month, worked out from Orders & invoices (what's left on each PO plus extras), Labour & tasks (hours to go x labour rate) and other forecast costs */
-function cashForecast(){const tm=thisMonth(),end=cashEnd();const F={};const span=[];for(let k=tm;k<=end;k=addMonths(k,1))span.push(k);if(!span.length)span.push(tm);
+/* forecast cost by month:
+   invoices from Orders & invoices, each in the month of its invoice date
+   + labour cost from Labour & tasks (total hours x labour rate), spread from the project start month to the finish month */
+function cashForecast(){const F={};const put=(k,f,v)=>{if(!v||!/^\d{4}-\d{2}$/.test(k))return;const r=F[k]||(F[k]={inv:0,lab:0,total:0});r[f]+=v;r.total+=v};
+  for(const o of Object.values(S.orders))for(const iv of (o.inv||[]))put(String(iv.date||'').slice(0,7),'inv',invAmt(iv));
+  const c=calc();const lab=c.lFc*c.rate;const st=projStartMonth()||months()[0],end=cashEnd();const span=[];for(let k=st;k<=end&&span.length<120;k=addMonths(k,1))span.push(k);if(!span.length)span.push(st);
   /* spread follows the claims forecast where there is one, otherwise even */
   const wt=span.reduce((a,k)=>a+num((S.cash.m[k]||{}).sales),0);
-  const share=list=>{const ws=list.map(k=>wt?num((S.cash.m[k]||{}).sales):1);const t=ws.reduce((a,b)=>a+b,0);return list.map((k,i)=>[k,t?ws[i]/t:1/list.length])};
-  const put=(k,f,v)=>{if(!v)return;const r=F[k]||(F[k]={ord:0,lab:0,oth:0,total:0});r[f]+=v;r.total+=v};
-  for(const o of Object.values(S.orders)){const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0);const left=Math.max(po-inv,0)+extraAdj(o);if(left<=0)continue;
-    const from=/^\d{4}-\d{2}/.test(o.date||'')&&o.date.slice(0,7)>tm?o.date.slice(0,7):tm;let L=span.filter(k=>k>=from);if(!L.length)L=[from];for(const [k,f] of share(L))put(k,'ord',left*f)}
-  const c=calc();const lab=c.labHrsToGo*c.rate;for(const [k,f] of share(span))put(k,'lab',lab*f);
-  const oth=Math.max(num(S.info.otherCost)-num(S.info.otherCostToDate),0);for(const [k,f] of share(span))put(k,'oth',oth*f);
+  for(const k of span)put(k,'lab',lab*(wt?num((S.cash.m[k]||{}).sales)/wt:1/span.length));
   return F}
 /* cost counted for a month: an actual you type wins; past months use the automatic actual; this month and later use the forecast
    (your own forecast if you typed one, otherwise the calculated one), or the actual if that is already higher */
@@ -975,7 +977,7 @@ V.details=()=>{
   ${ctdTiles(calc())}
   ${completionPanel()}
   <div class="panel"><h3>Project</h3><div class="form">
-    <label>Project name${inp('info|name',PROJ[PID]?.name||S.info.name||'',{ph:'e.g. Sanctuary Stage 4'})}</label>${f('job','Job number',{ph:'OX-'})}${f('period','Period ending',{type:'date'})}
+    <label>Project name${inp('info|name',PROJ[PID]?.name||S.info.name||'',{ph:'e.g. Sanctuary Stage 4'})}</label>${f('job','Job number',{ph:'OX-'})}${f('period','Period ending',{type:'date'})}${f('startDate','Project start date',{type:'date'})}${f('endDate','Project finish date',{type:'date'})}
     ${f('pm','Project manager')}${f('report','Direct report')}${f('sites','Site managers')}
     ${f('desc','Project description',{area:1,wide:1})}${f('comments','Comments and key risk areas',{area:1,wide:1,ph:'1. Labour / access / incentives …'})}
   </div></div>
@@ -1581,16 +1583,16 @@ function pcCashPanel(){const d=claimDoc();const H=d.hist;
   </tbody></table></div></div>`}
 V.cashflow=()=>{
   const ms=months();let cs=0,cc=0;const A=actCosts();const FC=cashForecast();const tm=thisMonth();const end=cashEnd();
-  const fcCell=k=>{const f=FC[k];if(k<tm||!f)return '<span class="hint">—</span>';return `${money(f.total)}<div class="hint" style="font-size:11px">${[f.ord?'orders '+kmoney(f.ord):'',f.lab?'labour '+kmoney(f.lab):'',f.oth?'other '+kmoney(f.oth):''].filter(Boolean).join(' · ')}</div>`};
+  const fcCell=k=>{const f=FC[k];if(!f)return '<span class="hint">—</span>';return `${money(f.total)}<div class="hint" style="font-size:11px">${[f.inv?'invoices '+kmoney(f.inv):'',f.lab?'labour '+kmoney(f.lab):''].filter(Boolean).join(' · ')}</div>`};
   const actCell=(k,r)=>{const a=A[k];const auto=a?a.lab+a.inv:0;const man=r.act!==undefined&&String(r.act).trim()!=='';
     return `<div class="cur">${inp('cash|'+k+'|act',r.act??'',{num:1,label:'Actual costs '+k,ph:auto?String(Math.round(auto)):'0'})}</div><div class="hint" style="font-size:11px" title="${a?`Labour ${money(a.lab)} + invoices ${money(a.inv)}`:'No labour or invoices dated this month'}">${man?(auto?'typed · auto was '+money(auto):'typed'):(a?'auto: labour '+kmoney(a.lab)+' + invoices '+kmoney(a.inv):'auto: none dated this month')}</div>`};
-  return `<div class="stack">${head('Project cash flow','Monthly forecast of progress claims and costs, ex-GST. Thirty months from the start month. Forecast cost is worked out for you each month from Orders & invoices (what’s left on each PO plus extras), Labour & tasks (hours to go × labour rate) and other forecast costs, spread from this month to the end month, following your claims forecast where you have one. Actual costs fill in from the labour cost log and invoices, or type your own. Cumulative costs use a typed actual whenever there is one, actuals for past months, and the forecast from this month on.',`<div class="toolbar"><label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label><label class="toolbar"><span class="hint">Spread forecast to</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_end" data-b="cashend" value="${esc(end)}" min="${tm}"></label></div>`)}
+  return `<div class="stack">${head('Project cash flow','Monthly forecast of progress claims and costs, ex-GST. Thirty months from the start month. Forecast cost is worked out for you each month: invoices from Orders & invoices, in the month of each invoice date, plus the labour cost from Labour & tasks (total hours × labour rate) spread from the project start month to the finish month, following your claims forecast where you have one. The months start from the project start date in Project details. Actual costs fill in from the labour cost log and invoices, or type your own. Cumulative costs use a typed actual whenever there is one, actuals for past months, and the forecast from this month on.',`<div class="toolbar">${projStartMonth()?`<span class="hint">Starts ${monthLabel(ms[0])}, the project start date <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Change in Project details</button></span>`:`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label><span class="hint">Set the project start date in <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Project details</button> to start from it.</span>`}<label class="toolbar"><span class="hint">Spread labour to</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_end" data-b="cashend" value="${esc(end)}"></label></div>`)}
   ${pcCashPanel()}
   <div class="panel chart">${cashChart()}</div>
-  <div class="tw tall"><table style="min-width:1250px"><thead><tr><th>Month</th><th class="n">Claims (forecast)</th><th>Progress claims</th><th class="n" title="Calculated from Orders & invoices, Labour & tasks and other forecast costs">Forecast cost</th><th class="n" title="Type a figure to use instead of the calculated forecast for that month">Costs (your forecast)</th><th class="n" title="Filled in from the labour cost log and invoices; type a figure to use your own">Actual costs</th><th class="n">Cumulative claims</th><th class="n">Cumulative costs</th><th class="n">Cumulative net</th></tr></thead><tbody>
+  <div class="tw tall"><table style="min-width:1250px"><thead><tr><th>Month</th><th class="n">Claims (forecast)</th><th>Progress claims</th><th class="n" title="Invoices from Orders & invoices plus labour cost from Labour & tasks">Forecast cost</th><th class="n" title="Type a figure to use instead of the calculated forecast for that month">Costs (your forecast)</th><th class="n" title="Filled in from the labour cost log and invoices; type a figure to use your own">Actual costs</th><th class="n">Cumulative claims</th><th class="n">Cumulative costs</th><th class="n">Cumulative net</th></tr></thead><tbody>
   ${ms.map(k=>{const r=S.cash.m[k]||{};cs+=num(r.sales);const used=cashCostUsed(k,r,A,FC);cc+=used;const man=r.act!==undefined&&String(r.act).trim()!=='';const src=man?'typed actual':k<tm?'actual':(String(r.cost??'').trim()!==''?'your forecast':'forecast');
-    return `<tr><td>${monthLabel(k)}${k===tm?' <span class="tag">this month</span>':''}</td><td style="width:150px">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Claims '+k,ph:'0'})}</td><td>${pcMonth(k)}</td><td class="n money">${fcCell(k)}</td><td style="width:150px">${inp('cash|'+k+'|cost',r.cost||'',{num:1,label:'Costs '+k,ph:k>=tm&&FC[k]?String(Math.round(FC[k].total)):'0'})}</td><td style="width:170px">${actCell(k,r)}</td><td class="n money">${money(cs)}</td><td class="n money" title="${money(used)} this month, from the ${src}">${money(cc)}${used?`<div class="hint" style="font-size:11px">+${kmoney(used)} ${src}</div>`:''}</td><td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td></tr>`}).join('')}
-  </tbody><tfoot><tr><td>Total</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).sales),0))}</td><td></td><td class="n money">${money(ms.reduce((t,k)=>t+(k>=tm&&FC[k]?FC[k].total:0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).cost),0))}</td><td class="n money">${money(ms.reduce((t,k)=>{const r=S.cash.m[k]||{};const man=r.act!==undefined&&String(r.act).trim()!=='';const a=A[k];return t+(man?num(r.act):a?a.lab+a.inv:0)},0))}</td><td colspan="3"></td></tr></tfoot></table></div>
+    return `<tr><td>${monthLabel(k)}${k===tm?' <span class="tag">this month</span>':''}</td><td style="width:150px">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Claims '+k,ph:'0'})}</td><td>${pcMonth(k)}</td><td class="n money">${fcCell(k)}</td><td style="width:150px">${inp('cash|'+k+'|cost',r.cost||'',{num:1,label:'Costs '+k,ph:FC[k]?String(Math.round(FC[k].total)):'0'})}</td><td style="width:170px">${actCell(k,r)}</td><td class="n money">${money(cs)}</td><td class="n money" title="${money(used)} this month, from the ${src}">${money(cc)}${used?`<div class="hint" style="font-size:11px">+${kmoney(used)} ${src}</div>`:''}</td><td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td></tr>`}).join('')}
+  </tbody><tfoot><tr><td>Total</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).sales),0))}</td><td></td><td class="n money">${money(ms.reduce((t,k)=>t+(FC[k]?FC[k].total:0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).cost),0))}</td><td class="n money">${money(ms.reduce((t,k)=>{const r=S.cash.m[k]||{};const man=r.act!==undefined&&String(r.act).trim()!=='';const a=A[k];return t+(man?num(r.act):a?a.lab+a.inv:0)},0))}</td><td colspan="3"></td></tr></tfoot></table></div>
   ${(()=>{const out=Object.entries(A).filter(([k])=>!ms.includes(k));return out.length?`<p class="hint" style="margin:0">${money(out.reduce((t,[,a])=>t+a.lab+a.inv,0))} of costs are dated outside these 30 months (${out.map(([k])=>monthLabel(k)).join(', ')}). Change the start month to include them.</p>`:''})()}</div>`;
 };
 
