@@ -396,6 +396,7 @@ tr.subparent td{background:color-mix(in srgb,var(--soft) 70%,var(--surface))}
 th:hover .colrz{border-right:2px solid color-mix(in srgb,var(--accent) 45%,transparent)}.colrz:hover,.col-resizing .colrz{border-right:2px solid var(--accent)!important}
 .tw.rsz{resize:vertical;overflow:auto;min-height:160px}
 .cv-warn{padding:10px 12px;border-radius:9px;border:1px solid color-mix(in srgb,var(--neg,#c0392b) 45%,transparent);background:color-mix(in srgb,var(--neg,#c0392b) 9%,transparent);font-size:13.5px;line-height:1.5}.cv-warn .btn{margin:4px 4px 0 0;padding:4px 10px;font-size:12.5px}.cv-warn-inline{grid-column:1/-1}
+.ms-poatt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.ms-poatt-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tool .ms-poatt,.to-row .ms-poatt{margin-left:8px}
 .ret-pct{display:flex;align-items:center;gap:4px;margin-top:4px;justify-content:center}.ret-pct .f{width:52px;padding:3px 5px;text-align:right;min-height:0}.ret-pct span{font-size:11px;color:var(--muted);white-space:nowrap}
 .lk-row{display:flex;gap:6px;align-items:center}.lk-row>.f,.lk-row>.cur{flex:1;min-width:0}.lk-val{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--line) 25%,transparent);font-weight:600;font-variant-numeric:tabular-nums}.lk-btn{flex:none;padding:6px 10px}.lk-meta{display:block;margin-top:3px;font-size:11.5px;text-transform:none;letter-spacing:0;font-weight:400}
 .tsz-bar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 0 6px;font-size:12.5px;color:var(--muted)}.tsz-bar .btn{padding:3px 9px;font-size:12.5px;min-height:0}.tsz-bar .tsz-v{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}.tsz-bar .sep{width:1px;height:18px;background:var(--line);margin:0 4px}
@@ -2170,6 +2171,13 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.setFont('helvetica','bold');doc.text('Date:',112,y);doc.setFont('helvetica','normal');doc.text(fmtDate(d.date)||'—',124,y);
   doc.setFontSize(8);doc.setTextColor(90);doc.text('Please quote the PO number on all delivery dockets and invoices. All prices exclude GST unless stated.',14,Math.min(y+10,287));
   return doc.output('blob')}
+/* orders for the chosen supplier: ones raised from this MSOD, or any order whose supplier matches the chosen supplier's name */
+function msSupOrders(id,m,ch){if(ch<0)return [];const nm=msSupName(m,ch).trim().toLowerCase();const norm=t=>String(t||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const fromLog=new Set((m.poLog||[]).map(r=>r.orderId).filter(Boolean));
+  return ordRows().filter(([oid,o])=>fromLog.has(oid)||o.fromMsod===id&&(!o.supplier||norm(o.supplier).includes(nm))||nm.length>=3&&norm(o.supplier).startsWith(nm)).map(([oid,o])=>({oid,o}))}
+function msSupPoHtml(id,m,ch){const L=msSupOrders(id,m,ch);if(ch<0)return '';
+  if(!L.length)return `<div class="hint ms-poatt">No PO for ${esc(msSupName(m,ch))} in Orders & invoices yet.</div>`;
+  return `<div class="ms-poatt">${L.map(({oid,o})=>`<div class="ms-poatt-r"><b>PO ${esc(o.poNo||'(no number)')}</b>${o.poFile&&o.poFile.id?` <span class="tag">Rev ${num(o.poFile.rev)}</span> ${poFileLinks(o.poFile)}`:' <span class="hint">no PDF attached</span>'} <button class="rowlink" data-act="ms-openord" data-id="${oid}" style="color:var(--accent);font-weight:600">Open in Orders & invoices</button></div>`).join('')}</div>`}
 function msPoOrderId(m,no){return (m.poLog||[]).filter(r=>r.no===no&&r.orderId&&S.orders[r.orderId]).map(r=>r.orderId).pop()||null}
 async function msPo(id){
   const m=S.msods[id];if(!m)return;const ch=msChosen(m);if(ch<0)return;const po=m.po=m.po||{};
@@ -2231,7 +2239,7 @@ function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
   const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><span style="flex:1"></span>
-    <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label></div>`;
+    <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label>${ch>=0?msSupPoHtml(id,m,ch):''}</div>`;
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
     <textarea class="f mspaste" id="ms_paste" data-ui="msPasteTxt" rows="6" placeholder="Paste here">${esc(UI.msPasteTxt||'')}</textarea>
     <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="ms-paste-ok">Add rows</button><button class="btn ghost" data-act="ms-paste">Cancel</button></div></div>`:'';
@@ -2252,6 +2260,7 @@ function msItems(id,m,C){
   const summary=`<div class="grid2"><div class="panel"><h3>Budget vs order</h3><table class="kv"><tbody>
     <tr><td>Budget</td><td style="width:170px">${inp('ms|'+id+'|budget',m.budget??'',{num:1,label:'Budget',ph:'0'})}</td></tr>
     <tr><td>Supplier</td><td style="width:170px">${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier for order'})}</td></tr>
+    ${ch>=0?`<tr><td>Purchase order</td><td>${msSupPoHtml(id,m,ch)}</td></tr>`:''}
     <tr><td>Proposed order value</td><td class="n money"><b>${ch<0?'—':money2(C.proposed)}</b></td></tr>
     <tr><td>Gain / loss</td><td class="n money ${C.gain<0?'neg':''}"><b>${ch<0?'—':money2(C.gain)}</b></td></tr>
     <tr><td>% gain / loss</td><td class="n money ${C.gain<0?'neg':''}">${C.bud&&ch>=0?pct(C.gp):'—'}</td></tr></tbody></table>
@@ -4183,6 +4192,7 @@ document.addEventListener('click',async e=>{
     setTimeout(()=>document.querySelector(`[data-act=lk-change][data-v="${k}"]`)?.focus(),30);return}
   if(act==='invl-move'){const o=S.orders[btn.dataset.id];const x=o&&o.inv[+btn.dataset.x];if(!x)return;x.lines=invLines(x);const i=+btn.dataset.l,dd=+btn.dataset.d,k2=i+dd;if(k2<0||k2>=x.lines.length)return;[x.lines[i],x.lines[k2]]=[x.lines[k2],x.lines[i]];persist('orders/'+btn.dataset.id);render();
     setTimeout(()=>{const b=document.querySelector(`[data-act=invl-move][data-id="${btn.dataset.id}"][data-x="${btn.dataset.x}"][data-l="${k2}"][data-d="${dd}"]`);if(b&&!b.disabled)b.focus()},30);return}
+  if(act==='ms-openord'){const oid=btn.dataset.id;if(!S.orders[oid])return;UI.open[oid]=true;UI.view='orders';try{history.replaceState(null,'','#orders')}catch(e){}render();setTimeout(()=>{const r=document.querySelector(`tr[data-ord="${oid}"]`);if(r)r.scrollIntoView({block:'center'})},60);return}
   if(act==='ord-move'){const id=btn.dataset.id,dd=+btn.dataset.d;const L=ordRows().map(r=>r[0]);const i=L.indexOf(id),j=i+dd;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];
     L.forEach((oid,n)=>{const o=S.orders[oid];if(String(o.pos)!==String(n+1)){o.pos=n+1;persist('orders/'+oid)}});render();setTimeout(()=>{const b=document.querySelector(`[data-act=ord-move][data-id="${id}"][data-d="${dd}"]`);if(b&&!b.disabled)b.focus();else document.querySelector(`[data-act=ord-move][data-id="${id}"]:not([disabled])`)?.focus()},30);return}
   if(act==='task-move'){const id=btn.dataset.v,dd=+btn.dataset.d;const O=TASK_IDS.slice();const i=O.indexOf(id),j=i+dd;if(i<0||j<0||j>=O.length)return;[O[i],O[j]]=[O[j],O[i]];
