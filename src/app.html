@@ -4471,7 +4471,7 @@ document.addEventListener('click',async e=>{
       const R={};for(const [k,v] of Object.entries(TR)){const c=String(v??'').replace(/[$,\s]/g,'');if(c!==''&&!isNaN(+c))R[k]=c}
       const G=new Set();m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;const k=String(it[GF]??'').trim();if(!(k in R))return;it.r=it.r||[];G.add(k);if(UI.msFillE&&String(it.r[si]??'').trim()!=='')return;it.r[si]=R[k];n++});
       t=G.size;UI.msTRMsg=!Object.keys(R).length?'Type a rate against at least one row first.':!t?'None of the lines shown match those rows.':n?`Filled ${n} line${n===1?'':'s'} across ${t} group${t===1?'':'s'} for ${msSupName(m,si)}.`:'No lines to fill (they all have a rate).';
-      if(n)persist('msod/'+id);render();return}
+      if(n){persist('msod/'+id);UI.msByType=false;UI.msTR={};UI.msFillMsg=UI.msTRMsg;UI.msTRMsg=''}/* applied: hide the table until Rates by type is pressed again */render();return}
     if(act==='ms-flt-clr'){if(UI.msFlt)delete UI.msFlt[id];render();return}
     if(act==='ms-fillrate'){const v=String(UI.msFillV||'').replace(/[$,\s]/g,'');if(v===''||isNaN(+v))return;const si=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<m.suppliers.length?+UI.msFillS:Math.max(msChosen(m),0);
       const VIS=msVisible(id,m);let n=0;try{undoRecord()}catch(e){}
