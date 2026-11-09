@@ -1381,9 +1381,9 @@ function parseInvoiceText(text){
     lines.push({mat:(ds||('Invoice '+(invoiceNo||''))).replace(/\s+/g,' ').trim().slice(0,300),qty:1,unit:'',rate:totalExGst,lump:true})}
   return {invoiceNo,date,totalExGst,lines}}
 /* invoices that already have a PDF but no materials (attached before automatic reading) are read when their order is opened */
-const AUTOREAD=new Set();
+const AUTOREAD=new Set();const READER_V=2;/* bump when the reader improves: invoices it couldn't read are tried again */
 function invAutoRead(){if(UI.view!=='orders'||roView())return;for(const [oid,o] of Object.entries(S.orders)){if(!UI.open[oid])continue;(o.inv||[]).forEach((x,j)=>{const k=oid+'_'+j;
-  if(!x.invFile||!x.invFile.id||invLines(x).length||x.readTried||AUTOREAD.has(k)||EXT[k])return;AUTOREAD.add(k);x.readTried=1;
+  if(!x.invFile||!x.invFile.id||invLines(x).length||num(x.readTried)>=READER_V||AUTOREAD.has(k)||EXT[k])return;AUTOREAD.add(k);x.readTried=READER_V;
   fileBlob(x.invFile).then(b=>extractInvoice(oid,j,b,true,{auto:1})).catch(e=>{console.error(e);EXT[k]={err:'Couldn’t open this invoice PDF to read it.'};render()})})}}
 async function extractInvoice(oid,j,blob,replace,opt){
   const key=oid+'_'+j;const o=S.orders[oid];const x=o&&o.inv[j];if(!x)return;
@@ -1424,7 +1424,7 @@ async function uploadItp(key,file){
   if(file.size>50*1024*1024){setSave('error','File is over 50 MB');return}
   UP[key]=true;render();
   /* invoices are read straight away, while the PDF uploads */
-  const kp=key.split('|');if(kp[0]==='inv'){const x=S.orders[kp[1]]?.inv?.[+kp[2]];if(x)x.readTried=1;setTimeout(()=>extractInvoice(kp[1],+kp[2],file,!invLines(x||{}).length),0)}
+  const kp=key.split('|');if(kp[0]==='inv'){const x=S.orders[kp[1]]?.inv?.[+kp[2]];if(x)x.readTried=READER_V;setTimeout(()=>extractInvoice(kp[1],+kp[2],file,!invLines(x||{}).length),0)}
   try{const old=getItp(key);const r=await assets.upload(file,{type:'application/pdf'});setItp(key,{id:r.id,name:file.name});
     if(old&&old.id)assets.delete(old.id).catch(()=>{})}
   catch(e){console.error(e);setSave('error',e&&e.code==='too_large'?'ITP is over 50 MB':e&&e.code==='quota_or_state'?'File storage is full':'ITP upload failed')}
