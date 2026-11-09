@@ -1258,11 +1258,11 @@ const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k
 function saveColl(){try{localStorage.setItem('ox_open',JSON.stringify([...OPENED].slice(-3000)))}catch(e){}}
 const NO_ITP=new Set(['t15','t16']);
 function itpCell(key,f,L='ITP'){
-  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');
+  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');const ACC=/^inv\|/.test(key)?'application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/webp':'application/pdf,.pdf';
   if(UP[key])return `<span class="hint">Uploading…</span>`;
   if(f&&f.id){const armed=UI.armed==='itpf'+key;
-    return `<div class="itp"><a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(f.id)}" data-file="${esc(f.id)}" target="_blank" rel="noopener" title="${esc(f.name||L+'.pdf')}">${L}</a>${assets?`<label class="btn ghost itp-act" for="${eid}">Replace</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden><button class="btn ${armed?'armed':'ghost'} itp-act" data-act="del" data-kind="itpf" data-id="${esc(key)}" data-x="" aria-label="Remove ${L}">${armed?'Confirm':'✕'}</button>`:''}</div>`}
-  return assets?`<label class="btn itp-up" for="${eid}">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="application/pdf,.pdf" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
+    return `<div class="itp"><a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(f.id)}" data-file="${esc(f.id)}" target="_blank" rel="noopener" title="${esc(f.name||L+'.pdf')}">${L}</a>${assets?`<label class="btn ghost itp-act" for="${eid}">Replace</label><input type="file" accept="${ACC}" id="${eid}" data-itp="${esc(key)}" hidden><button class="btn ${armed?'armed':'ghost'} itp-act" data-act="del" data-kind="itpf" data-id="${esc(key)}" data-x="" aria-label="Remove ${L}">${armed?'Confirm':'✕'}</button>`:''}</div>`}
+  return assets?`<label class="btn itp-up" for="${eid}" ${/^inv\|/.test(key)?'title="PDF or a JPG / PNG photo"':''}>Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="${ACC}" id="${eid}" data-itp="${esc(key)}" hidden>`:`<span class="hint">—</span>`;
 }
 function setItp(key,v){const parts=key.split('|');if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
 function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
@@ -1271,6 +1271,14 @@ function loadScript(src){return new Promise((res,rej)=>{const t=document.createE
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
   await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');return window.pdfjsLib}
 /* pictures of the first pages, for text recognition */
+/* photos of invoices (JPG / PNG): kept as they are; for reading they're wrapped in a one-page PDF so the same reader (and text recognition) works */
+const isImgFile=f=>/^image\/(jpeg|png|webp)$/i.test(f.type||'')||/\.(jpe?g|png|webp)$/i.test(f.name||'');
+async function blobImgType(b){if(!b)return '';if(/^image\/(jpeg|png|webp)$/i.test(b.type||''))return b.type.toLowerCase();try{const h=new Uint8Array(await b.slice(0,12).arrayBuffer());
+  if(h[0]===0xFF&&h[1]===0xD8&&h[2]===0xFF)return 'image/jpeg';if(h[0]===0x89&&h[1]===0x50&&h[2]===0x4E&&h[3]===0x47)return 'image/png';if(h[0]===0x52&&h[1]===0x49&&h[8]===0x57&&h[9]===0x45)return 'image/webp'}catch(e){}return ''}
+async function imgToPdf(blob,type){const url=URL.createObjectURL(blob);try{const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+    /* draw onto a canvas first (fixes phone photo rotation and turns webp/png into jpeg) */const c=document.createElement('canvas');const sc=Math.min(1,2600/Math.max(im.naturalWidth,im.naturalHeight));c.width=Math.round(im.naturalWidth*sc);c.height=Math.round(im.naturalHeight*sc);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+    const W=c.width*0.75,H=c.height*0.75;const doc=new window.jspdf.jsPDF({unit:'pt',format:[W,H],orientation:W>H?'landscape':'portrait'});doc.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',0,0,W,H);return doc.output('blob')}
+  finally{URL.revokeObjectURL(url)}}
 async function pdfPageImages(blob,scale){const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;const out=[];
   for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:scale||2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;out.push(await new Promise(r=>c.toBlob(r,'image/png')))}return out}
 async function readPdf(blob){
@@ -1292,9 +1300,11 @@ async function pdfView(id,name){pdfViewClose();
   el.innerHTML=`<div class="pdfv-bar"><b class="pdfv-t"></b><span class="hint pdfv-n"></span><span style="flex:1"></span><button class="btn" type="button" data-pv="dl" disabled>Download</button><button class="btn primary" type="button" data-pv="x">Close</button></div><div class="pdfv-body"><p class="hint pdfv-msg">Opening…</p></div>`;
   el.querySelector('.pdfv-t').textContent=name||'Document';document.body.appendChild(el);const me=PDFV={el,closed:false,blob:null};
   el.addEventListener('click',async ev=>{const b=ev.target.closest('[data-pv]');if(ev.target===el||(b&&b.dataset.pv==='x')){pdfViewClose();return}
-    if(b&&b.dataset.pv==='dl'&&me.blob){let fn=name||'document.pdf';if(!/\.pdf$/i.test(fn))fn+='.pdf';try{if(downloads)await downloads.save({filename:fn,data:me.blob});else await browserDownloads.save({filename:fn,data:me.blob})}catch(err){if(!(err&&err.code==='declined'))setSave('error','Could not download the file')}}});
+    if(b&&b.dataset.pv==='dl'&&me.blob){let fn=name||'document.pdf';if(me.img){if(!/\.(jpe?g|png|webp)$/i.test(fn))fn+=me.img==='image/png'?'.png':me.img==='image/webp'?'.webp':'.jpg'}else if(!/\.pdf$/i.test(fn))fn+='.pdf';try{if(downloads)await downloads.save({filename:fn,data:me.blob});else await browserDownloads.save({filename:fn,data:me.blob})}catch(err){if(!(err&&err.code==='declined'))setSave('error','Could not download the file')}}});
   const msg=t=>{const m=el.querySelector('.pdfv-msg');if(m)m.textContent=t};
   try{const blob=await fileBlob({id});if(me.closed)return;if(!blob)throw new Error('missing');me.blob=blob;el.querySelector('[data-pv="dl"]').disabled=false;
+    const imt=await blobImgType(blob);if(imt){me.img=imt;const body=el.querySelector('.pdfv-body');body.innerHTML='';const im=document.createElement('img');im.alt=name||'Photo';im.style.cssText='max-width:min(980px,100%);height:auto;display:block;margin:0 auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.25)';
+      const u=URL.createObjectURL(imt===blob.type?blob:new Blob([blob],{type:imt}));im.src=u;body.appendChild(im);el.querySelector('.pdfv-n').textContent='photo';return}
     const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;if(me.closed)return;
     el.querySelector('.pdfv-n').textContent=doc.numPages+' page'+(doc.numPages===1?'':'s');const body=el.querySelector('.pdfv-body');body.innerHTML='';
     const W=Math.min(980,body.clientWidth-24);const dpr=Math.min(2,window.devicePixelRatio||1);
@@ -1417,6 +1427,7 @@ async function extractInvoice(oid,j,blob,replace,opt){
   const key=oid+'_'+j;const o=S.orders[oid];const x=o&&o.inv[j];if(!x)return;
   EXT[key]={busy:'Reading the invoice…'};render();
   try{
+    const imt=await blobImgType(blob);if(imt){if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('PDF tool did not load');blob=await imgToPdf(blob,imt);opt={...(opt||{}),auto:true}}/* a photo: read it with text recognition here */
     const {text,images}=await readPdf(blob);
     EXT[key]={busy:'Extracting materials…'};render();
     /* the built-in reader runs first; Claude reads it when that finds nothing (scanned invoices, unusual layouts) and Claude is available */
@@ -1442,18 +1453,19 @@ ${images.length?'The invoice is attached as page images (it has no readable text
     if(/^\d{4}-\d{2}-\d{2}$/.test(out.date||'')){x.date=out.date;x.datePdf=out.date}
     persist('orders/'+oid);UI.open['invm'+oid+'_'+j]=true;
     const sum=linesSum(x),tot=num(out.totalExGst);
-    EXT[key]={ok:`Read ${out.lines&&out.lines.length===1&&out.lines[0].lump?'a lump-sum invoice':lines.length+' material line'+(lines.length===1?'':'s')}${how==='claude'?' (with Claude)':how==='ocr'?' from the scan':''} and a total of ${money2(invAmt(x))} ex GST from the PDF, added to the invoiced total. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
+    EXT[key]={ok:`Read ${out.lines&&out.lines.length===1&&out.lines[0].lump?'a lump-sum invoice':lines.length+' material line'+(lines.length===1?'':'s')}${how==='claude'?' (with Claude)':imt?' from the photo':how==='ocr'?' from the scan':''} and a total of ${money2(invAmt(x))} ex GST from the ${imt?'photo':'PDF'}, added to the invoiced total. Please check them.`+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
   }catch(e){console.error(e);EXT[key]={err:e&&e.code==='not_granted'?'Reading needs your permission to use Claude. Click “Read PDF” to try again and allow it.':e&&e.code==='rate_limited'?'Too many requests just now. Try again in a minute.':e&&e.code==='invalid_json'?'Couldn’t make sense of this invoice. Try again, or add the materials by hand.':'Couldn’t read this PDF. Add the materials by hand.'}}
   render();
 }
 async function uploadItp(key,file){
   if(!assets)return;
-  if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name))){setSave('error','File must be a PDF');return}
+  const photoOk=/^inv\|/.test(key)&&isImgFile(file);
+  if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name)||photoOk)){setSave('error',/^inv\|/.test(key)?'Invoices must be a PDF or a JPG / PNG photo':'File must be a PDF');return}
   if(file.size>50*1024*1024){setSave('error','File is over 50 MB');return}
   UP[key]=true;render();
   /* invoices are read straight away, while the PDF uploads */
   const kp=key.split('|');if(kp[0]==='inv'){const x=S.orders[kp[1]]?.inv?.[+kp[2]];if(x)x.readTried=READER_V;setTimeout(()=>extractInvoice(kp[1],+kp[2],file,!invLines(x||{}).length),0)}
-  try{const old=getItp(key);const r=await assets.upload(file,{type:'application/pdf'});setItp(key,{id:r.id,name:file.name});
+  try{const old=getItp(key);const ftype=photoOk?(file.type||(/\.png$/i.test(file.name)?'image/png':'image/jpeg')):'application/pdf';const r=await assets.upload(file,{type:ftype});setItp(key,{id:r.id,name:file.name,...(photoOk?{type:ftype}:{})});
     if(old&&old.id)assets.delete(old.id).catch(()=>{})}
   catch(e){console.error(e);setSave('error',e&&e.code==='too_large'?'ITP is over 50 MB':e&&e.code==='quota_or_state'?'File storage is full':'ITP upload failed')}
   delete UP[key];render();
@@ -1670,7 +1682,7 @@ V.orders=()=>{
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
           ${L.map((l,li)=>{const kl='invl|'+id+'|'+j+'|'+li+'|';const ex=lineEx(l);const pc=priceCheck(PX,id,j,li,l,x.date||'');return `<tr class="${pc&&!pc.same?(pc.up?'p-up':'p-dn'):''}"><td style="width:104px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="invl-move" data-id="${id}" data-x="${j}" data-l="${li}" data-d="-1" title="Move this line up" aria-label="Move material up" ${li===0?'disabled':''}>▲</button><button class="mv" data-act="invl-move" data-id="${id}" data-x="${j}" data-l="${li}" data-d="1" title="Move this line down" aria-label="Move material down" ${li===L.length-1?'disabled':''}>▼</button></span>${delBtn('invl',id,j+'.'+li,'Remove')}</td><td>${inp(kl+'mat',l.mat,{label:'Material',ph:'e.g. 2.5mm² TPS cable 100m'})}</td><td style="width:80px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:70px">${inp(kl+'unit',l.unit,{label:'Unit',ph:'ea'})}</td><td style="width:150px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Unit price ex GST',ph:'0'})}</div>${priceFlag(pc)}</td><td class="n money">${money2(ex)}</td><td class="n money hint">${money2(ex*GST)}</td><td class="n money"><b>${money2(ex*(1+GST))}</b></td></tr>`}).join('')||`<tr><td colspan="8" class="hint">No materials yet. Add each item on the invoice; they’ll appear in the Order Costing Summary.</td></tr>`}
           <tr class="addrow"><td colspan="8"><button class="btn" data-act="invl-add" data-id="${id}" data-x="${j}">+ Add material</button></td></tr></tbody></table></div>`:''}</div>`}).join('')}
-      <div class="to-row"><button class="btn" data-act="add-inv" data-id="${id}">+ Add invoice</button><span class="hint">or drag invoice PDFs here</span></div></div></td></tr>`:''}`}).join(''))).join('')}
+      <div class="to-row"><button class="btn" data-act="add-inv" data-id="${id}">+ Add invoice</button><span class="hint">or drag invoice PDFs or JPG photos here</span></div></div></td></tr>`:''}`}).join(''))).join('')}
   </tbody></table></div>`:`<div class="panel empty"><b>No orders yet</b>Add each major PO or subcontract, then log invoices against it as they arrive.</div>`}</div>`;
 };
 
@@ -4298,8 +4310,8 @@ viewEl.addEventListener('dragover',e=>{if(UI.view!=='orders'||!ordHasFiles(e))re
 viewEl.addEventListener('dragleave',e=>{if(UI.view!=='orders')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget))ordMark(null)});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return;e.preventDefault();ordMark(null);const t=ordDropTarget(e);
   const xl=[...e.dataTransfer.files].find(f=>/\.(xlsx|xls|csv)$/i.test(f.name));if(xl){const oid=t&&(t.dataset.ord||(t.dataset.inv||'').split('|')[0]);if(!oid){setSave('error','Drop the Excel sheet onto the order it belongs to');return}ordPoImport(oid,xl);return}
-  const fs=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));
-  if(!fs.length){setSave('error','Drop invoice PDFs');return}
+  const fs=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));
+  if(!fs.length){setSave('error','Drop invoice PDFs or JPG / PNG photos');return}
   if(!t){setSave('error','Drop the invoice onto the order it belongs to');return}
   if(!assets){setSave('error','File storage is not available in this view');return}
   if(t.dataset.inv){const [id,j]=t.dataset.inv.split('|');const o=S.orders[id];if(!o)return;uploadItp('inv|'+id+'|'+j,fs[0]);fs.slice(1).forEach(f=>{o.inv.push({date:todayISO(),ref:'',amount:''});uploadItp('inv|'+id+'|'+(o.inv.length-1),f)});persist('orders/'+id);return}
