@@ -1,6 +1,6 @@
 // Service worker: lets the app install like a native app, open quickly, and open with no signal on site.
 // The app page is always fetched fresh when online, so updates appear on the next open.
-const CACHE = 'ox-reporting-v2';
+const CACHE = 'ox-reporting-v3';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 // Libraries the app loads from these sites are kept too, so it still starts offline (they never change at a fixed version).
 const LIBS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'unpkg.com'];
@@ -14,6 +14,6 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (u.origin !== location.origin) return; // database and file requests go straight to Supabase
-  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
+  e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; }) // error pages (404s) are never kept
     .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./index.html'))));
 });

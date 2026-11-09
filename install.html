@@ -46,14 +46,14 @@ code{display:block;background:var(--code);border-radius:8px;padding:10px 12px;fo
 
   <section class="card" id="c-android">
     <h2>Android phone or tablet</h2>
-    <div class="btns"><button class="btn primary" id="pwa-install" hidden>Install now</button><a class="btn" href="./">Open the app</a></div>
+    <div class="btns"><button class="btn primary" id="pwa-install" hidden>Install now</button><a class="btn primary" id="and-go" href="./?install=android">Install on this phone</a></div>
     <ol><li>Open this page in <b>Chrome</b>.</li><li>Tap <b>Install now</b> above. If you don't see it, tap the <b>⋮</b> menu and choose <b>Install app</b> (or <b>Add to Home screen</b>).</li><li>Open <b>OX Reporting</b> from your home screen and sign in.</li></ol>
   </section>
 
   <section class="card" id="c-ios">
     <h2>iPhone or iPad</h2>
-    <div class="btns"><a class="btn primary" href="./">Open the app in Safari</a></div>
-    <ol><li>Open the app link in <b>Safari</b> (Apple only allows installing from Safari).</li><li>Tap the <b>Share</b> button (the square with an arrow ↑).</li><li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open <b>OX Reporting</b> from your home screen and sign in.</li></ol>
+    <div class="btns"><a class="btn primary" href="./?install=ios">Install on this iPhone / iPad</a></div>
+    <ol><li>Tap <b>Install on this iPhone / iPad</b>. The app opens with the steps on screen.</li><li>Tap the <b>Share</b> button (the square with an arrow ↑) in Safari.</li><li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open <b>OX Reporting</b> from your home screen and sign in. It opens full screen, like any app.</li></ol><p class="hint small">Opened from Outlook, Teams or Gmail? Tap ⋯ / the compass icon and choose <b>Open in Safari</b> first: iPhones only install apps from Safari.</p>
   </section>
 
   <section class="card" id="c-win">
@@ -84,7 +84,7 @@ code{display:block;background:var(--code);border-radius:8px;padding:10px 12px;fo
   try{if(dev==='mac'&&navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues){navigator.userAgentData.getHighEntropyValues(['architecture']).then(function(v){if(v.architecture==='x86'){var a=document.getElementById('mac-arm'),i=document.getElementById('mac-intel');a.className='btn';i.className='btn primary';i.parentNode.insertBefore(i,a)}})}}catch(e){}
   /* the browser's own install (Android, and Chrome / Edge on a computer) */
   var deferred=null;
-  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;document.getElementById('pwa-install').hidden=false;[].forEach.call(document.querySelectorAll('.pwa-alt'),function(b){b.hidden=false})});
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;document.getElementById('pwa-install').hidden=false;document.getElementById('and-go').className='btn';[].forEach.call(document.querySelectorAll('.pwa-alt'),function(b){b.hidden=false})});
   function go(){if(!deferred)return;deferred.prompt();deferred.userChoice.finally(function(){deferred=null;document.getElementById('pwa-install').hidden=true})}
   document.getElementById('pwa-install').addEventListener('click',go);[].forEach.call(document.querySelectorAll('.pwa-alt'),function(b){b.addEventListener('click',go)});
   window.addEventListener('appinstalled',function(){document.getElementById('lead').textContent='Installed. Open OX Reporting from your home screen or apps and sign in.'});
