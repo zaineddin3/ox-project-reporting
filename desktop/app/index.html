@@ -1716,11 +1716,38 @@ V.orders=()=>{
   </tbody></table></div>`:`<div class="panel empty"><b>No orders yet</b>Add each major PO or subcontract, then log invoices against it as they arrive.</div>`}</div>`;
 };
 
+/* ---------- Procurement: fill the schedule from an Excel / CSV file (columns found by their headings) ---------- */
+const PROC_HDR={item:/^(item|description|equipment|scope|package|material)s?$|item\s*desc|^desc/,status:/^status$/,tender:/tender|budget|allowance/,po:/^po\s*(value|amount|\$|price)|order\s*value|^po$|^value$|contract\s*value/,supplier:/supplier|vendor|subcontractor|^sub$/,
+  poNo:/po\s*(no|number|#|ref)|order\s*(no|number)/,approval:/approv/,lead:/lead/,required:/required|on\s*site|^ros$|need(ed)?\s*by/,ordered:/^ordered|order(ed)?\s*date|date\s*ordered|order\s*placed/,eta:/eta|est(imated)?\.?\s*deliver|expected/,comments:/comment|note|remark/};
+function procDate(v){v=String(v||'').trim();if(!v)return '';if(/^\d{4}-\d{2}-\d{2}/.test(v))return v.slice(0,10);let m=v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}
+  if(/^\d{5}$/.test(v)){const d=new Date(Date.UTC(1899,11,30)+(+v)*864e5);return d.toISOString().slice(0,10)}const d=new Date(v);return isNaN(d)?'':d.toISOString().slice(0,10)}
+function procImportRows(rows){const norm=t=>String(t||'').toLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();const F=Object.keys(PROC_HDR);
+  let hi=-1,map=null;for(let r=0;r<Math.min(rows.length,12)&&hi<0;r++){const M={};let hits=0;rows[r].forEach((c,ci)=>{const h=norm(c);if(!h)return;
+      /* the specific columns first, so "PO number" isn't read as the PO value and "Date required" isn't an order date */
+      for(const f of ['poNo','required','ordered','eta','lead','approval','tender','po','supplier','status','comments','item'])if(PROC_HDR[f].test(h)&&!Object.values(M).includes(f)){M[ci]=f;hits++;return}});
+    if(hits>=2&&Object.values(M).includes('item')){hi=r;map=M}}
+  if(!map){map={};['item','supplier','tender','po','lead','required'].forEach((f,i)=>map[i]=f)}
+  const money=v=>{const t=String(v||'').replace(/[$,\s]/g,'').replace(/^\((.*)\)$/,'-$1');return t===''||isNaN(+t)?'':String(Math.round(+t*100)/100)};
+  const pick=(v,list)=>{const t=norm(v);if(!t)return '';return list.find(x=>norm(x)===t)||list.find(x=>norm(x).startsWith(t)||t.startsWith(norm(x)))||(/deliver/.test(t)?'Delivered':/order/.test(t)?'Ordered':/progress|quot|tender/.test(t)?'In progress':/complete|done|closed/.test(t)?'Complete':/wait|contract|tbc|hold/.test(t)?'Waiting for contract':'')};
+  let added=0,updated=0;const byName={};for(const [id,p] of Object.entries(S.procs))if(p.item)byName[norm(p.item)]=id;
+  for(const r of rows.slice(hi+1)){if(!r.some(c=>String(c).trim()))continue;const p={};
+    for(const [ci,f] of Object.entries(map)){const v=String(r[+ci]??'').trim();if(!v)continue;
+      p[f]=f==='tender'||f==='po'?money(v):f==='lead'?String(num(String(v).replace(/[^\d.]/g,''))||''):['required','ordered','eta'].includes(f)?procDate(v):f==='status'?pick(v,PSTATUS):f==='approval'?pick(v,['Not submitted','Submitted','Approved','Rejected']):v}
+    if(!p.item||/^\s*(sub\s*)?total\b/i.test(p.item))continue;for(const k of Object.keys(p))if(p[k]==='')delete p[k];
+    const ex=byName[norm(p.item)];if(ex){Object.assign(S.procs[ex],p);persist('procurement/'+ex);updated++}
+    else{const id=uid('p');S.procs[id]={created:Date.now()+added,status:'Waiting for contract',...p};persist('procurement/'+id);byName[norm(p.item)]=id;added++}}
+  return {added,updated,headed:hi>=0}}
+async function procImportFile(file){UI.procMsg={t:'Reading '+(file.name||'the file')+'…'};render();
+  try{const rows=await sheetRows(file);try{undoRecord()}catch(e){}const R=procImportRows(rows);
+    UI.procMsg=R.added||R.updated?{ok:1,t:`From ${file.name}: added ${R.added} item${R.added===1?'':'s'}${R.updated?`, updated ${R.updated} already in the schedule (matched by item name)`:''}${R.headed?'':' (no headings found, so columns were read as Item, Supplier, Tender, PO value, Lead time, Required on site)'}. Please check them.`}:{err:1,t:'No items were found in '+file.name+'. Use a sheet with headings such as Item, Supplier, Tender, PO value, Lead time, Required on site.'}}
+  catch(e){console.error(e);UI.procMsg={err:1,t:'Couldn’t read '+(file.name||'that file')+'. Save it as .xlsx or .csv and try again.'}}
+  render()}
 V.procurement=()=>{
   const rows=Object.entries(S.procs).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
   const today=todayISO();
   let save=0;rows.forEach(([,p])=>{if(num(p.po))save+=num(p.tender)-num(p.po)});
-  return `<div class="stack">${head('Procurement schedule','Latest order date is worked back from the date required on site and the total lead time.','<button class="btn primary" data-act="add-proc">+ Add item</button>')}
+  return `<div class="stack proc-drop">${head('Procurement schedule','Latest order date is worked back from the date required on site and the total lead time. Drop an Excel or CSV file anywhere on this page (or use Import Excel) to fill the schedule: columns are matched by their headings, and items already listed are updated rather than added twice.','<label class="btn" for="proc_xl" title="Or drop an Excel file on this page">Import Excel</label><input type="file" id="proc_xl" data-procxl="1" hidden accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn primary" data-act="add-proc">+ Add item</button>')}
+  ${UI.procMsg?`<div class="panel" role="status" style="padding:9px 14px;${UI.procMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.procMsg.t)} <button class="btn ghost" data-act="proc-msg-x" aria-label="Dismiss">✕</button></div>`:''}
   <div class="statgrid"><div class="mini"><span class="l">Items</span><span class="v">${rows.length}</span></div><div class="mini"><span class="l">Savings / losses vs tender</span><span class="v ${save<0?'neg':''}">${money(save)}</span></div></div>
   ${rows.length?`<div class="tw"><table style="min-width:1400px"><thead><tr><th style="min-width:190px">Item</th><th>Status</th><th class="n">Tender / budget</th><th class="n">PO value</th><th class="n">Saving</th><th>Supplier</th><th>PO no.</th><th>Approval</th><th class="n">Lead time (wks)</th><th>Required on site</th><th>Order by</th><th>Ordered</th><th>Est. delivery</th><th>Delivery</th><th style="min-width:150px">Comments</th><th></th></tr></thead><tbody>
   ${rows.map(([id,p])=>{const k='proc|'+id+'|';const sv=num(p.po)?num(p.tender)-num(p.po):0;
@@ -4379,6 +4406,13 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
+/* ---------- Procurement: drop an Excel file to fill the schedule ---------- */
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='procurement'||!ordHasFiles(e))return;e.preventDefault();viewEl.querySelector('.proc-drop')?.classList.add('pcxl-dropping')});
+viewEl.addEventListener('dragleave',e=>{if(UI.view!=='procurement')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget))viewEl.querySelector('.proc-drop')?.classList.remove('pcxl-dropping')});
+viewEl.addEventListener('drop',e=>{if(UI.view!=='procurement'||!ordHasFiles(e))return;e.preventDefault();viewEl.querySelector('.proc-drop')?.classList.remove('pcxl-dropping');
+  const f=[...e.dataTransfer.files].find(f=>/\.(xlsx|csv)$/i.test(f.name||'')||/spreadsheetml|text\/csv/.test(f.type||''));if(!f){setSave('error','Drop an Excel (.xlsx) or CSV file to fill the procurement schedule');return}procImportFile(f)});
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.procxl===undefined)return;const f=t.files&&t.files[0];if(f)procImportFile(f);t.value=''});
+
 /* ---------- MSOD tiles: drag to rearrange (pointer based, so it works with a mouse, pen or finger in every browser) ---------- */
 let MS_DRAG=null;
 const msDragClear=()=>document.querySelectorAll('.ms-dropbefore,.ms-dropafter,.ms-dragging').forEach(x=>x.classList.remove('ms-dropbefore','ms-dropafter','ms-dragging'));
@@ -4781,7 +4815,8 @@ if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],
     UI.armed=null;try{const b=await fileBlob(x.invFile);await extractInvoice(id,j,b,true)}catch(e){console.error(e);EXT[id+'_'+j]={err:'Couldn’t open the uploaded PDF.'};render()}return}
   if(act==='invl-add'){const o=S.orders[btn.dataset.id];const x=o.inv[+btn.dataset.x];x.lines=invLines(x);if(!x.lines.length&&num(x.amount)&&!x.lines.length){}x.lines.push({id:uid('m'),mat:'',qty:'',unit:'',rate:''});persist('orders/'+btn.dataset.id);render();setTimeout(()=>{const el=document.getElementById('invl_'+btn.dataset.id+'_'+btn.dataset.x+'_'+(x.lines.length-1)+'_mat');if(el)el.focus()},50);return}
   if(act==='add-inv'){const o=S.orders[btn.dataset.id];o.inv=o.inv||[];o.inv.push({date:todayISO(),ref:'',amount:''});UI.open[btn.dataset.id]=true;persist('orders/'+btn.dataset.id);render();return}
-  if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
+  if(act==='proc-msg-x'){UI.procMsg=null;render();return}
+if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
   if(act==='llog-add'){S.llog.rows.push({date:todayISO(),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
   if(act==='pc-xlmsg-x'){UI.pcXlMsg=null;render();return}
