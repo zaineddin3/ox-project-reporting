@@ -425,6 +425,7 @@ tr.ord-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.ord-k
 .boq-go{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:3px}.boq-go:hover{color:var(--accent)}
 @keyframes invflash{0%,60%{box-shadow:0 0 0 3px var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}100%{box-shadow:0 0 0 0 transparent}}@keyframes invflashb{0%,60%{background:color-mix(in srgb,var(--accent) 22%,transparent)}100%{background:transparent}}div.inv-flash{animation:invflash 2.4s ease-out}tr.inv-flash>td{animation:invflashb 2.4s ease-out}
 .ord-tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.ord-tiles .d{display:block;font-size:11.5px;margin-top:2px}.ord-tile-tot{border-color:var(--accent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.proc-link{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;white-space:nowrap}.proc-link .f{font-size:11.5px;padding:2px 4px;max-width:120px}
 .inst-share{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 tr.var-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.var-kid>td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--accent) 45%,transparent);padding-left:18px}tr.var-kid>td:nth-child(2){position:relative;padding-left:24px}.var-kidmark{position:absolute;left:6px;top:20px;color:var(--accent);font-weight:700}
 .var-subadd{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block}.var-subsum{font-size:11.5px;color:var(--muted,#667);margin-top:4px;line-height:1.35}.var-ofpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;white-space:nowrap}.var-ofpick .f{font-size:12px;padding:3px 6px;max-width:150px}
@@ -1688,6 +1689,7 @@ function ordSecHead(g,gi,NG){const DM=invDupMap();const nd=g.rows.reduce((a,[oid
     <td class="n money"><b>${money(T.po)}</b></td><td class="n money">${money(T.inv)}</td><td class="n money ${T.po-T.inv<0?'neg':''}">${money(T.po-T.inv)}</td><td class="n">${T.po?pct((T.po-T.inv)/T.po,0):'—'}</td><td style="width:140px">${g.id?(()=>{const x=secs[si];const adj=secExtraAdj(x);return `${inp('ordsec|'+g.id+'|extra',x.extra??'',{num:1,label:'Extra outside PO for the whole section',ph:'Section extra'})}<div class="hint" style="font-size:11px;text-align:right;margin-top:2px;font-weight:400">${num(x.extra)&&adj!==num(x.extra)?`Counts as <b class="money">${money(adj)}</b> (less overspend)<br>`:''}${T.ext?`+ orders’ extras ${money(T.ext)}`:'Covers the whole section'}</div>`})():`<span class="money">${T.ext?money(T.ext):'—'}</span>`}</td><td></td><td class="n money">${T.ret?money(T.ret):'—'}</td>
     <td style="white-space:nowrap">${g.id?`<button class="btn" data-act="add-order" data-sec="${g.id}" title="Add an order to this section">+ Order</button>${delBtn('ordsec',g.id,'','Remove section')}`:''}</td></tr>`}
 V.orders=()=>{
+  try{procSync()}catch(e){}
   const c=calc();const PX=priceIndex();
   const rows=ordRows();const TOP=rows.filter(r=>!ordIsKid(r[1]));const DUP=invDupMap();const dupOf=oid=>(S.orders[oid].inv||[]).filter((x,j)=>DUP[oid+'|'+j]&&!x.dupOk).length;const nDup=Object.keys(S.orders).reduce((a,oid)=>a+dupOf(oid),0);const OG=ordGroups(TOP);const SECS=ordSecs();
   return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. Orders are listed by PO number, then PO date; move them with ▲ ▼ to set your own order. Use + Add section to break the orders into sections (e.g. Switchboards, Lighting, Level 1) with subtotals, and pick each order’s section under its supplier. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.',`${Object.values(S.orders).some(o=>o.pos!=null&&o.pos!=='')?'<button class="btn" data-act="ord-sort" title="Put the orders back in PO number order">Sort by PO number</button>':''}<button class="btn" data-act="ordsec-add" title="Group orders into sections such as Switchboards or Level 1">+ Add section</button><button class="btn primary" data-act="add-order">+ Add order</button>`)}
@@ -1719,6 +1721,15 @@ V.orders=()=>{
 /* ---------- Procurement: fill the schedule from an Excel / CSV file (columns found by their headings) ---------- */
 const PROC_HDR={item:/^(item|description|equipment|scope|package|material)s?$|item\s*desc|^desc/,status:/^status$/,tender:/tender|budget|allowance/,po:/^po\s*(value|amount|\$|price)|order\s*value|^po$|^value$|contract\s*value/,supplier:/supplier|vendor|subcontractor|^sub$/,
   poNo:/po\s*(no|number|#|ref)|order\s*(no|number)/,approval:/approv/,lead:/lead/,required:/required|on\s*site|^ros$|need(ed)?\s*by/,ordered:/^ordered|order(ed)?\s*date|date\s*ordered|order\s*placed/,eta:/eta|est(imated)?\.?\s*deliver|expected/,comments:/comment|note|remark/};
+/* procurement ↔ Orders & invoices: an item is linked to its PO (picked, or found by PO number); the PO number, PO value and
+   supplier then come from the order, and the status moves to Ordered (a budget-only PO from the MSOD isn't an order yet) */
+const procNo=t=>String(t||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function procOrderOf(p){if(p.orderId&&S.orders[p.orderId])return p.orderId;if(p.orderId==='none')return null;const n=procNo(p.poNo);if(!n)return null;const hit=Object.entries(S.orders).find(([,o])=>procNo(o.poNo)===n);return hit?hit[0]:null}
+const ordSupName=o=>String((o.poMeta&&o.poMeta.supplier)||o.supplier||'').split(' – ')[0].trim();
+function procSync(){let n=0;for(const [id,p] of Object.entries(S.procs)){const oid=procOrderOf(p);if(!oid)continue;const o=S.orders[oid];if(o.budgetPo)continue;const before=JSON.stringify(p);
+    if(o.poNo)p.poNo=o.poNo;if(num(o.po))p.po=String(num(o.po));const sup=ordSupName(o);if(sup&&!/^supplier( to be confirmed)?$/i.test(sup))p.supplier=sup;
+    if(!['Ordered','Delivered','Complete'].includes(p.status))p.status='Ordered';if(!p.ordered&&o.date)p.ordered=o.date;
+    if(JSON.stringify(p)!==before){persist('procurement/'+id);n++}}return n}
 function procDate(v){v=String(v||'').trim();if(!v)return '';if(/^\d{4}-\d{2}-\d{2}/.test(v))return v.slice(0,10);let m=v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}
   if(/^\d{5}$/.test(v)){const d=new Date(Date.UTC(1899,11,30)+(+v)*864e5);return d.toISOString().slice(0,10)}const d=new Date(v);return isNaN(d)?'':d.toISOString().slice(0,10)}
 function procImportRows(rows){const norm=t=>String(t||'').toLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();const F=Object.keys(PROC_HDR);
@@ -1743,6 +1754,8 @@ async function procImportFile(file){UI.procMsg={t:'Reading '+(file.name||'the fi
   catch(e){console.error(e);UI.procMsg={err:1,t:'Couldn’t read '+(file.name||'that file')+'. Save it as .xlsx or .csv and try again.'}}
   render()}
 V.procurement=()=>{
+  try{procSync()}catch(e){console.error(e)}
+  const ORD=ordRows().filter(([,o])=>!o.budgetPo);
   const rows=Object.entries(S.procs).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
   const today=todayISO();
   let save=0;rows.forEach(([,p])=>{if(num(p.po))save+=num(p.tender)-num(p.po)});
@@ -1755,7 +1768,7 @@ V.procurement=()=>{
     const dd=p.required&&p.eta?daysBetween(p.eta,p.required):null;
     return `<tr><td>${inp(k+'item',p.item,{label:'Item',ph:'e.g. Main switchboard'})}</td><td style="width:150px">${sel(k+'status',p.status||'Waiting for contract',PSTATUS,{label:'Status'})}</td>
     <td style="width:110px">${inp(k+'tender',p.tender,{num:1,label:'Tender price'})}</td><td style="width:110px">${inp(k+'po',p.po,{num:1,label:'PO value'})}</td><td class="n money ${sv<0?'neg':''}">${num(p.po)?money(sv):'—'}</td>
-    <td style="width:130px">${inp(k+'supplier',p.supplier,{label:'Supplier'})}</td><td style="width:100px">${inp(k+'poNo',p.poNo,{label:'PO number'})}</td>
+    <td style="width:130px">${inp(k+'supplier',p.supplier,{label:'Supplier'})}</td><td style="width:150px">${inp(k+'poNo',p.poNo,{label:'PO number'})}${(()=>{const oid=procOrderOf(p);return `<label class="hint proc-link">PO ${sel(k+'orderId',oid||'',[['','Link to a PO…'],...ORD.map(([k2,o])=>[k2,(o.poNo||'No PO no.')+(ordSupName(o)?' · '+ordSupName(o):'')])],{label:'Linked PO in Orders & invoices'})}</label>${oid?`<div class="hint" style="font-size:11px">from Orders & invoices</div>`:''}`})()}</td>
     <td style="width:130px">${sel(k+'approval',p.approval||'Not submitted',['Not submitted','Submitted','Approved','Rejected'],{label:'Approval'})}</td>
     <td style="width:80px">${inp(k+'lead',p.lead,{num:1,label:'Lead time weeks'})}</td><td style="width:140px">${inp(k+'required',p.required,{type:'date',label:'Required on site'})}</td>
     <td>${by?`<span class="tag ${late?'bad':p.ordered?'good':''}">${fmtDate(by)}</span>`:'<span class="hint">—</span>'}</td>
@@ -4527,6 +4540,7 @@ function apply(parts,v){
   if(kind==='vline'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();const l=x.bu.lines[+b];if(l){l[c]=v;if(c==='mat')delete l.matFromParts;persist('variations/'+a)}return}
   if(kind==='dwg'){if(S.dwgs[a]){S.dwgs[a][b]=v;persist('drawings/'+a)}return}
   if(kind==='ordsec'){const x=ordSecs().find(x=>x.id===a);if(x){x[b]=v;persist('project/info')}return}
+  if(kind==='proc'&&b==='orderId'){const p=S.procs[a];if(p){if(v)p.orderId=v;else p.orderId='none';persist('procurement/'+a);scheduleRender(0)}return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a);if(b==='sec'||b==='parent'){if(b==='parent'&&!v)delete S.orders[a].parent;scheduleRender(0)}}return}
   if(kind==='opl'){const o=S.orders[a];const l=o&&o.lines&&o.lines[+b];if(l){l[c]=v;persist('orders/'+a);ordPoTotals(a)}return}
   if(kind==='opm'){const o=S.orders[a];if(o){o.poMeta=o.poMeta||{};o.poMeta[b]=v;persist('orders/'+a);ordPoTotals(a)}return}
