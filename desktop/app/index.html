@@ -428,6 +428,7 @@ tr.ord-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.ord-k
 .proc-link{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;white-space:nowrap}.proc-link .f{font-size:11.5px;padding:2px 4px;max-width:120px}
 td.pc-item,th.pc-item{border-right:1px solid var(--line)}td.pc-desc,th.pc-desc{padding-left:10px}td.pc-item .f{text-align:left;font-variant-numeric:tabular-nums}
 .pc-hcell{display:flex;align-items:center;gap:4px}.pc-hcell .f{flex:1}.pc-hacts{display:flex;gap:6px;margin-top:3px}.pc-hacts .btn{font-size:12px;padding:2px 8px;color:var(--accent)}
+.pc-parent td{background:color-mix(in srgb,var(--ink) 2%,transparent)}.pc-parent .ro{font-style:italic;color:var(--muted,#667)}.pc-subl td{background:color-mix(in srgb,var(--ink) 1%,transparent)}.pc-qadd{margin-top:2px}.pc-qadd .btn{font-size:11px;padding:1px 7px;opacity:.75}tr:hover .pc-qadd .btn{opacity:1}
 .pc-h2 td{background:color-mix(in srgb,var(--accent) 3.5%,transparent)!important}.pc-h2 .f{font-weight:600;font-size:13.5px}
 .pc-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.pc-hrow .f{font-weight:700;font-size:14px;background:transparent}
 tr.itp-done>td{background:color-mix(in srgb,#2e8b57 13%,transparent)!important}tr.itp-done>td:first-child{box-shadow:inset 4px 0 0 #2e8b57}.pg-itp{margin-top:4px}.pg-itp .btn{font-size:12px;padding:3px 9px}
@@ -1204,7 +1205,7 @@ async function claimPdf(lbl){
       columnStyles:{0:{cellWidth:16},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:24},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:22}},margin:{left:14,right:14}});
     y=doc.lastAutoTable.finalY+8};
   const cw=[];d.secs.forEach(sc=>{cw.push([{content:sc.name||'Section',colSpan:7,styles:{fontStyle:'bold',fillColor:[246,247,244]}}]);const T=pcTree(sc.lines);
-    sc.lines.forEach((l,li)=>{if(!l.head){const ind=T.info[li].s>=0?'      ':T.info[li].h>=0?'   ':'';cw.push(row(l.item||'',ind+(l.desc||''),l));return}
+    sc.lines.forEach((l,li)=>{if(!l.head){const ind=T.info[li].s>=0?'      ':T.info[li].h>=0?'   ':'';const r=row(l.item||'',ind+(l.desc||''),l);cw.push(pcHasSubs(l)?r.map(c=>({content:c,styles:{fontStyle:'bold'}})):r);if(pcHasSubs(l))l.subs.forEach(q=>cw.push(row(q.item||'',ind+'      '+(q.desc||''),q)));return}
       const t=pcSum(T.kids(li).map(j=>sc.lines[j]).filter(x=>!x.head));const st={fontStyle:'bold',textColor:[90,60,40],fillColor:l.lvl===2?[252,248,243]:[248,236,226]};
       cw.push([l.item||'',(l.lvl===2?'   ':'')+(l.desc||''),money(t.sum),pct(t.sum?t.claimed/t.sum:0,1),money(t.claimed),money(t.prev),money(t.this)].map(c=>({content:c,styles:st})))})});
   tbl('Contract works',cw,T.c);
@@ -2041,11 +2042,16 @@ const pcLocked=()=>pcState()==='submitted';
 const pcLabel=h=>'PC'+(h.no||'?')+((h.v||1)>1?'-V'+h.v:'');
 function pcDelete(i){const d=claimDoc();const h=d.hist[i];if(!h)return false;
   if(h.wf&&i!==d.hist.length-1){setSave('error','Delete the later claims first: only the latest claim can be deleted.');return false}
-  if(h.wf&&h.snap){/* put the lines back the way they were when this claim was submitted */for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
+  if(h.wf&&h.snap){/* put the lines back the way they were when this claim was submitted */for(const l of [...d.secs.flatMap(x=>pcFlat(x.lines)),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
     d.hdr.claimNo=String(h.no);d.state='open'}
   d.hist.splice(i,1);persist('project/claim');return true}
 const pcCurH=()=>{const d=claimDoc();const h=d.hist[d.hist.length-1];return h&&h.wf?h:null};
-function pcLine(l){const sum=num(l.sum),claimed=sum*num(l.pct)/100,prev=num(l.prev);const ap=(l.apct===''||l.apct==null)?num(l.pct):num(l.apct);const assessed=sum*ap/100;
+/* a claim line split into sub-lines adds up its sub-lines (same as Labour & tasks) */
+const pcHasSubs=l=>Array.isArray(l&&l.subs)&&l.subs.length>0;
+const pcFlat=L=>L.flatMap(l=>[l,...(pcHasSubs(l)?l.subs:[])]);
+function pcLine(l){if(pcHasSubs(l)){const t={sum:0,claimed:0,prev:0,assessed:0};for(const q of l.subs){const x=pcLine(q);t.sum+=x.sum;t.claimed+=x.claimed;t.prev+=x.prev;t.assessed+=x.assessed}
+    return {sum:t.sum,claimed:t.claimed,prev:t.prev,this:t.claimed-t.prev,ap:t.sum?t.assessed/t.sum*100:0,assessed:t.assessed,pay:t.assessed-t.prev,diff:(t.assessed-t.prev)-(t.claimed-t.prev)}}
+  const sum=num(l.sum),claimed=sum*num(l.pct)/100,prev=num(l.prev);const ap=(l.apct===''||l.apct==null)?num(l.pct):num(l.apct);const assessed=sum*ap/100;
   return {sum,claimed,prev,this:claimed-prev,ap,assessed,pay:assessed-prev,diff:(assessed-prev)-(claimed-prev)}}
 function pcSum(lines){const t={sum:0,claimed:0,prev:0,this:0,assessed:0,pay:0,diff:0};for(const l of lines){const x=pcLine(l);for(const k in t)t[k]+=x[k]}return t}
 function claimTotals(){
@@ -2106,6 +2112,13 @@ function pcTree(lines){const info=lines.map(()=>({h:-1,s:-1}));let h=-1,sb=-1;
   const kids=i=>{const L=lines[i];const out=[];for(let j=i+1;j<lines.length;j++){const m=lines[j];if(m.head&&(m.lvl!==2||L.lvl===2))break;out.push(j)}return out};
   return {info,kids}}
 const pcClosed=l=>COLL.has('pch'+l.id);
+function pcSubRows(si,li,l,k0,ind){const n=l.subs.length;return l.subs.map((q,qi)=>{const x=pcLine(q);const k='pcl|c|'+si+'|'+li+'.'+qi+'|';const sum=x.sum;
+  return `<tr class="pc-subl"><td style="width:86px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="-1" aria-label="Move up" ${qi===0?'disabled':''}>▲</button><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="1" aria-label="Move down" ${qi===n-1?'disabled':''}>▼</button></span>${delBtn('pcl','c.'+si,li+'.'+qi,'Remove')}</td>
+    <td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',q.item,{label:'Sub-line item',ph:'e.g. 1.1.1.1'})}</td><td class="pc-desc" style="min-width:320px;padding-left:${10+ind+40}px">${inp(k+'desc',q.desc,{label:'Sub-line description',ph:'Sub-line'})}</td>
+    <td style="min-width:140px"><div class="cur">${inp(k+'sum',q.sum,{num:1,label:'Amount'})}</div></td><td style="min-width:80px">${inp(k+'pct',r2s(q.pct),{num:1,label:'% complete',ph:'0'})}</td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'prev',q.prev,{num:1,label:'Previously approved',ph:'0'})}</div></td><td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
+    <td style="min-width:130px"><div class="cur">${inp(k+'amtC',r2s(x.claimed),{num:1,label:'Claimed to date'})}</div></td><td class="n">${sum?pct(x.this/sum,1):'—'}</td><td style="min-width:130px"><div class="cur">${inp(k+'thisC',r2s(x.this),{num:1,label:'This claim'})}</div></td>
+    <td style="min-width:80px">${inp(k+'apct',r2s(q.apct),{num:1,label:'% approved',ph:r2s(num(q.pct))})}</td><td style="min-width:130px"><div class="cur strong">${inp(k+'amtA',r2s(x.assessed),{num:1,label:'Amount approved'})}</div></td><td style="min-width:130px"><div class="cur">${inp(k+'payA',r2s(x.pay),{num:1,label:'Approved this claim'})}</div></td><td class="n money ${x.diff<0?'neg':''}">${money(x.diff)}</td></tr>`}).join('')}
 function pcRows(area,lines,si,opt={}){
   const T=area==='c'?pcTree(lines):null;
   const hidden=li=>{if(!T)return false;const f=T.info[li];return (f.h>=0&&pcClosed(lines[f.h]))||(f.s>=0&&pcClosed(lines[f.s]))};
@@ -2115,12 +2128,16 @@ function pcRows(area,lines,si,opt={}){
     if(l.head){const sub=l.lvl===2;const K=T.kids(li);const kl=K.filter(j=>!lines[j].head);const ks=K.filter(j=>lines[j].head).length;const t=pcSum(kl.map(j=>lines[j]));const cl=pcClosed(l);
       return `<tr class="pc-hrow${sub?' pc-h2':''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:sub?'Sub-heading item':'Heading item',ph:sub?'e.g. 1.1':'e.g. 1'})}</td>
       <td class="pc-desc" style="min-width:320px"><div class="pc-hcell" style="padding-left:${sub?22:0}px"><button class="tog" data-act="tog-sub" data-v="pch${esc(l.id)}" aria-expanded="${!cl}" aria-label="${cl?'Open':'Minimise'} ${sub?'sub-heading':'heading'}">${cl?'▸':'▾'}</button>${inp(k+'desc',l.desc,{label:sub?'Sub-heading':'Heading',ph:sub?'Sub-heading, e.g. Power':'Heading, e.g. Level 1'})}</div>
-        <div class="pc-hacts" style="padding-left:${sub?50:28}px">${cl?`<span class="hint">${ks?ks+' sub-heading'+(ks===1?'':'s')+', ':''}${kl.length} line${kl.length===1?'':'s'} minimised</span>`:`${sub?'':`<button class="btn ghost" data-act="pc-addsub" data-s="${si}" data-v="${li}">+ Sub-heading</button>`}<button class="btn ghost" data-act="pc-addunder" data-s="${si}" data-v="${li}">+ Line</button>`}</div></td>
+        <div class="pc-hacts" style="padding-left:${sub?50:28}px">${cl?`<span class="hint">${ks?ks+' sub-heading'+(ks===1?'':'s')+', ':''}${kl.length} line${kl.length===1?'':'s'}${(q=>q?', '+q+' sub-line'+(q===1?'':'s'):'')(kl.reduce((a,j)=>a+(pcHasSubs(lines[j])?lines[j].subs.length:0),0))} minimised</span>`:`${sub?'':`<button class="btn ghost" data-act="pc-addsub" data-s="${si}" data-v="${li}">+ Sub-heading</button>`}<button class="btn ghost" data-act="pc-addunder" data-s="${si}" data-v="${li}">+ Line</button>`}</div></td>
       <td class="n money"><b>${money(t.sum)}</b></td><td class="n">${t.sum?pct(t.claimed/t.sum,0):'—'}</td><td class="n money">${money(t.prev)}</td><td>${pcBar(t.sum?t.claimed/t.sum:0,t.sum?t.assessed/t.sum:0)}</td><td class="n money"><b>${money(t.claimed)}</b></td><td class="n">${t.sum?pct(t.this/t.sum,1):'—'}</td><td class="n money"><b>${money(t.this)}</b></td><td class="n">${t.sum?pct(t.assessed/t.sum,0):'—'}</td><td class="n money">${money(t.assessed)}</td><td class="n money">${money(t.pay)}</td><td class="n money ${t.diff<0?'neg':''}">${money(t.diff)}</td></tr>`}
     const ind=T?(T.info[li].s>=0?50:T.info[li].h>=0?26:0):0;
+    if(area==='c'&&pcHasSubs(l)){const cl=pcClosed(l);
+      return `<tr class="pc-parent${ind?' pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>
+      <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}"><div class="pc-hcell"><button class="tog" data-act="tog-sub" data-v="pch${esc(l.id)}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Minimise'} sub-lines">${cl?'▸':'▾'}</button>${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</div><div class="pc-hacts" style="padding-left:28px">${cl?`<span class="hint">${l.subs.length} sub-line${l.subs.length===1?'':'s'} minimised</span>`:`<button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}">+ Sub-line</button>`}</div></td>
+      <td class="n money ro">${money(x.sum)}</td><td class="n ro">${x.sum?pct(x.claimed/x.sum,1):'—'}</td><td class="n money ro">${money(x.prev)}</td><td>${pcBar(x.sum?x.claimed/x.sum:0,x.sum?x.assessed/x.sum:0)}</td><td class="n money"><b>${money(x.claimed)}</b></td><td class="n">${x.sum?pct(x.this/x.sum,1):'—'}</td><td class="n money"><b>${money(x.this)}</b></td><td class="n ro">${x.sum?pct(x.assessed/x.sum,0):'—'}</td><td class="n money">${money(x.assessed)}</td><td class="n money">${money(x.pay)}</td><td class="n money ${x.diff<0?'neg':''}">${money(x.diff)}</td></tr>`+(cl?'':pcSubRows(si,li,l,k,ind))}
     return `<tr class="${ind?'pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td>
     ${opt.var?`<td style="min-width:100px">${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}</td>`:`<td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>`}
-    <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</td>
+    <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}${area==='c'?`<div class="pc-hacts pc-qadd"><button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}" title="Split this line into sub-lines">+ Sub-line</button></div>`:''}</td>
     ${area==='a'?`<td style="min-width:120px">${inp(k+'aref',l.aref,{label:'Approval ref'})}</td>`:''}
     ${area==='p'?`<td style="width:120px">${sel(k+'status',l.status||'Submitted',['Draft','Submitted','Under review','Directed'],{label:'Status'})}</td><td style="width:140px">${inp(k+'sub',l.sub,{type:'date',label:'Submitted'})}</td>`:''}
     <td style="min-width:140px"><div class="cur">${inp(k+'sum',l.sum,{num:1,label:'Amount'})}</div></td>
@@ -4599,7 +4616,7 @@ function apply(parts,v){
   if(kind==='pcret'){claimDoc().retMax=v;persist('project/claim');return}
   if((kind==='pcl'||kind==='pcsec'||kind==='pcret')&&pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');scheduleRender(0);return}
   if(kind==='pcsec'){const d=claimDoc();if(d.secs[+a]){d.secs[+a][b]=v;persist('project/claim')}return}
-  if(kind==='pcl'){const d=claimDoc();const L=a==='c'?d.secs[+b]?.lines:a==='a'?d.av:d.pv;const l=L&&L[+c];if(!l)return;const f=parts[4];const sm=num(l.sum),pv=num(l.prev);
+  if(kind==='pcl'){const d=claimDoc();const L=a==='c'?d.secs[+b]?.lines:a==='a'?d.av:d.pv;const cs=String(c).split('.');const l=L&&(cs.length>1?L[+cs[0]]?.subs?.[+cs[1]]:L[+c]);if(!l)return;const f=parts[4];const sm=num(l.sum),pv=num(l.prev);
     const P=x=>sm?String(Math.round(x/sm*1e8)/1e6):'';
     if(f==='amtC')l.pct=P(num(v));else if(f==='thisC')l.pct=P(pv+num(v));else if(f==='amtA')l.apct=v===''?'':P(num(v));else if(f==='payA')l.apct=v===''?'':P(pv+num(v));else l[f]=v;
     if((f==='amtA'||f==='payA'||f==='apct')&&l.apct!=='')l.pct=l.apct;
@@ -4861,7 +4878,12 @@ if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'W
   if(act==='llog-add'){S.llog.rows.push({date:todayISO(),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
   if(act==='pc-xlmsg-x'){UI.pcXlMsg=null;render();return}
 if(act==='pc-addsec'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
-  if(act==='pc-addsub'||act==='pc-addunder'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const L=d.secs[+btn.dataset.s]?.lines;const i=+btn.dataset.v;if(!L||!L[i])return;const H=L[i];const T=pcTree(L);const K=T.kids(i);
+  if(act==='pc-addq'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const L=d.secs[+btn.dataset.s]?.lines;const l=L&&L[+btn.dataset.v];if(!l)return;
+  if(!pcHasSubs(l)){/* the first sub-line takes over the line's figures, so the totals don't change */l.subs=[{id:uid('c'),item:l.item?String(l.item).trim()+'.1':'',desc:'',sum:l.sum||'',pct:l.pct||'',prev:l.prev||'',apct:l.apct??''}]}
+  else l.subs.push({id:uid('c'),item:l.item?String(l.item).trim()+'.'+(l.subs.length+1):'',desc:'',sum:'',pct:'',prev:'',apct:''});
+  COLL.delete('pch'+l.id);saveColl();persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcl_c_'+btn.dataset.s+'_'+btn.dataset.v+'.'+(l.subs.length-1)+'_desc');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+if(act==='pc-qmove'){if(pcLocked())return;const d=claimDoc();const l=d.secs[+btn.dataset.s]?.lines?.[+btn.dataset.v];const Q=l&&l.subs;const i=+btn.dataset.q,j=i+(+btn.dataset.d);if(!Q||j<0||j>=Q.length)return;[Q[i],Q[j]]=[Q[j],Q[i]];persist('project/claim');render();return}
+if(act==='pc-addsub'||act==='pc-addunder'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const L=d.secs[+btn.dataset.s]?.lines;const i=+btn.dataset.v;if(!L||!L[i])return;const H=L[i];const T=pcTree(L);const K=T.kids(i);
   let at;if(act==='pc-addsub'){at=(K.length?K[K.length-1]:i)+1}else if(H.lvl===2){at=(K.length?K[K.length-1]:i)+1}else{const fs=K.find(j=>L[j].head);at=fs!=null?fs:(K.length?K[K.length-1]:i)+1}
   const nl=act==='pc-addsub'?{...newPcLine(),head:true,lvl:2}:newPcLine();
   /* suggest the next item number under this heading, e.g. 1.3 or 1.1.4 */{const sibs=K.filter(j=>act==='pc-addsub'?(L[j].head&&L[j].lvl===2):(!L[j].head&&(H.lvl===2||pcTree(L).info[j].s<0)));const base=String(H.item||'').trim();if(base)nl.item=base+'.'+(sibs.length+1)}
@@ -4883,7 +4905,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
     const d=claimDoc();if(pcLocked())return;const amending=pcState()==='amending'&&pcCurH();
     if(UI.armed!=='roll'){UI.armed='roll';render();setTimeout(()=>{if(UI.armed==='roll'){UI.armed=null;render()}},5000);return}
     UI.armed=null;const T=claimTotals();
-    const allL=[...d.secs.flatMap(x=>x.lines),...d.av,...d.pv];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
+    const allL=[...d.secs.flatMap(x=>pcFlat(x.lines)),...d.av,...d.pv];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
     const snap={hdr:clone(d.hdr),lines:Object.fromEntries(allL.map(l=>[l.id,{prev:l.prev??'',apct:l.apct??'',pct:l.pct??''}]))};
     const sub=String(Math.round(T.all.this*100)/100),appr=String(Math.round(T.all.pay*100)/100),date=d.hdr.claimDate||todayISO();
     let h;if(amending){h=amending;h.v=(h.v||1)+1;h.vers=h.vers||[];h.vers.push({v:h.v,date,submitted:sub,approved:appr,at:Date.now()});Object.assign(h,{date,submitted:sub,approved:appr,snap,status:'Submitted'})}
@@ -4895,7 +4917,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
     if(UI.armed!=='pcap'+i){UI.armed='pcap'+i;render();setTimeout(()=>{if(UI.armed==='pcap'+i){UI.armed=null;render()}},5000);return}
     UI.armed=null;h.status='Approved';h.approvedAt=todayISO();
     if(h.wf&&i===d.hist.length-1&&pcState()!=='open'){
-      for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.pct=String(Math.round(x.ap*1e6)/1e6);l.apct=''}
+      for(const l of [...d.secs.flatMap(x=>pcFlat(x.lines)),...d.av,...d.pv]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.pct=String(Math.round(x.ap*1e6)/1e6);l.apct=''}
       d.hdr.claimNo=String(num(h.no)+1);d.hdr.claimDate='';d.hdr.invoiceNo='';d.hdr.invoiceDate='';d.state='open'}
     persist('project/claim');render();return}
   if(act==='pc-del'){const i=+btn.dataset.i;if(UI.armed!=='pcdel'+i){UI.armed='pcdel'+i;render();setTimeout(()=>{if(UI.armed==='pcdel'+i){UI.armed=null;render()}},5000);return}
@@ -4905,7 +4927,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
   if(act==='pc-reopen'){
     if(UI.armed!=='reopen'){UI.armed='reopen';render();setTimeout(()=>{if(UI.armed==='reopen'){UI.armed=null;render()}},5000);return}
     UI.armed=null;const d=claimDoc();const h=d.hist[d.hist.length-1];if(!h||!h.snap)return;
-    for(const l of [...d.secs.flatMap(x=>x.lines),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
+    for(const l of [...d.secs.flatMap(x=>pcFlat(x.lines)),...d.av,...d.pv]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
     d.hdr={...h.snap.hdr,keep:{ret:h.ret||'',cost:h.cost||''}};d.hist.pop();persist('project/claim');render();return}
   if(act==='isplit'){const t=UI.task;const d=ensureTask(t);const it=nodeAt(d,btn.dataset.v);if(!it)return;
     it.subs=[{id:uid('q'),desc:it.desc||'',unit:it.unit||'',qty:it.qty||'',pct:it.pct||'',estHrs:it.estHrs||'',budHrs:it.budHrs||'',spentHrs:it.spentHrs||'',newHrs:it.newHrs||'',hist:it.hist,itpFile:null},{id:uid('q'),desc:'',unit:it.unit||'',qty:'',pct:'',estHrs:'',spentHrs:''}];delete it.hist;
@@ -5017,7 +5039,8 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
     else if(kind==='item'){S.tasks[id].items.splice(+x,1);persist('tasks/'+id)}
     else if((kind==='pcl'||kind==='pcsec')&&pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.')}
     else if(kind==='pch'&&claimDoc().hist[+x]&&claimDoc().hist[+x].wf){undoRecord();pcDelete(+x)}
-    else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;if(L)L.splice(+x,1);persist('project/claim')}
+    else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;const xs=String(x).split('.');
+      if(L&&xs.length>1){const p=L[+xs[0]];if(p&&p.subs){const gone=p.subs.splice(+xs[1],1)[0];/* last sub-line removed: the line keeps its figures */if(!p.subs.length){delete p.subs;if(gone){p.sum=gone.sum;p.pct=gone.pct;p.prev=gone.prev;p.apct=gone.apct}}}}else if(L)L.splice(+x,1);persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);setItp(id,null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
     else if(kind==='opl'){const o=S.orders[id];if(o&&o.lines){o.lines.splice(+x,1);persist('orders/'+id)}}
     else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
