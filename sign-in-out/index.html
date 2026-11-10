@@ -122,6 +122,14 @@
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .stat{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
   .stat b{display:block;font-size:24px}
+  .perm{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
+  .perm:last-child{border-bottom:0}
+  .perm input{width:20px;height:20px;margin-top:1px;flex:none}
+  .perm small{display:block;color:var(--muted);font-size:12.5px}
+  .pill.role{background:#eef2ff;color:#3730a3}
+  #sResults li{cursor:pointer;padding:10px 8px;border-radius:8px}
+  #sResults li:hover{background:#f1f5f9}
+  #whoAmI{font-weight:600;color:var(--ink)}
   @media (max-width:760px){.grid2,.regGrid{grid-template-columns:1fr}}
   #toast{position:fixed;bottom:calc(var(--sab) + 22px);left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:11px 18px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:40;max-width:90vw;text-align:center}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -180,6 +188,8 @@
 <div id="adminView" hidden>
   <div class="aHead">
     <h1>Admin</h1>
+    <span class="sub" id="whoAmI"></span>
+    <button class="btn small" id="myPinBtn">Change my PIN</button>
     <button class="btn exit" id="exitAdmin">Lock &amp; back to kiosk</button>
     <nav id="nav">
       <button data-tab="dash" class="active">Dashboard</button>
@@ -187,6 +197,7 @@
       <button data-tab="people">People</button>
       <button data-tab="log">Attendance</button>
       <button data-tab="settings">Settings</button>
+      <button data-tab="users">Users &amp; access</button>
     </nav>
   </div>
   <div class="aBody">
@@ -253,15 +264,44 @@
           <h2 style="margin:0">Attendance</h2>
           <div class="row">
             <input type="date" id="logDate" style="width:auto">
+            <select id="logSite" style="width:auto"></select>
             <input type="search" id="logSearch" placeholder="Filter by name" style="width:180px">
             <button class="btn" id="exportCsvBtn">Export CSV</button>
             <button class="btn" id="copyCsvBtn">Copy CSV</button>
           </div>
         </div>
         <h3>Daily summary</h3>
-        <div class="tableWrap"><table><thead><tr><th>Name</th><th>ID</th><th>First in</th><th>Last out</th><th>Total time</th><th>Status</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
+        <div class="tableWrap"><table><thead><tr><th>Name</th><th>ID</th><th>Site</th><th>First in</th><th>Last out</th><th>Total time</th><th>Status</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
         <h3>All events</h3>
-        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Name</th><th>ID</th><th>Action</th><th>Match</th><th>Method</th><th>Location</th></tr></thead><tbody id="logBody"></tbody></table></div>
+        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Name</th><th>ID</th><th>Site</th><th>Action</th><th>Match</th><th>Method</th><th>Location</th></tr></thead><tbody id="logBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section class="tab" id="tab-users" hidden>
+      <div class="grid2">
+        <div class="card">
+          <h2>Admin users</h2>
+          <p class="note">Each admin user opens the Admin area with their own PIN and only sees what you allow.</p>
+          <ul class="list" id="userList"></ul>
+        </div>
+        <div class="card">
+          <h2 id="uFormTitle">Add admin user</h2>
+          <label for="uName">Name</label>
+          <input type="text" id="uName" placeholder="e.g. Site Supervisor – John" autocomplete="off">
+          <label for="uPin" id="uPinLabel">PIN (4–8 digits)</label>
+          <input type="password" id="uPin" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password">
+          <label for="uRole">Role</label>
+          <select id="uRole"></select>
+          <h3>Access</h3>
+          <div id="uPerms"></div>
+          <h3>Sites this user can see</h3>
+          <div id="uSites"></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="uSave">Add user</button>
+            <button class="btn" id="uCancel">Clear</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -287,22 +327,40 @@
           <h2>GPS location</h2>
           <label class="switch"><input type="checkbox" id="locRecordInput"> Record location with every sign in / out</label>
           <label class="switch"><input type="checkbox" id="locRequireInput"> Block if location is unavailable</label>
-          <label class="switch"><input type="checkbox" id="fenceInput"> Only allow at the site (geofence)</label>
-          <label for="siteName">Site name</label>
-          <input type="text" id="siteName" placeholder="e.g. OX 63 Sanctuary Stage 4">
-          <div class="row" style="margin-top:10px">
-            <button class="btn" id="setSiteBtn">Set site to my current location</button>
+          <label class="switch"><input type="checkbox" id="fenceInput"> Only allow sign in / out when at a site (geofence)</label>
+          <label for="kioskSiteSel">This device is the kiosk for</label>
+          <select id="kioskSiteSel"></select>
+          <p class="note">“Nearest site” lets one phone move between sites: it uses GPS to work out which site it's at. Phones with GPS are usually accurate to 5–30 m outdoors; indoors 50 m+.</p>
+        </div>
+        <div class="card" style="grid-column:1/-1">
+          <h2>Sites</h2>
+          <ul class="list" id="siteList"></ul>
+          <h3 id="siteFormTitle">Add a site</h3>
+          <label for="sAddr">Site address</label>
+          <div class="row" style="flex-wrap:nowrap">
+            <input type="search" id="sAddr" placeholder="e.g. 12 Smith St, Parramatta NSW" autocomplete="off" enterkeyhint="search">
+            <button class="btn primary" id="sFind" style="white-space:nowrap">Find address</button>
           </div>
-          <div class="sub" id="siteInfo" style="margin-top:6px"></div>
-          <label for="radiusInput">Allowed radius (metres)</label>
-          <input type="number" id="radiusInput" min="25" max="5000">
-          <p class="note">Phones with GPS are usually accurate to 5–30 m outdoors; indoors it can be 50 m+.</p>
+          <ul class="list" id="sResults"></ul>
+          <div class="grid2" style="gap:10px">
+            <div><label for="sName">Site name</label><input type="text" id="sName" placeholder="e.g. OX 63 Sanctuary Stage 4"></div>
+            <div><label for="sRadius">Allowed radius (metres)</label><input type="number" id="sRadius" min="25" max="5000" value="200"></div>
+            <div><label for="sLat">Latitude</label><input type="text" id="sLat" inputmode="decimal" placeholder="-33.8688"></div>
+            <div><label for="sLng">Longitude</label><input type="text" id="sLng" inputmode="decimal" placeholder="151.2093"></div>
+          </div>
+          <p class="note">Search the address and pick the right match. Or stand on site and tap “Use my current location”, or paste coordinates from Google Maps. Check the pin with the Map button after saving.</p>
+          <div class="row">
+            <button class="btn" id="sHere">Use my current location</button>
+            <button class="btn primary" id="sSave">Add site</button>
+            <button class="btn" id="sClear">Clear</button>
+            <span class="sub" id="sInfo"></span>
+          </div>
         </div>
         <div class="card">
           <h2>Admin security</h2>
           <label for="lockInput">Auto-lock admin after (minutes idle)</label>
           <input type="number" id="lockInput" min="1" max="60">
-          <div class="row" style="margin-top:12px"><button class="btn" id="changePinBtn">Change admin PIN</button></div>
+          <p class="note">Admin users, their PINs and what they can access are managed in the <b>Users &amp; access</b> tab.</p>
         </div>
         <div class="card">
           <h2>Data</h2>
@@ -335,11 +393,15 @@
   let people = store.get('fc_people', []);
   let log = store.get('fc_log', []);
   let settings = Object.assign({ threshold: 0.5, stableFrames: 3, cooldown: 60, requireBlink: false, midnightReset: true, sound: true,
-    locRecord: true, locRequire: false, fence: false, site: null, radius: 200, camera: 'user', wake: true, lockMinutes: 3 }, store.get('fc_settings', {}));
-  let pinRec = store.get('fc_pin', null); // {salt, hash}
+    locRecord: true, locRequire: false, fence: false, sites: null, kioskSite: 'auto', camera: 'user', wake: true, lockMinutes: 3 }, store.get('fc_settings', {}));
   const savePeople = () => store.set('fc_people', people);
   const saveLog = () => store.set('fc_log', log);
   const saveSettings = () => store.set('fc_settings', settings);
+  if (!Array.isArray(settings.sites)) { // migrate the single site from the earlier version
+    settings.sites = settings.site ? [{ id: 's' + Date.now().toString(36), name: settings.site.name || 'Site', lat: settings.site.lat, lng: settings.site.lng, radius: settings.radius || 200 }] : [];
+    delete settings.site; delete settings.radius; saveSettings();
+  }
+  const siteById = id => settings.sites.find(x => x.id === id) || null;
 
   // ---------- state ----------
   let matcher = null, modelsReady = false, camReady = false, busy = false, stream = null;
@@ -375,6 +437,42 @@
     try { navigator.vibrate && navigator.vibrate(kind === 'in' ? 80 : [60, 60, 60]); } catch {}
   }
 
+  // ---------- admin users & permissions ----------
+  const PERMS = [
+    ['dash', 'Dashboard', 'See who is on site and recent activity'],
+    ['register', 'Register people', 'Add new people and face samples'],
+    ['people', 'Manage people', 'Manual sign in / out, delete people'],
+    ['log', 'View attendance', 'Daily hours, events and GPS locations'],
+    ['export', 'Export attendance', 'Download or copy attendance as CSV'],
+    ['settings', 'Settings & data', 'Recognition, GPS site, backup, restore, clear log'],
+    ['users', 'Manage users & access', 'Add / edit admin users and their permissions'],
+  ];
+  const ALL = PERMS.map(p => p[0]);
+  const ROLES = {
+    owner: { label: 'Owner (full access)', perms: ALL },
+    manager: { label: 'Manager', perms: ['dash', 'register', 'people', 'log', 'export'] },
+    supervisor: { label: 'Supervisor', perms: ['dash', 'log', 'export'] },
+    enroller: { label: 'Registration only', perms: ['register'] },
+    viewer: { label: 'Viewer', perms: ['dash', 'log'] },
+    custom: { label: 'Custom', perms: null },
+  };
+  const permLabel = k => (PERMS.find(p => p[0] === k) || [k, k])[1];
+  let users = store.get('fc_users', null);
+  if (!Array.isArray(users) || !users.length) { // migrate the single PIN from the earlier version
+    const old = store.get('fc_pin', null);
+    users = old ? [{ id: uid(), name: 'Owner', salt: old.salt, hash: old.hash, role: 'owner', perms: ALL.slice(), createdAt: Date.now() }] : [];
+    store.set('fc_users', users);
+  }
+  const saveUsers = () => store.set('fc_users', users);
+  let currentUser = null;
+  const can = k => !!currentUser && currentUser.perms.includes(k);
+  const mySites = () => currentUser?.sites?.length ? currentUser.sites : null; // null = all sites
+  const visibleSites = () => { const m = mySites(); return m ? settings.sites.filter(x => m.includes(x.id)) : settings.sites; };
+  const seesEntry = e => { const m = mySites(); return !m || m.includes(e.siteId); };
+  const managers = () => users.filter(u => u.perms.includes('users'));
+  const TAB_ALLOWED = { dash: () => can('dash'), register: () => can('register'), people: () => can('people') || can('register'),
+    log: () => can('log'), settings: () => can('settings'), users: () => can('users') };
+
   // ---------- GPS ----------
   let pos = null, posError = null, watchId = null;
   const POS_MAX_AGE = 2 * 60 * 1000;
@@ -400,33 +498,42 @@
   }
   function stopLocation() { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; } pos = null; renderLocChip(); }
   const freshPos = () => pos && Date.now() - pos.ts < POS_MAX_AGE ? pos : null;
-  const siteDistance = p => settings.site && p ? haversine(settings.site, p) : null;
+  // Which site is this kiosk at? Fixed site, or the nearest site whose radius we're inside.
+  function resolveSite(p) {
+    const fixed = settings.kioskSite !== 'auto' ? siteById(settings.kioskSite) : null;
+    if (fixed) { const d = p ? haversine(fixed, p) : null; return { site: fixed, d, inside: d == null ? null : d - p.acc <= fixed.radius, nearest: fixed }; }
+    if (!p || !settings.sites.length) return { site: null, d: null, inside: null, nearest: null };
+    let best = null;
+    for (const st of settings.sites) { const d = haversine(st, p); if (!best || d - st.radius < best.d - best.nearest.radius) best = { nearest: st, d }; }
+    const inside = best.d - p.acc <= best.nearest.radius;
+    return { site: inside ? best.nearest : null, d: best.d, inside, nearest: best.nearest };
+  }
   function renderLocChip() {
-    const c = $('#locChip'); const p = freshPos();
-    if (!locationWanted()) { c.className = 'chip none'; c.textContent = 'Location off'; return; }
+    const c = $('#locChip'); const p = freshPos(); const r = resolveSite(p);
+    if (!locationWanted() || (!p && !posError && r.site)) {
+      c.className = 'chip none'; c.textContent = r.site ? r.site.name : (locationWanted() ? 'Locating…' : 'Location off'); return;
+    }
     if (!p) { c.className = 'chip ' + (posError ? 'bad' : 'none'); c.textContent = posError || 'Locating…'; return; }
-    const d = siteDistance(p);
-    if (settings.fence && settings.site) {
-      const inside = d - p.acc <= settings.radius;
-      c.className = 'chip ' + (inside ? 'ok' : 'bad');
-      c.textContent = inside ? `At ${settings.site.name || 'site'}` : `${fmtDist(d)} from site`;
+    if (r.nearest) {
+      c.className = 'chip ' + (r.inside ? 'ok' : (settings.fence ? 'bad' : 'weak'));
+      c.textContent = r.inside ? `At ${r.nearest.name}` : `${fmtDist(r.d)} from ${r.nearest.name}`;
     } else { c.className = 'chip ' + (p.acc <= 100 ? 'ok' : 'weak'); c.textContent = `GPS ±${Math.round(p.acc)} m`; }
   }
+  // returns {ok, msg, loc, site}
   function checkLocation() {
-    const p = freshPos();
-    if (!locationWanted()) return { ok: true, loc: null };
+    const p = freshPos(); const needGps = settings.fence || settings.locRequire;
     if (!p) {
-      if (settings.fence || settings.locRequire) return { ok: false, msg: posError ? posError + ' — turn on location for this app' : 'Waiting for GPS location…' };
-      return { ok: true, loc: null };
+      if (needGps) return { ok: false, msg: posError ? posError + ' — turn on location for this app' : 'Waiting for GPS location…' };
+      return { ok: true, loc: null, site: settings.kioskSite !== 'auto' ? siteById(settings.kioskSite) : null };
     }
-    const d = siteDistance(p);
-    const loc = { lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6), acc: Math.round(p.acc), siteDist: d == null ? null : Math.round(d), site: settings.site?.name || '' };
-    if (settings.site) loc.onSite = d - p.acc <= settings.radius;
+    const r = resolveSite(p);
+    const loc = { lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6), acc: Math.round(p.acc),
+      siteDist: r.d == null ? null : Math.round(r.d), onSite: r.inside, site: r.nearest?.name || '' };
     if (settings.fence) {
-      if (!settings.site) return { ok: false, msg: 'Site location not set — ask an admin' };
-      if (!loc.onSite) return { ok: false, msg: `Outside the site area (${fmtDist(d)} away)` };
+      if (!settings.sites.length) return { ok: false, msg: 'No sites set up yet — ask an admin' };
+      if (!r.inside) return { ok: false, msg: r.nearest ? `Not at ${r.nearest.name} (${fmtDist(r.d)} away)` : 'Not at a site' };
     }
-    return { ok: true, loc };
+    return { ok: true, loc: (settings.locRecord || needGps) ? loc : null, site: r.site };
   }
   const mapUrl = l => `https://www.google.com/maps?q=${l.lat},${l.lng}`;
 
@@ -447,15 +554,24 @@
     if (start !== null && dayKey(start) === dayKey(Date.now())) total += (now || Date.now()) - start;
     return total;
   }
-  function record(person, action, confidence, method = 'face') {
+  function record(person, action, confidence, method = 'face', siteOverride) {
     const lc = checkLocation();
     if (!lc.ok) { if (view === 'kiosk') setBanner('warn', `${person.name}: not recorded`, lc.msg); toast(lc.msg); return false; }
-    const entry = { id: uid(), ts: Date.now(), personId: person.id, name: person.name, empId: person.empId || '', action, confidence, method, loc: lc.loc };
+    const site = siteOverride !== undefined ? siteOverride : lc.site;
+    if (view === 'admin' && currentUser?.sites?.length && !(site && currentUser.sites.includes(site.id))) { toast('This device is not at one of your sites'); return false; }
+    // moving straight from one site to another: sign out of the old site first
+    const prev = lastEntry(person.id);
+    if (action === 'in' && siteOverride === undefined && isIn(person.id) && prev.siteId && site && prev.siteId !== site.id) {
+      log.push({ id: uid(), ts: Date.now() - 1, personId: person.id, name: person.name, empId: person.empId || '', action: 'out', confidence: null,
+        method: 'auto (moved site)', loc: lc.loc, siteId: prev.siteId, siteName: prev.siteName });
+    }
+    const entry = { id: uid(), ts: Date.now(), personId: person.id, name: person.name, empId: person.empId || '', action, confidence, method, loc: lc.loc,
+      siteId: site?.id || null, siteName: site?.name || '' };
     log.push(entry); saveLog();
     lastAction[person.id] = entry.ts;
     if (view === 'kiosk') {
       beep(action);
-      if (action === 'in') setBanner('in', `Welcome, ${person.name}`, `Signed in at ${fmtTime(entry.ts)}`);
+      if (action === 'in') setBanner('in', `Welcome, ${person.name}`, `Signed in${entry.siteName ? ' to ' + entry.siteName : ''} at ${fmtTime(entry.ts)}`);
       else {
         const today = log.filter(e => e.personId === person.id && dayKey(e.ts) === dayKey(entry.ts));
         setBanner('out', `Goodbye, ${person.name}`, `Signed out at ${fmtTime(entry.ts)} · ${fmtDur(totalTime(today, entry.ts))} today`);
@@ -590,7 +706,9 @@
     const lc = checkLocation();
     if (!lc.ok) { setBanner('warn', `${person.name}, can't record`, lc.msg); return; }
 
-    const currentlyIn = isIn(person.id);
+    const le0 = lastEntry(person.id);
+    const otherSite = isIn(person.id) && le0?.siteId && lc.site && le0.siteId !== lc.site.id;
+    const currentlyIn = isIn(person.id) && !otherSite; // signed in at a different site counts as "out" here
     const action = mode === 'auto' ? (currentlyIn ? 'out' : 'in') : mode;
     if (mode !== 'auto' && (action === 'in') === currentlyIn) {
       lastAction[person.id] = Date.now() - 4001;
@@ -611,14 +729,16 @@
   }
   let pinState = null; // {step:'enter'|'new'|'confirm', value, first, onOk}
   let pinFails = 0, pinLockedUntil = 0;
-  function openPin(step, onOk) {
-    pinState = { step, value: '', first: '', onOk };
+  async function findUserByPin(pin) { for (const u of users) if (await hashPin(pin, u.salt) === u.hash) return u; return null; }
+  function openPin(step, onOk, forUser = null) {
+    pinState = { step, value: '', first: '', onOk, forUser };
     renderPin(); $('#pinModal').hidden = false;
   }
   function renderPin() {
     const s = pinState;
-    $('#pinTitle').textContent = s.step === 'enter' ? 'Admin PIN' : s.step === 'new' ? 'Create admin PIN' : 'Confirm PIN';
-    $('#pinSub').textContent = s.step === 'enter' ? 'Enter PIN to open admin' : s.step === 'new' ? 'Choose 4–8 digits. Keep it private.' : 'Enter the same PIN again';
+    const setup = !s.forUser && s.step !== 'enter';
+    $('#pinTitle').textContent = s.step === 'enter' ? 'Admin PIN' : s.step === 'new' ? (setup ? 'Create the owner PIN' : 'New PIN') : 'Confirm PIN';
+    $('#pinSub').textContent = s.step === 'enter' ? 'Enter your PIN to open admin' : s.step === 'new' ? (setup ? 'You will be the owner with full access. Choose 4–8 digits.' : 'Choose 4–8 digits. Keep it private.') : 'Enter the same PIN again';
     const n = Math.max(4, s.value.length);
     $('#pinDots').innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < s.value.length ? 'f' : ''}"></i>`).join('');
   }
@@ -629,10 +749,15 @@
     if (s.step === 'new') { s.first = s.value; s.value = ''; s.step = 'confirm'; $('#pinErr').textContent = ''; renderPin(); return; }
     if (s.step === 'confirm') {
       if (s.value !== s.first) { s.step = 'new'; s.value = ''; s.first = ''; $('#pinErr').textContent = "PINs didn't match — try again"; renderPin(); return; }
-      const salt = uid(); pinRec = { salt, hash: await hashPin(s.value, salt) }; store.set('fc_pin', pinRec);
-      closePin(); toast('Admin PIN saved'); s.onOk(); return;
+      const clash = await findUserByPin(s.value);
+      if (clash && clash.id !== s.forUser) { s.step = 'new'; s.value = ''; s.first = ''; $('#pinErr').textContent = 'That PIN is already used — choose another'; renderPin(); return; }
+      const salt = uid(), hash = await hashPin(s.value, salt);
+      if (s.forUser) { const u = users.find(x => x.id === s.forUser); if (u) { u.salt = salt; u.hash = hash; } }
+      else { const u = { id: uid(), name: 'Owner', salt, hash, role: 'owner', perms: ALL.slice(), createdAt: Date.now(), lastLogin: Date.now() }; users.push(u); currentUser = u; }
+      saveUsers(); closePin(); toast(s.forUser ? 'PIN changed' : 'Owner PIN saved — rename yourself in Users & access'); s.onOk(); return;
     }
-    if (await hashPin(s.value, pinRec.salt) === pinRec.hash) { pinFails = 0; closePin(); s.onOk(); }
+    const who = await findUserByPin(s.value);
+    if (who) { pinFails = 0; currentUser = who; who.lastLogin = Date.now(); saveUsers(); closePin(); s.onOk(); }
     else {
       pinFails++; s.value = ''; renderPin();
       if (pinFails >= 5) { pinLockedUntil = Date.now() + 30000; pinFails = 0; $('#pinErr').textContent = 'Too many attempts — locked for 30s'; }
@@ -668,19 +793,25 @@
   function showAdmin() {
     view = 'admin'; $('#kioskView').hidden = true; $('#adminView').hidden = false;
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-    showTab(tab); bumpIdle(); window.scrollTo(0, 0);
+    $('#whoAmI').textContent = `Signed in as ${currentUser.name}`;
+    $$('#nav button').forEach(b => b.hidden = !TAB_ALLOWED[b.dataset.tab]());
+    const first = Object.keys(TAB_ALLOWED).find(t => TAB_ALLOWED[t]());
+    if (!first) { toast('Your user has no access — ask the owner'); showKiosk(); return; }
+    showTab(TAB_ALLOWED[tab]() ? tab : first); bumpIdle(); window.scrollTo(0, 0);
   }
   function showKiosk() {
-    view = 'kiosk'; clearTimeout(idleTimer);
+    view = 'kiosk'; clearTimeout(idleTimer); currentUser = null;
     $('#adminView').hidden = true; $('#kioskView').hidden = false;
     moveCamera($('#stage')); $('#stage').insertBefore($('#camHome'), $('#camPlaceholder'));
     streak = { label: null, count: 0 };
     setBanner('idle', camReady ? 'Look at the camera' : modelsReady ? 'Tap “Start camera”' : 'Loading…');
     requestWake();
   }
-  $('#adminBtn').addEventListener('click', () => openPin(pinRec ? 'enter' : 'new', showAdmin));
+  $('#adminBtn').addEventListener('click', () => openPin(users.length ? 'enter' : 'new', showAdmin));
+  $('#myPinBtn').addEventListener('click', () => currentUser && openPin('new', () => {}, currentUser.id));
   $('#exitAdmin').addEventListener('click', showKiosk);
   function showTab(t) {
+    if (!TAB_ALLOWED[t] || !TAB_ALLOWED[t]()) return;
     tab = t;
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
     $$('.tab').forEach(el => el.hidden = el.id !== 'tab-' + t);
@@ -756,16 +887,17 @@
     if (tab === 'people') renderPeople();
     if (tab === 'log') renderLog();
     if (tab === 'settings') renderSettings();
+    if (tab === 'users') renderUsers();
   }
   function renderDash() {
-    const onsite = people.filter(p => isIn(p.id));
+    const onsite = people.filter(p => isIn(p.id) && seesEntry(lastEntry(p.id)));
     const today = dayKey(Date.now());
     $('#statOn').textContent = onsite.length;
-    $('#statToday').textContent = new Set(log.filter(e => e.action === 'in' && dayKey(e.ts) === today).map(e => e.personId)).size;
+    $('#statToday').textContent = new Set(log.filter(e => e.action === 'in' && dayKey(e.ts) === today && seesEntry(e)).map(e => e.personId)).size;
     $('#statPeople').textContent = people.length;
-    $('#onsiteList').innerHTML = onsite.length ? onsite.map(p => personRow(p, `<span class="sub">since ${fmtTime(lastEntry(p.id).ts)}</span>`)).join('') : '<li class="empty">Nobody signed in</li>';
-    const recent = log.slice(-10).reverse();
-    $('#recentList').innerHTML = recent.length ? recent.map(e => { const p = people.find(x => x.id === e.personId) || e; return personRow(p, `<span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span><span class="sub">${fmtTime(e.ts)}</span>`); }).join('') : '<li class="empty">No activity yet</li>';
+    $('#onsiteList').innerHTML = onsite.length ? onsite.map(p => { const le = lastEntry(p.id); return personRow(p, `<span class="sub">${le.siteName ? esc(le.siteName) + ' · ' : ''}since ${fmtTime(le.ts)}</span>`); }).join('') : '<li class="empty">Nobody signed in</li>';
+    const recent = log.filter(seesEntry).slice(-10).reverse();
+    $('#recentList').innerHTML = recent.length ? recent.map(e => { const p = people.find(x => x.id === e.personId) || e; return personRow(p, `<span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span><span class="sub">${e.siteName ? esc(e.siteName) + ' · ' : ''}${fmtTime(e.ts)}</span>`); }).join('') : '<li class="empty">No activity yet</li>';
     const hint = $('#installHint');
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     if (!standalone) {
@@ -782,23 +914,28 @@
     $('#peopleList').innerHTML = list.length ? list.map(p => {
       const st = isIn(p.id);
       return personRow(p, `<span class="pill ${st ? 'in' : 'none'}">${st ? 'In' : 'Out'}</span>
-        <button class="btn small" data-act="manual" data-id="${p.id}">${st ? 'Sign out' : 'Sign in'}</button>
-        <button class="btn small" data-act="samples" data-id="${p.id}">Add samples</button>
-        <button class="btn small" data-act="delete" data-id="${p.id}">Delete</button>`);
+        ${can('people') ? `<button class="btn small" data-act="manual" data-id="${p.id}">${st ? 'Sign out' : 'Sign in'}</button>` : ''}
+        ${can('register') ? `<button class="btn small" data-act="samples" data-id="${p.id}">Add samples</button>` : ''}
+        ${can('people') ? `<button class="btn small" data-act="delete" data-id="${p.id}">Delete</button>` : ''}`);
     }).join('') : `<li class="empty">${people.length ? 'No matches' : 'No one registered yet — use the Register tab'}</li>`;
   }
   function logRows() {
-    const day = $('#logDate').value, q = $('#logSearch').value.trim().toLowerCase();
-    return log.filter(e => dayKey(e.ts) === day && (!q || e.name.toLowerCase().includes(q) || (e.empId || '').toLowerCase().includes(q)));
+    const day = $('#logDate').value, q = $('#logSearch').value.trim().toLowerCase(), sf = $('#logSite').value;
+    return log.filter(e => dayKey(e.ts) === day && seesEntry(e) && (sf === 'all' || (sf === 'none' ? !e.siteId : e.siteId === sf)) && (!q || e.name.toLowerCase().includes(q) || (e.empId || '').toLowerCase().includes(q)));
   }
   function summaryRows() {
-    const by = {}; logRows().forEach(e => (by[e.personId] = by[e.personId] || []).push(e));
+    const by = {}; logRows().forEach(e => { const k = e.personId + '|' + (e.siteId || ''); (by[k] = by[k] || []).push(e); });
     const isToday = $('#logDate').value === dayKey(Date.now());
     return Object.values(by).map(es => {
       const ins = es.filter(e => e.action === 'in'), outs = es.filter(e => e.action === 'out'), last = es[es.length - 1];
-      return { name: es[0].name, empId: es[0].empId, firstIn: ins[0] ? fmtTime(ins[0].ts) : '—', lastOut: outs.length ? fmtTime(outs[outs.length - 1].ts) : '—',
+      return { name: es[0].name, empId: es[0].empId, site: es[0].siteName || '—', firstIn: ins[0] ? fmtTime(ins[0].ts) : '—', lastOut: outs.length ? fmtTime(outs[outs.length - 1].ts) : '—',
         total: fmtDur(totalTime(es)), status: last.action === 'in' ? (isToday ? 'On site' : 'No sign-out') : 'Signed out' };
-    }).sort((a, b) => a.name.localeCompare(b.name));
+    }).sort((a, b) => a.name.localeCompare(b.name) || a.site.localeCompare(b.site));
+  }
+  function renderSiteFilter() {
+    const sel = $('#logSite'), cur = sel.value || 'all';
+    sel.innerHTML = `<option value="all">${mySites() ? 'All my sites' : 'All sites'}</option>` + visibleSites().map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('') + (mySites() ? '' : '<option value="none">No site</option>');
+    sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'all';
   }
   function locCell(l) {
     if (!l) return '<span class="sub">—</span>';
@@ -806,18 +943,20 @@
     return `${tag}<a href="${mapUrl(l)}" target="_blank" rel="noopener">Map</a> <span class="sub">±${l.acc} m${l.siteDist != null ? ' · ' + fmtDist(l.siteDist) + ' from site' : ''}</span>`;
   }
   function renderLog() {
+    $('#exportCsvBtn').hidden = $('#copyCsvBtn').hidden = !can('export');
+    renderSiteFilter();
     const sum = summaryRows();
-    $('#summaryBody').innerHTML = sum.length ? sum.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.empId)}</td><td>${r.firstIn}</td><td>${r.lastOut}</td><td>${r.total}</td><td><span class="pill ${r.status === 'On site' ? 'in' : r.status === 'Signed out' ? 'none' : 'out'}">${r.status}</span></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No attendance for this day</td></tr>';
+    $('#summaryBody').innerHTML = sum.length ? sum.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.empId)}</td><td>${esc(r.site)}</td><td>${r.firstIn}</td><td>${r.lastOut}</td><td>${r.total}</td><td><span class="pill ${r.status === 'On site' ? 'in' : r.status === 'Signed out' ? 'none' : 'out'}">${r.status}</span></td></tr>`).join('') : '<tr><td colspan="7" class="empty">No attendance for this day</td></tr>';
     const rows = logRows().slice().reverse();
-    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No events</td></tr>';
+    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td>${esc(e.siteName || '—')}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No events</td></tr>';
   }
   function buildCsv() {
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const lines = [['Date', 'Time', 'Name', 'ID', 'Action', 'Match', 'Method', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from site (m)', 'On site', 'Map link'].map(q).join(',')];
-    logRows().forEach(e => lines.push([dayKey(e.ts), new Date(e.ts).toLocaleTimeString(), e.name, e.empId, e.action.toUpperCase(), e.confidence ?? '', e.method || 'face',
+    const lines = [['Date', 'Time', 'Name', 'ID', 'Site', 'Action', 'Match', 'Method', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from site (m)', 'On site', 'Map link'].map(q).join(',')];
+    logRows().forEach(e => lines.push([dayKey(e.ts), new Date(e.ts).toLocaleTimeString(), e.name, e.empId, e.siteName || '', e.action.toUpperCase(), e.confidence ?? '', e.method || 'face',
       e.loc?.lat ?? '', e.loc?.lng ?? '', e.loc?.acc ?? '', e.loc?.siteDist ?? '', e.loc ? (e.loc.onSite === true ? 'Yes' : e.loc.onSite === false ? 'No' : '') : '', e.loc ? mapUrl(e.loc) : ''].map(q).join(',')));
-    lines.push('', ['Name', 'ID', 'First in', 'Last out', 'Total', 'Status'].map(q).join(','));
-    summaryRows().forEach(r => lines.push([r.name, r.empId, r.firstIn, r.lastOut, r.total, r.status].map(q).join(',')));
+    lines.push('', ['Name', 'ID', 'Site', 'First in', 'Last out', 'Total', 'Status'].map(q).join(','));
+    summaryRows().forEach(r => lines.push([r.name, r.empId, r.site, r.firstIn, r.lastOut, r.total, r.status].map(q).join(',')));
     return lines.join('\n');
   }
   async function saveFile(name, text, type) {
@@ -836,9 +975,101 @@
     $('#blinkInput').checked = settings.requireBlink; $('#midnightInput').checked = settings.midnightReset;
     $('#soundInput').checked = settings.sound; $('#wakeInput').checked = settings.wake;
     $('#locRecordInput').checked = settings.locRecord; $('#locRequireInput').checked = settings.locRequire; $('#fenceInput').checked = settings.fence;
-    $('#siteName').value = settings.site?.name || ''; $('#radiusInput').value = settings.radius;
-    $('#siteInfo').textContent = settings.site ? `Site set: ${settings.site.lat.toFixed(5)}, ${settings.site.lng.toFixed(5)}` : 'No site set yet';
+    renderSites();
   }
+
+  // ---------- users & access tab ----------
+  let editingUser = null;
+  $('#uRole').innerHTML = Object.entries(ROLES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('');
+  $('#uPerms').innerHTML = PERMS.map(([k, l, d]) => `<label class="perm"><input type="checkbox" value="${k}"><span>${l}<small>${d}</small></span></label>`).join('');
+  const formPerms = () => $$('#uPerms input').filter(i => i.checked).map(i => i.value);
+  function setFormPerms(list) { $$('#uPerms input').forEach(i => i.checked = list.includes(i.value)); }
+  function roleFor(list) {
+    for (const [k, r] of Object.entries(ROLES)) if (r.perms && r.perms.length === list.length && r.perms.every(x => list.includes(x))) return k;
+    return 'custom';
+  }
+  function renderUserSites(list) {
+    const all = !list || !list.length;
+    $('#uSites').innerHTML = `<label class="perm"><input type="checkbox" value="__all" ${all ? 'checked' : ''}><span>All sites<small>Including sites added later</small></span></label>` +
+      settings.sites.map(x => `<label class="perm"><input type="checkbox" value="${x.id}" ${!all && list.includes(x.id) ? 'checked' : ''} ${all ? 'disabled' : ''}><span>${esc(x.name)}</span></label>`).join('') +
+      (settings.sites.length ? '' : '<p class="note">No sites yet — add them in Settings → Sites.</p>');
+  }
+  const formSites = () => $('#uSites input[value=__all]').checked ? [] : $$('#uSites input').filter(i => i.checked && i.value !== '__all').map(i => i.value);
+  $('#uSites').addEventListener('change', e => {
+    if (e.target.value === '__all') renderUserSites(e.target.checked ? [] : settings.sites.map(x => x.id));
+  });
+  function resetUserForm() {
+    renderUserSites([]);
+    editingUser = null; $('#uName').value = ''; $('#uPin').value = '';
+    $('#uRole').value = 'supervisor'; setFormPerms(ROLES.supervisor.perms);
+    $('#uFormTitle').textContent = 'Add admin user'; $('#uSave').textContent = 'Add user';
+    $('#uPinLabel').textContent = 'PIN (4–8 digits)'; $('#uPin').placeholder = '';
+  }
+  function editUser(u) {
+    editingUser = u.id; $('#uName').value = u.name; $('#uPin').value = '';
+    setFormPerms(u.perms); $('#uRole').value = roleFor(u.perms); renderUserSites(u.sites || []);
+    $('#uFormTitle').textContent = `Edit ${u.name}`; $('#uSave').textContent = 'Save changes';
+    $('#uPinLabel').textContent = 'New PIN (leave blank to keep current)'; $('#uPin').placeholder = '••••';
+    $('#uName').focus();
+  }
+  function renderUsers() {
+    const fmtAgo = ts => ts ? new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never';
+    $('#userList').innerHTML = users.slice().sort((a, b) => a.name.localeCompare(b.name)).map(u => `
+      <li>
+        <div class="avatar" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#3730a3;background:#eef2ff">${esc(u.name.trim()[0] || '?').toUpperCase()}</div>
+        <div class="grow"><div class="name">${esc(u.name)}${u.id === currentUser?.id ? ' <span class="sub">(you)</span>' : ''}</div>
+          <div class="sub">${u.perms.length === ALL.length ? 'Full access' : u.perms.map(permLabel).join(' · ')}</div>
+          <div class="sub">Sites: ${u.sites?.length ? u.sites.map(id => esc(siteById(id)?.name || '?')).join(', ') : 'All sites'}</div>
+          <div class="sub">Last sign-in: ${fmtAgo(u.lastLogin)}</div></div>
+        <span class="pill role">${esc((ROLES[roleFor(u.perms)] || ROLES.custom).label.replace(' (full access)', ''))}</span>
+        <button class="btn small" data-uact="edit" data-id="${u.id}">Edit</button>
+        <button class="btn small" data-uact="delete" data-id="${u.id}">Delete</button>
+      </li>`).join('') || '<li class="empty">No users</li>';
+    if (!editingUser && !$('#uName').value) resetUserForm();
+  }
+  $('#uRole').addEventListener('change', e => { const r = ROLES[e.target.value]; if (r.perms) setFormPerms(r.perms); });
+  $('#uPerms').addEventListener('change', () => { $('#uRole').value = roleFor(formPerms()); });
+  $('#uCancel').addEventListener('click', resetUserForm);
+  $('#uSave').addEventListener('click', async () => {
+    if (!can('users')) { toast('You don\'t have access to manage users'); return; }
+    const name = $('#uName').value.trim(), pin = $('#uPin').value.trim(), perms = formPerms(), siteList = formSites();
+    if (!$('#uSites input[value=__all]').checked && !siteList.length) { toast('Tick at least one site, or All sites'); return; }
+    if (!name) { toast('Enter a name'); return; }
+    if (users.some(u => u.id !== editingUser && u.name.toLowerCase() === name.toLowerCase())) { toast('A user with that name already exists'); return; }
+    if (!editingUser || pin) {
+      if (!/^\d{4,8}$/.test(pin)) { toast('PIN must be 4–8 digits'); return; }
+      const clash = await findUserByPin(pin);
+      if (clash && clash.id !== editingUser) { toast('That PIN is already used by another user'); return; }
+    }
+    if (!perms.length) { toast('Give the user at least one permission'); return; }
+    if (editingUser) {
+      const u = users.find(x => x.id === editingUser);
+      if (u.perms.includes('users') && !perms.includes('users') && managers().length === 1) { toast('At least one user must keep "Manage users & access"'); return; }
+      u.name = name; u.perms = perms; u.role = roleFor(perms); u.sites = siteList;
+      if (pin) { u.salt = uid(); u.hash = await hashPin(pin, u.salt); }
+      saveUsers(); toast(`${name} updated`);
+      if (u.id === currentUser.id) { resetUserForm(); showAdmin(); return; }
+    } else {
+      const salt = uid();
+      users.push({ id: uid(), name, salt, hash: await hashPin(pin, salt), role: roleFor(perms), perms, sites: siteList, createdAt: Date.now() });
+      saveUsers(); toast(`${name} added — they can now open Admin with their PIN`);
+    }
+    resetUserForm(); renderUsers();
+  });
+  $('#userList').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !can('users')) return;
+    const u = users.find(x => x.id === b.dataset.id); if (!u) return;
+    if (b.dataset.uact === 'edit') editUser(u);
+    if (b.dataset.uact === 'delete') {
+      if (u.perms.includes('users') && managers().length === 1) { toast('You can\'t delete the last user who can manage users'); return; }
+      armConfirm(b, () => {
+        users = users.filter(x => x.id !== u.id); saveUsers(); toast(`${u.name} deleted`);
+        if (u.id === currentUser.id) { showKiosk(); return; }
+        if (editingUser === u.id) resetUserForm();
+        renderUsers();
+      });
+    }
+  });
 
   // ---------- events ----------
   $('#startBtn').addEventListener('click', startCamera);
@@ -851,20 +1082,23 @@
   $('#uploadBtn').addEventListener('click', () => $('#fileInput').click());
   $('#fileInput').addEventListener('change', e => { uploadSamples([...e.target.files]); e.target.value = ''; });
   $('#thumbs').addEventListener('click', e => { const i = e.target.dataset.i; if (i != null) { samples.splice(+i, 1); renderSamples(); } });
-  $('#saveBtn').addEventListener('click', savePerson);
+  $('#saveBtn').addEventListener('click', () => can('register') && savePerson());
   $('#resetRegBtn').addEventListener('click', resetRegistration);
   $('#peopleSearch').addEventListener('input', renderPeople);
   $('#peopleList').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     const p = people.find(x => x.id === b.dataset.id); if (!p) return;
+    const need = { delete: 'people', manual: 'people', samples: 'register' }[b.dataset.act];
+    if (need && !can(need)) { toast('You don\'t have access to do that'); return; }
     if (b.dataset.act === 'delete') armConfirm(b, () => { people = people.filter(x => x.id !== p.id); savePeople(); rebuildMatcher(); renderPeople(); toast(`${p.name} deleted`); });
     if (b.dataset.act === 'samples') { resetRegistration(); editingId = p.id; $('#regName').value = p.name; $('#regName').disabled = true; $('#regEmp').value = p.empId || ''; $('#regTitle').textContent = `Add samples for ${p.name}`; $('#saveBtn').textContent = 'Save samples'; renderSamples(); showTab('register'); }
-    if (b.dataset.act === 'manual') { const act = isIn(p.id) ? 'out' : 'in'; if (record(p, act, null, 'manual (admin)')) toast(`${p.name} signed ${act} manually`); renderPeople(); }
+    if (b.dataset.act === 'manual') { const act = isIn(p.id) ? 'out' : 'in'; if (record(p, act, null, `manual (${currentUser.name})`)) toast(`${p.name} signed ${act} manually`); renderPeople(); }
   });
   $('#logDate').addEventListener('change', renderLog);
+  $('#logSite').addEventListener('change', renderLog);
   $('#logSearch').addEventListener('input', renderLog);
-  $('#exportCsvBtn').addEventListener('click', () => saveFile(`attendance-${$('#logDate').value}.csv`, buildCsv(), 'text/csv'));
-  $('#copyCsvBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(buildCsv()); toast('CSV copied'); } catch { toast('Copy failed'); } });
+  $('#exportCsvBtn').addEventListener('click', () => can('export') && saveFile(`attendance-${$('#logDate').value}.csv`, buildCsv(), 'text/csv'));
+  $('#copyCsvBtn').addEventListener('click', async () => { if (!can('export')) return; try { await navigator.clipboard.writeText(buildCsv()); toast('CSV copied'); } catch { toast('Copy failed'); } });
   $('#thrInput').addEventListener('input', e => { settings.threshold = +e.target.value; $('#thrVal').textContent = settings.threshold.toFixed(2); saveSettings(); rebuildMatcher(); });
   $('#stableInput').addEventListener('change', e => { settings.stableFrames = Math.max(1, Math.min(10, +e.target.value || 3)); saveSettings(); renderSettings(); });
   $('#cooldownInput').addEventListener('change', e => { settings.cooldown = Math.max(5, Math.min(3600, +e.target.value || 60)); saveSettings(); renderSettings(); });
@@ -877,21 +1111,92 @@
   const locChanged = () => { saveSettings(); locationWanted() ? startLocation() : stopLocation(); };
   $('#locRecordInput').addEventListener('change', e => { settings.locRecord = e.target.checked; locChanged(); });
   $('#locRequireInput').addEventListener('change', e => { settings.locRequire = e.target.checked; locChanged(); });
-  $('#fenceInput').addEventListener('change', e => { settings.fence = e.target.checked; locChanged(); if (settings.fence && !settings.site) toast('Now set the site location'); });
-  $('#radiusInput').addEventListener('change', e => { settings.radius = Math.max(25, Math.min(5000, +e.target.value || 200)); saveSettings(); renderSettings(); renderLocChip(); });
-  $('#siteName').addEventListener('change', e => { if (settings.site) { settings.site.name = e.target.value.trim(); saveSettings(); renderLocChip(); } });
-  $('#setSiteBtn').addEventListener('click', () => {
+  $('#fenceInput').addEventListener('change', e => { settings.fence = e.target.checked; locChanged(); if (settings.fence && !settings.sites.length) toast('Now add your sites below'); });
+  // ---------- sites ----------
+  let editingSite = null;
+  function renderSites() {
+    const sel = $('#kioskSiteSel');
+    sel.innerHTML = '<option value="auto">Nearest site (detect by GPS)</option>' + settings.sites.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+    sel.value = siteById(settings.kioskSite) ? settings.kioskSite : 'auto';
+    const counts = {}; log.forEach(e => { if (e.siteId) counts[e.siteId] = (counts[e.siteId] || 0) + 1; });
+    $('#siteList').innerHTML = settings.sites.length ? settings.sites.map(x => `<li>
+      <div class="grow"><div class="name">${esc(x.name)}${settings.kioskSite === x.id ? ' <span class="pill in">This kiosk</span>' : ''}</div>
+      ${x.address ? `<div class="sub">${esc(x.address)}</div>` : ''}
+      <div class="sub">${x.lat.toFixed(5)}, ${x.lng.toFixed(5)} · radius ${x.radius} m · ${counts[x.id] || 0} events</div></div>
+      <a class="btn small" href="${mapUrl(x)}" target="_blank" rel="noopener" style="text-decoration:none">Map</a>
+      <button class="btn small" data-sact="edit" data-id="${x.id}">Edit</button>
+      <button class="btn small" data-sact="delete" data-id="${x.id}">Delete</button></li>`).join('') : '<li class="empty">No sites yet — add your first site below</li>';
+  }
+  function clearSiteForm() { editingSite = null; $('#sAddr').value = ''; $('#sResults').innerHTML = ''; $('#sName').value = ''; $('#sRadius').value = 200; $('#sLat').value = ''; $('#sLng').value = ''; $('#sInfo').textContent = ''; $('#siteFormTitle').textContent = 'Add a site'; $('#sSave').textContent = 'Add site'; }
+  $('#kioskSiteSel').addEventListener('change', e => { settings.kioskSite = e.target.value; saveSettings(); renderSites(); renderLocChip(); toast(e.target.value === 'auto' ? 'Kiosk will use the nearest site' : `Kiosk set to ${siteById(e.target.value).name}`); });
+  $('#sHere').addEventListener('click', () => {
     if (!('geolocation' in navigator)) { toast('Location not supported'); return; }
-    $('#siteInfo').textContent = 'Getting your location…';
+    $('#sInfo').textContent = 'Getting your location…';
     navigator.geolocation.getCurrentPosition(p => {
-      settings.site = { name: $('#siteName').value.trim() || 'Site', lat: p.coords.latitude, lng: p.coords.longitude };
-      saveSettings(); renderSettings(); startLocation(); renderLocChip();
-      toast(`Site set (accuracy ±${Math.round(p.coords.accuracy)} m)`);
-    }, err => { $('#siteInfo').textContent = err.code === 1 ? 'Location permission blocked for this app' : 'Could not get location'; },
+      $('#sLat').value = p.coords.latitude.toFixed(6); $('#sLng').value = p.coords.longitude.toFixed(6);
+      $('#sInfo').textContent = `Got it (±${Math.round(p.coords.accuracy)} m)`;
+    }, err => { $('#sInfo').textContent = err.code === 1 ? 'Location permission blocked for this app' : 'Could not get location'; },
     { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 });
   });
-  $('#changePinBtn').addEventListener('click', () => openPin('new', () => {}));
-  $('#backupBtn').addEventListener('click', () => saveFile(`signinout-backup-${dayKey(Date.now())}.json`, JSON.stringify({ version: 2, people, log, settings }), 'application/json'));
+  $('#sClear').addEventListener('click', clearSiteForm);
+  // address search (OpenStreetMap). Tries Nominatim, falls back to Photon.
+  let geoResults = [];
+  async function geocode(q) {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=6&countrycodes=au&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en-AU' } });
+      if (r.ok) { const j = await r.json(); if (j.length) return j.map(x => ({ label: x.display_name, lat: +x.lat, lng: +x.lon })); }
+    } catch {}
+    const r2 = await fetch(`https://photon.komoot.io/api/?limit=6&lang=en&lat=-33.87&lon=151.21&q=${encodeURIComponent(q)}`);
+    const j2 = await r2.json();
+    return (j2.features || []).map(f => { const pr = f.properties; return { label: [pr.name, pr.housenumber && pr.street ? pr.housenumber + ' ' + pr.street : pr.street, pr.city || pr.district, pr.state, pr.postcode].filter(Boolean).join(', '), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] }; });
+  }
+  async function findAddress() {
+    const q = $('#sAddr').value.trim(); if (q.length < 4) { toast('Type more of the address'); return; }
+    $('#sResults').innerHTML = '<li class="empty">Searching…</li>';
+    try {
+      geoResults = await geocode(q);
+      $('#sResults').innerHTML = geoResults.length ? geoResults.map((g, i) => `<li data-i="${i}"><div class="grow"><div class="name" style="font-weight:500">${esc(g.label)}</div><div class="sub">${g.lat.toFixed(5)}, ${g.lng.toFixed(5)}</div></div><span class="pill role">Use</span></li>`).join('')
+        : '<li class="empty">No match — try adding the suburb and state, or use your current location</li>';
+    } catch { $('#sResults').innerHTML = '<li class="empty">Address search unavailable (no internet?) — use your current location or paste coordinates</li>'; }
+  }
+  $('#sFind').addEventListener('click', findAddress);
+  $('#sAddr').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); findAddress(); } });
+  $('#sResults').addEventListener('click', e => {
+    const li = e.target.closest('li[data-i]'); if (!li) return;
+    const g = geoResults[+li.dataset.i];
+    $('#sLat').value = g.lat.toFixed(6); $('#sLng').value = g.lng.toFixed(6); $('#sAddr').value = g.label;
+    if (!$('#sName').value.trim()) $('#sName').value = g.label.split(',').slice(0, 2).join(',').trim();
+    $('#sResults').innerHTML = ''; $('#sInfo').textContent = 'Address set — check the name and radius, then save';
+  });
+  $('#sSave').addEventListener('click', () => {
+    if (!can('settings')) return;
+    const name = $('#sName').value.trim(), lat = parseFloat($('#sLat').value), lng = parseFloat($('#sLng').value);
+    const radius = Math.max(25, Math.min(5000, parseInt($('#sRadius').value) || 200));
+    if (!name) { toast('Enter a site name'); return; }
+    if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) { toast('Enter a valid latitude and longitude, or use your current location'); return; }
+    if (settings.sites.some(x => x.id !== editingSite && x.name.toLowerCase() === name.toLowerCase())) { toast('A site with that name already exists'); return; }
+    if (editingSite) {
+      Object.assign(siteById(editingSite), { name, lat, lng, radius, address: $('#sAddr').value.trim() });
+      log.forEach(e => { if (e.siteId === editingSite) e.siteName = name; }); saveLog();
+      toast(`${name} updated`);
+    } else { settings.sites.push({ id: 's' + uid(), name, lat, lng, radius, address: $('#sAddr').value.trim() }); toast(`${name} added`); }
+    saveSettings(); clearSiteForm(); renderSites(); renderLocChip(); startLocation();
+  });
+  $('#siteList').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !can('settings')) return;
+    const x = siteById(b.dataset.id); if (!x) return;
+    if (b.dataset.sact === 'edit') {
+      editingSite = x.id; $('#sAddr').value = x.address || ''; $('#sResults').innerHTML = ''; $('#sName').value = x.name; $('#sRadius').value = x.radius; $('#sLat').value = x.lat; $('#sLng').value = x.lng;
+      $('#siteFormTitle').textContent = `Edit ${x.name}`; $('#sSave').textContent = 'Save site'; $('#sName').focus();
+    }
+    if (b.dataset.sact === 'delete') armConfirm(b, () => {
+      settings.sites = settings.sites.filter(y => y.id !== x.id);
+      if (settings.kioskSite === x.id) settings.kioskSite = 'auto';
+      users.forEach(u => { if (u.sites?.length) u.sites = u.sites.filter(id => id !== x.id); }); saveUsers();
+      saveSettings(); renderSites(); renderLocChip(); toast(`${x.name} deleted (its attendance history is kept)`);
+    });
+  });
+  $('#backupBtn').addEventListener('click', () => can('settings') && saveFile(`signinout-backup-${dayKey(Date.now())}.json`, JSON.stringify({ version: 3, people, log, settings, users }), 'application/json'));
   $('#restoreBtn').addEventListener('click', () => $('#restoreInput').click());
   $('#restoreInput').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -899,7 +1204,10 @@
       const data = JSON.parse(await f.text());
       if (!Array.isArray(data.people) || !Array.isArray(data.log)) throw new Error('Not a Sign In and Out backup');
       people = data.people; log = data.log; settings = Object.assign(settings, data.settings || {});
-      savePeople(); saveLog(); saveSettings(); rebuildMatcher(); renderAdmin();
+      if (Array.isArray(data.users) && data.users.length) { users = data.users; saveUsers(); }
+      savePeople(); saveLog(); saveSettings(); rebuildMatcher();
+      if (!users.some(u => u.id === currentUser?.id)) { toast('Restored — please sign in again with a PIN from the backup'); showKiosk(); return; }
+      currentUser = users.find(u => u.id === currentUser.id); renderAdmin();
       toast(`Restored ${people.length} people and ${log.length} events`);
     } catch (err) { toast('Restore failed: ' + err.message); }
   });
