@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign In and Out</title>
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sign In and Out">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#fff; --ink:#1b1f24; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --in:#16a34a; --out:#ea580c; --bad:#dc2626; --radius:14px;
+    --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+    --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+  [hidden]{display:none!important}
+  button{font:inherit;cursor:pointer}
+
+  /* ---------- KIOSK ---------- */
+  #kioskView{position:fixed;inset:0;background:#0f1115;color:#fff;display:flex;flex-direction:column;
+    padding:calc(var(--sat) + 10px) calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px);gap:10px}
+  .kTop{display:flex;align-items:center;gap:10px}
+  .kBrand{font-weight:700;font-size:17px;letter-spacing:-.2px}
+  .kBrand span{color:#60a5fa}
+  .kClock{margin-left:auto;font-variant-numeric:tabular-nums;color:#94a3b8;font-size:14px}
+  .adminBtn{border:1px solid #334155;background:#1e293b;color:#cbd5e1;border-radius:99px;padding:6px 12px;font-size:13px}
+  #stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;background:#000}
+  #camHome{position:absolute;inset:0}
+  #camHome video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #camHome video.mirror{transform:scaleX(-1)}
+  #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #camPlaceholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#cbd5e1;text-align:center;padding:24px}
+  .bigBtn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:14px 26px;font-size:17px;font-weight:600}
+  #banner{padding:16px;border-radius:14px;font-size:20px;font-weight:650;text-align:center;transition:background .25s,color .25s;min-height:62px}
+  #banner small{display:block;font-size:14px;font-weight:500;opacity:.85;margin-top:3px}
+  #banner.idle{background:#1e293b;color:#e2e8f0}
+  #banner.in{background:#16a34a;color:#fff}
+  #banner.out{background:#ea580c;color:#fff}
+  #banner.warn{background:#facc15;color:#422006}
+  .kSeg{display:flex;background:#1e293b;border-radius:14px;padding:5px;gap:5px}
+  .kSeg button{flex:1;border:0;background:transparent;color:#94a3b8;padding:13px 8px;border-radius:10px;font-size:16px;font-weight:600}
+  .kSeg button.active{background:#fff;color:#0f1115}
+  .kSeg button.active[data-mode=in]{background:#16a34a;color:#fff}
+  .kSeg button.active[data-mode=out]{background:#ea580c;color:#fff}
+  .chip{font-size:12px;padding:5px 10px;border-radius:99px;font-weight:600;white-space:nowrap}
+  .chip.ok{background:#14532d;color:#bbf7d0}.chip.weak{background:#713f12;color:#fef08a}.chip.none{background:#1e293b;color:#94a3b8}.chip.bad{background:#7f1d1d;color:#fecaca}
+  @media (orientation:landscape) and (min-width:700px){
+    #kioskView{display:grid;grid-template-columns:1fr minmax(280px,34%);grid-template-rows:auto 1fr auto;}
+    .kTop{grid-column:1/3}
+    #stage{grid-row:2/4}
+    #banner{align-self:end}
+    .kRight{display:flex;flex-direction:column;gap:10px;justify-content:flex-end;grid-row:2/4}
+  }
+  .kRight{display:flex;flex-direction:column;gap:10px}
+
+  /* ---------- PIN MODAL ---------- */
+  #pinModal{position:fixed;inset:0;background:rgba(2,6,23,.75);display:flex;align-items:center;justify-content:center;z-index:30;padding:20px}
+  .pinCard{background:#fff;color:var(--ink);border-radius:18px;padding:22px;width:100%;max-width:340px;text-align:center}
+  .pinCard h2{margin:0 0 6px;font-size:19px}
+  .pinDots{display:flex;justify-content:center;gap:12px;margin:18px 0 6px}
+  .pinDots i{width:14px;height:14px;border-radius:50%;border:2px solid #94a3b8}
+  .pinDots i.f{background:var(--ink);border-color:var(--ink)}
+  .pinErr{color:var(--bad);min-height:20px;font-size:14px}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  .keypad button{border:0;background:#f1f5f9;border-radius:12px;padding:16px 0;font-size:22px;font-weight:600}
+  .keypad button:active{background:#e2e8f0}
+  .pinCard .row{justify-content:center;margin-top:14px}
+
+  /* ---------- ADMIN ---------- */
+  #adminView{min-height:100%;padding-bottom:calc(var(--sab) + 20px)}
+  .aHead{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+    padding:calc(var(--sat) + 10px) calc(var(--sar) + 16px) 10px calc(var(--sal) + 16px);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .aHead h1{font-size:18px;margin:0}
+  .aHead .exit{margin-left:auto}
+  nav{display:flex;gap:4px;overflow-x:auto;width:100%;scrollbar-width:none}
+  nav button{border:0;background:transparent;padding:8px 13px;border-radius:9px;color:var(--muted);white-space:nowrap}
+  nav button.active{background:#eef2ff;color:var(--accent);font-weight:600}
+  .aBody{max-width:1100px;margin:0 auto;padding:16px calc(var(--sar) + 16px) 0 calc(var(--sal) + 16px)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+  h2{font-size:16px;margin:0 0 12px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
+  .btn{border:1px solid var(--line);background:#fff;padding:9px 14px;border-radius:9px;color:var(--ink)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+  .btn.small{padding:6px 10px;font-size:13px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=text],input[type=date],input[type=number],input[type=search],input[type=password],select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;background:#fff}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .list{list-style:none;margin:0;padding:0}
+  .list li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .list li:last-child{border-bottom:0}
+  .avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#e2e8f0;flex:none}
+  .grow{flex:1;min-width:120px}
+  .name{font-weight:600}
+  .sub{font-size:13px;color:var(--muted)}
+  .pill{font-size:12px;padding:3px 9px;border-radius:99px;font-weight:600;display:inline-block}
+  .pill.in{background:#dcfce7;color:#166534}.pill.out{background:#ffedd5;color:#9a3412}.pill.none{background:#f1f5f9;color:#64748b}
+  .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .thumbs img{width:64px;height:64px;border-radius:8px;object-fit:cover;border:2px solid var(--line)}
+  .empty{color:var(--muted);font-size:14px;padding:10px 0}
+  .tableWrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  .note{font-size:13px;color:var(--muted);line-height:1.5}
+  .switch{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:15px;color:var(--ink)}
+  .switch input{width:20px;height:20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .regGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+  #regStage{position:relative;aspect-ratio:3/4;max-height:60vh;border-radius:14px;overflow:hidden;background:#0f1115}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .stat b{display:block;font-size:24px}
+  @media (max-width:760px){.grid2,.regGrid{grid-template-columns:1fr}}
+  #toast{position:fixed;bottom:calc(var(--sab) + 22px);left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:11px 18px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:40;max-width:90vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #installHint{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a}
+</style>
+</head>
+<body>
+
+<!-- ================= KIOSK ================= -->
+<div id="kioskView">
+  <div class="kTop">
+    <div class="kBrand">Sign In <span>and</span> Out</div>
+    <div class="kClock" id="clock"></div>
+    <div id="locChip" class="chip none">Location: off</div>
+    <button class="adminBtn" id="adminBtn" aria-label="Admin">🔒 Admin</button>
+  </div>
+  <div id="stage">
+    <div id="camHome">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div id="camPlaceholder">
+      <div style="font-size:18px">Camera is off</div>
+      <button class="bigBtn" id="startBtn">Start camera</button>
+      <div style="color:#94a3b8;font-size:13px">Allow camera and location when asked.<br>Faces are processed on this device only.</div>
+    </div>
+  </div>
+  <div class="kRight">
+    <div id="banner" class="idle">Loading…</div>
+    <div class="kSeg" id="modeSeg">
+      <button data-mode="auto" class="active">Auto</button>
+      <button data-mode="in">Sign in</button>
+      <button data-mode="out">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PIN ================= -->
+<div id="pinModal" hidden>
+  <div class="pinCard">
+    <h2 id="pinTitle">Admin PIN</h2>
+    <div class="sub" id="pinSub">Enter your PIN</div>
+    <div class="pinDots" id="pinDots"></div>
+    <div class="pinErr" id="pinErr"></div>
+    <div class="keypad" id="keypad">
+      <button>1</button><button>2</button><button>3</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button>
+      <button data-k="cancel" style="font-size:15px">Cancel</button><button>0</button><button data-k="del" style="font-size:18px">⌫</button>
+    </div>
+    <div class="row"><button class="btn primary" id="pinOk">OK</button></div>
+  </div>
+</div>
+
+<!-- ================= ADMIN ================= -->
+<div id="adminView" hidden>
+  <div class="aHead">
+    <h1>Admin</h1>
+    <button class="btn exit" id="exitAdmin">Lock &amp; back to kiosk</button>
+    <nav id="nav">
+      <button data-tab="dash" class="active">Dashboard</button>
+      <button data-tab="register">Register</button>
+      <button data-tab="people">People</button>
+      <button data-tab="log">Attendance</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </div>
+  <div class="aBody">
+    <!-- DASHBOARD -->
+    <section class="tab" id="tab-dash">
+      <div class="card" id="installHint" hidden></div>
+      <div class="card">
+        <div class="stats">
+          <div class="stat"><span class="sub">On site now</span><b id="statOn">0</b></div>
+          <div class="stat"><span class="sub">Signed in today</span><b id="statToday">0</b></div>
+          <div class="stat"><span class="sub">Registered</span><b id="statPeople">0</b></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h2>On site now</h2><ul class="list" id="onsiteList"></ul></div>
+        <div class="card"><h2>Recent activity</h2><ul class="list" id="recentList"></ul></div>
+      </div>
+    </section>
+
+    <!-- REGISTER -->
+    <section class="tab" id="tab-register" hidden>
+      <div class="card">
+        <h2 id="regTitle">Register a person</h2>
+        <div class="regGrid">
+          <div>
+            <div id="regStage"></div>
+            <div class="sub" id="regStatus" style="margin-top:8px">Start the camera on the kiosk screen first.</div>
+          </div>
+          <div>
+            <label for="regName">Full name</label>
+            <input type="text" id="regName" placeholder="e.g. Sarah Ahmed" autocomplete="off">
+            <label for="regEmp">ID / staff number (optional)</label>
+            <input type="text" id="regEmp" placeholder="e.g. EMP-0042" autocomplete="off">
+            <h3>Face samples: <span id="sampleCount">0</span> (3–5 needed)</h3>
+            <p class="note">Turn your head slightly between captures. Good, even lighting works best.</p>
+            <div class="row">
+              <button class="btn primary" id="captureBtn">Capture</button>
+              <button class="btn" id="uploadBtn">Upload photos</button>
+              <input type="file" id="fileInput" accept="image/*" multiple hidden>
+            </div>
+            <div class="thumbs" id="thumbs"></div>
+            <div class="row" style="margin-top:16px">
+              <button class="btn primary" id="saveBtn" disabled>Save person</button>
+              <button class="btn" id="resetRegBtn">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PEOPLE -->
+    <section class="tab" id="tab-people" hidden>
+      <div class="card">
+        <h2>Registered people</h2>
+        <input type="search" id="peopleSearch" placeholder="Search name or ID">
+        <ul class="list" id="peopleList" style="margin-top:8px"></ul>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section class="tab" id="tab-log" hidden>
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Attendance</h2>
+          <div class="row">
+            <input type="date" id="logDate" style="width:auto">
+            <input type="search" id="logSearch" placeholder="Filter by name" style="width:180px">
+            <button class="btn" id="exportCsvBtn">Export CSV</button>
+            <button class="btn" id="copyCsvBtn">Copy CSV</button>
+          </div>
+        </div>
+        <h3>Daily summary</h3>
+        <div class="tableWrap"><table><thead><tr><th>Name</th><th>ID</th><th>First in</th><th>Last out</th><th>Total time</th><th>Status</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
+        <h3>All events</h3>
+        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Name</th><th>ID</th><th>Action</th><th>Match</th><th>Method</th><th>Location</th></tr></thead><tbody id="logBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="tab" id="tab-settings" hidden>
+      <div class="grid2">
+        <div class="card">
+          <h2>Recognition</h2>
+          <label for="thrInput">Match strictness: <b id="thrVal"></b> (lower = stricter)</label>
+          <input type="range" id="thrInput" min="0.35" max="0.65" step="0.01" style="width:100%">
+          <label for="stableInput">Confirm over N consecutive frames</label>
+          <input type="number" id="stableInput" min="1" max="10">
+          <label for="cooldownInput">Cooldown per person (seconds)</label>
+          <input type="number" id="cooldownInput" min="5" max="3600">
+          <label for="camSelect">Camera</label>
+          <select id="camSelect"><option value="user">Front (selfie) camera</option><option value="environment">Back camera</option></select>
+          <label class="switch"><input type="checkbox" id="blinkInput"> Require a blink (basic anti-photo check)</label>
+          <label class="switch"><input type="checkbox" id="midnightInput"> Treat everyone as signed out at midnight</label>
+          <label class="switch"><input type="checkbox" id="soundInput"> Sound on sign in / out</label>
+          <label class="switch"><input type="checkbox" id="wakeInput"> Keep screen awake on kiosk</label>
+        </div>
+        <div class="card">
+          <h2>GPS location</h2>
+          <label class="switch"><input type="checkbox" id="locRecordInput"> Record location with every sign in / out</label>
+          <label class="switch"><input type="checkbox" id="locRequireInput"> Block if location is unavailable</label>
+          <label class="switch"><input type="checkbox" id="fenceInput"> Only allow at the site (geofence)</label>
+          <label for="siteName">Site name</label>
+          <input type="text" id="siteName" placeholder="e.g. OX 63 Sanctuary Stage 4">
+          <div class="row" style="margin-top:10px">
+            <button class="btn" id="setSiteBtn">Set site to my current location</button>
+          </div>
+          <div class="sub" id="siteInfo" style="margin-top:6px"></div>
+          <label for="radiusInput">Allowed radius (metres)</label>
+          <input type="number" id="radiusInput" min="25" max="5000">
+          <p class="note">Phones with GPS are usually accurate to 5–30 m outdoors; indoors it can be 50 m+.</p>
+        </div>
+        <div class="card">
+          <h2>Admin security</h2>
+          <label for="lockInput">Auto-lock admin after (minutes idle)</label>
+          <input type="number" id="lockInput" min="1" max="60">
+          <div class="row" style="margin-top:12px"><button class="btn" id="changePinBtn">Change admin PIN</button></div>
+        </div>
+        <div class="card">
+          <h2>Data</h2>
+          <p class="note">Faces and attendance are stored on this device only. Download a backup regularly; you can restore it on another device.</p>
+          <div class="row">
+            <button class="btn" id="backupBtn">Download backup</button>
+            <button class="btn" id="restoreBtn">Restore backup</button>
+            <input type="file" id="restoreInput" accept="application/json,.json" hidden>
+            <button class="btn" id="clearLogBtn">Clear attendance log</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(() => {
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const video = $('#video'), overlay = $('#overlay'), ctx = overlay.getContext('2d');
+
+  // ---------- storage ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { toast('Could not save — device storage is full or blocked'); } }
+  };
+  let people = store.get('fc_people', []);
+  let log = store.get('fc_log', []);
+  let settings = Object.assign({ threshold: 0.5, stableFrames: 3, cooldown: 60, requireBlink: false, midnightReset: true, sound: true,
+    locRecord: true, locRequire: false, fence: false, site: null, radius: 200, camera: 'user', wake: true, lockMinutes: 3 }, store.get('fc_settings', {}));
+  let pinRec = store.get('fc_pin', null); // {salt, hash}
+  const savePeople = () => store.set('fc_people', people);
+  const saveLog = () => store.set('fc_log', log);
+  const saveSettings = () => store.set('fc_settings', settings);
+
+  // ---------- state ----------
+  let matcher = null, modelsReady = false, camReady = false, busy = false, stream = null;
+  let mode = 'auto', view = 'kiosk', tab = 'dash';
+  let samples = [], editingId = null;
+  const lastAction = {};
+  let streak = { label: null, count: 0 };
+  let blink = { state: 'open', last: 0, person: null };
+  let audioCtx = null, wakeLock = null;
+
+  // ---------- helpers ----------
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtTime = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dayKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const fmtDur = ms => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; };
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2800); }
+  function setBanner(kind, text, sub) { const b = $('#banner'); b.className = kind; b.innerHTML = esc(text) + (sub ? `<small>${esc(sub)}</small>` : ''); }
+  function armConfirm(btn, fn) {
+    if (btn.dataset.armed) { fn(); return; }
+    btn.dataset.armed = '1'; const old = btn.textContent;
+    btn.textContent = 'Tap again to confirm'; btn.classList.add('danger');
+    setTimeout(() => { delete btn.dataset.armed; btn.textContent = old; btn.classList.remove('danger'); }, 3000);
+  }
+  function beep(kind) {
+    if (!settings.sound || !audioCtx) return;
+    try {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = kind === 'in' ? 880 : 520;
+      g.gain.setValueAtTime(0.2, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+      o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.35);
+    } catch {}
+    try { navigator.vibrate && navigator.vibrate(kind === 'in' ? 80 : [60, 60, 60]); } catch {}
+  }
+
+  // ---------- GPS ----------
+  let pos = null, posError = null, watchId = null;
+  const POS_MAX_AGE = 2 * 60 * 1000;
+  function haversine(a, b) {
+    const R = 6371000, toR = x => x * Math.PI / 180;
+    const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m';
+  const locationWanted = () => settings.locRecord || settings.locRequire || settings.fence;
+  function startLocation() {
+    if (!('geolocation' in navigator)) { posError = 'Location not supported'; renderLocChip(); return; }
+    if (watchId !== null || !locationWanted()) { renderLocChip(); return; }
+    watchId = navigator.geolocation.watchPosition(p => {
+      pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, ts: Date.now() };
+      posError = null; renderLocChip();
+    }, err => {
+      posError = err.code === 1 ? 'Location blocked' : err.code === 2 ? 'Location unavailable' : 'Location timed out';
+      if (err.code !== 1) { setTimeout(() => { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; startLocation(); } }, 15000); }
+      renderLocChip();
+    }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 30000 });
+  }
+  function stopLocation() { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; } pos = null; renderLocChip(); }
+  const freshPos = () => pos && Date.now() - pos.ts < POS_MAX_AGE ? pos : null;
+  const siteDistance = p => settings.site && p ? haversine(settings.site, p) : null;
+  function renderLocChip() {
+    const c = $('#locChip'); const p = freshPos();
+    if (!locationWanted()) { c.className = 'chip none'; c.textContent = 'Location off'; return; }
+    if (!p) { c.className = 'chip ' + (posError ? 'bad' : 'none'); c.textContent = posError || 'Locating…'; return; }
+    const d = siteDistance(p);
+    if (settings.fence && settings.site) {
+      const inside = d - p.acc <= settings.radius;
+      c.className = 'chip ' + (inside ? 'ok' : 'bad');
+      c.textContent = inside ? `At ${settings.site.name || 'site'}` : `${fmtDist(d)} from site`;
+    } else { c.className = 'chip ' + (p.acc <= 100 ? 'ok' : 'weak'); c.textContent = `GPS ±${Math.round(p.acc)} m`; }
+  }
+  function checkLocation() {
+    const p = freshPos();
+    if (!locationWanted()) return { ok: true, loc: null };
+    if (!p) {
+      if (settings.fence || settings.locRequire) return { ok: false, msg: posError ? posError + ' — turn on location for this app' : 'Waiting for GPS location…' };
+      return { ok: true, loc: null };
+    }
+    const d = siteDistance(p);
+    const loc = { lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6), acc: Math.round(p.acc), siteDist: d == null ? null : Math.round(d), site: settings.site?.name || '' };
+    if (settings.site) loc.onSite = d - p.acc <= settings.radius;
+    if (settings.fence) {
+      if (!settings.site) return { ok: false, msg: 'Site location not set — ask an admin' };
+      if (!loc.onSite) return { ok: false, msg: `Outside the site area (${fmtDist(d)} away)` };
+    }
+    return { ok: true, loc };
+  }
+  const mapUrl = l => `https://www.google.com/maps?q=${l.lat},${l.lng}`;
+
+  // ---------- attendance ----------
+  function lastEntry(id) { for (let i = log.length - 1; i >= 0; i--) if (log[i].personId === id) return log[i]; return null; }
+  function isIn(id) {
+    const e = lastEntry(id);
+    if (!e || e.action !== 'in') return false;
+    if (settings.midnightReset && dayKey(e.ts) !== dayKey(Date.now())) return false;
+    return true;
+  }
+  function totalTime(entries, now) {
+    let total = 0, start = null;
+    for (const e of entries) {
+      if (e.action === 'in' && start === null) start = e.ts;
+      else if (e.action === 'out' && start !== null) { total += e.ts - start; start = null; }
+    }
+    if (start !== null && dayKey(start) === dayKey(Date.now())) total += (now || Date.now()) - start;
+    return total;
+  }
+  function record(person, action, confidence, method = 'face') {
+    const lc = checkLocation();
+    if (!lc.ok) { if (view === 'kiosk') setBanner('warn', `${person.name}: not recorded`, lc.msg); toast(lc.msg); return false; }
+    const entry = { id: uid(), ts: Date.now(), personId: person.id, name: person.name, empId: person.empId || '', action, confidence, method, loc: lc.loc };
+    log.push(entry); saveLog();
+    lastAction[person.id] = entry.ts;
+    if (view === 'kiosk') {
+      beep(action);
+      if (action === 'in') setBanner('in', `Welcome, ${person.name}`, `Signed in at ${fmtTime(entry.ts)}`);
+      else {
+        const today = log.filter(e => e.personId === person.id && dayKey(e.ts) === dayKey(entry.ts));
+        setBanner('out', `Goodbye, ${person.name}`, `Signed out at ${fmtTime(entry.ts)} · ${fmtDur(totalTime(today, entry.ts))} today`);
+      }
+    }
+    renderAdmin();
+    return true;
+  }
+
+  // ---------- face models ----------
+  function rebuildMatcher() {
+    const labeled = people.filter(p => p.descriptors?.length)
+      .map(p => new faceapi.LabeledFaceDescriptors(p.id, p.descriptors.map(d => new Float32Array(d))));
+    matcher = labeled.length ? new faceapi.FaceMatcher(labeled, settings.threshold) : null;
+  }
+  async function loadModels() {
+    setBanner('idle', 'Loading face recognition…');
+    try {
+      if (typeof faceapi === 'undefined') throw new Error('Library failed to load — check internet connection');
+      try { await faceapi.tf.setBackend('webgl'); } catch {}
+      await faceapi.tf.ready();
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
+      modelsReady = true; rebuildMatcher();
+      setBanner('idle', camReady ? 'Look at the camera' : 'Tap “Start camera”');
+    } catch (e) { console.error(e); setBanner('warn', 'Could not load face recognition', e.message); }
+  }
+  const detOpts = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+
+  // ---------- camera ----------
+  async function startCamera() {
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume?.(); } catch {}
+    if (!navigator.mediaDevices?.getUserMedia) { setBanner('warn', 'Camera not available', 'Open this app over https (installed app or browser)'); return; }
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: settings.camera, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      video.srcObject = stream; await video.play();
+      video.classList.toggle('mirror', settings.camera === 'user');
+      const first = !camReady; camReady = true; $('#camPlaceholder').hidden = true;
+      if (modelsReady) setBanner('idle', 'Look at the camera');
+      requestWake();
+      if (first) loop();
+    } catch (e) {
+      console.error(e);
+      setBanner('warn', 'Camera blocked', e.name === 'NotAllowedError' ? 'Allow camera access for this app in your phone settings' : e.message);
+    }
+    startLocation();
+  }
+  async function requestWake() {
+    if (!settings.wake || view !== 'kiosk' || !('wakeLock' in navigator)) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { requestWake(); if (camReady && video.paused) video.play().catch(() => {}); } });
+
+  // ---------- drawing (object-fit: cover aware) ----------
+  function fitCanvas() {
+    const r = overlay.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    if (overlay.width !== w || overlay.height !== h) { overlay.width = w; overlay.height = h; }
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const scale = Math.max(w / vw, h / vh);
+    return { scale, ox: (w - vw * scale) / 2, oy: (h - vh * scale) / 2, w, dpr, mirror: video.classList.contains('mirror') };
+  }
+  function drawBox(m, box, color, label) {
+    let x = box.x * m.scale + m.ox, y = box.y * m.scale + m.oy, bw = box.width * m.scale, bh = box.height * m.scale;
+    if (m.mirror) x = m.w - x - bw;
+    ctx.strokeStyle = color; ctx.lineWidth = 3 * m.dpr; ctx.strokeRect(x, y, bw, bh);
+    if (label) {
+      ctx.font = `600 ${15 * m.dpr}px system-ui, sans-serif`;
+      const tw = ctx.measureText(label).width + 12 * m.dpr, th = 24 * m.dpr;
+      ctx.fillStyle = color; ctx.fillRect(x, Math.max(0, y - th), tw, th);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, x + 6 * m.dpr, Math.max(0, y - th) + 17 * m.dpr);
+    }
+  }
+  const ear = p => { const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y); return (d(p[1], p[5]) + d(p[2], p[4])) / (2 * d(p[0], p[3])); };
+
+  // ---------- main loop ----------
+  async function loop() {
+    const active = view === 'kiosk' || (view === 'admin' && tab === 'register');
+    if (camReady && modelsReady && !busy && active && !document.hidden) {
+      busy = true;
+      try { await tick(); } catch (e) { console.error(e); }
+      busy = false;
+    }
+    setTimeout(loop, active ? 90 : 400);
+  }
+  async function tick() {
+    if (video.readyState < 2 || !video.videoWidth) return;
+    const dets = await faceapi.detectAllFaces(video, detOpts()).withFaceLandmarks().withFaceDescriptors();
+    const m = fitCanvas();
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    if (view === 'admin') {
+      dets.forEach(d => drawBox(m, d.detection.box, dets.length === 1 ? '#2563eb' : '#b45309'));
+      $('#regStatus').textContent = !dets.length ? 'No face in view' : dets.length > 1 ? 'Only one person in frame please' : 'Face found — tap Capture';
+      return;
+    }
+
+    if (!dets.length) { streak = { label: null, count: 0 }; if (!recentlyRecorded()) setBanner('idle', 'Look at the camera'); return; }
+    let best = dets[0];
+    for (const d of dets) if (d.detection.box.width * d.detection.box.height > best.detection.box.width * best.detection.box.height) best = d;
+    const match = matcher ? matcher.findBestMatch(best.descriptor) : null;
+    const label = match && match.label !== 'unknown' ? match.label : 'unknown';
+    const person = people.find(p => p.id === label);
+
+    if (blink.person !== label) blink = { state: 'open', last: 0, person: label };
+    const e = (ear(best.landmarks.getLeftEye()) + ear(best.landmarks.getRightEye())) / 2;
+    if (e < 0.21) blink.state = 'closed';
+    else if (e > 0.25 && blink.state === 'closed') { blink.state = 'open'; blink.last = Date.now(); }
+
+    for (const d of dets) {
+      if (d === best) drawBox(m, d.detection.box, person ? '#16a34a' : '#dc2626', person ? person.name : 'Unknown');
+      else drawBox(m, d.detection.box, '#64748b');
+    }
+    if (!person) {
+      streak = { label: null, count: 0 };
+      if (!recentlyRecorded()) setBanner('warn', matcher ? 'Face not recognised' : 'No one registered yet', matcher ? 'Please see an admin to register' : 'Admin: open Admin → Register');
+      return;
+    }
+    streak = streak.label === label ? { label, count: streak.count + 1 } : { label, count: 1 };
+    if (streak.count < settings.stableFrames) { setBanner('idle', `Hold still, ${person.name}…`); return; }
+
+    const since = Date.now() - (lastAction[person.id] || 0);
+    if (since < settings.cooldown * 1000) {
+      if (since > 4000) { const le = lastEntry(person.id); if (le) setBanner(le.action, `${person.name}, you're already ${le.action === 'in' ? 'signed in' : 'signed out'}`, `Recorded at ${fmtTime(le.ts)}`); }
+      return;
+    }
+    if (settings.requireBlink && Date.now() - blink.last > 4000) { setBanner('idle', `${person.name}, please blink`); return; }
+    const lc = checkLocation();
+    if (!lc.ok) { setBanner('warn', `${person.name}, can't record`, lc.msg); return; }
+
+    const currentlyIn = isIn(person.id);
+    const action = mode === 'auto' ? (currentlyIn ? 'out' : 'in') : mode;
+    if (mode !== 'auto' && (action === 'in') === currentlyIn) {
+      lastAction[person.id] = Date.now() - 4001;
+      const le = lastEntry(person.id);
+      setBanner('warn', `${person.name}, you're already ${currentlyIn ? 'signed in' : 'signed out'}`, le ? `Since ${fmtTime(le.ts)}` : '');
+      return;
+    }
+    record(person, action, +(1 - match.distance).toFixed(3));
+    streak = { label: null, count: 0 };
+  }
+  function recentlyRecorded() { return Date.now() - Math.max(0, ...Object.values(lastAction)) < 4000; }
+
+  // ---------- PIN ----------
+  async function hashPin(pin, salt) {
+    const data = new TextEncoder().encode(salt + ':' + pin);
+    if (crypto.subtle) { const h = await crypto.subtle.digest('SHA-256', data); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+    let h = 0; for (const b of data) h = (h * 31 + b) >>> 0; return 'x' + h; // fallback (non-https)
+  }
+  let pinState = null; // {step:'enter'|'new'|'confirm', value, first, onOk}
+  let pinFails = 0, pinLockedUntil = 0;
+  function openPin(step, onOk) {
+    pinState = { step, value: '', first: '', onOk };
+    renderPin(); $('#pinModal').hidden = false;
+  }
+  function renderPin() {
+    const s = pinState;
+    $('#pinTitle').textContent = s.step === 'enter' ? 'Admin PIN' : s.step === 'new' ? 'Create admin PIN' : 'Confirm PIN';
+    $('#pinSub').textContent = s.step === 'enter' ? 'Enter PIN to open admin' : s.step === 'new' ? 'Choose 4–8 digits. Keep it private.' : 'Enter the same PIN again';
+    const n = Math.max(4, s.value.length);
+    $('#pinDots').innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < s.value.length ? 'f' : ''}"></i>`).join('');
+  }
+  async function pinSubmit() {
+    const s = pinState; if (!s) return;
+    if (Date.now() < pinLockedUntil) { $('#pinErr').textContent = `Too many attempts — wait ${Math.ceil((pinLockedUntil - Date.now()) / 1000)}s`; return; }
+    if (s.value.length < 4) { $('#pinErr').textContent = 'At least 4 digits'; return; }
+    if (s.step === 'new') { s.first = s.value; s.value = ''; s.step = 'confirm'; $('#pinErr').textContent = ''; renderPin(); return; }
+    if (s.step === 'confirm') {
+      if (s.value !== s.first) { s.step = 'new'; s.value = ''; s.first = ''; $('#pinErr').textContent = "PINs didn't match — try again"; renderPin(); return; }
+      const salt = uid(); pinRec = { salt, hash: await hashPin(s.value, salt) }; store.set('fc_pin', pinRec);
+      closePin(); toast('Admin PIN saved'); s.onOk(); return;
+    }
+    if (await hashPin(s.value, pinRec.salt) === pinRec.hash) { pinFails = 0; closePin(); s.onOk(); }
+    else {
+      pinFails++; s.value = ''; renderPin();
+      if (pinFails >= 5) { pinLockedUntil = Date.now() + 30000; pinFails = 0; $('#pinErr').textContent = 'Too many attempts — locked for 30s'; }
+      else $('#pinErr').textContent = 'Wrong PIN';
+    }
+  }
+  function closePin() { $('#pinModal').hidden = true; $('#pinErr').textContent = ''; pinState = null; }
+  $('#keypad').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !pinState) return;
+    if (b.dataset.k === 'cancel') { closePin(); return; }
+    if (b.dataset.k === 'del') pinState.value = pinState.value.slice(0, -1);
+    else if (pinState.value.length < 8) { pinState.value += b.textContent; $('#pinErr').textContent = ''; }
+    renderPin();
+  });
+  $('#pinOk').addEventListener('click', pinSubmit);
+  document.addEventListener('keydown', e => {
+    if (!pinState) return;
+    if (/^\d$/.test(e.key) && pinState.value.length < 8) { pinState.value += e.key; renderPin(); }
+    else if (e.key === 'Backspace') { pinState.value = pinState.value.slice(0, -1); renderPin(); }
+    else if (e.key === 'Enter') pinSubmit();
+    else if (e.key === 'Escape') closePin();
+  });
+
+  // ---------- views ----------
+  let idleTimer = null;
+  function bumpIdle() {
+    if (view !== 'admin') return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { toast('Admin locked (idle)'); showKiosk(); }, settings.lockMinutes * 60000);
+  }
+  ['click', 'keydown', 'touchstart', 'scroll'].forEach(ev => document.addEventListener(ev, bumpIdle, { passive: true }));
+  function moveCamera(target) { target.appendChild($('#camHome')); if (camReady) video.play().catch(() => {}); }
+  function showAdmin() {
+    view = 'admin'; $('#kioskView').hidden = true; $('#adminView').hidden = false;
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    showTab(tab); bumpIdle(); window.scrollTo(0, 0);
+  }
+  function showKiosk() {
+    view = 'kiosk'; clearTimeout(idleTimer);
+    $('#adminView').hidden = true; $('#kioskView').hidden = false;
+    moveCamera($('#stage')); $('#stage').insertBefore($('#camHome'), $('#camPlaceholder'));
+    streak = { label: null, count: 0 };
+    setBanner('idle', camReady ? 'Look at the camera' : modelsReady ? 'Tap “Start camera”' : 'Loading…');
+    requestWake();
+  }
+  $('#adminBtn').addEventListener('click', () => openPin(pinRec ? 'enter' : 'new', showAdmin));
+  $('#exitAdmin').addEventListener('click', showKiosk);
+  function showTab(t) {
+    tab = t;
+    $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+    $$('.tab').forEach(el => el.hidden = el.id !== 'tab-' + t);
+    if (t === 'register') { moveCamera($('#regStage')); if (!camReady) $('#regStatus').textContent = 'Camera is off — go back to the kiosk and tap Start camera, then return here.'; }
+    else if ($('#camHome').parentElement !== $('#stage')) $('#stage').insertBefore($('#camHome'), $('#camPlaceholder'));
+    renderAdmin();
+  }
+  $('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.tab); });
+
+  // ---------- registration ----------
+  function cropThumb(source, box) {
+    const c = document.createElement('canvas'); c.width = c.height = 120;
+    const s = Math.max(box.width, box.height) * 1.5;
+    c.getContext('2d').drawImage(source, box.x + box.width / 2 - s / 2, box.y + box.height / 2 - s / 2, s, s, 0, 0, 120, 120);
+    return c.toDataURL('image/jpeg', 0.8);
+  }
+  function addSample(descriptor, thumb) {
+    if (matcher) {
+      const m = matcher.findBestMatch(descriptor);
+      if (m.label !== 'unknown' && m.label !== editingId) { const dup = people.find(p => p.id === m.label); toast(`This face matches ${dup?.name}, who is already registered. Use People → Add samples.`); return false; }
+    }
+    if (samples.length >= 5) { toast('5 samples is enough — tap Save'); return false; }
+    samples.push({ descriptor, thumb }); renderSamples(); return true;
+  }
+  async function captureSample() {
+    if (!modelsReady || !camReady) { toast('Start the camera on the kiosk screen first'); return; }
+    const dets = await faceapi.detectAllFaces(video, detOpts()).withFaceLandmarks().withFaceDescriptors();
+    if (dets.length !== 1) { toast(dets.length ? 'Only one face in frame please' : 'No face detected — move closer'); return; }
+    if (dets[0].detection.score < 0.6) { toast('Face not clear — improve lighting and retry'); return; }
+    if (addSample(dets[0].descriptor, cropThumb(video, dets[0].detection.box))) toast(`Sample ${samples.length} captured`);
+  }
+  async function uploadSamples(files) {
+    if (!modelsReady) { toast('Still loading face recognition'); return; }
+    for (const f of files) {
+      const img = await faceapi.bufferToImage(f);
+      const dets = await faceapi.detectAllFaces(img, detOpts()).withFaceLandmarks().withFaceDescriptors();
+      if (dets.length !== 1) { toast(`${f.name}: needs exactly one face (found ${dets.length})`); continue; }
+      addSample(dets[0].descriptor, cropThumb(img, dets[0].detection.box));
+    }
+  }
+  function renderSamples() {
+    const existing = editingId ? (people.find(p => p.id === editingId)?.descriptors.length || 0) : 0;
+    $('#sampleCount').textContent = editingId ? `${samples.length} new, ${existing} saved` : samples.length;
+    $('#thumbs').innerHTML = samples.map((s, i) => `<img src="${s.thumb}" title="Tap to remove" data-i="${i}">`).join('');
+    $('#saveBtn').disabled = !(editingId ? samples.length >= 1 : samples.length >= 3);
+  }
+  function resetRegistration() {
+    samples = []; editingId = null;
+    $('#regName').value = ''; $('#regEmp').value = ''; $('#regName').disabled = false;
+    $('#regTitle').textContent = 'Register a person'; $('#saveBtn').textContent = 'Save person';
+    renderSamples();
+  }
+  function savePerson() {
+    const name = $('#regName').value.trim(), empId = $('#regEmp').value.trim();
+    if (!name) { toast('Enter a name'); $('#regName').focus(); return; }
+    if (editingId) {
+      const p = people.find(p => p.id === editingId);
+      p.descriptors = [...p.descriptors, ...samples.map(s => Array.from(s.descriptor))].slice(-10);
+      p.empId = empId; toast(`Updated ${p.name}`);
+    } else {
+      if (empId && people.some(p => p.empId && p.empId.toLowerCase() === empId.toLowerCase())) { toast('That ID is already in use'); return; }
+      people.push({ id: uid(), name, empId, descriptors: samples.map(s => Array.from(s.descriptor)), photo: samples[0].thumb, createdAt: Date.now() });
+      toast(`${name} registered`);
+    }
+    savePeople(); rebuildMatcher(); resetRegistration();
+  }
+
+  // ---------- admin rendering ----------
+  const personRow = (p, right) => `<li><img class="avatar" src="${p.photo || ''}" alt=""><div class="grow"><div class="name">${esc(p.name)}</div><div class="sub">${esc(p.empId || '')}</div></div>${right}</li>`;
+  function renderAdmin() {
+    if (view !== 'admin') return;
+    if (tab === 'dash') renderDash();
+    if (tab === 'people') renderPeople();
+    if (tab === 'log') renderLog();
+    if (tab === 'settings') renderSettings();
+  }
+  function renderDash() {
+    const onsite = people.filter(p => isIn(p.id));
+    const today = dayKey(Date.now());
+    $('#statOn').textContent = onsite.length;
+    $('#statToday').textContent = new Set(log.filter(e => e.action === 'in' && dayKey(e.ts) === today).map(e => e.personId)).size;
+    $('#statPeople').textContent = people.length;
+    $('#onsiteList').innerHTML = onsite.length ? onsite.map(p => personRow(p, `<span class="sub">since ${fmtTime(lastEntry(p.id).ts)}</span>`)).join('') : '<li class="empty">Nobody signed in</li>';
+    const recent = log.slice(-10).reverse();
+    $('#recentList').innerHTML = recent.length ? recent.map(e => { const p = people.find(x => x.id === e.personId) || e; return personRow(p, `<span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span><span class="sub">${fmtTime(e.ts)}</span>`); }).join('') : '<li class="empty">No activity yet</li>';
+    const hint = $('#installHint');
+    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (!standalone) {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      hint.hidden = false;
+      hint.innerHTML = ios ? '<b>Install as an app:</b> tap the Share button in Safari, then <b>Add to Home Screen</b>.'
+        : '<b>Install as an app:</b> open the browser menu (⋮) and tap <b>Install app</b> or <b>Add to Home screen</b>.' + (deferredInstall ? ' <button class="btn small primary" id="installNow">Install now</button>' : '');
+      $('#installNow')?.addEventListener('click', async () => { deferredInstall.prompt(); deferredInstall = null; renderDash(); });
+    } else hint.hidden = true;
+  }
+  function renderPeople() {
+    const q = $('#peopleSearch').value.trim().toLowerCase();
+    const list = people.filter(p => !q || p.name.toLowerCase().includes(q) || (p.empId || '').toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name));
+    $('#peopleList').innerHTML = list.length ? list.map(p => {
+      const st = isIn(p.id);
+      return personRow(p, `<span class="pill ${st ? 'in' : 'none'}">${st ? 'In' : 'Out'}</span>
+        <button class="btn small" data-act="manual" data-id="${p.id}">${st ? 'Sign out' : 'Sign in'}</button>
+        <button class="btn small" data-act="samples" data-id="${p.id}">Add samples</button>
+        <button class="btn small" data-act="delete" data-id="${p.id}">Delete</button>`);
+    }).join('') : `<li class="empty">${people.length ? 'No matches' : 'No one registered yet — use the Register tab'}</li>`;
+  }
+  function logRows() {
+    const day = $('#logDate').value, q = $('#logSearch').value.trim().toLowerCase();
+    return log.filter(e => dayKey(e.ts) === day && (!q || e.name.toLowerCase().includes(q) || (e.empId || '').toLowerCase().includes(q)));
+  }
+  function summaryRows() {
+    const by = {}; logRows().forEach(e => (by[e.personId] = by[e.personId] || []).push(e));
+    const isToday = $('#logDate').value === dayKey(Date.now());
+    return Object.values(by).map(es => {
+      const ins = es.filter(e => e.action === 'in'), outs = es.filter(e => e.action === 'out'), last = es[es.length - 1];
+      return { name: es[0].name, empId: es[0].empId, firstIn: ins[0] ? fmtTime(ins[0].ts) : '—', lastOut: outs.length ? fmtTime(outs[outs.length - 1].ts) : '—',
+        total: fmtDur(totalTime(es)), status: last.action === 'in' ? (isToday ? 'On site' : 'No sign-out') : 'Signed out' };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }
+  function locCell(l) {
+    if (!l) return '<span class="sub">—</span>';
+    const tag = l.onSite === true ? '<span class="pill in">On site</span> ' : l.onSite === false ? '<span class="pill out">Off site</span> ' : '';
+    return `${tag}<a href="${mapUrl(l)}" target="_blank" rel="noopener">Map</a> <span class="sub">±${l.acc} m${l.siteDist != null ? ' · ' + fmtDist(l.siteDist) + ' from site' : ''}</span>`;
+  }
+  function renderLog() {
+    const sum = summaryRows();
+    $('#summaryBody').innerHTML = sum.length ? sum.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.empId)}</td><td>${r.firstIn}</td><td>${r.lastOut}</td><td>${r.total}</td><td><span class="pill ${r.status === 'On site' ? 'in' : r.status === 'Signed out' ? 'none' : 'out'}">${r.status}</span></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No attendance for this day</td></tr>';
+    const rows = logRows().slice().reverse();
+    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No events</td></tr>';
+  }
+  function buildCsv() {
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [['Date', 'Time', 'Name', 'ID', 'Action', 'Match', 'Method', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from site (m)', 'On site', 'Map link'].map(q).join(',')];
+    logRows().forEach(e => lines.push([dayKey(e.ts), new Date(e.ts).toLocaleTimeString(), e.name, e.empId, e.action.toUpperCase(), e.confidence ?? '', e.method || 'face',
+      e.loc?.lat ?? '', e.loc?.lng ?? '', e.loc?.acc ?? '', e.loc?.siteDist ?? '', e.loc ? (e.loc.onSite === true ? 'Yes' : e.loc.onSite === false ? 'No' : '') : '', e.loc ? mapUrl(e.loc) : ''].map(q).join(',')));
+    lines.push('', ['Name', 'ID', 'First in', 'Last out', 'Total', 'Status'].map(q).join(','));
+    summaryRows().forEach(r => lines.push([r.name, r.empId, r.firstIn, r.lastOut, r.total, r.status].map(q).join(',')));
+    return lines.join('\n');
+  }
+  async function saveFile(name, text, type) {
+    const blob = new Blob([text], { type });
+    try { // phones: share sheet lets you save to Files / email it
+      const file = new File([blob], name, { type });
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && /android|iphone|ipad/i.test(navigator.userAgent)) { await navigator.share({ files: [file], title: name }); return; }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  }
+  function renderSettings() {
+    $('#thrInput').value = settings.threshold; $('#thrVal').textContent = settings.threshold.toFixed(2);
+    $('#stableInput').value = settings.stableFrames; $('#cooldownInput').value = settings.cooldown;
+    $('#camSelect').value = settings.camera; $('#lockInput').value = settings.lockMinutes;
+    $('#blinkInput').checked = settings.requireBlink; $('#midnightInput').checked = settings.midnightReset;
+    $('#soundInput').checked = settings.sound; $('#wakeInput').checked = settings.wake;
+    $('#locRecordInput').checked = settings.locRecord; $('#locRequireInput').checked = settings.locRequire; $('#fenceInput').checked = settings.fence;
+    $('#siteName').value = settings.site?.name || ''; $('#radiusInput').value = settings.radius;
+    $('#siteInfo').textContent = settings.site ? `Site set: ${settings.site.lat.toFixed(5)}, ${settings.site.lng.toFixed(5)}` : 'No site set yet';
+  }
+
+  // ---------- events ----------
+  $('#startBtn').addEventListener('click', startCamera);
+  $('#modeSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    mode = b.dataset.mode; $$('#modeSeg button').forEach(x => x.classList.toggle('active', x === b));
+    streak = { label: null, count: 0 };
+  });
+  $('#captureBtn').addEventListener('click', captureSample);
+  $('#uploadBtn').addEventListener('click', () => $('#fileInput').click());
+  $('#fileInput').addEventListener('change', e => { uploadSamples([...e.target.files]); e.target.value = ''; });
+  $('#thumbs').addEventListener('click', e => { const i = e.target.dataset.i; if (i != null) { samples.splice(+i, 1); renderSamples(); } });
+  $('#saveBtn').addEventListener('click', savePerson);
+  $('#resetRegBtn').addEventListener('click', resetRegistration);
+  $('#peopleSearch').addEventListener('input', renderPeople);
+  $('#peopleList').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const p = people.find(x => x.id === b.dataset.id); if (!p) return;
+    if (b.dataset.act === 'delete') armConfirm(b, () => { people = people.filter(x => x.id !== p.id); savePeople(); rebuildMatcher(); renderPeople(); toast(`${p.name} deleted`); });
+    if (b.dataset.act === 'samples') { resetRegistration(); editingId = p.id; $('#regName').value = p.name; $('#regName').disabled = true; $('#regEmp').value = p.empId || ''; $('#regTitle').textContent = `Add samples for ${p.name}`; $('#saveBtn').textContent = 'Save samples'; renderSamples(); showTab('register'); }
+    if (b.dataset.act === 'manual') { const act = isIn(p.id) ? 'out' : 'in'; if (record(p, act, null, 'manual (admin)')) toast(`${p.name} signed ${act} manually`); renderPeople(); }
+  });
+  $('#logDate').addEventListener('change', renderLog);
+  $('#logSearch').addEventListener('input', renderLog);
+  $('#exportCsvBtn').addEventListener('click', () => saveFile(`attendance-${$('#logDate').value}.csv`, buildCsv(), 'text/csv'));
+  $('#copyCsvBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(buildCsv()); toast('CSV copied'); } catch { toast('Copy failed'); } });
+  $('#thrInput').addEventListener('input', e => { settings.threshold = +e.target.value; $('#thrVal').textContent = settings.threshold.toFixed(2); saveSettings(); rebuildMatcher(); });
+  $('#stableInput').addEventListener('change', e => { settings.stableFrames = Math.max(1, Math.min(10, +e.target.value || 3)); saveSettings(); renderSettings(); });
+  $('#cooldownInput').addEventListener('change', e => { settings.cooldown = Math.max(5, Math.min(3600, +e.target.value || 60)); saveSettings(); renderSettings(); });
+  $('#lockInput').addEventListener('change', e => { settings.lockMinutes = Math.max(1, Math.min(60, +e.target.value || 3)); saveSettings(); renderSettings(); bumpIdle(); });
+  $('#camSelect').addEventListener('change', e => { settings.camera = e.target.value; saveSettings(); if (camReady) startCamera(); });
+  $('#blinkInput').addEventListener('change', e => { settings.requireBlink = e.target.checked; saveSettings(); });
+  $('#midnightInput').addEventListener('change', e => { settings.midnightReset = e.target.checked; saveSettings(); });
+  $('#soundInput').addEventListener('change', e => { settings.sound = e.target.checked; saveSettings(); });
+  $('#wakeInput').addEventListener('change', e => { settings.wake = e.target.checked; saveSettings(); });
+  const locChanged = () => { saveSettings(); locationWanted() ? startLocation() : stopLocation(); };
+  $('#locRecordInput').addEventListener('change', e => { settings.locRecord = e.target.checked; locChanged(); });
+  $('#locRequireInput').addEventListener('change', e => { settings.locRequire = e.target.checked; locChanged(); });
+  $('#fenceInput').addEventListener('change', e => { settings.fence = e.target.checked; locChanged(); if (settings.fence && !settings.site) toast('Now set the site location'); });
+  $('#radiusInput').addEventListener('change', e => { settings.radius = Math.max(25, Math.min(5000, +e.target.value || 200)); saveSettings(); renderSettings(); renderLocChip(); });
+  $('#siteName').addEventListener('change', e => { if (settings.site) { settings.site.name = e.target.value.trim(); saveSettings(); renderLocChip(); } });
+  $('#setSiteBtn').addEventListener('click', () => {
+    if (!('geolocation' in navigator)) { toast('Location not supported'); return; }
+    $('#siteInfo').textContent = 'Getting your location…';
+    navigator.geolocation.getCurrentPosition(p => {
+      settings.site = { name: $('#siteName').value.trim() || 'Site', lat: p.coords.latitude, lng: p.coords.longitude };
+      saveSettings(); renderSettings(); startLocation(); renderLocChip();
+      toast(`Site set (accuracy ±${Math.round(p.coords.accuracy)} m)`);
+    }, err => { $('#siteInfo').textContent = err.code === 1 ? 'Location permission blocked for this app' : 'Could not get location'; },
+    { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 });
+  });
+  $('#changePinBtn').addEventListener('click', () => openPin('new', () => {}));
+  $('#backupBtn').addEventListener('click', () => saveFile(`signinout-backup-${dayKey(Date.now())}.json`, JSON.stringify({ version: 2, people, log, settings }), 'application/json'));
+  $('#restoreBtn').addEventListener('click', () => $('#restoreInput').click());
+  $('#restoreInput').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.people) || !Array.isArray(data.log)) throw new Error('Not a Sign In and Out backup');
+      people = data.people; log = data.log; settings = Object.assign(settings, data.settings || {});
+      savePeople(); saveLog(); saveSettings(); rebuildMatcher(); renderAdmin();
+      toast(`Restored ${people.length} people and ${log.length} events`);
+    } catch (err) { toast('Restore failed: ' + err.message); }
+  });
+  $('#clearLogBtn').addEventListener('click', e => armConfirm(e.currentTarget, () => { log = []; saveLog(); renderAdmin(); toast('Attendance log cleared'); }));
+
+  // ---------- install (PWA) ----------
+  let deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; if (view === 'admin' && tab === 'dash') renderDash(); });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  // ---------- init ----------
+  const tickClock = () => { $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+  setInterval(tickClock, 1000); tickClock();
+  setInterval(renderLocChip, 15000);
+  $('#logDate').value = dayKey(Date.now());
+  renderSamples(); renderLocChip();
+  loadModels();
+  try { navigator.permissions.query({ name: 'camera' }).then(r => { if (r.state === 'granted') startCamera(); }).catch(() => {}); } catch {}
+  if (locationWanted()) { try { navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') startLocation(); }).catch(() => {}); } catch {} }
+})();
+</script>
+</body>
+</html>
