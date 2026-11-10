@@ -5047,8 +5047,16 @@ if(act==='vreg-pdf'){varRegPdf();return}
 if(act==='vreg-xlsx'){varRegXlsx();return}
 if(act==='vsub-tog'){const k='vsub:'+btn.dataset.v;COLL.has(k)?COLL.delete(k):COLL.add(k);saveColl();render();return}
 if(act==='vsub-all'){const T=Object.keys(S.vars).filter(id=>varKids(id).length);const anyOpen=T.some(id=>!COLL.has('vsub:'+id));T.forEach(id=>anyOpen?COLL.add('vsub:'+id):COLL.delete('vsub:'+id));saveColl();render();return}
-if(act==='var-sub'){const pid=btn.dataset.v;const P=S.vars[pid];if(!P)return;COLL.delete('vsub:'+pid);saveColl();const n=varKids(pid).length+1;const id=uid('v');
-  const LET=i=>{let t='';i++;while(i>0){i--;t=String.fromCharCode(97+i%26)+t;i=Math.floor(i/26)}return t};const pr=P.ref?String(P.ref).trim():'VQ';const used=new Set(varKids(pid).map(([,x])=>String(x.ref||'')));let li=n-1;while(used.has(pr+LET(li)))li++;
+if(act==='var-sub'){const pid=btn.dataset.v;const P=S.vars[pid];if(!P)return;COLL.delete('vsub:'+pid);saveColl();let n=varKids(pid).length+1;const id=uid('v');
+  const LET=i=>{let t='';i++;while(i>0){i--;t=String.fromCharCode(97+i%26)+t;i=Math.floor(i/26)}return t};const pr=P.ref?String(P.ref).trim():'VQ';
+  /* first split: what the variation already holds (its build-up or amounts, status and claim line) becomes sub-variation "a"; the main variation turns into the summary */
+  if(!varKids(pid).length&&(hasBu(P)||(P.bu&&(P.bu.lines||[]).length)||num(P.submitted)||num(P.nonLabour)||num(P.labour)||num(P.hours))){const aid=uid('v');
+    const A={ref:pr+'a',clientRef:P.clientRef?String(P.clientRef).trim()+'a':'',parent:pid,desc:P.desc||'',status:P.status||'Submitted',date:P.date||todayISO(),author:P.author||'',dateApproved:P.dateApproved||'',approvalRef:P.approvalRef||'',comments:'',created:Date.now()-1};
+    for(const f of ['bu','submitted','nonLabour','labour','hours']){if(P[f]!==undefined){A[f]=P[f];delete P[f]}}
+    S.vars[aid]=A;persist('variations/'+aid);persist('variations/'+pid);
+    const d=claimDoc();for(const L of [d.av,d.pv])for(const l of L)if(l.vid===pid){l.vid=aid;l.ref=A.ref}
+    syncClaimVar(aid)}
+  n=varKids(pid).length+1;const used=new Set(varKids(pid).map(([,x])=>String(x.ref||'')));let li=n-1;while(used.has(pr+LET(li)))li++;
   S.vars[id]={ref:pr+LET(li),clientRef:P.clientRef?String(P.clientRef).trim()+LET(li):'',parent:pid,status:'Draft',date:todayISO(),author:P.author||'',created:Date.now()};persist('variations/'+id);syncClaimVar(pid);render();
   setTimeout(()=>{const el=document.getElementById('var_'+id+'_desc');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.vars[id]={ref:'VQ-'+String(n).padStart(3,'0'),status:'Draft',date:todayISO(),created:Date.now()};persist('variations/'+id);render();return}
