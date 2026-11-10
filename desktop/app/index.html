@@ -428,6 +428,7 @@ tr.ord-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.ord-k
 .inst-share{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 tr.var-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.var-kid>td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--accent) 45%,transparent);padding-left:18px}tr.var-kid>td:nth-child(2){position:relative;padding-left:24px}.var-kidmark{position:absolute;left:6px;top:20px;color:var(--accent);font-weight:700}
 .var-subadd{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block}.var-subsum{font-size:11.5px;color:var(--muted,#667);margin-top:4px;line-height:1.35}.var-ofpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;white-space:nowrap}.var-ofpick .f{font-size:12px;padding:3px 6px;max-width:150px}
+.chip[data-msdrag]{cursor:grab}body.ms-dragbody,body.ms-dragbody *{cursor:grabbing!important;user-select:none}.chip.ms-dragging{opacity:.45}.chip.ms-dropbefore{box-shadow:-4px 0 0 var(--accent)}.chip.ms-dropafter{box-shadow:4px 0 0 var(--accent)}.ms-move{display:inline-flex;gap:2px;margin-left:6px;align-items:center}
 .chip.ms-chip-po{background:color-mix(in srgb,#2e8b57 16%,var(--panel,#fff));border-color:#2e8b57;color:#1d5c39}.chip.ms-chip-po[aria-pressed="true"]{background:#2e8b57;color:#fff;border-color:#2e8b57}.chip.ms-chip-po[aria-pressed="true"] .chiptag{color:#e6f4ec}
 .inv-dupacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.inv-dupacts .btn{padding:3px 9px;font-size:12px}.inv-move{font-size:12px;padding:3px 6px;width:auto;max-width:220px}.inv-duplist table{width:100%}.inv-duplist tr.dupg-first>td{border-top:2px solid color-mix(in srgb,#d9822b 55%,transparent)}.inv-dupbar .btn{margin-left:8px;padding:3px 10px}
 .inv-dup{background:color-mix(in srgb,#d9822b 14%,transparent);border:1px solid color-mix(in srgb,#d9822b 55%,transparent);border-radius:8px;padding:7px 10px;margin:0 0 8px;font-size:13px}.inv-dup .btn{margin-left:6px;padding:2px 8px;font-size:12px}.invbox.inv-isdup{border-color:#d9822b!important;box-shadow:0 0 0 1px #d9822b}
@@ -2295,7 +2296,9 @@ function msNew(type){
     locs:[1,2,3].map(i=>({id:uid('L'),name:'PS'+i})),items:Array.from({length:5},msItem),
     hdr:{jobName:PROJ[PID]?.name||S.info.name||'',jobNo:S.info.job||''},appr:{},dockets:[],budget:'',chosen:''};
 }
-const msIds=()=>Object.keys(S.msods).sort((a,b)=>(S.msods[a].created||0)-(S.msods[b].created||0));
+/* MSOD tiles: in the order you set (drag a tile, or ◀ ▶), else the order they were made */
+const msIds=()=>Object.keys(S.msods).sort((a,b)=>{const A=S.msods[a],B=S.msods[b];const pa=A.pos!=null&&A.pos!=='',pb=B.pos!=null&&B.pos!=='';if(pa&&pb&&num(A.pos)!==num(B.pos))return num(A.pos)-num(B.pos);if(pa!==pb)return pa?-1:1;return (A.created||0)-(B.created||0)});
+function msReorder(L){L.forEach((x,i)=>{const m=S.msods[x];if(m&&String(m.pos)!==String(i+1)){m.pos=i+1;persist('msod/'+x)}});render()}
 const msName=m=>{if(m.name)return m.name;const same=msIds().map(x=>S.msods[x]).filter(x=>x.type===m.type);const k=same.indexOf(m);return (MS_LABEL[m.type]||'MSOD')+' MSOD'+(k>=0?' '+(k+1):'')};
 function msDesc(m,it){
   if(m.type==='submain'){const a=[it.cable,[it.from,it.to].filter(Boolean).join(' → '),[it.n?it.n+' ×':'',it.size,it.config,it.cond,it.ins].filter(Boolean).join(' ')].filter(Boolean);return a.join(' · ')}
@@ -2482,7 +2485,7 @@ V.msod=()=>{
     ${ids.length?'<div style="margin-top:12px"><button class="btn ghost" data-act="ms-newpick">Cancel</button></div>':''}</div>`;
   if(!m)return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.')}${chooser}</div>`;
   const C=msCalc(m);const tab=UI.mst||'items';const armed=UI.armed==='msod'+id;
-  const chips=`<div class="chips" role="group" aria-label="MSOD">${ids.map((x,i)=>{const P=msPoState(S.msods[x]);return `<button class="chip${P.real?' ms-chip-po':''}" data-act="ms-pick" data-v="${x}" aria-pressed="${x===id}" ${P.real?`title="PO ${esc(P.real.poNo||'')} raised with ${esc(P.sup)}"`:P.budget?'title="Budget PO only: no supplier chosen yet"':''}>${P.real?'✓ ':''}${esc(msName(S.msods[x],i))} <span class="chiptag">${MS_LABEL[S.msods[x].type]||''}${P.real?' · PO raised':P.budget?' · budget PO':''}</span></button>`}).join('')}<button class="chip add" data-act="ms-newpick">+ New MSOD</button></div>`;
+  const chips=`<div class="chips" role="group" aria-label="MSOD">${ids.map((x,i)=>{const P=msPoState(S.msods[x]);return `<button class="chip${P.real?' ms-chip-po':''}" data-act="ms-pick" data-v="${x}" aria-pressed="${x===id}" data-msdrag="${x}" ${P.real?`title="PO ${esc(P.real.poNo||'')} raised with ${esc(P.sup)}"`:P.budget?'title="Budget PO only: no supplier chosen yet"':''}>${P.real?'✓ ':''}${esc(msName(S.msods[x],i))} <span class="chiptag">${MS_LABEL[S.msods[x].type]||''}${P.real?' · PO raised':P.budget?' · budget PO':''}</span></button>`}).join('')}<button class="chip add" data-act="ms-newpick">+ New MSOD</button>${ids.length>1?`<span class="ms-move" title="Move the selected MSOD tile, or drag any tile"><button class="mv" data-act="ms-move" data-d="-1" aria-label="Move this MSOD left" ${ids.indexOf(id)<=0?'disabled':''}>◀</button><button class="mv" data-act="ms-move" data-d="1" aria-label="Move this MSOD right" ${ids.indexOf(id)>=ids.length-1?'disabled':''}>▶</button></span>`:''}</div>`;
   const tabs=[['details','Details'],['items','Item schedule'],['takeoff','Take off'],['deliv','Deliveries'],['sched','Delivery schedule']];
   const body=(tab==='details'?'':msFltBar(id,m))+(tab==='details'?msDetails(id,m):tab==='takeoff'?msTakeoff(id,m,C):tab==='deliv'?msDeliveries(id,m,C):tab==='sched'?msSchedule(id,m,C):msItems(id,m,C));
   return `<div class="stack">${head('MSOD','Material schedules of delivery: price each item across suppliers, take off quantities by location, then call materials to site with numbered delivery requests.',`<button class="btn ${armed?'armed':''}" data-act="del" data-kind="msod" data-id="${id}" data-x="">${armed?'Confirm: remove '+esc(msName(m,ids.indexOf(id))):'Remove MSOD'}</button>`)}
@@ -4376,6 +4379,18 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
   for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
 
+/* ---------- MSOD tiles: drag to rearrange (pointer based, so it works with a mouse, pen or finger in every browser) ---------- */
+let MS_DRAG=null;
+const msDragClear=()=>document.querySelectorAll('.ms-dropbefore,.ms-dropafter,.ms-dragging').forEach(x=>x.classList.remove('ms-dropbefore','ms-dropafter','ms-dragging'));
+viewEl.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest('[data-msdrag]');if(!t||e.button>0)return;MS_DRAG={id:t.dataset.msdrag,x:e.clientX,y:e.clientY,on:false,tgt:null,after:false}});
+document.addEventListener('pointermove',e=>{const D=MS_DRAG;if(!D)return;if(!D.on){if(Math.abs(e.clientX-D.x)+Math.abs(e.clientY-D.y)<8)return;D.on=true;document.querySelector(`[data-msdrag="${D.id}"]`)?.classList.add('ms-dragging');document.body.classList.add('ms-dragbody')}
+  e.preventDefault();const el=document.elementFromPoint(e.clientX,e.clientY);const t=el&&el.closest&&el.closest('[data-msdrag]');msDragClear();document.querySelector(`[data-msdrag="${D.id}"]`)?.classList.add('ms-dragging');
+  if(t&&t.dataset.msdrag!==D.id){const r=t.getBoundingClientRect();D.tgt=t.dataset.msdrag;D.after=e.clientX>=r.left+r.width/2;t.classList.add(D.after?'ms-dropafter':'ms-dropbefore')}else D.tgt=null});
+document.addEventListener('pointerup',e=>{const D=MS_DRAG;MS_DRAG=null;document.body.classList.remove('ms-dragbody');msDragClear();if(!D||!D.on)return;
+  /* the click that follows a drag shouldn't open the tile */const stop=ev=>{ev.stopPropagation();ev.preventDefault()};document.addEventListener('click',stop,{capture:true,once:true});setTimeout(()=>document.removeEventListener('click',stop,{capture:true}),50);
+  if(!D.tgt)return;const L=msIds().filter(x=>x!==D.id);L.splice(L.indexOf(D.tgt)+(D.after?1:0),0,D.id);msReorder(L)});
+document.addEventListener('pointercancel',()=>{MS_DRAG=null;document.body.classList.remove('ms-dragbody');msDragClear()});
+
 /* ---------- MSOD item schedule: row selection, keys and clipboard ---------- */
 let MS_LASTSEL=null;
 viewEl.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('input[data-mssel],input[data-msselall]');if(!c||UI.view!=='msod')return;const id=UI.ms;const m=S.msods[id];if(!m)return;const sel=msSel(id);
@@ -4598,6 +4613,7 @@ document.addEventListener('click',async e=>{
   if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',tid:siteTid(t),line:t.line||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
   if(act==='site-ph'){sitePhotoView(btn.dataset.v);return}
   if(act==='site-phdel'){const date=UI.siteDate||todayISO();const id=siteDiaryId(date);const d=S.site[id];const i=+btn.dataset.v;if(d&&d.photos&&d.photos[i]){const key='siteph'+id+i;if(UI.armed!==key){UI.armed=key;btn.textContent='Remove?';btn.classList.add('armed');setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},3000);return}UI.armed=null;d.photos.splice(i,1);persist('site/'+id);render()}return}
+  if(act==='ms-move'){const L=msIds();const i=L.indexOf(UI.ms),j=i+(+btn.dataset.d);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];msReorder(L);return}
   if(act==='ms-tab'){UI.mst=btn.dataset.v;render();return}
   if(act==='ms-dk'){UI.msd=+btn.dataset.v;render();return}
   if(act==='ms-paste'){UI.msPaste=!UI.msPaste;render();if(UI.msPaste)setTimeout(()=>{const el=document.getElementById('ms_paste');if(el)el.focus()},60);return}
