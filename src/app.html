@@ -409,7 +409,7 @@ tr.ord-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.ord-k
 .proc-link{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;white-space:nowrap}.proc-link .f{font-size:11.5px;padding:2px 4px;max-width:120px}
 td.pc-item,th.pc-item{border-right:1px solid var(--line)}td.pc-desc,th.pc-desc{padding-left:10px}td.pc-item .f{text-align:left;font-variant-numeric:tabular-nums}
 .pc-hcell{display:flex;align-items:center;gap:4px}.pc-hcell .f{flex:1}.pc-hacts{display:flex;gap:6px;margin-top:3px}.pc-hacts .btn{font-size:12px;padding:2px 8px;color:var(--accent)}
-.pc-parent td{background:color-mix(in srgb,var(--ink) 2%,transparent)}.pc-parent .ro{font-style:italic;color:var(--muted,#667)}.pc-subl td{background:color-mix(in srgb,var(--ink) 1%,transparent)}.pc-qadd{margin-top:2px}.pc-qadd .btn{font-size:11px;padding:1px 7px;opacity:.75}tr:hover .pc-qadd .btn{opacity:1}
+.pc-parent td{background:color-mix(in srgb,var(--ink) 2%,transparent)}.pc-parent .ro{font-style:italic;color:var(--muted,#667)}.pc-subl td{background:color-mix(in srgb,var(--ink) 1%,transparent)}.pc-kind{display:block;margin-top:4px;font-size:11px;padding:2px 2px;width:120px}tr.pc-hrow select.pc-kind,tr.pc-h2 select.pc-kind{font-weight:400!important;font-size:11px!important;background:var(--panel,#fff)!important}.pc-qadd{margin-top:2px}.pc-qadd .btn{font-size:11px;padding:1px 7px;opacity:.75}tr:hover .pc-qadd .btn{opacity:1}
 .pc-h2 td{background:color-mix(in srgb,var(--accent) 3.5%,transparent)!important}.pc-h2 .f{font-weight:600;font-size:13.5px}
 .pc-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.pc-hrow .f{font-weight:700;font-size:14px;background:transparent}
 tr.itp-done>td{background:color-mix(in srgb,#2e8b57 13%,transparent)!important}tr.itp-done>td:first-child{box-shadow:inset 4px 0 0 #2e8b57}.pg-itp{margin-top:4px}.pg-itp .btn{font-size:12px;padding:3px 9px}
@@ -2093,8 +2093,25 @@ function pcTree(lines){const info=lines.map(()=>({h:-1,s:-1}));let h=-1,sb=-1;
   const kids=i=>{const L=lines[i];const out=[];for(let j=i+1;j<lines.length;j++){const m=lines[j];if(m.head&&(m.lvl!==2||L.lvl===2))break;out.push(j)}return out};
   return {info,kids}}
 const pcClosed=l=>COLL.has('pch'+l.id);
+/* change a row into a heading, sub-heading, line or sub-line */
+const PC_KINDS=[['h1','Heading'],['h2','Sub-heading'],['line','Line'],['sub','Sub-line']];
+const pcKindSel=(si,path,cur)=>`<select class="f pc-kind" data-pcconv="${si}|${path}" aria-label="Change this row to a heading, sub-heading, line or sub-line" title="Change to…">${PC_KINDS.map(([v,t])=>`<option value="${v}" ${v===cur?'selected':''}>${t}</option>`).join('')}</select>`;
+const pcKindOf=l=>l.head?(l.lvl===2?'h2':'h1'):'line';
+function pcConvert(si,path,to){const d=claimDoc();const L=d.secs[+si]?.lines;if(!L)return 'No section';const ps=String(path).split('.');let li=+ps[0];
+  const clean=x=>{delete x.head;delete x.lvl;return x};
+  const setKind=(x,k)=>{clean(x);if(k==='h1')x.head=true;else if(k==='h2'){x.head=true;x.lvl=2}return x};
+  /* take a sub-line out of its line, as a row right after that line (and its other sub-lines) */
+  if(ps.length>1){const P=L[li];if(!P||!P.subs)return 'Not found';if(to==='sub')return '';const x=P.subs.splice(+ps[1],1)[0];
+    if(!P.subs.length){delete P.subs;P.sum=x.sum;P.pct=x.pct;P.prev=x.prev;P.apct=x.apct;x.sum='';x.pct='';x.prev='';x.apct=''}
+    setKind(x,to);if(to!=='line'){x.sum='';x.pct='';x.prev='';x.apct=''}L.splice(li+1,0,x);COLL.delete('pch'+P.id);return ''}
+  const x=L[li];if(!x)return 'Not found';const from=pcKindOf(x);if(from===to)return '';
+  if(to==='sub'){/* becomes a sub-line of the nearest line above it */let pi=-1;for(let j=li-1;j>=0;j--){if(!L[j].head){pi=j;break}}if(pi<0)return 'There is no line above it to sit under. Add a line first.';
+    const P=L[pi];L.splice(li,1);const subs=pcHasSubs(x)?x.subs:[];delete x.subs;clean(x);if(!pcHasSubs(P))P.subs=[{id:uid('c'),item:P.item?String(P.item).trim()+'.1':'',desc:P.desc||'',sum:P.sum||'',pct:P.pct||'',prev:P.prev||'',apct:P.apct??''}];
+    P.subs.push(x,...subs);COLL.delete('pch'+P.id);return ''}
+  if(to==='h1'||to==='h2'){/* a line with sub-lines: its sub-lines become lines under the new heading */const subs=pcHasSubs(x)?x.subs:[];delete x.subs;setKind(x,to);x.sum='';x.pct='';x.prev='';x.apct='';if(subs.length)L.splice(li+1,0,...subs);COLL.delete('pch'+x.id);return ''}
+  clean(x);return ''}
 function pcSubRows(si,li,l,k0,ind){const n=l.subs.length;return l.subs.map((q,qi)=>{const x=pcLine(q);const k='pcl|c|'+si+'|'+li+'.'+qi+'|';const sum=x.sum;
-  return `<tr class="pc-subl"><td style="width:86px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="-1" aria-label="Move up" ${qi===0?'disabled':''}>▲</button><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="1" aria-label="Move down" ${qi===n-1?'disabled':''}>▼</button></span>${delBtn('pcl','c.'+si,li+'.'+qi,'Remove')}</td>
+  return `<tr class="pc-subl"><td style="width:86px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="-1" aria-label="Move up" ${qi===0?'disabled':''}>▲</button><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="1" aria-label="Move down" ${qi===n-1?'disabled':''}>▼</button></span>${delBtn('pcl','c.'+si,li+'.'+qi,'Remove')}${pcKindSel(si,li+'.'+qi,'sub')}</td>
     <td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',q.item,{label:'Sub-line item',ph:'e.g. 1.1.1.1'})}</td><td class="pc-desc" style="min-width:320px;padding-left:${10+ind+40}px">${inp(k+'desc',q.desc,{label:'Sub-line description',ph:'Sub-line'})}</td>
     <td style="min-width:140px"><div class="cur">${mInp(k+'sum',q.sum,'Amount')}</div></td><td style="min-width:80px">${inp(k+'pct',r2s(q.pct),{num:1,label:'% complete',ph:'0'})}</td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'prev',q.prev,'Previously approved')}</div></td><td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
@@ -2110,16 +2127,16 @@ function pcRows(area,lines,si,opt={}){
   return lines.map((l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;
     if(hidden(li))return '';
     if(l.head){const sub=l.lvl===2;const K=T.kids(li);const kl=K.filter(j=>!lines[j].head);const ks=K.filter(j=>lines[j].head).length;const t=pcSum(kl.map(j=>lines[j]));const cl=pcClosed(l);
-      return `<tr class="pc-hrow${sub?' pc-h2':''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:sub?'Sub-heading item':'Heading item',ph:sub?'e.g. 1.1':'e.g. 1'})}</td>
+      return `<tr class="pc-hrow${sub?' pc-h2':''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}${pcKindSel(si,li,sub?'h2':'h1')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:sub?'Sub-heading item':'Heading item',ph:sub?'e.g. 1.1':'e.g. 1'})}</td>
       <td class="pc-desc" style="min-width:320px"><div class="pc-hcell" style="padding-left:${sub?22:0}px"><button class="tog" data-act="tog-sub" data-v="pch${esc(l.id)}" aria-expanded="${!cl}" aria-label="${cl?'Open':'Minimise'} ${sub?'sub-heading':'heading'}">${cl?'▸':'▾'}</button>${inp(k+'desc',l.desc,{label:sub?'Sub-heading':'Heading',ph:sub?'Sub-heading, e.g. Power':'Heading, e.g. Level 1'})}</div>
         <div class="pc-hacts" style="padding-left:${sub?50:28}px">${cl?`<span class="hint">${ks?ks+' sub-heading'+(ks===1?'':'s')+', ':''}${kl.length} line${kl.length===1?'':'s'}${(q=>q?', '+q+' sub-line'+(q===1?'':'s'):'')(kl.reduce((a,j)=>a+(pcHasSubs(lines[j])?lines[j].subs.length:0),0))} minimised</span>`:`${sub?'':`<button class="btn ghost" data-act="pc-addsub" data-s="${si}" data-v="${li}">+ Sub-heading</button>`}<button class="btn ghost" data-act="pc-addunder" data-s="${si}" data-v="${li}">+ Line</button>`}</div></td>
       <td colspan="11"></td></tr>`}
     const ind=T?(T.info[li].s>=0?50:T.info[li].h>=0?26:0):0;
     if(area==='c'&&pcHasSubs(l)){const cl=pcClosed(l);
-      return `<tr class="pc-parent${ind?' pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>
+      return `<tr class="pc-parent${ind?' pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}${pcKindSel(si,li,'line')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>
       <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}"><div class="pc-hcell"><button class="tog" data-act="tog-sub" data-v="pch${esc(l.id)}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Minimise'} sub-lines">${cl?'▸':'▾'}</button>${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</div><div class="pc-hacts" style="padding-left:28px">${cl?`<span class="hint">${l.subs.length} sub-line${l.subs.length===1?'':'s'} minimised</span>`:`<button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}">+ Sub-line</button>`}</div></td>
       <td class="n money ro">${money2(x.sum)}</td><td class="n ro">${x.sum?pct(x.claimed/x.sum,1):'—'}</td><td class="n money ro">${money2(x.prev)}</td><td>${pcBar(x.sum?x.claimed/x.sum:0,x.sum?x.assessed/x.sum:0)}</td><td class="n money"><b>${money2(x.claimed)}</b></td><td class="n">${x.sum?pct(x.this/x.sum,1):'—'}</td><td class="n money"><b>${money2(x.this)}</b></td><td class="n ro">${x.sum?pct(x.assessed/x.sum,0):'—'}</td><td class="n money">${money2(x.assessed)}</td><td class="n money">${money2(x.pay)}</td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`+(cl?'':pcSubRows(si,li,l,k,ind))}
-    return `<tr class="${ind?'pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td>
+    return `<tr class="${ind?'pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}${area==='c'?pcKindSel(si,li,'line'):''}</td>
     ${opt.var?`<td style="min-width:100px">${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}</td>`:`<td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>`}
     <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}${area==='c'?`<div class="pc-hacts pc-qadd"><button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}" title="Split this line into sub-lines">+ Sub-line</button></div>`:''}</td>
     ${area==='a'?`<td style="min-width:120px">${inp(k+'aref',l.aref,{label:'Approval ref'})}</td>`:''}
@@ -4453,6 +4470,8 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='procurement'||!ordHasFiles(e))r
   const f=[...e.dataTransfer.files].find(f=>/\.(xlsx|csv)$/i.test(f.name||'')||/spreadsheetml|text\/csv/.test(f.type||''));if(!f){setSave('error','Drop an Excel (.xlsx) or CSV file to fill the procurement schedule');return}procImportFile(f)});
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.procxl===undefined)return;const f=t.files&&t.files[0];if(f)procImportFile(f);t.value=''});
 
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.pcconv===undefined)return;if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');render();return}
+  const [si,path]=t.dataset.pcconv.split('|');try{undoRecord()}catch(x){}const err=pcConvert(si,path,t.value);if(err){setSave('error',err);render();return}persist('project/claim');render()});
 /* ---------- claim money boxes: plain number while typing, 1,234.56 otherwise ---------- */
 document.addEventListener('focusin',e=>{const t=e.target;if(!t.classList||!t.classList.contains('pc-m'))return;const raw=String(t.value).replace(/[$,\s]/g,'');const n=parseFloat(raw);t.value=raw===''?'':(isFinite(n)?String(Math.round(n*100)/100):raw);try{t.select()}catch(x){}});
 document.addEventListener('focusout',e=>{const t=e.target;if(!t.classList||!t.classList.contains('pc-m'))return;if(t.value!=='')t.value=fmt2(t.value)});
