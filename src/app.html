@@ -1182,7 +1182,7 @@ async function claimPdf(lbl){
       styles:{fontSize:8,cellPadding:1.6,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255},footStyles:{fillColor:[233,235,230],textColor:[28,39,50],fontStyle:'bold'},
       columnStyles:{0:{cellWidth:16},1:{cellWidth:'auto'},2:{halign:'right',cellWidth:24},3:{halign:'right',cellWidth:18},4:{halign:'right',cellWidth:24},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:22}},margin:{left:14,right:14}});
     y=doc.lastAutoTable.finalY+8};
-  const cw=[];d.secs.forEach(sc=>{cw.push([{content:sc.name||'Section',colSpan:7,styles:{fontStyle:'bold',fillColor:[246,247,244]}}]);sc.lines.forEach(l=>cw.push(l.head?[{content:l.desc||'',colSpan:7,styles:{fontStyle:'bolditalic',textColor:[90,60,40]}}]:row(l.item||'',l.desc||'',l)))});
+  const cw=[];d.secs.forEach(sc=>{cw.push([{content:sc.name||'Section',colSpan:7,styles:{fontStyle:'bold',fillColor:[246,247,244]}}]);sc.lines.forEach(l=>cw.push(l.head?[{content:l.item||'',styles:{fontStyle:'bold',textColor:[90,60,40]}},{content:l.desc||'',colSpan:6,styles:{fontStyle:'bolditalic',textColor:[90,60,40]}}]:row(l.item||'',l.desc||'',l)))});
   tbl('Contract works',cw,T.c);
   if(d.av.length)tbl('Approved variations',d.av.map(l=>row(l.ref||'',l.desc||'',l)),T.a);
   if(d.pv.length)tbl('Pending variations',d.pv.map(l=>row(l.ref||'',l.desc||'',l)),T.p);
@@ -2056,7 +2056,7 @@ function pcImportRows(area,rows,si,newSecs){const d=claimDoc();const norm=t=>Str
     for(const [ci,f] of Object.entries(map)){const v=String(r[+ci]??'').trim();if(!v)continue;l[f]=f==='sum'||f==='prev'?money(v):f==='pct'||f==='apct'?pctv(v,frac):v}
     const label=String(l.desc||l.item||l.ref||'').trim();if(/^\s*(sub\s*)?total\b|^grand\s*total|^contract\s*(works\s*)?total/i.test(label)||/^\s*(sub\s*)?total\b/i.test(String(l.item||'')))continue;
     const hasNum=['sum','pct','prev','apct'].some(f=>l[f]!==''&&l[f]!=null);
-    if(!hasNum){if(newSecs&&area==='c'&&label){cur={id:uid('C'),name:label,lines:[]};out.push(cur)}else if(area==='c'&&!newSecs&&label){out.push({...newPcLine(),head:true,desc:label})}continue}/* a row with a name and no amounts is a section heading */
+    if(!hasNum){if(newSecs&&area==='c'&&label){cur={id:uid('C'),name:label,lines:[]};out.push(cur)}else if(area==='c'&&!newSecs&&label){out.push({...newPcLine(),head:true,item:l.desc?String(l.item||''):'',desc:l.desc||label})}continue}/* a row with a name and no amounts is a section heading */
     if(!l.desc&&!l.sum)continue;
     if(newSecs&&area==='c'&&!cur){cur={id:uid('C'),name:'',lines:[]};out.push(cur)}
     (newSecs&&area==='c'?cur.lines:out).push(l)}
@@ -2079,7 +2079,7 @@ async function pcImportFile(area,si,newSecs,file){if(pcLocked()){setSave('error'
 function pcRows(area,lines,si,opt={}){
   const mv=li=>area==='c'?`<span class="mvbtns"><button class="mv" data-act="pc-move" data-s="${si}" data-v="${li}" data-d="-1" aria-label="Move up" ${li===0?'disabled':''}>▲</button><button class="mv" data-act="pc-move" data-s="${si}" data-v="${li}" data-d="1" aria-label="Move down" ${li===lines.length-1?'disabled':''}>▼</button></span>`:'';
   return lines.map((l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;
-    if(l.head)return `<tr class="pc-hrow"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td colspan="13">${inp(k+'desc',l.desc,{label:'Heading',ph:'Heading, e.g. Level 1 or Rough-in'})}</td></tr>`;
+    if(l.head)return `<tr class="pc-hrow"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Heading item',ph:'e.g. 1'})}</td><td class="pc-desc" colspan="12">${inp(k+'desc',l.desc,{label:'Heading',ph:'Heading, e.g. Level 1 or Rough-in'})}</td></tr>`;
     return `<tr><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}</td>
     ${opt.var?`<td style="min-width:100px">${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}</td>`:`<td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>`}
     <td class="pc-desc" style="min-width:320px">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</td>
