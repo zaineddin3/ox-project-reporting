@@ -452,6 +452,7 @@ tr.var-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.var-k
 .vbh>td{border-top:1px solid var(--line)}.vbh1>td{background:color-mix(in srgb,var(--accent) 9%,var(--panel,#fff))}.vbh2>td{background:color-mix(in srgb,var(--accent) 4%,var(--panel,#fff))}
 .vbh-in{display:flex;align-items:center;gap:8px}.vbh-no{font-weight:700;min-width:26px;font-variant-numeric:tabular-nums}.vbh1 .vbh-in .f{font-weight:700}.vbh2 .vbh-in .f{font-weight:600}.vbh-add{font-size:12px;padding:3px 9px;color:var(--accent);margin-right:6px}
 .vb-mv{display:inline-flex;flex-direction:column;vertical-align:middle;margin:0 3px}.vb-mvb{all:unset;cursor:pointer;font-size:9px;line-height:10px;color:var(--muted);padding:0 3px}.vb-mvb:hover{color:var(--accent)}.vb-mvb[disabled]{opacity:.3;cursor:default}.vb-mvb:focus-visible{outline:2px solid var(--accent)}
+.pcv-kidmark{color:var(--accent);font-weight:700;float:left;margin-left:-16px;line-height:30px}tr.pcv-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.pcv-kid>td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}.pcv-sum{font-size:11.5px;margin-top:2px}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
 .var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .inv-dupacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.inv-dupacts .btn{padding:3px 9px;font-size:12px}.inv-move{font-size:12px;padding:3px 6px;width:auto;max-width:220px}.inv-duplist table{width:100%}.inv-duplist tr.dupg-first>td{border-top:2px solid color-mix(in srgb,#d9822b 55%,transparent)}.inv-dupbar .btn{margin-left:8px;padding:3px 10px}
@@ -1263,8 +1264,8 @@ async function claimPdf(lbl){
       const st={fontStyle:'bold',textColor:[90,60,40],fillColor:l.lvl===2?[252,248,243]:[248,236,226]};
       cw.push([{content:l.item||'',styles:st},{content:(l.lvl===2?'   ':'')+(l.desc||''),colSpan:6,styles:st}])})});
   tbl('Contract works',cw,T.c);
-  if(d.av.length)tbl('Approved variations',d.av.map(l=>row(l.ref||'',l.desc||'',l)),T.a);
-  if(d.pv.length)tbl('Pending variations',d.pv.map(l=>row(l.ref||'',l.desc||'',l)),T.p);
+  if(d.av.length)tbl('Approved variations',pcVarNest(d.av).map(([l,kid])=>row((kid?'   - ':'')+(l.ref||''),l.desc||'',l)),T.a);
+  if(d.pv.length)tbl('Pending variations',pcVarNest(d.pv).map(([l,kid])=>row((kid?'   - ':'')+(l.ref||''),l.desc||'',l)),T.p);
   doc.setFontSize(8);doc.setTextColor(90);doc.text('All amounts exclude GST unless shown.',14,Math.min(y,287));
   const blob=doc.output('blob');const name=`${(S.info.job||'Project').replace(/[^\w.-]+/g,'_')} - Progress claim ${lbl||no}.pdf`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
@@ -2224,11 +2225,16 @@ function pcSubRows(si,li,l,k0,ind){const n=l.subs.length;return l.subs.map((q,qi
 /* claim money boxes: shown as 120,000.00; while you type they show the plain number */
 const fmt2=v=>{if(v===''||v==null)return '';const n=num(v);return n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})};
 const mInp=(b,val,lbl,o={})=>`<input class="f num pc-m${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" inputmode="decimal" value="${esc(fmt2(val))}" placeholder="${esc(o.ph||'0.00')}" aria-label="${esc(lbl)}">`;
+/* variation lines in claim order with each sub-variation straight after its parent: [[line,isKid],...] */
+function pcVarNest(lines){const P=lines.map(l=>{const pv=l&&l.vid&&S.vars[l.vid]&&S.vars[l.vid].parent;return pv?lines.findIndex(m=>m.vid===pv):-1});const out=[];const walk=(i,d)=>{out.push([lines[i],d>0]);P.forEach((p,j)=>{if(p===i)walk(j,d+1)})};P.forEach((p,i)=>{if(p<0)walk(i,0)});return out}
 function pcRows(area,lines,si,opt={}){
   const T=area==='c'?pcTree(lines):null;
   const hidden=li=>{if(!T)return false;const f=T.info[li];return (f.h>=0&&pcClosed(lines[f.h]))||(f.s>=0&&pcClosed(lines[f.s]))};
   const mv=li=>area==='c'?`<span class="mvbtns"><button class="mv" data-act="pc-move" data-s="${si}" data-v="${li}" data-d="-1" aria-label="Move up" ${li===0?'disabled':''}>▲</button><button class="mv" data-act="pc-move" data-s="${si}" data-v="${li}" data-d="1" aria-label="Move down" ${li===lines.length-1?'disabled':''}>▼</button></span>`:'';
-  return lines.map((l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;
+  /* variations: a sub-variation's line sits under its parent variation's line (VQ002 → VQ002a, VQ002b) */
+  const VPI=opt.var?lines.map(l=>{const pv=l&&l.vid&&S.vars[l.vid]&&S.vars[l.vid].parent;return pv?lines.findIndex(m=>m.vid===pv):-1}):null;
+  const VKIDS=li=>VPI?VPI.map((p,j)=>p===li?j:-1).filter(j=>j>=0):[];
+  const one=(l,li)=>{const x=pcLine(l);const k='pcl|'+area+'|'+si+'|'+li+'|';const sum=x.sum;const VK=VPI&&VPI[li]>=0;const VC=VPI?VKIDS(li):[];
     if(hidden(li))return '';
     if(l.head){const sub=l.lvl===2;const K=T.kids(li);const kl=K.filter(j=>!lines[j].head);const ks=K.filter(j=>lines[j].head).length;const t=pcSum(kl.map(j=>lines[j]));const cl=pcClosed(l);
       return `<tr class="pc-hrow${sub?' pc-h2':''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}${pcKindSel(si,li,sub?'h2':'h1')}</td><td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:sub?'Sub-heading item':'Heading item',ph:sub?'e.g. 1.1':'e.g. 1'})}</td>
@@ -2241,7 +2247,7 @@ function pcRows(area,lines,si,opt={}){
       <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}"><div class="pc-hcell"><button class="tog" data-act="tog-sub" data-v="pch${esc(l.id)}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Minimise'} sub-lines">${cl?'▸':'▾'}</button>${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}</div><div class="pc-hacts" style="padding-left:28px">${cl?`<span class="hint">${l.subs.length} sub-line${l.subs.length===1?'':'s'} minimised</span>`:`<button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}">+ Sub-line</button>`}</div></td>
       <td class="n money ro">${money2(x.sum)}</td><td class="n ro">${x.sum?pct(x.claimed/x.sum,1):'—'}</td><td class="n money ro">${money2(x.prev)}</td><td>${pcBar(x.sum?x.claimed/x.sum:0,x.sum?x.assessed/x.sum:0)}</td><td class="n money"><b>${money2(x.claimed)}</b></td><td class="n">${x.sum?pct(x.this/x.sum,1):'—'}</td><td class="n money"><b>${money2(x.this)}</b></td><td class="n ro">${x.sum?pct(x.assessed/x.sum,0):'—'}</td><td class="n money">${money2(x.assessed)}</td><td class="n money">${money2(x.pay)}</td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`+(cl?'':pcSubRows(si,li,l,k,ind))}
     return `<tr class="${ind?'pc-in'+ind:''}"><td style="width:86px;white-space:nowrap">${mv(li)}${delBtn('pcl',area+'.'+si,String(li),'Remove')}${area==='c'?pcKindSel(si,li,'line'):''}</td>
-    ${opt.var?`<td style="min-width:100px">${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}</td>`:`<td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>`}
+    ${opt.var?`<td style="min-width:${VC.length||VPI.some(p=>p>=0)?150:100}px${VK?';padding-left:28px':''}">${VK?'<span class="pcv-kidmark" aria-hidden="true">↳</span>':''}${inp(k+'ref',l.ref,{label:'Ref',ph:area==='a'?'VQ-':'SCVO'})}${VC.length?(()=>{const mn=COLL.has('vsub:pc'+l.id);const t=pcSum([l,...VC.map(j=>lines[j])]);return `<button class="rowlink var-subtog" data-act="tog-sub" data-v="vsub:pc${esc(l.id)}" aria-expanded="${!mn}">${mn?'▸':'▾'} ${VC.length} sub-variation${VC.length===1?'':'s'}${mn?' (minimised)':''}</button><div class="hint pcv-sum">with them: <span class="money">${money2(t.sum)}</span></div>`})():''}</td>`:`<td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',l.item,{label:'Item',ph:'e.g. 1.1'})}</td>`}
     <td class="pc-desc" style="min-width:320px${ind?';padding-left:'+(10+ind)+'px':''}">${inp(k+'desc',l.desc,{label:'Description',ph:'Description'})}${area==='c'?`<div class="pc-hacts pc-qadd"><button class="btn ghost" data-act="pc-addq" data-s="${si}" data-v="${li}" title="Split this line into sub-lines">+ Sub-line</button></div>`:''}</td>
     ${area==='a'?`<td style="min-width:120px">${inp(k+'aref',l.aref,{label:'Approval ref'})}</td>`:''}
     ${area==='p'?`<td style="width:120px">${sel(k+'status',l.status||'Submitted',['Draft','Submitted','Under review','Directed'],{label:'Status'})}</td><td style="width:140px">${inp(k+'sub',l.sub,{type:'date',label:'Submitted'})}</td>`:''}
@@ -2253,7 +2259,10 @@ function pcRows(area,lines,si,opt={}){
     <td class="n">${sum?pct(x.this/sum,1):'—'}</td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'thisC',x.this,'This claim')}</div></td>
     <td style="min-width:80px">${inp(k+'apct',r2s(l.apct),{num:1,label:'% approved',ph:r2s(num(l.pct))})}</td>
-    <td style="min-width:130px"><div class="cur strong">${mInp(k+'amtA',x.assessed,'Amount approved')}</div></td><td style="min-width:130px"><div class="cur">${mInp(k+'payA',x.pay,'Approved this claim')}</div></td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`}).join('');
+    <td style="min-width:130px"><div class="cur strong">${mInp(k+'amtA',x.assessed,'Amount approved')}</div></td><td style="min-width:130px"><div class="cur">${mInp(k+'payA',x.pay,'Approved this claim')}</div></td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`.replace(/^<tr class="/,'<tr class="'+(VK?'pcv-kid ':'')+(VC.length?'pcv-par ':''))};
+  if(!VPI)return lines.map(one).join('');
+  const out=[];const walk=li=>{out.push(one(lines[li],li));if(COLL.has('vsub:pc'+lines[li].id))return;VKIDS(li).forEach(walk)};
+  lines.forEach((l,li)=>{if(VPI[li]<0)walk(li)});return out.join('');
 }
 function pcHead(opt={}){const A=esc(claimDoc().hdr.assessor||'client');
   return `<thead><tr><th></th>${opt.var?'<th>Ref</th>':'<th class="pc-item" style="width:96px">Item</th>'}<th class="pc-desc" style="min-width:320px">Description</th>${opt.area==='a'?'<th>Approval ref</th>':''}${opt.area==='p'?'<th>Status</th><th>Submitted</th>':''}<th class="n">${opt.var?'Amount':'Contract sum'}</th><th class="n">% complete</th><th class="n">Prev. approved</th><th>Progress (claimed · approved)</th><th class="n">Claimed to date</th><th class="n">% claimed this claim</th><th class="n">This claim</th><th class="n">% approved by ${A}</th><th class="n">Amount approved</th><th class="n">Approved this claim</th><th class="n">Difference</th></tr></thead>`}
@@ -4994,7 +5003,8 @@ if(act==='vreg-xlsx'){varRegXlsx();return}
 if(act==='vsub-tog'){const k='vsub:'+btn.dataset.v;COLL.has(k)?COLL.delete(k):COLL.add(k);saveColl();render();return}
 if(act==='vsub-all'){const T=Object.keys(S.vars).filter(id=>varKids(id).length);const anyOpen=T.some(id=>!COLL.has('vsub:'+id));T.forEach(id=>anyOpen?COLL.add('vsub:'+id):COLL.delete('vsub:'+id));saveColl();render();return}
 if(act==='var-sub'){const pid=btn.dataset.v;const P=S.vars[pid];if(!P)return;COLL.delete('vsub:'+pid);saveColl();const n=varKids(pid).length+1;const id=uid('v');
-  S.vars[id]={ref:(P.ref?String(P.ref).trim():'VQ')+'.'+n,clientRef:P.clientRef?String(P.clientRef).trim()+'.'+n:'',parent:pid,status:'Draft',date:todayISO(),author:P.author||'',created:Date.now()};persist('variations/'+id);render();
+  const LET=i=>{let t='';i++;while(i>0){i--;t=String.fromCharCode(97+i%26)+t;i=Math.floor(i/26)}return t};const pr=P.ref?String(P.ref).trim():'VQ';const used=new Set(varKids(pid).map(([,x])=>String(x.ref||'')));let li=n-1;while(used.has(pr+LET(li)))li++;
+  S.vars[id]={ref:pr+LET(li),clientRef:P.clientRef?String(P.clientRef).trim()+LET(li):'',parent:pid,status:'Draft',date:todayISO(),author:P.author||'',created:Date.now()};persist('variations/'+id);render();
   setTimeout(()=>{const el=document.getElementById('var_'+id+'_desc');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.vars[id]={ref:'VQ-'+String(n).padStart(3,'0'),status:'Draft',date:todayISO(),created:Date.now()};persist('variations/'+id);render();return}
   if(act==='ord-sub'){const pid=btn.dataset.id;const P=S.orders[pid];if(!P)return;const n=ordKids(pid).length+1;const id=uid('o');
