@@ -266,6 +266,8 @@ tr.vdropping td{background:color-mix(in srgb,var(--accent) 10%,var(--surface))!i
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .kpi .v{font-family:var(--f-display);font-weight:600;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
 .kpi .d{font-size:12px;color:var(--muted)}
+.kpi.spent-chk.over{background:color-mix(in srgb,#d33 16%,var(--surface));box-shadow:inset 4px 0 0 #d33}.kpi.spent-chk.over .v,.kpi.spent-chk.over .d b{color:#c62828}
+.kpi.spent-chk.under{background:color-mix(in srgb,#f08c00 18%,var(--surface));box-shadow:inset 4px 0 0 #f08c00}.kpi.spent-chk.under .v,.kpi.spent-chk.under .d b{color:#c66a00}
 .pos{color:var(--good)} .neg{color:var(--bad)}
 .tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -445,6 +447,7 @@ tr.var-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.var-k
 .var-subadd{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block}.var-subsum{font-size:11.5px;color:var(--muted,#667);margin-top:4px;line-height:1.35}.var-ofpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;white-space:nowrap}.var-ofpick .f{font-size:12px;padding:3px 6px;max-width:150px}
 .chip[data-msdrag]{cursor:grab}body.ms-dragbody,body.ms-dragbody *{cursor:grabbing!important;user-select:none}.chip.ms-dragging{opacity:.45}.chip.ms-dropbefore{box-shadow:-4px 0 0 var(--accent)}.chip.ms-dropafter{box-shadow:4px 0 0 var(--accent)}.ms-move{display:inline-flex;gap:2px;margin-left:6px;align-items:center}
 .chip.ms-chip-po{background:color-mix(in srgb,#2e8b57 16%,var(--panel,#fff));border-color:#2e8b57;color:#1d5c39}.chip.ms-chip-po[aria-pressed="true"]{background:#2e8b57;color:#fff;border-color:#2e8b57}.chip.ms-chip-po[aria-pressed="true"] .chiptag{color:#e6f4ec}
+.var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .inv-dupacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.inv-dupacts .btn{padding:3px 9px;font-size:12px}.inv-move{font-size:12px;padding:3px 6px;width:auto;max-width:220px}.inv-duplist table{width:100%}.inv-duplist tr.dupg-first>td{border-top:2px solid color-mix(in srgb,#d9822b 55%,transparent)}.inv-dupbar .btn{margin-left:8px;padding:3px 10px}
 .inv-dup{background:color-mix(in srgb,#d9822b 14%,transparent);border:1px solid color-mix(in srgb,#d9822b 55%,transparent);border-radius:8px;padding:7px 10px;margin:0 0 8px;font-size:13px}.inv-dup .btn{margin-left:6px;padding:2px 8px;font-size:12px}.invbox.inv-isdup{border-color:#d9822b!important;box-shadow:0 0 0 1px #d9822b}
 .ordsec>td{background:color-mix(in srgb,var(--accent) 9%,var(--panel,#fff));border-top:2px solid color-mix(in srgb,var(--accent) 40%,transparent);font-weight:600}.ordsec .ordsec-name{font-weight:700;font-size:15px}.ord-secpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}.ord-secpick .f{font-size:12px;padding:3px 6px}
@@ -1092,13 +1095,36 @@ function varAttPanel(id,v,ro){const A=v.att||[];const up=UP['vatt'+id];
    (build-up, status, PDF, approval) listed under its parent; totals add each one once, and the parent shows the combined figures */
 const varIsKid=v=>!!(v&&v.parent&&S.vars[v.parent]&&!S.vars[v.parent].parent&&v.parent!==v);
 const varKids=pid=>Object.entries(S.vars).filter(([,v])=>varIsKid(v)&&v.parent===pid).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
+/* ---------- Variation register: one list of every variation (sub-variations under theirs) with client ref, description, sell, date submitted and status ---------- */
+function varRegRows(){const TOP=Object.entries(S.vars).filter(([,v])=>!varIsKid(v)).sort((a,b)=>(a[1].created||0)-(b[1].created||0));return TOP.flatMap(r=>[r,...varKids(r[0])]).map(([id,v])=>({id,kid:varIsKid(v),ref:v.ref||'',client:v.clientRef||'',desc:v.desc||'',sell:vNums(v).sell,date:v.date||'',status:v.status||'Submitted'}))}
+function varRegHtml(){const R=varRegRows();const by={};R.forEach(r=>{by[r.status]=(by[r.status]||0)+r.sell});const tot=R.reduce((a,r)=>a+r.sell,0);
+  return `<div class="panel var-reg"><div class="sec-head"><div><h3>Variation register</h3><p class="hint">${R.length} variation${R.length===1?'':'s'} · total sell ${money2(tot)} ex GST</p></div><div class="toolbar"><button class="btn" data-act="vreg-pdf">Download PDF</button><button class="btn" data-act="vreg-xlsx">Download Excel</button><button class="btn ghost" data-act="vreg" aria-label="Close the register">Close</button></div></div>
+  <div class="tw"><table><thead><tr><th>Variation</th><th>Client ref</th><th style="min-width:260px">Description</th><th class="n">Sell (ex GST)</th><th>Date submitted</th><th>Status</th></tr></thead><tbody>
+  ${R.map(r=>`<tr class="${r.kid?'var-kid':''}"><td class="mono" style="${r.kid?'padding-left:26px':''}">${r.kid?'↳ ':''}${esc(r.ref||'—')}</td><td class="mono">${esc(r.client||'—')}</td><td>${esc(r.desc||'—')}</td><td class="n money">${money2(r.sell)}</td><td>${r.date?fmtDate(r.date):'—'}</td><td><span class="tag ${/approv/i.test(r.status)?'ok':/reject|withdraw/i.test(r.status)?'bad':''}">${esc(r.status)}</span></td></tr>`).join('')||'<tr><td colspan="6" class="hint">No variations yet.</td></tr>'}</tbody>
+  <tfoot>${Object.entries(by).map(([k,v])=>`<tr><td colspan="3">${esc(k)}</td><td class="n money">${money2(v)}</td><td colspan="2"></td></tr>`).join('')}<tr class="grand"><td colspan="3">Total</td><td class="n money">${money2(tot)}</td><td colspan="2"></td></tr></tfoot></table></div></div>`}
+async function varRegPdf(){if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});pdfHeader(doc,'Variation register');
+  const R=varRegRows();const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+  doc.setFontSize(9.5);doc.text(`Project: ${PROJ[PID]?.name||S.info.name||''}${S.info.job?'   Job no.: '+S.info.job:''}   Printed: ${fmtDate(todayISO())}`,14,52);
+  const by={};R.forEach(r=>{by[r.status]=(by[r.status]||0)+r.sell});const tot=R.reduce((a,r)=>a+r.sell,0);
+  doc.autoTable({startY:56,head:[['Variation','Client ref','Description','Sell (ex GST)','Date submitted','Status']],body:R.map(r=>[(r.kid?'   ':'')+r.ref,r.client,r.desc,m2(r.sell),r.date?fmtDate(r.date):'',r.status]),
+    foot:[...Object.entries(by).map(([k,v])=>[{content:k,colSpan:3},m2(v),'','']),[{content:'Total',colSpan:3},m2(tot),'','']],theme:'grid',styles:{fontSize:8.5,cellPadding:1.6},headStyles:{fillColor:[51,51,51]},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:32},1:{cellWidth:32},3:{halign:'right',cellWidth:32},4:{cellWidth:30},5:{cellWidth:32}},didParseCell:dt=>{if(dt.section==='foot'&&dt.column.index===3)dt.cell.styles.halign='right'},showFoot:'lastPage',margin:{left:14,right:14}});
+  const name=`${(S.info.job||'Project').replace(/[^\w.-]+/g,'_')} - Variation register.pdf`;if(!downloads){setSave('error','Downloads are not available in this view');return}
+  try{await downloads.save({filename:name,data:doc.output('blob')})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}}
+async function varRegXlsx(){try{if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');const wb=new window.ExcelJS.Workbook();const ws=wb.addWorksheet('Variation register');
+  ws.columns=[{header:'Variation',key:'ref',width:16},{header:'Client ref',key:'client',width:16},{header:'Description',key:'desc',width:60},{header:'Sell (ex GST)',key:'sell',width:16},{header:'Date submitted',key:'date',width:16},{header:'Status',key:'status',width:16}];
+  ws.getRow(1).font={bold:true};varRegRows().forEach(r=>{const row=ws.addRow({ref:(r.kid?'  ':'')+r.ref,client:r.client,desc:r.desc,sell:Math.round(r.sell*100)/100,date:r.date?new Date(r.date+'T00:00:00'):null,status:r.status})});
+  ws.getColumn('sell').numFmt='$#,##0.00';ws.getColumn('date').numFmt='dd/mm/yyyy';const n=ws.rowCount;const t=ws.addRow({desc:'Total',sell:{formula:`SUM(D2:D${n})`}});t.font={bold:true};
+  const buf=await wb.xlsx.writeBuffer();const name=`${(S.info.job||'Project').replace(/[^\w.-]+/g,'_')} - Variation register.xlsx`;if(!downloads){setSave('error','Downloads are not available in this view');return}
+  await downloads.save({filename:name,data:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})}catch(e){if(e&&e.code==='declined')return;console.error(e);setSave('error','Could not make the Excel file')}}
 V.variations=()=>{
   const c=calc();
   const TOPV=Object.entries(S.vars).filter(([,v])=>!varIsKid(v)).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
   const rows=TOPV.flatMap(r=>[r,...varKids(r[0])]);
   const NC=18;
   return `<div class="stack">${head('Variation register','All amounts ex-GST. Open a variation’s build-up to price it line by line like the variation sheet; its sell, cost, margin, hours, labour and material then fill in here.','<button class="btn primary" data-act="add-var">+ Add variation</button>')}
-  <div class="statgrid"><div class="mini"><span class="l">Approved</span><span class="v">${money(c.vApp)}</span></div><div class="mini"><span class="l">Unapproved</span><span class="v">${money(c.vUn)}</span></div><div class="mini"><span class="l">Rejected / withdrawn</span><span class="v">${money(c.vRej)}</span></div><div class="mini"><span class="l">Margin on approved</span><span class="v">${money(c.vProfit)}</span></div></div>
+  <div class="statgrid"><div class="mini"><span class="l">Approved</span><span class="v">${money(c.vApp)}</span></div><div class="mini"><span class="l">Unapproved</span><span class="v">${money(c.vUn)}</span></div><div class="mini"><span class="l">Rejected / withdrawn</span><span class="v">${money(c.vRej)}</span></div><div class="mini"><span class="l">Margin on approved</span><span class="v">${money(c.vProfit)}</span></div><button class="mini var-regtile${UI.vreg?' on':''}" data-act="vreg" aria-expanded="${!!UI.vreg}"><span class="l">Variation register</span><span class="v">${Object.keys(S.vars).length} variation${Object.keys(S.vars).length===1?'':'s'}</span><span class="d hint">${UI.vreg?'Close':'Open'} · client ref, description, sell, date, status · PDF or Excel</span></button></div>
+  ${UI.vreg?varRegHtml():''}
   ${rows.length?`<div class="tw"><table style="min-width:1900px"><thead><tr><th></th><th>Our ref</th><th>Client ref</th><th style="min-width:220px">Description</th><th>Attachments</th><th>Submitted</th><th>Author</th><th>Status</th><th class="n">Sell</th><th class="n">Cost</th><th class="n">Margin</th><th class="n">Labour hrs</th><th class="n">Labour $</th><th class="n">Material $</th><th>Approved</th><th>Approval ref</th><th style="min-width:160px">Comments</th><th></th></tr></thead><tbody>
   ${rows.map(([id,v])=>{const k='var|'+id+'|';const st=v.status||'Submitted';const N=vNums(v);const open=UI.vopen===id;const KID=varIsKid(v);const KIDS=KID?[]:varKids(id);
     const cell=(f,val,lbl)=>N.bu?`<td class="n money">${f==='hours'?hrs(val):money(val)}</td>`:`<td style="width:110px">${inp(k+f,v[f],{num:1,label:lbl})}</td>`;
@@ -2384,7 +2410,8 @@ V.labour=()=>{
   <div class="kpis">
     <div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours, all lines</span></div>
     <div class="kpi"><span class="l">Estimated hours</span><span class="v">${hrs(c.lEst)}</span></div>
-    <div class="kpi"><span class="l">Spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">${hrs(c.lEarned)} earned</span></div>
+    ${(()=>{const lh=Math.round(logTotals().hrs*100)/100,sp=Math.round(c.lSpent*100)/100;const k=lh>sp?'over':sp>lh?'under':'';
+  return `<div class="kpi spent-chk ${k}" title="${k==='over'?`Labour cost log has ${hrs(lh-sp)} more hours than spent on tasks`:k==='under'?`Hours spent on tasks are ${hrs(sp-lh)} more than the labour cost log`:'Hours spent match the labour cost log'}"><span class="l">Spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">${hrs(c.lEarned)} earned · cost log ${hrs(lh)}${k==='over'?` <b>(log ${hrs(lh-sp)} more)</b>`:k==='under'?` <b>(spent ${hrs(sp-lh)} more)</b>`:''}</span></div>`})()}
     <div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div>
     <div class="kpi"><span class="l">Labour rate</span><span class="v">$${c.rate.toFixed(2)}/hr</span><span class="d">${labourRateSrc()}</span></div>
   </div>
@@ -4916,7 +4943,10 @@ document.addEventListener('click',async e=>{
     persist('variations/'+id);syncClaimVar(id);UI.vopen=id;UI.vrev=null;UI.vrevs=UI.vrevs||{};UI.vrevs[id]=true;render();setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
   if(act==='vrevs'){const id=btn.dataset.v;UI.vrevs=UI.vrevs||{};UI.vrevs[id]=!UI.vrevs[id];render();return}
   if(act==='vrevview'){const id=btn.dataset.v;UI.vopen=id;UI.vrev=btn.dataset.r===''?null:+btn.dataset.r;render();setTimeout(()=>{const el=document.getElementById('bupanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},40);return}
-  if(act==='var-sub'){const pid=btn.dataset.v;const P=S.vars[pid];if(!P)return;const n=varKids(pid).length+1;const id=uid('v');
+  if(act==='vreg'){UI.vreg=!UI.vreg;render();return}
+if(act==='vreg-pdf'){varRegPdf();return}
+if(act==='vreg-xlsx'){varRegXlsx();return}
+if(act==='var-sub'){const pid=btn.dataset.v;const P=S.vars[pid];if(!P)return;const n=varKids(pid).length+1;const id=uid('v');
   S.vars[id]={ref:(P.ref?String(P.ref).trim():'VQ')+'.'+n,clientRef:P.clientRef?String(P.clientRef).trim()+'.'+n:'',parent:pid,status:'Draft',date:todayISO(),author:P.author||'',created:Date.now()};persist('variations/'+id);render();
   setTimeout(()=>{const el=document.getElementById('var_'+id+'_desc');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.vars[id]={ref:'VQ-'+String(n).padStart(3,'0'),status:'Draft',date:todayISO(),created:Date.now()};persist('variations/'+id);render();return}
