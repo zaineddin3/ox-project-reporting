@@ -431,6 +431,7 @@ tr.pcv-grp>td{background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff));b
 .tag select.pk-role{width:auto!important;min-width:0!important;display:inline-block;padding:1px 22px 1px 6px;font-size:12px;height:auto;margin-left:6px;background-color:var(--panel,#fff)}.pkx{background:var(--bg)}
 /* negative figures typed into a box show in red */
 input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-vdrop] .money.neg,.bupanel .money.neg,.var-reg .money.neg{color:var(--bad)}
+.vatt-one{display:inline-flex;align-items:center;gap:2px;white-space:nowrap;margin:1px 4px 1px 0}.vatt-one .btn{padding:0 5px;font-size:11px;min-height:0}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
 .var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .inv-dupacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.inv-dupacts .btn{padding:3px 9px;font-size:12px}.inv-move{font-size:12px;padding:3px 6px;width:auto;max-width:220px}.inv-duplist table{width:100%}.inv-duplist tr.dupg-first>td{border-top:2px solid color-mix(in srgb,#d9822b 55%,transparent)}.inv-dupbar .btn{margin-left:8px;padding:3px 10px}
@@ -1070,7 +1071,7 @@ async function uploadVarAtt(id,files){const v=S.vars[id];if(!v)return;if(!assets
   delete UP['vatt'+id];if(n)persist('variations/'+id);render()}
 function varAttLink(a){return `<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(a.id)}" data-file="${esc(a.id)}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc((a.name||'PDF').replace(/\.pdf$/i,'').slice(0,28))}</a>`}
 function varAttCell(id,v){const A=v.att||[];const up=UP['vatt'+id];
-  return `<td style="min-width:150px" class="vatt-cell">${A.slice(0,2).map(varAttLink).join(' ')}${A.length>2?` <button class="btn ghost" style="padding:1px 6px;font-size:12px" data-act="vopen" data-v="${id}" title="Open the build-up to see all attachments">+${A.length-2} more</button>`:''}
+  return `<td style="min-width:170px" class="vatt-cell">${A.slice(0,2).map((a,i)=>`<span class="vatt-one">${varAttLink(a)}${assets?delBtn('vatt',id,String(i),'✕'):''}</span>`).join(' ')}${A.length>2?` <button class="btn ghost" style="padding:1px 6px;font-size:12px" data-act="vopen" data-v="${id}" title="Open the build-up to see all attachments">+${A.length-2} more</button>`:''}
     <div style="margin-top:3px">${up?'<span class="hint">Uploading…</span>':assets?`<label class="btn itp-up" for="vatt_${id}" title="Attach PDFs, or drag them onto this row">+ PDF</label><input type="file" id="vatt_${id}" data-vatt="${id}" accept="application/pdf,.pdf" multiple hidden>`:''}</div></td>`}
 function varAttPanel(id,v,ro){const A=v.att||[];const up=UP['vatt'+id];
   return `<div class="wide vatt-panel${ro?'':' vatt-drop'}" ${ro?'':`data-vdrop="${id}"`}><div class="mk-h">Attachments <span class="hint">· PDFs attached to this variation${ro?'':' — drag PDFs here or choose files'}</span></div>
