@@ -1889,6 +1889,7 @@ function pcCashPanel(){const d=claimDoc();const H=d.hist;
     <tr><td>Date</td>${cell(({h})=>`<td class="n">${esc(fmtDate(h.date))}</td>`)}<td></td></tr>
     <tr><td>Claimed (ex GST)</td>${cell(({h})=>`<td class="n money">${money(num(h.submitted))}</td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+num(h.submitted),0))}</b></td></tr>
     <tr><td>Approved (ex GST)</td>${cell(({h})=>`<td class="n money">${h.status==='Approved'?money(num(h.approved)):'<span class="hint">—</span>'}</td>`)}<td class="n money"><b>${money(H.filter(h=>h.status==='Approved').reduce((a,h)=>a+num(h.approved),0))}</b></td></tr>
+    <tr class="pc-ret"><td>Retention held</td>${cell(({h})=>{const r=num(h.approved)*num(h.ret)/100;return `<td class="n money">${h.status==='Approved'?money(r)+(num(h.ret)?`<div class="hint" style="font-size:11px">${pct(num(h.ret)/100,2)} of approved</div>`:''):'<span class="hint">—</span>'}</td>`})}<td class="n money"><b>${money(H.filter(h=>h.status==='Approved').reduce((a,h)=>a+num(h.approved)*num(h.ret)/100,0))}</b></td></tr>
     <tr><td>Versions</td>${cell(({h})=>`<td class="n hint" title="${esc((h.vers||[]).map(v=>'V'+v.v+' '+fmtDate(v.date)+' '+money(num(v.submitted))).join('\n'))}">${h.wf?(h.vers||[]).map(v=>'V'+v.v).join(', '):'—'}</td>`)}<td></td></tr>
     <tr><td>Status</td>${cell(({h,i})=>{const ap=h.status==='Approved';const busy=h.status==='Amending';
       if(ap)return `<td class="n"><span class="tag good">🔒 Approved${h.approvedAt?' '+esc(fmtDate(h.approvedAt)):''}</span></td>`;
