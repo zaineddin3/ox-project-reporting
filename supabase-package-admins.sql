@@ -55,10 +55,13 @@ create policy "package admins remove users" on public.team for delete to authent
 drop policy if exists "see package members" on public.package_members;
 create policy "see package members" on public.package_members for select to authenticated
   using (public.is_admin() or email = public.my_email() or package_id in (select public.my_admin_pkgs()));
+create or replace function public.is_pkg_only_user(target text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.team t where t.email = lower(target) and t.role = 'member' and t.scope = 'packages');
+$$;
 drop policy if exists "package admins add members" on public.package_members;
 create policy "package admins add members" on public.package_members for insert to authenticated
-  with check (package_id in (select public.my_admin_pkgs())
-    and exists (select 1 from public.team t where t.email = package_members.email and t.role = 'member' and t.scope = 'packages'));
+  with check (package_id in (select public.my_admin_pkgs()) and public.is_pkg_only_user(email));
 drop policy if exists "package admins change members" on public.package_members;
 create policy "package admins change members" on public.package_members for update to authenticated
   using (package_id in (select public.my_admin_pkgs()) and email <> public.my_email())
