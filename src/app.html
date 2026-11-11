@@ -432,6 +432,8 @@ tr.pcv-grp>td{background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff));b
 /* negative figures typed into a box show in red */
 input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-vdrop] .money.neg,.bupanel .money.neg,.var-reg .money.neg{color:var(--bad)}
 .vatt-one{display:inline-flex;align-items:center;gap:2px;white-space:nowrap;margin:1px 4px 1px 0}.vatt-one .btn{padding:0 5px;font-size:11px;min-height:0}
+/* claim % boxes show a % sign after the number */
+.pctw{position:relative;display:block}.pctw input.f{padding-right:20px;text-align:right}.pctw::after{content:'%';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12.5px;pointer-events:none}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
 .var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .inv-dupacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.inv-dupacts .btn{padding:3px 9px;font-size:12px}.inv-move{font-size:12px;padding:3px 6px;width:auto;max-width:220px}.inv-duplist table{width:100%}.inv-duplist tr.dupg-first>td{border-top:2px solid color-mix(in srgb,#d9822b 55%,transparent)}.inv-dupbar .btn{margin-left:8px;padding:3px 10px}
@@ -2234,10 +2236,10 @@ function pcConvert(si,path,to){const d=claimDoc();const L=d.secs[+si]?.lines;if(
 function pcSubRows(si,li,l,k0,ind){const n=l.subs.length;return l.subs.map((q,qi)=>{const x=pcLine(q);const k='pcl|c|'+si+'|'+li+'.'+qi+'|';const sum=x.sum;
   return `<tr class="pc-subl"><td style="width:86px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="-1" aria-label="Move up" ${qi===0?'disabled':''}>▲</button><button class="mv" data-act="pc-qmove" data-s="${si}" data-v="${li}" data-q="${qi}" data-d="1" aria-label="Move down" ${qi===n-1?'disabled':''}>▼</button></span>${delBtn('pcl','c.'+si,li+'.'+qi,'Remove')}${pcKindSel(si,li+'.'+qi,'sub')}</td>
     <td class="pc-item" style="width:96px;min-width:96px">${inp(k+'item',q.item,{label:'Sub-line item',ph:'e.g. 1.1.1.1'})}</td><td class="pc-desc" style="min-width:320px;padding-left:${10+ind+40}px">${inp(k+'desc',q.desc,{label:'Sub-line description',ph:'Sub-line'})}</td>
-    <td style="min-width:140px"><div class="cur">${mInp(k+'sum',q.sum,'Amount')}</div></td><td style="min-width:80px">${inp(k+'pct',r2s(q.pct),{num:1,label:'% complete',ph:'0'})}</td>
+    <td style="min-width:140px"><div class="cur">${mInp(k+'sum',q.sum,'Amount')}</div></td><td style="min-width:80px"><div class="pctw">${inp(k+'pct',r2s(q.pct),{num:1,label:'% complete',ph:'0'})}</div></td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'prev',q.prev,'Previously approved')}</div></td><td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'amtC',x.claimed,'Claimed to date')}</div></td><td class="n">${sum?pct(x.this/sum,1):'—'}</td><td style="min-width:130px"><div class="cur">${mInp(k+'thisC',x.this,'This claim')}</div></td>
-    <td style="min-width:80px">${inp(k+'apct',r2s(q.apct),{num:1,label:'% approved',ph:r2s(num(q.pct))})}</td><td style="min-width:130px"><div class="cur strong">${mInp(k+'amtA',x.assessed,'Amount approved')}</div></td><td style="min-width:130px"><div class="cur">${mInp(k+'payA',x.pay,'Approved this claim')}</div></td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`}).join('')}
+    <td style="min-width:80px"><div class="pctw">${inp(k+'apct',r2s(q.apct),{num:1,label:'% approved',ph:r2s(num(q.pct))})}</div></td><td style="min-width:130px"><div class="cur strong">${mInp(k+'amtA',x.assessed,'Amount approved')}</div></td><td style="min-width:130px"><div class="cur">${mInp(k+'payA',x.pay,'Approved this claim')}</div></td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`}).join('')}
 /* claim money boxes: shown as 120,000.00; while you type they show the plain number */
 const fmt2=v=>{if(v===''||v==null)return '';const n=num(v);return n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})};
 const mInp=(b,val,lbl,o={})=>`<input class="f num pc-m${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" inputmode="decimal" value="${esc(fmt2(val))}" placeholder="${esc(o.ph||'0.00')}" aria-label="${esc(lbl)}">`;
@@ -2271,13 +2273,13 @@ function pcRows(area,lines,si,opt={}){
     ${area==='a'?`<td style="min-width:120px">${inp(k+'aref',l.aref,{label:'Approval ref'})}</td>`:''}
     ${area==='p'?`<td style="width:120px">${sel(k+'status',l.status||'Submitted',['Draft','Submitted','Under review','Directed'],{label:'Status'})}</td><td style="width:140px">${inp(k+'sub',l.sub,{type:'date',label:'Submitted'})}</td>`:''}
     <td style="min-width:140px"><div class="cur">${mInp(k+'sum',l.sum,'Amount')}</div></td>
-    <td style="min-width:80px">${inp(k+'pct',r2s(l.pct),{num:1,label:'% complete',ph:'0'})}</td>
+    <td style="min-width:80px"><div class="pctw">${inp(k+'pct',r2s(l.pct),{num:1,label:'% complete',ph:'0'})}</div></td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'prev',l.prev,'Previously approved')}</div>${sum&&num(l.prev)?`<div class="hint" style="text-align:right;font-size:11.5px;margin-top:2px">${pct(num(l.prev)/sum,1)} approved before</div>`:''}</td>
     <td style="min-width:150px">${pcBar(sum?x.claimed/sum:0,sum?x.assessed/sum:0)}</td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'amtC',x.claimed,'Claimed to date')}</div></td>
     <td class="n">${sum?pct(x.this/sum,1):'—'}</td>
     <td style="min-width:130px"><div class="cur">${mInp(k+'thisC',x.this,'This claim')}</div></td>
-    <td style="min-width:80px">${inp(k+'apct',r2s(l.apct),{num:1,label:'% approved',ph:r2s(num(l.pct))})}</td>
+    <td style="min-width:80px"><div class="pctw">${inp(k+'apct',r2s(l.apct),{num:1,label:'% approved',ph:r2s(num(l.pct))})}</div></td>
     <td style="min-width:130px"><div class="cur strong">${mInp(k+'amtA',x.assessed,'Amount approved')}</div></td><td style="min-width:130px"><div class="cur">${mInp(k+'payA',x.pay,'Approved this claim')}</div></td><td class="n money ${x.diff<0?'neg':''}">${money2(x.diff)}</td></tr>`.replace(/^<tr class="/,'<tr class="'+(VK?'pcv-kid ':'')+(VC.length?'pcv-par ':''))};
   if(!VPI)return lines.map(one).join('');
   const out=[];const walk=li=>{out.push(one(lines[li],li));if(COLL.has('vsub:pc'+lines[li].id))return;VKIDS(li).forEach(walk)};
