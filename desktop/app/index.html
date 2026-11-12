@@ -455,6 +455,8 @@ input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-
 .pctw{position:relative;display:block}.pctw input.f{padding-right:20px;text-align:right}.pctw::after{content:'%';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12.5px;pointer-events:none}
 .inv-dateask{color:var(--bad);font-weight:600;font-size:11.5px;margin-top:2px}
 .pg-itp{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}.pg-ph{display:inline-flex;flex-wrap:wrap;gap:4px 8px;align-items:center}.ph-add{white-space:nowrap}.ph-pick{padding:3px 8px;font-size:12px}
+.to-lyrlist{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:2px}.to-lyri{display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer}
+.to-evt{width:100%;border-collapse:collapse;font-size:12.5px}.to-evt td,.to-evt th{padding:3px 4px;border-bottom:1px solid var(--line)}.to-every{border-color:var(--accent)}
 .scan-drop{border:2px dashed var(--line);background:transparent}.scan-drop.scan-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}.scan-q{margin-top:10px;display:flex;flex-direction:column;gap:6px}.scan-qi{font-size:13px}.scan-qi.ok .hint{color:var(--good)}.scan-qi.ask .hint{color:var(--bad)}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
 .var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -1365,7 +1367,7 @@ async function sharedReachable(){const to=ms=>new Promise((_,rej)=>setTimeout(()
 let assets=null;const UP={};
 /* every drop-down section starts minimised: OPENED holds what you've opened (per device). Keys starting "todsopen:" already mean "open". */
 let OPENED=new Set();try{OPENED=new Set(JSON.parse(localStorage.getItem('ox_open')||'[]'))}catch(e){}
-const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub:')||String(k).startsWith('vbh:');/* vsub: sub-variations show until minimised */
+const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub:')||String(k).startsWith('vbh:')||k==='tolyr';/* vsub: sub-variations show until minimised */
 const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k)?OPENED.add(k):OPENED.delete(k)},delete:k=>{collPlain(k)?OPENED.delete(k):OPENED.add(k)}};
 function saveColl(){try{localStorage.setItem('ox_open',JSON.stringify([...OPENED].slice(-3000)))}catch(e){}}
 const NO_ITP=new Set(['t15','t16']);
@@ -3268,12 +3270,27 @@ async function toLoadPage(){const d=dwgDoc(TO.id);if(!d)return;const ld=document
     if(!TO.zoom){const st=document.getElementById('toStage');TO.zoom=Math.max(.1,((st?.clientWidth||900)-24)/vp.width)}
     await toPaint();if(ld)ld.style.display='none';toSync();toSnapPrep(d)}
   catch(e){console.error(e);if(ld){ld.style.display='';ld.textContent=window.__mcpMode&&e&&e.code==='not_found'?'This drawing hasn’t been copied for Claude yet. Open it once on the website or desktop app (that makes the copy), then open it here.':'Could not load this drawing. '+(HOSTED||window.__mcpMode?'Check your connection and try again.':'Open the page from claude.ai to load stored drawings.')}}}
-function bgRender(pg,params,ms){const task=pg.render(Object.assign({intent:'print'},params));let t;
+/* CAD layers (PDF optional content): layers you switch off are left out of the view, the symbol search and the counts */
+const toLyrOff=fid=>{for(const id in S.dwgs){const d=S.dwgs[id];if(d&&d.file&&d.file.id===fid)return Array.isArray(d.layersOff)?d.layersOff:[]}return []};
+function toOcc(fid){if(!fid)return undefined;const off=toLyrOff(fid);if(!off.length)return undefined;TO.occC=TO.occC||{};const k=fid+'|'+off.join(',');
+  if(!TO.occC[k])TO.occC[k]=toPdf(fid).then(pdf=>pdf.getOptionalContentConfig()).then(c=>{for(const id of off){try{c.setVisibility(id,false)}catch(e){}}return c});return TO.occC[k]}
+const toOccCur=()=>toOcc(S.dwgs[TO.id]&&S.dwgs[TO.id].file&&S.dwgs[TO.id].file.id);
+async function toLayers(fid){TO.lyr=TO.lyr||{};if(TO.lyr[fid])return TO.lyr[fid];try{const pdf=await toPdf(fid);const c=await pdf.getOptionalContentConfig();const G=c.getGroups()||{};
+  TO.lyr[fid]=Object.entries(G).map(([id,g])=>({id,name:String((g&&g.name)||id).trim()||id})).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}))}catch(e){TO.lyr[fid]=[]}return TO.lyr[fid]}
+function toLayerBox(d){if(!d||!d.file)return '';const L=TO.lyr&&TO.lyr[d.file.id];if(!L){toLayers(d.file.id).then(x=>{if(x.length&&TO.id&&dwgDoc(TO.id)===d)toSide()});return ''}if(!L.length)return '';
+  const off=new Set(d.layersOff||[]);const shut=COLL.has('tolyr');const q=(TO.lyrQ||'').toLowerCase();const show=q?L.filter(l=>l.name.toLowerCase().includes(q)):L;
+  return `<div class="to-box to-lyr"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>Layers (${L.length-off.size} of ${L.length} on)</b><button class="tog" data-ta="lyrtog" aria-expanded="${!shut}">${shut?'▸':'▾'}</button></div>
+    ${shut?'':`<p class="hint" style="margin:0">The CAD layers in this PDF. Switch off what you don’t want counted (e.g. architectural background, furniture, other services): hidden layers are left out of the view, symbol search and auto counts.</p>
+    ${L.length>8?`<input class="f" data-tk="lyrq|" value="${esc(TO.lyrQ||'')}" placeholder="Filter layers" aria-label="Filter layers">`:''}
+    <div class="to-row" style="gap:6px"><button class="btn ghost" data-ta="lyrall" data-v="1">All on</button><button class="btn ghost" data-ta="lyrall" data-v="0">All off</button></div>
+    <div class="to-lyrlist">${show.map(l=>`<label class="to-lyri"><input type="checkbox" data-ta="lyr" data-v="${esc(l.id)}" ${off.has(l.id)?'':'checked'}><span>${esc(l.name)}</span></label>`).join('')}</div>`}</div>`}
+function toLyrChanged(d){TO.occC={};if(PGC.c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k:null,c:null,busy:null});TO.vec={};TO.sidx={};persist('drawings/'+TO.id);toLoadPage();toSide()}
+function bgRender(pg,params,ms){if(!('optionalContentConfigPromise' in params)){const o=params.occ!==undefined?params.occ:toOccCur();if(o)params.optionalContentConfigPromise=o}delete params.occ;const task=pg.render(Object.assign({intent:'print'},params));let t;
   return Promise.race([task.promise,new Promise((_,rej)=>{t=setTimeout(()=>{try{task.cancel()}catch(e){}rej(new Error('timeout'))},ms||60000)})]).finally(()=>clearTimeout(t))}
 async function toPaint(){const pg=TO.pg;if(!pg)return;const cv=document.getElementById('toCv');if(!cv)return;const s=TO.zoom;const dpr=window.devicePixelRatio||1;
   let r=s*dpr;const maxPx=16e6;if(TO.vp.w*TO.vp.h*r*r>maxPx)r=Math.sqrt(maxPx/(TO.vp.w*TO.vp.h));r=Math.min(r,8192/Math.max(TO.vp.w,TO.vp.h));
   const vp=pg.getViewport({scale:r});const off=document.createElement('canvas');off.width=Math.floor(vp.width);off.height=Math.floor(vp.height);
-  if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render({canvasContext:off.getContext('2d'),viewport:vp,intent:TO.pmode||'display'});TO.rt=task;
+  if(TO.rt){try{TO.rt.cancel()}catch(e){}}const task=pg.render(Object.assign({canvasContext:off.getContext('2d'),viewport:vp,intent:TO.pmode||'display'},toOccCur()?{optionalContentConfigPromise:toOccCur()}:{}));TO.rt=task;
   let wd;const stall=new Promise(res=>{wd=setTimeout(()=>res('stall'),30000)});
   try{const r=await Promise.race([task.promise,stall]);clearTimeout(wd);if(r==='stall'){if(TO.rt!==task)return;try{task.cancel()}catch(e){}TO.rt=null;if(TO.pmode!=='print'){TO.pmode='print';return toPaint()}return}}catch(e){clearTimeout(wd);if(e&&e.name==='RenderingCancelledException')return;throw e}
   TO.rt=null;TO.baseR=r;cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);
@@ -3327,7 +3344,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <p class="hint" style="margin:4px 0">Use the ratio if the PDF is at its printed size, or calibrate: ${TO.cal&&TO.cal.length===2?'':'click two points on the drawing a known distance apart.'}</p>
     ${TO.cal&&TO.cal.length===2?`<div class="to-row"><span class="hint">Real length</span><input class="f num" id="to_callen" placeholder="e.g. 6.0" style="width:90px"><span class="hint">m</span><button class="btn primary" data-ta="calset">Apply</button></div>`:TO.cal&&TO.cal.length===1?'<p class="hint" style="margin:0">Now click the second point.</p>':''}
     ${Object.keys(d.scale).length?`<button class="btn" data-ta="calall" style="margin-top:6px">Use this page’s scale on all pages</button>`:''}</div>`:'';
-  el.innerHTML=`${toRevBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${TO.tool==='acount'?toAcountBox(d):''}${sel}${draft}${cal}
+  el.innerHTML=`${toRevBox(d)}${toLayerBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${TO.tool==='acount'?toAcountBox(d):''}${sel}${draft}${cal}
     <div class="to-h"><h3>Items</h3><span class="hint">${scope}</span></div>
     <div class="to-list">${items||'<p class="hint" style="margin:0">Add what you want to take off, e.g. downlights (count), cable tray (length), ceiling (area).</p>'}</div>
     <div class="to-row" style="margin:8px 0 18px">${['count','length','area'].map(t=>`<button class="btn" data-ta="iadd" data-v="${t}">+ ${TO_TYPE[t]}</button>`).join('')}${d.items.length||d.marks.length?`<button class="btn ${TO.clrArm?'armed':'ghost'}" data-ta="clrto" title="Remove every item and mark on this drawing. Sections and scale are kept.">${TO.clrArm?'Confirm: clear take off':'Clear take off'}</button>`:''}</div>
@@ -3427,6 +3444,11 @@ if(a==='mpsave'){const P=TO.memPdf;if(!P)return;const L=toLib();let n=0;for(cons
     if(ex)Object.assign(ex,e,{pt:undefined});else L.push(e);n++}
   toLibSave();TO.memPdf=null;TO.auto.note=`Memorised ${n} symbol${n===1?'':'s'} from ${P.name}. Press ✨ Count all memorised, or Count next to one.`;toSide();return}
 if(a==='memall')return toMemAll(d);
+    if(a==='lyrtog'){COLL.has('tolyr')?COLL.delete('tolyr'):COLL.add('tolyr');saveColl();toSide();return}
+    if(a==='lyr'){const id=v;const off=new Set(d.layersOff||[]);off.has(id)?off.delete(id):off.add(id);S.dwgs[TO.id].layersOff=[...off];toLyrChanged(d);return}
+    if(a==='lyrall'){const L=(TO.lyr&&TO.lyr[d.file.id])||[];S.dwgs[TO.id].layersOff=v==='1'?[]:L.map(l=>l.id);toLyrChanged(d);return}
+    if(a==='memevery')return toMemEvery();
+    if(a==='evclose'){TO.memEvery=null;toSide();return}
     if(a==='memrun'){const e=toLib().find(x=>x.id===v);if(e)toMemRun(d,e,false);return}
     if(a==='memdel'){S.info.symlib=toLib().filter(x=>x.id!==v);toLibSave();toSide();return}
     if(a==='memtog'){COLL.has('tomem')?COLL.delete('tomem'):COLL.add('tomem');saveColl();toSide();return}
@@ -3457,7 +3479,8 @@ if(a==='memall')return toMemAll(d);
     if(k==='scomb'){TO.auto.scomb=e.target.checked;toSide();return}
     if(k==='ssel'){const A=TO.auto;A.ssel=A.ssel||new Set();if(e.target.checked)A.ssel.add(+id);else A.ssel.delete(+id);toSearchSync();toSide();toDraw();return}
     if(k==='mpname'){const r=TO.memPdf&&TO.memPdf.rows.find(x=>x.id===id);if(r)r.name=e.target.value;return}
-if(k==='memname'){const le=toLib().find(x=>x.id===id);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
+if(k==='lyrq'){TO.lyrQ=e.target.value;toSide();setTimeout(()=>{const i=document.querySelector('[data-tk="lyrq|"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},0);return}
+    if(k==='memname'){const le=toLib().find(x=>x.id===id);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
     if(k==='wopt'){TO.whole[id]=e.target.checked;toSide();return}
     if(k==='won'){const r=TO.whole.rows&&TO.whole.rows[+id];if(r){r.on=e.target.checked;const b=h.querySelector('[data-ta="wadd"]');const n=TO.whole.rows.filter(x=>x.on).length;if(b){b.textContent=`Add ${n} item${n===1?'':'s'}`;b.disabled=!n}toDraw()}return}
     if(k==='wname'){const r=TO.whole.rows&&TO.whole.rows[+id];if(r)r.name=e.target.value;return}
@@ -3966,6 +3989,7 @@ function toLibBox(d){const L=toLib();const busy=!!TO.auto.busy;const shut=COLL.h
     <label class="to-symdrop to-memdrop" for="to_memfile"><span><b>Load symbols</b> · drop a legend PDF or symbol images here, or choose files</span><input type="file" id="to_memfile" accept="image/*,application/pdf,.pdf" multiple hidden></label>
     ${TO.memPdf?toMemPdfHtml():''}
     ${L.length?`<button class="btn primary" data-ta="memall" ${busy?'disabled':''}>✨ Count all memorised on ${TO.auto.pages==='all'?'all pages':'this page'}</button>
+    ${Object.keys(S.dwgs).length>1||TO.auto.pages!=='all'?`<button class="btn primary" data-ta="memevery" ${busy?'disabled':''} title="Counts every memorised symbol on every page of every drawing uploaded, leaving out legend sheets">✨ Count all on every drawing (${Object.keys(S.dwgs).length})</button>`:''}${toMemEveryHtml()}
     <div class="to-memlist">${L.map(e=>`<div class="to-memi"><img src="${e.img}" alt="" class="to-thumb"><input class="f" data-tk="memname|${e.id}" value="${esc(e.name)}" aria-label="Symbol name" style="flex:1;min-width:60px" title="${e.pt?'About '+Math.round(e.pt*0.3528*10)/10+' mm on the drawing':'Size found on first count'}">
       <button class="btn" data-ta="memrun" data-v="${e.id}" ${busy?'disabled':''}>Count</button><button class="btn ghost" data-ta="memdel" data-v="${e.id}" aria-label="Forget ${esc(e.name)}">✕</button></div>`).join('')}</div>`:''}`}</div>`}
 async function toSymPrep(f){const im=await toImgLoad(await toFileUrl(f));const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0);
@@ -4054,6 +4078,25 @@ async function toMemAll(d){const L=toLib().slice();if(!L.length)return;const got
     Object.assign(TO.auto,r.snap,{res:keep,all:keep});toAutoAdd(d,{memo:false,lib:r.e});if(TO.applied)got.push(TO.applied)}
   TO.memBusy=false;TO.auto.busy='';TO.auto.res=null;TO.auto.all=null;
   TO.applied=got.length?{did:TO.id,multi:got,miss}:null;TO.auto.note=got.length?'':'None of the memorised items were found on this '+(TO.auto.pages==='all'?'drawing':'page')+'.';toSync()}
+/* count every memorised symbol on every page of every drawing; legend / symbol schedule sheets are left out so their own symbols aren't counted */
+async function toMemEvery(){const L=toLib();if(!L.length)return;const ids=Object.keys(S.dwgs).filter(id=>S.dwgs[id]&&S.dwgs[id].file);if(!ids.length)return;
+  const back={id:TO.id,page:TO.page,pages:TO.auto.pages};const names=L.map(e=>e.name.trim().toLowerCase()).filter(n=>n.length>2);const per=[];const skipped=[];
+  undoRecord();
+  for(let k=0;k<ids.length;k++){const id=ids[k];const d=dwgDoc(id);if(!d)continue;TO.id=id;TO.page=1;TO.auto.pages='all';
+    TO.auto.busy=`Drawing ${k+1} of ${ids.length}: ${d.name||d.file.name||'drawing'}…`;toSide();
+    let legend=new Set();try{const pdf=await toPdf(d.file.id);for(let pg=1;pg<=pdf.numPages;pg++){const T=await toTextLines(d,pg);const txt=T.lines.map(l=>l.s.toLowerCase()).join('\n');const hit=names.filter(n=>txt.includes(n)).length;if(names.length>=3&&hit>=Math.max(3,names.length*0.5)||/\b(symbol|electrical)\s+legend\b/.test(txt)&&hit>=2)legend.add(pg)}}catch(e){console.error(e)}
+    const before=new Set(d.marks.map(m=>m.id));await toMemAll(d);
+    const dd=dwgDoc(id);const added=dd.marks.filter(m=>!before.has(m.id));const onLeg=added.filter(m=>legend.has(m.pg));if(onLeg.length){const gone=new Set(onLeg.map(m=>m.id));dd.marks=dd.marks.filter(m=>!gone.has(m.id));persist('drawings/'+id)}
+    if(legend.size)skipped.push((dd.name||dd.file.name||'drawing')+' p'+[...legend].join(','));
+    const cnt={};for(const m of added)if(!legend.has(m.pg)){const it=dd.items.find(i=>i.id===m.it);if(it)cnt[it.name]=(cnt[it.name]||0)+1}per.push({name:dd.name||dd.file.name||'drawing',cnt})}
+  TO.id=back.id;TO.page=back.page||1;TO.auto.pages=back.pages;TO.auto.busy='';TO.applied=null;
+  const tot={};per.forEach(p=>Object.entries(p.cnt).forEach(([n,c])=>tot[n]=(tot[n]||0)+c));
+  TO.memEvery={per,tot,skipped,at:Date.now()};if(TO.id)toOpen(TO.id);else render()}
+function toMemEveryHtml(){const R=TO.memEvery;if(!R)return '';const T=Object.entries(R.tot).sort((a,b)=>b[1]-a[1]);
+  return `<div class="to-box to-every"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>Counted on ${R.per.length} drawing${R.per.length===1?'':'s'}</b><button class="btn ghost" data-ta="evclose" aria-label="Close">✕</button></div>
+    ${T.length?`<table class="to-evt"><thead><tr><th>Symbol</th><th class="n">Total</th></tr></thead><tbody>${T.map(([n,c])=>`<tr><td>${esc(n)}</td><td class="n"><b>${c}</b></td></tr>`).join('')}</tbody></table>
+    <details><summary class="hint">By drawing</summary>${R.per.map(p=>`<div class="hint" style="margin-top:4px"><b>${esc(p.name)}</b>: ${Object.entries(p.cnt).map(([n,c])=>esc(n)+' '+c).join(' · ')||'none found'}</div>`).join('')}</details>`:'<p class="hint">None of the memorised symbols were found on the drawings.</p>'}
+    ${R.skipped.length?`<p class="hint" style="margin:6px 0 0">Legend sheets left out: ${esc(R.skipped.join('; '))}</p>`:''}<p class="hint" style="margin:6px 0 0">Each count is added to its drawing’s take off as a symbol item, so you can check and fix the marks on each drawing.</p></div>`}
 /* ---------- Take off: smart sections and whole-drawing auto take off ---------- */
 const TO_AREA_WORDS=/kitchen|type|unit|apartment|plan|detail|elevation|section|level|floor|bath|ensuite|laundry|wc|toilet|bed|living|office|room|zone|area|block|stage|wing|lobby|corridor|plant|shop|tenancy/i;
 async function toTextLines(d,pg){TO.txt=TO.txt||{};const k=d.file.id+'#'+pg;if(TO.txt[k])return TO.txt[k];const pdf=await toPdf(d.file.id);const p=await pdf.getPage(pg);const vp=p.getViewport({scale:1});const tc=await p.getTextContent();
@@ -4206,7 +4249,7 @@ async function toDetail(){const pg=TO.pg,st=document.getElementById('toStage'),p
   const sr=st.getBoundingClientRect(),pr=pe.getBoundingClientRect();const x0=Math.max(0,sr.left-pr.left),y0=Math.max(0,sr.top-pr.top),x1=Math.min(pr.width,sr.right-pr.left),y1=Math.min(pr.height,sr.bottom-pr.top);
   if(x1<=x0||y1<=y0){cv.style.display='none';return}const w=x1-x0,h=y1-y0;const k=s*dpr;const vp=pg.getViewport({scale:k});
   const off=document.createElement('canvas');off.width=Math.ceil(w*dpr);off.height=Math.ceil(h*dpr);const cx=off.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,off.width,off.height);
-  if(TO.drt){try{TO.drt.cancel()}catch(e){}}const my=TO.dseq=(TO.dseq||0)+1;const task=pg.render({canvasContext:cx,viewport:vp,transform:[1,0,0,1,-x0*dpr,-y0*dpr],intent:TO.pmode||'display'});TO.drt=task;
+  if(TO.drt){try{TO.drt.cancel()}catch(e){}}const my=TO.dseq=(TO.dseq||0)+1;const task=pg.render({...(toOccCur()?{optionalContentConfigPromise:toOccCur()}:{}),canvasContext:cx,viewport:vp,transform:[1,0,0,1,-x0*dpr,-y0*dpr],intent:TO.pmode||'display'});TO.drt=task;
   try{await task.promise}catch(e){return}if(my!==TO.dseq||Math.abs(TO.zoom-s)>1e-9)return;TO.drt=null;
   cv.width=off.width;cv.height=off.height;cv.getContext('2d').drawImage(off,0,0);Object.assign(cv.style,{display:'block',left:x0+'px',top:y0+'px',width:w+'px',height:h+'px'})}
 /* ---------- Take off: drawing revisions ---------- */
@@ -4305,16 +4348,16 @@ function mwReset(){try{MWS.w&&MWS.w.terminate()}catch(e){}for(const k in MWS.q){
 /* one drawn copy of the last page used, shared by matching, symbol cut-outs and ink boxes (drawing a big sheet is the slow part) */
 const PGC={k:null,c:null,R:0,fid:null,p:0,busy:null};
 const pgcR=(v,R)=>{const cap=6e6;if(v.width*v.height*R*R>cap)R=Math.sqrt(cap/(v.width*v.height));return Math.round(R*1000)/1000};
-async function pageCanvas(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);const k=fid+'#'+p+'@'+R;
+async function pageCanvas(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);const k=fid+'#'+p+'@'+R+'|'+toLyrOff(fid).join(',');
   if(PGC.k===k&&PGC.c)return PGC;if(PGC.busy&&PGC.busy.k===k)return PGC.busy.pr;
   const pr=(async()=>{const vp=pg.getViewport({scale:R});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
-    await bgRender(pg,{canvasContext:x,viewport:vp});if(PGC.c&&PGC.c!==c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k,c,R,fid,p,busy:null});return PGC})();
+    await bgRender(pg,{canvasContext:x,viewport:vp,occ:toOcc(fid)});if(PGC.c&&PGC.c!==c){PGC.c.width=PGC.c.height=1}Object.assign(PGC,{k,c,R,fid,p,busy:null});return PGC})();
   PGC.busy={k,pr};pr.catch(()=>{if(PGC.busy&&PGC.busy.pr===pr)PGC.busy=null});return pr}
 function pgcCrop(P,rect){const R=P.R,w=Math.max(2,Math.ceil(rect[2]*R)),h=Math.max(2,Math.ceil(rect[3]*R));const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,w,h);
   x.imageSmoothingEnabled=false;x.drawImage(P.c,-Math.round(rect[0]*R),-Math.round(rect[1]*R));return {px:x.getImageData(0,0,w,h).data,w,h}}
 /* render a page into the worker once per scale; returns {key,W,H,R} */
 async function mwPage(fid,p,R0){const pdf=await toPdf(fid);const pg=await pdf.getPage(p);const v=pg.getViewport({scale:1});const R=pgcR(v,R0);
-  const key=fid+'#'+p+'@'+R;if(MWS.have.includes(key))return {key,W:Math.ceil(v.width*R),H:Math.ceil(v.height*R),R};
+  const key=fid+'#'+p+'@'+R+'|'+toLyrOff(fid).join(',');if(MWS.have.includes(key))return {key,W:Math.ceil(v.width*R),H:Math.ceil(v.height*R),R};
   const P=await pageCanvas(fid,p,R0);const im=P.c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,P.c.width,P.c.height);
   await mwCall({op:'page',key,W:im.width,H:im.height,rgba:im.data.buffer},[im.data.buffer]);MWS.have.push(key);while(MWS.have.length>3)MWS.have.shift();return {key,W:im.width,H:im.height,R}}
 /* template mask from a rectangle of a page, rendered at scale R */
