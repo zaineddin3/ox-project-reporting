@@ -465,6 +465,8 @@ input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-
 .to-lyrlist{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:2px}.to-lyri{display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer}
 .to-evt{width:100%;border-collapse:collapse;font-size:12.5px}.to-evt td,.to-evt th{padding:3px 4px;border-bottom:1px solid var(--line)}.to-every{border-color:var(--accent)}
 .act-low input.f{border-color:var(--bad)!important;background:color-mix(in srgb,var(--bad) 8%,var(--panel,#fff))}.act-warn{color:var(--bad);font-size:11.5px;font-weight:600;margin-top:3px;line-height:1.35}.act-ok{padding:1px 8px;font-size:11.5px;margin-left:4px}
+tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!important;transition:background .6s}
+.ctc-sup{color:var(--accent);font-weight:600;text-align:left}.ctc-sup:hover{text-decoration:underline}
 .scan-drop{border:2px dashed var(--line);background:transparent}.scan-drop.scan-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}.scan-q{margin-top:10px;display:flex;flex-direction:column;gap:6px}.scan-qi{font-size:13px}.scan-qi.ok .hint{color:var(--good)}.scan-qi.ask .hint{color:var(--bad)}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
 .var-regtile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--accent)!important;border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff))}.var-regtile:hover,.var-regtile.on{background:color-mix(in srgb,var(--accent) 14%,var(--panel,#fff))}.var-regtile .d{font-size:11.5px;margin-top:2px}.var-regtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -1088,10 +1090,10 @@ V.cost=()=>{
     <tr><td>Hours over (−) / under (+)</td><td class="money ${c.lEst-c.lFc<0?'neg':'pos'}">${hrs(c.lEst-c.lFc)}</td></tr>
     <tr class="total"><td>Labour cost to date${c.labLog?' <span class="hint">(labour cost log)</span>':''}</td><td class="money">${money(c.labCostToDate)}</td></tr><tr><td>Labour forecast at completion</td><td class="money">${money(c.labFc)}</td></tr>
   </tbody></table></div></div>
-  <div><h3 style="margin-bottom:10px">Materials and subcontractors</h3>
+  <div>${(()=>{const mn=COLL.has('ctcmat');return `<h3 style="margin-bottom:10px;display:flex;align-items:center;gap:8px"><button class="tog" data-act="tog-sub" data-v="ctcmat" aria-expanded="${!mn}" aria-label="${mn?'Show':'Minimise'} materials and subcontractors">${mn?'▸':'▾'}</button>Materials and subcontractors${mn&&ords.length?` <span class="hint" style="font-weight:500">· ${ords.length} order${ords.length===1?'':'s'} minimised · forecast ${money(c.matFc)}</span>`:''}</h3>`})()}
   ${ords.length?`<div class="tw"><table><thead><tr><th>Supplier / subcontractor</th><th>PO</th><th class="n">Committed</th><th class="n">Invoiced</th><th class="n">Left on PO</th><th class="n">Extra outside PO</th><th class="n">Forecast total</th></tr></thead><tbody>
-  ${ords.map(([id,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0),ant=extraAdj(o);return `<tr><td>${esc(o.supplier||'—')}</td><td class="mono">${esc(o.poNo||'')}</td><td class="n money">${money(po)}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n money">${money(ant)}</td><td class="n money">${money(Math.max(po,inv)+ant)}</td></tr>`}).join('')}
-  ${ordSecs().filter(x=>num(x.extra)).map(x=>{const a=secExtraAdj(x);return `<tr><td>Section extra · <b>${esc(x.name||'Untitled section')}</b> <span class="hint">covers the whole section</span></td><td></td><td class="n money hint">—</td><td class="n money hint">—</td><td class="n money hint">—</td><td class="n money">${money(a)}</td><td class="n money">${money(a)}</td></tr>`}).join('')}
+  ${COLL.has('ctcmat')?'':ords.map(([id,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((a,x)=>a+invAmt(x),0),ant=extraAdj(o);return `<tr><td><button class="rowlink ctc-sup" data-act="go-ord" data-v="${id}" title="Open this purchase order in Orders & invoices">${esc(o.supplier||'—')}</button></td><td class="mono"><button class="rowlink ctc-sup" data-act="go-ord" data-v="${id}" title="Open this purchase order in Orders & invoices">${esc(o.poNo||'')}</button></td><td class="n money">${money(po)}</td><td class="n money">${money(inv)}</td><td class="n money ${po-inv<0?'neg':''}">${money(po-inv)}</td><td class="n money">${money(ant)}</td><td class="n money">${money(Math.max(po,inv)+ant)}</td></tr>`}).join('')}
+  ${COLL.has('ctcmat')?'':ordSecs().filter(x=>num(x.extra)).map(x=>{const a=secExtraAdj(x);return `<tr><td>Section extra · <b>${esc(x.name||'Untitled section')}</b> <span class="hint">covers the whole section</span></td><td></td><td class="n money hint">—</td><td class="n money hint">—</td><td class="n money hint">—</td><td class="n money">${money(a)}</td><td class="n money">${money(a)}</td></tr>`}).join('')}
   </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${money(c.poTotal)}</td><td class="n money">${money(c.matInv)}</td><td class="n money">${money(c.poTotal-c.matInv)}</td><td class="n money">${money(c.matAnt)}</td><td class="n money">${money(c.matFc)}</td></tr></tfoot></table></div>`
   :`<div class="panel empty"><b>No orders yet</b>Add purchase orders under Orders & invoices and they roll up here.<div style="margin-top:12px"><button class="btn primary" data-act="nav" data-v="orders">Go to orders</button></div></div>`}</div></div>`;
 };
@@ -1375,7 +1377,7 @@ async function sharedReachable(){const to=ms=>new Promise((_,rej)=>setTimeout(()
 let assets=null;const UP={};
 /* every drop-down section starts minimised: OPENED holds what you've opened (per device). Keys starting "todsopen:" already mean "open". */
 let OPENED=new Set();try{OPENED=new Set(JSON.parse(localStorage.getItem('ox_open')||'[]'))}catch(e){}
-const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub:')||String(k).startsWith('vbh:')||k==='tolyr';/* vsub: sub-variations show until minimised */
+const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub:')||String(k).startsWith('vbh:')||k==='tolyr'||k==='ctcmat';/* vsub: sub-variations show until minimised */
 const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k)?OPENED.add(k):OPENED.delete(k)},delete:k=>{collPlain(k)?OPENED.delete(k):OPENED.add(k)}};
 function saveColl(){try{localStorage.setItem('ox_open',JSON.stringify([...OPENED].slice(-3000)))}catch(e){}}
 const NO_ITP=new Set(['t15','t16']);
@@ -2503,6 +2505,9 @@ V.progress=()=>{
   ${body||`<div class="panel empty"><b>${q?'No lines match':'No task lines yet'}</b>${q?'Try a different search.':'Add sections and lines under Labour & tasks and they’ll appear here.'}</div>`}</div>`;
 };
 /* open Orders & invoices at one invoice (and material line), scroll to it and flash it */
+/* open a purchase order in Orders & invoices and bring it into view */
+function goOrder(oid){const o=S.orders[oid];if(!o)return;UI.view='orders';try{history.replaceState(null,'','#orders')}catch(e){}UI.open[oid]=true;const sg=ordSecOf(o);if(sg&&ordSecClosed(sg)){COLL.delete('ordsec:'+sg);saveColl()}render();
+  setTimeout(()=>{const tr=document.querySelector(`tr[data-ord="${oid}"]`);if(!tr)return;tr.scrollIntoView({block:'center',behavior:'smooth'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),2200)},60)}
 function goInvoice(oid,j,li){const o=S.orders[oid];if(!o)return;UI.view='orders';try{history.replaceState(null,'','#orders')}catch(e){}
   UI.open[oid]=true;UI.open['invm'+oid+'_'+j]=true;const sg=ordSecOf(o);if(sg&&ordSecClosed(sg)){COLL.delete('ordsec:'+sg);saveColl()}
   render();
@@ -5138,6 +5143,7 @@ document.addEventListener('click',async e=>{
     L.splice(at,0,nl);persist('variations/'+btn.dataset.v);render();setTimeout(()=>{const el=document.getElementById('vline_'+btn.dataset.v+'_'+at+'_item');if(el)el.focus()},40);return}
   if(act==='vline-mv'){const x=S.vars[btn.dataset.v];const L=x&&x.bu&&x.bu.lines;if(!L)return;const i=+btn.dataset.x,j=i+(+btn.dataset.d);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];persist('variations/'+btn.dataset.v);render();return}
   if(act==='vpdf'){sellPdf(btn.dataset.v,btn.dataset.r);return}
+  if(act==='go-ord'){goOrder(btn.dataset.v);return}
   if(act==='cash-actok'){const r=S.cash.m[btn.dataset.v];if(r){r.actOk=r.act;persist('project/cashflow');render()}return}
   if(act==='vsumm-pdf'){varSummPdf(btn.dataset.v);return}
   if(act==='vsumm-all'){(async()=>{for(const [kid] of varKids(btn.dataset.v))await sellPdf(kid)})();return}
