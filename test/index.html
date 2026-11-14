@@ -919,7 +919,7 @@ V.overview=()=>{
     <div class="kpi"><span class="l">Revised contract</span><span class="v">${kmoney(c.revised)}</span><span class="d">${money(c.contract)} original + ${money(c.vApp)} approved variations</span></div>
     <div class="kpi"><span class="l">Forecast cost</span><span class="v">${kmoney(c.fcCost)}</span><span class="d">${money(c.costToDate)} cost to date (labour ${money(c.labCostToDate)} + invoiced ${money(c.matInv)})</span></div>
     <div class="kpi"><span class="l">Forecast margin</span><span class="v ${c.gp<0?'neg':''}">${pct(c.gpPct)}</span><span class="d">${money(c.gp)} gross profit</span></div>
-    <div class="kpi"><span class="l">Invoiced</span><span class="v">${pct(c.pctInv)}</span><span class="d">${money(c.invoiced)} of revised contract</span></div>
+    <div class="kpi" data-kpi="inv"><span class="l">Overall % invoiced</span><span class="v">${c.revised?pct(c.pctInv):'—'}</span><span class="d">${c.revised?`${money(c.invoiced)} invoiced of ${money(c.revised)} revised contract`:'Enter the contract value to work this out'}</span></div>
     <div class="kpi"><span class="l">Overall complete</span><span class="v">${overallPct().v}</span><span class="d">${overallPct().l}</span></div>
   </div>
   ${tenderPanel(c)}
@@ -1008,6 +1008,7 @@ function tenderPanel(c){
   <div class="toolbar" style="margin-top:12px">
     <span class="hint">Actual vs tender:</span>${th?`<span class="tag ${used>1?'bad':used>.9?'warn':'acc'}">${pct(used,0)} of tendered hours used</span>`:''}
     <span class="hint" style="margin-left:10px">Forecast vs tender:</span>${chip(fc,'tender')}
+    <span class="hint" style="margin-left:10px">Overall % invoiced:</span>${c.revised?`<span class="tag acc" data-ovinv title="${money(c.invoiced)} invoiced of ${money(c.revised)} revised contract">${pct(c.pctInv)} of revised contract</span>`:`<span class="tag" data-ovinv>Enter the contract value</span>`}
   </div>${hasV?`<p class="hint tender-var" style="margin:10px 0 0">Variation work is left out of this comparison because it isn’t in the tendered hours: ${hrsNice(vHrs)} forecast hours${vSpent>0.005?`, ${hrsNice(vSpent)} of them spent to date`:''}.</p>`:''}</div>`;
 }
 /* Overview: what labour is forecast to cost at the end of the job, against the tendered labour value, with the reasons in plain words */
