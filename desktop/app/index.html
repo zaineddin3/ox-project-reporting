@@ -1206,7 +1206,18 @@ function varTaskGroups(v){const bu=v.bu;const G=[];let cur=null;
       if(!cur){cur={head:'',subs:[]};G.push(cur)}cur.subs.push({desc:String(l.item||'').trim()||'Labour',estHrs:String(Math.round(h*100)/100)})}}
   else if(num(v.hours))G.push({head:'',subs:[{desc:String(v.desc||'Variation works').trim(),estHrs:String(num(v.hours))}]});
   return G.filter(g=>g.subs.length)}
-const varTaskLines=v=>varTaskGroups(v).flatMap(g=>g.subs);
+/* the build-up as a tree: headings → sub-headings → lines → sub-lines, keeping only labour items with hours (no supervision / PM) */
+function varTaskTree(v){const bu=v.bu;const T=[];let h1=null,h2=null;const r2=x=>String(Math.round(x*100)/100);
+  if(bu&&Array.isArray(bu.lines)&&bu.lines.length){for(const l of bu.lines){const hd=vbHead(l);
+      if(hd===1){h1={desc:String(l.item||'').trim()||'Heading',subs:[]};T.push(h1);h2=null;continue}
+      if(hd===2){h2={desc:String(l.item||'').trim()||'Sub-heading',subs:[]};(h1?h1.subs:T).push(h2);continue}
+      if(kindOf(l)!=='L')continue;const q=num(l.qty);const node={desc:String(l.item||'').trim()||'Labour'};
+      if(hasSubs(l)&&!(l.hrsOv!==undefined&&l.hrsOv!==null&&l.hrsOv!=='')){node.subs=l.subs.map(x=>({desc:String(x.item||'').trim()||'Sub-line',estHrs:r2(q*num(x.qty)*effH(x))})).filter(x=>num(x.estHrs)>0);if(!node.subs.length)continue;if(node.subs.length===1){node.estHrs=node.subs[0].estHrs;delete node.subs}}
+      else{const h=q*effH(l);if(!(h>0))continue;node.estHrs=r2(h)}
+      (h2||h1?(h2||h1).subs:T).push(node)}}
+  else if(num(v.hours))T.push({desc:String(v.desc||'Variation works').trim(),estHrs:String(num(v.hours))});
+  const prune=L=>L.filter(n=>{if(n.subs){n.subs=prune(n.subs);return n.subs.length>0}return num(n.estHrs)>0});return prune(T)}
+const varTaskLines=v=>{const out=[];const w=L=>L.forEach(n=>n.subs?w(n.subs):out.push(n));w(varTaskTree(v));return out};
 function varToTask(vid,quiet){const v=S.vars[vid];if(!v||varIsSumm(v))return;const t=VAR_TASK();const d=ensureTask(t);d.sections=d.sections&&d.sections.length?d.sections:[{id:'S1',name:'Section 1'}];
   const name=[v.ref,v.desc].filter(Boolean).join(' – ')||'Variation';const subs=varTaskLines(v);
   let sec=d.sections.find(x=>x.vid===vid);
@@ -1217,8 +1228,9 @@ function varToTask(vid,quiet){const v=S.vars[vid];if(!v||varIsSumm(v))return;con
     /* drop the empty starter section if this is the first thing in the task */
     if(d.sections.length===2&&d.sections[0].id==='S1'&&!d.items.some(it=>it.sec==='S1'||!it.sec)&&/^Section 1$/.test(d.sections[0].name||''))d.sections.shift()}
   /* the build-up's own break-up: each build-up heading is a line, its labour items with hours are the sub-lines */
-  const G=varTaskGroups(v);const mk=(desc,list)=>{const it=newItem(sec.id);it.id=uid('i');it.desc=desc;it.vid=vid;if(list.length>1||(list.length===1&&v.bu))it.subs=list.map(x=>({...newItem(sec.id),...x,id:uid('s')}));else it.estHrs=list[0]?list[0].estHrs:'';return it};
-  if(!G.length)d.items.push(mk(name,[]));else for(const g of G)d.items.push(mk(g.head||name,g.subs));
+  const TR=varTaskTree(v);const node=n=>{const o={...newItem(sec.id),id:uid('s'),desc:n.desc};if(n.subs)o.subs=n.subs.map(node);else o.estHrs=n.estHrs;return o};
+  if(!TR.length){const it=newItem(sec.id);it.id=uid('i');it.desc=name;it.vid=vid;d.items.push(it)}
+  else for(const n of TR){const it=node(n);it.id=uid('i');it.vid=vid;d.items.push(it)}
   persist('tasks/'+t);
   const tot=subs.reduce((a,x)=>a+num(x.estHrs),0);if(!quiet)UI.varTaskMsg=subs.length?`Added ${name} to Labour & tasks → Variation with ${subs.length} sub-line${subs.length===1?'':'s'} (${hrs(tot)} estimated).`:`Added ${name} to Labour & tasks → Variation, but its build-up has no labour hours yet, so the estimate is 0. Add hours to the build-up and press → Labour & tasks again to refresh it.`}
 /* every approved variation (not a summary) has its section in Labour & tasks → Variation; ones approved before this existed are added the first time either tab opens */
