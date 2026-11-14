@@ -467,6 +467,8 @@ input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-
 .act-low input.f{border-color:var(--bad)!important;background:color-mix(in srgb,var(--bad) 8%,var(--panel,#fff))}.act-warn{color:var(--bad);font-size:11.5px;font-weight:600;margin-top:3px;line-height:1.35}.act-ok{padding:1px 8px;font-size:11.5px;margin-left:4px}
 tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!important;transition:background .6s}
 .pcfc-done input.f{color:var(--muted);text-decoration:line-through}
+/* sub-line description always wide enough to read; its buttons wrap under it when space is short */
+.tauto td input.f:not([type=checkbox]):not([type=radio]){min-width:58px!important}.subtask{flex-wrap:wrap;row-gap:4px}.subtask>input.f,.tauto td .subtask>input.f{flex:1 1 200px;min-width:170px!important;width:auto}
 .ctc-sup{color:var(--accent);font-weight:600;text-align:left}.ctc-sup:hover{text-decoration:underline}
 .scan-drop{border:2px dashed var(--line);background:transparent}.scan-drop.scan-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}.scan-q{margin-top:10px;display:flex;flex-direction:column;gap:6px}.scan-qi{font-size:13px}.scan-qi.ok .hint{color:var(--good)}.scan-qi.ask .hint{color:var(--bad)}
 .var-subtog{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block;white-space:nowrap}
