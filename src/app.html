@@ -1181,10 +1181,13 @@ function vbBlockEnd(lines,li){const lv=vbHead(lines[li]);let j=li+1;for(;j<lines
 /* an approved variation gets its own section in Labour & tasks → Variation: heading "VQ002 – description",
    one line for the variation, and a sub-line per labour line of the build-up with its hours as estimated hours (supervision and PM left out) */
 const VAR_TASK=()=>TASK_IDS[TASKS.indexOf('Variation')]||'t11';
-function varTaskLines(v){const bu=v.bu;const out=[];
-  if(bu&&Array.isArray(bu.lines)&&bu.lines.length){for(const l of bu.lines){if(vbHead(l)||kindOf(l)!=='L')continue;const q=num(l.qty),h=q*effH(l);if(!(h>0))continue;/* material-only or subcontract lines have no labour hours */out.push({desc:String(l.item||'').trim()||'Labour',estHrs:String(Math.round(h*100)/100)})}}
-  else if(num(v.hours))out.push({desc:String(v.desc||'Variation works').trim(),estHrs:String(num(v.hours))});
-  return out}
+function varTaskGroups(v){const bu=v.bu;const G=[];let cur=null;
+  if(bu&&Array.isArray(bu.lines)&&bu.lines.length){for(const l of bu.lines){const hd=vbHead(l);if(hd===1){cur={head:String(l.item||'').trim()||'Heading',subs:[]};G.push(cur);continue}if(hd)continue;
+      if(kindOf(l)!=='L')continue;/* supervision and project management stay out */const q=num(l.qty),h=q*effH(l);if(!(h>0))continue;/* only lines with hours */
+      if(!cur){cur={head:'',subs:[]};G.push(cur)}cur.subs.push({desc:String(l.item||'').trim()||'Labour',estHrs:String(Math.round(h*100)/100)})}}
+  else if(num(v.hours))G.push({head:'',subs:[{desc:String(v.desc||'Variation works').trim(),estHrs:String(num(v.hours))}]});
+  return G.filter(g=>g.subs.length)}
+const varTaskLines=v=>varTaskGroups(v).flatMap(g=>g.subs);
 function varToTask(vid,quiet){const v=S.vars[vid];if(!v||varIsSumm(v))return;const t=VAR_TASK();const d=ensureTask(t);d.sections=d.sections&&d.sections.length?d.sections:[{id:'S1',name:'Section 1'}];
   const name=[v.ref,v.desc].filter(Boolean).join(' – ')||'Variation';const subs=varTaskLines(v);
   let sec=d.sections.find(x=>x.vid===vid);
@@ -1194,12 +1197,19 @@ function varToTask(vid,quiet){const v=S.vars[vid];if(!v||varIsSumm(v))return;con
   else{sec={id:uid('S'),name,vid};d.sections.push(sec);
     /* drop the empty starter section if this is the first thing in the task */
     if(d.sections.length===2&&d.sections[0].id==='S1'&&!d.items.some(it=>it.sec==='S1'||!it.sec)&&/^Section 1$/.test(d.sections[0].name||''))d.sections.shift()}
-  const it=newItem(sec.id);it.id=uid('i');it.desc=name;it.vid=vid;
-  if(subs.length>1||(subs.length===1&&v.bu))it.subs=subs.map(x=>({...newItem(sec.id),...x,id:uid('s')}));else it.estHrs=subs[0]?subs[0].estHrs:'';
-  d.items.push(it);persist('tasks/'+t);
+  /* the build-up's own break-up: each build-up heading is a line, its labour items with hours are the sub-lines */
+  const G=varTaskGroups(v);const mk=(desc,list)=>{const it=newItem(sec.id);it.id=uid('i');it.desc=desc;it.vid=vid;if(list.length>1||(list.length===1&&v.bu))it.subs=list.map(x=>({...newItem(sec.id),...x,id:uid('s')}));else it.estHrs=list[0]?list[0].estHrs:'';return it};
+  if(!G.length)d.items.push(mk(name,[]));else for(const g of G)d.items.push(mk(g.head||name,g.subs));
+  persist('tasks/'+t);
   const tot=subs.reduce((a,x)=>a+num(x.estHrs),0);if(!quiet)UI.varTaskMsg=subs.length?`Added ${name} to Labour & tasks → Variation with ${subs.length} sub-line${subs.length===1?'':'s'} (${hrs(tot)} estimated).`:`Added ${name} to Labour & tasks → Variation, but its build-up has no labour hours yet, so the estimate is 0. Add hours to the build-up and press → Labour & tasks again to refresh it.`}
 /* every approved variation (not a summary) has its section in Labour & tasks → Variation; ones approved before this existed are added the first time either tab opens */
 function syncVarTasks(){if(typeof roView==='function'&&roView())return 0;let n=0;for(const [id,v] of Object.entries(S.vars||{})){if((v.status||'')!=='Approved'||varIsSumm(v))continue;if(!varInTask(id)){varToTask(id,true);n++}}return n}
+/* no longer approved: its section comes out of Labour & tasks → Variation, unless hours have already been booked against it */
+function varFromTask(vid){const v=S.vars[vid];const t=VAR_TASK();const d=taskDoc(t);if(!d||!Array.isArray(d.sections))return;const sec=d.sections.find(x=>x.vid===vid);if(!sec)return;
+  const items=d.items.filter(it=>it.sec===sec.id);const name=sec.name||'This variation';
+  if(items.some(it=>{const x=itemCalc(it);return x.spent||x.earned})){UI.varTaskMsg=`${name} is no longer approved, but hours have already been booked against it in Labour & tasks → Variation, so it was left there. Remove it there if it should go.`;return}
+  const dd=ensureTask(t);dd.items=dd.items.filter(it=>it.sec!==sec.id);dd.sections=dd.sections.filter(x=>x.id!==sec.id);if(!dd.sections.length)dd.sections=[{id:'S1',name:'Section 1'}];persist('tasks/'+t);
+  UI.varTaskMsg=`${name} is no longer approved, so it was taken out of Labour & tasks → Variation.`}
 const varInTask=vid=>{const d=taskDoc(VAR_TASK());return !!(d&&(d.sections||[]).some(x=>x.vid===vid))};
 if(/\/test\/?$/.test(location.pathname)||/\/test\/index\.html$/.test(location.pathname)){document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='TEST VERSION';b.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9999;background:#c62828;color:#fff;font:700 12px/1 system-ui;letter-spacing:.08em;padding:6px 12px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none';document.body.appendChild(b)})}
 function varSummPanel(pid){const P=S.vars[pid];const K=varKids(pid);const G=vGroup(pid);const by={};K.forEach(([,x])=>{const st=x.status||'Submitted';by[st]=(by[st]||0)+vNums(x).sell});
@@ -4903,7 +4913,7 @@ function apply(parts,v){
   if(kind==='cashend'){S.cash.end=v;persist('project/cashflow');return}
   if(kind==='cash'){S.cash.m[a]=S.cash.m[a]||{};S.cash.m[a][b]=v;persist('project/cashflow');return}
   if(kind==='crew'){if(!S.crew.rows)S.crew.rows=clone(CREW_DEFAULT);S.crew.rows[+a][b]=v;persist('project/crew');return}
-  if(kind==='var'){if(S.vars[a]){if(b==='parent')Object.defineProperty(S.vars[a],'_pp',{value:S.vars[a].parent,configurable:true,enumerable:false,writable:true});S.vars[a][b]=v;if(b==='parent'&&!v)delete S.vars[a].parent;persist('variations/'+a);if(b==='status'){syncClaimVar(a);if(v==='Approved')varToTask(a)}if(b==='parent'){for(const p of new Set([v,S.vars[a]._pp].filter(Boolean)))if(S.vars[p])syncClaimVar(p);scheduleRender(0)}}return}
+  if(kind==='var'){if(S.vars[a]){if(b==='parent')Object.defineProperty(S.vars[a],'_pp',{value:S.vars[a].parent,configurable:true,enumerable:false,writable:true});S.vars[a][b]=v;if(b==='parent'&&!v)delete S.vars[a].parent;persist('variations/'+a);if(b==='status'){syncClaimVar(a);if(v==='Approved')varToTask(a);else varFromTask(a)}if(b==='parent'){for(const p of new Set([v,S.vars[a]._pp].filter(Boolean)))if(S.vars[p])syncClaimVar(p);scheduleRender(0)}}return}
   if(kind==='vbu'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();if(b.startsWith('r_')){x.bu.rates=x.bu.rates||{};x.bu.rates[b.slice(2)]=v}else x.bu[b]=v;persist('variations/'+a);return}
   if(kind==='vq'){const x=S.vars[a];if(!x)return;x.bu=x.bu||VBU_DEF();x.bu.quoteFile=v;persist('variations/'+a);return}
   if(kind==='vpart'||kind==='vpartq'||kind==='vpartu'||kind==='vpartd'){const x=S.vars[a];const l=x?.bu?.lines?.[+b];const pt=l?.hrsParts?.[+c];if(!pt)return;pt[{vpart:'mat',vpartq:'qty',vpartu:'unit',vpartd:'desc'}[kind]]=v;partsRecalc(l);persist('variations/'+a);return}
