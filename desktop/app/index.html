@@ -377,6 +377,15 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .hcmp-b.f{background:var(--series2)}
 .hcmp-tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);transform:translateX(-1px)}
 .hcmp-v{text-align:right;font-size:13px}
+.lcc{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px 16px}
+.lcc .mini .v{font-size:22px}
+.lcc-why{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.lcc-h{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
+.lcc-row{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:baseline;font-size:13px;line-height:1.4}
+.lcc-row.tot{border-top:1px solid var(--line);padding-top:8px}
+.lcc-row.tot .s{font-weight:600}
+.lcc-note{margin:10px 0 0}
+@media(max-width:640px){.lcc-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.lcc-row .s{grid-column:1/-1;grid-row:2}}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
 .opo{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}.opo.ord-dropping{outline:2px dashed var(--accent);outline-offset:2px}.opo-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.opo-t td{vertical-align:middle;background:var(--surface)!important}
 .pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
@@ -907,6 +916,7 @@ V.overview=()=>{
     <div class="kpi"><span class="l">Overall complete</span><span class="v">${overallPct().v}</span><span class="d">${overallPct().l}</span></div>
   </div>
   ${tenderPanel(c)}
+  ${labourCostPanel(c)}
   ${completionPanel()}
   <div class="grid2">
     <div class="panel"><h3>Financial position</h3>${ledger(c)}</div>
@@ -950,20 +960,31 @@ function lockField(k,label,o={}){if(k==='contract'&&!o._noCV)return contractFiel
   if(!editing)return `<label class="${o.wide?'wide':''}">${label}<div class="lk-row"><span class="lk-val money" id="${id}">${esc(LOCK_FMT[k]?LOCK_FMT[k](v):String(v||''))}</span><button class="btn ghost lk-btn" type="button" data-act="lk-change" data-v="${k}" aria-label="Change ${esc(label.replace(/\s*\$$/,''))}">✎ Change</button></div><span class="hint lk-meta">Submitted${L.by?' by '+esc(L.by):''}${L.at?' · '+new Date(L.at).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}${L.prev!=null&&L.prev!==''?' · was '+esc(LOCK_FMT[k]?LOCK_FMT[k](L.prev):L.prev):''}</span></label>`;
   const chg=L&&UI.unlock&&UI.unlock[k]!==undefined;
   return `<label class="${o.wide?'wide':''}">${label}<div class="lk-row">${o.cur?'<div class="cur" style="flex:1">':''}${inp('info|'+k,v||'',{num:1,label:label,ph:o.ph||'0'})}${o.cur?'</div>':''}<button class="btn primary lk-btn" type="button" data-act="lk-submit" data-v="${k}">${chg?'Save':'Submit'}</button>${chg?`<button class="btn ghost lk-btn" type="button" data-act="lk-cancel" data-v="${k}">Cancel</button>`:''}</div>${o.hint?`<span class="hint lk-meta">${o.hint}</span>`:''}</label>`}
-function tenderPanel(c){
+/* labour against the tender — one set of figures for the hours panel and the cost-at-completion panel under it.
+   forecast labour cost = forecast hours × rate used for forecast. Its difference from the tendered labour value splits into
+   hours (forecast − tendered hours, at the forecast rate) + rate (forecast − tendered rate, across the tendered hours). */
+function tenderNums(c){
+  if(c._tn)return c._tn;
   const th=num(S.info.tenderHrs),tr=num(S.info.tenderRate);const tv=th*tr;
   const LT=logTotals();const act=LT.hrs||c.lSpent;const actSrc=LT.hrs?'from labour cost log':'from hours spent in tasks';
-  const fc=Math.max(c.lFc,act);
+  const fc=Math.max(c.lFc,act);const rate=c.rate;const fcCost=fc*rate;const r2=x=>Math.round(x*100)/100;
+  const diff=r2(fcCost-tv),hrsCost=r2((fc-th)*rate);
+  /* variation work in the forecast hours (the Variation task, and variation hours in Management & supervision): not part of the tendered hours */
+  let vh=0;for(const t of TASK_IDS){const x=taskCalc(t);vh+=t===VAR_TASK()?x.fc:(x.vh||0)}
+  return c._tn={th,tr,tv,act,actSrc,fc,rate,fcCost,toDate:c.labCostToDate,diff,hrsDiff:fc-th,hrsCost,rateDiff:rate-tr,rateCost:r2(diff-hrsCost),vh};
+}
+function tenderPanel(c){
+  const {th,tr,tv,act,actSrc,fc}=tenderNums(c);
   const max=Math.max(th,act,fc,1);
   const bar=(lbl,v,cls,sub)=>`<div class="hcmp"><div class="hcmp-l"><b>${lbl}</b><span class="hint">${sub}</span></div><div class="hcmp-t"><div class="hcmp-b ${cls}" style="width:${(v/max*100).toFixed(1)}%"></div>${th?`<div class="hcmp-tick" style="left:${(th/max*100).toFixed(1)}%"></div>`:''}</div><div class="hcmp-v money">${hrs(v)} hrs</div></div>`;
-  const chip=(v,label)=>{if(!th)return `<span class="tag">Enter tendered hours</span>`;const d=v-th;const p=d/th;return `<span class="tag ${d>0?'bad':'good'}">${d>0?hrs(d)+' hrs over':hrs(-d)+' hrs under'} ${label} (${d>0?'+':''}${pct(p,1)})</span>`};
+  const chip=(v,label)=>{if(!th)return `<span class="tag">Enter tendered hours</span>`;if(!(v>0))return `<span class="tag">No forecast hours yet</span>`;const d=v-th;const p=d/th;return `<span class="tag ${d>0?'bad':'good'}">${d>0?hrs(d)+' hrs over':hrs(-d)+' hrs under'} ${label} (${d>0?'+':''}${pct(p,1)})</span>`};
   const used=th?act/th:0;
   return `<div class="panel"><div class="sec-head" style="margin-bottom:12px"><div><h3>Labour hours against tender</h3><p class="hint">Actual hours to date and forecast hours at completion compared with the tendered hours. The thin line marks the tender.</p></div></div>
   <div class="tender">
     ${lockField('tenderHrs','Total tendered hours')}
     ${lockField('tenderRate','Tendered rate $/hr',{cur:1})}
     <div class="mini"><span class="l">Tendered labour value</span><span class="v">${money(tv)}</span></div>
-    <div class="mini"><span class="l">Forecast hours</span><span class="v ${th&&fc>th?'neg':''}">${hrs(fc)}</span><span class="hint ${th&&fc>th?'neg':''}">${th?(fc>th?hrs(fc-th)+' hrs over tender':hrs(th-fc)+' hrs under tender'):'Enter tendered hours to compare'}</span></div>
+    <div class="mini"><span class="l">Forecast hours</span><span class="v ${th&&fc>th?'neg':''}">${hrs(fc)}</span><span class="hint ${th&&fc>th?'neg':''}">${!th?'Enter tendered hours to compare':!(fc>0)?'No forecast hours yet':fc>th?hrs(fc-th)+' hrs over tender':hrs(th-fc)+' hrs under tender'}</span></div>
     <div class="mini"><span class="l">Rate used for forecast</span><span class="v">$${c.rate.toFixed(2)}/hr</span><span class="hint">${labourRateSrc().split(' (')[0]}</span></div>
   </div>
   <div class="hcmp-wrap">
@@ -973,9 +994,37 @@ function tenderPanel(c){
   </div>
   <div class="toolbar" style="margin-top:12px">
     <span class="hint">Actual vs tender:</span>${th?`<span class="tag ${used>1?'bad':used>.9?'warn':'acc'}">${pct(used,0)} of tendered hours used</span>`:''}
-    <span class="hint" style="margin-left:10px">Forecast vs tender:</span>${chip(fc,'estimate')}
-    ${th&&tr?`<span class="hint" style="margin-left:10px">Cost impact at forecast rate:</span><span class="tag ${fc*c.rate>tv?'bad':'good'}">${money(fc*c.rate-tv)}</span>`:''}
+    <span class="hint" style="margin-left:10px">Forecast vs tender:</span>${chip(fc,'tender')}
   </div></div>`;
+}
+/* Overview: what labour is forecast to cost at the end of the job, against the tendered labour value, with the reasons in plain words */
+function labourCostPanel(c){
+  const N=tenderNums(c);const R=v=>'$'+Math.abs(v).toFixed(2)+'/hr';
+  const H=n=>{const a=Math.abs(n);return a>=100||Math.abs(a-Math.round(a))<0.05?hrs(a):(Math.round(a*10)/10).toLocaleString('en-AU',{maximumFractionDigits:1})};
+  const top=`<div class="sec-head" style="margin-bottom:12px"><div><h3>Labour cost at completion</h3><p class="hint">What labour is forecast to cost by the end of the job, and how that compares with the labour value in the tender.</p></div></div>`;
+  if(!(N.fc>0))return `<div class="panel lcc-panel">${top}<p class="hint" style="margin:0">No forecast yet. Add estimated hours in Labour &amp; tasks and the forecast labour cost will show here.</p></div>`;
+  const toGo=N.fcCost-N.toDate;const hasT=N.th>0&&N.tr>0;const over=N.diff>0.005,under=N.diff<-0.005;
+  const src=labourRateSrc().split(' (')[0];const srcLc=src.charAt(0).toLowerCase()+src.slice(1);
+  const tile3=!hasT?`<div class="mini"><span class="l">Against tender</span><span class="v">—</span><span class="hint">Enter the tendered hours and rate above to compare</span></div>`
+    :over||under?`<div class="mini"><span class="l">${over?'Over tender by':'Under tender by'}</span><span class="v ${over?'neg':'pos'}">${money(Math.abs(N.diff))}</span><span class="hint ${over?'neg':'pos'}">${pct(Math.abs(N.diff)/N.tv,1)} ${over?'more':'less'} than the tendered labour value</span></div>`
+    :`<div class="mini"><span class="l">Against tender</span><span class="v">On tender</span><span class="hint">Same as the tendered labour value</span></div>`;
+  const amt=(v,up,dn)=>Math.abs(v)<0.005?`<span class="a tag">${money(0)}</span>`:`<span class="a tag ${v>0?'bad':'good'}">${money(Math.abs(v))} ${v>0?up:dn}</span>`;
+  const hd=N.hrsDiff,rd=N.rateDiff;
+  const hrsTxt=Math.abs(hd)<0.05?`Same hours as tendered — ${H(N.th)}`:`${H(hd)} ${hd>0?'more':'fewer'} hours than tendered (${H(N.fc)} forecast against ${H(N.th)}), at ${R(N.rate)}`;
+  const rateTxt=Math.abs(rd)<0.005?`Same rate as tendered — ${R(N.tr)}${/^Tendered rate/.test(src)?' (no labour cost log entries yet)':''}`:`${R(rd)} ${rd>0?'more':'less'} than tendered (${R(N.rate)} ${esc(srcLc)}, against ${R(N.tr)}), across the ${H(N.th)} tendered hours`;
+  const why=hasT?`<div class="lcc-why"><div class="lcc-h">Why it differs from the tender</div>
+    <div class="lcc-row"><b class="k">Hours</b><span class="s">${hrsTxt}</span>${amt(N.hrsCost,'more','less')}</div>
+    <div class="lcc-row"><b class="k">Rate</b><span class="s">${rateTxt}</span>${amt(N.rateCost,'more','less')}</div>
+    <div class="lcc-row tot"><b class="k">Total</b><span class="s">Forecast labour cost against the tendered labour value</span>${amt(N.diff,'over tender','under tender')}</div></div>`:'';
+  const rounded=Math.abs(N.fc-Math.round(N.fc))>0.004||Math.abs(N.rate*100-Math.round(N.rate*100))>0.004;
+  const notes=[N.vh>0.005?`Includes ${H(N.vh)} hours (${money(N.vh*N.rate)}) of variation work from Labour &amp; tasks. Variations aren’t in the tendered hours, so they add to the difference.`:'',
+    rounded?`Worked out from the exact figures (${(Math.round(N.fc*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2})} forecast hours at $${N.rate.toFixed(4)}/hr), so checking with the rounded numbers above gives a slightly different answer.`:''].filter(Boolean);
+  return `<div class="panel lcc-panel">${top}
+  <div class="lcc">
+    <div class="mini"><span class="l">Forecast labour cost at completion</span><span class="v">${money(N.fcCost)}</span><span class="hint">${H(N.fc)} forecast hours × ${R(N.rate)}</span>${N.toDate>0.005&&toGo>=0?`<span class="hint">${money(N.toDate)} spent to date + ${money(toGo)} still to spend</span>`:''}</div>
+    <div class="mini"><span class="l">Tendered labour value</span><span class="v">${hasT?money(N.tv):'—'}</span><span class="hint">${hasT?`${H(N.th)} tendered hours × ${R(N.tr)}`:'Tendered hours × tendered rate'}</span></div>
+    ${tile3}
+  </div>${why}${notes.map(t=>`<p class="hint lcc-note">${t}</p>`).join('')}</div>`;
 }
 function completionMeasures(c){return [['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
     ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
