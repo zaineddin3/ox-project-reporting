@@ -1155,7 +1155,7 @@ async function varRegXlsx(){try{if(!window.ExcelJS)await loadScript('https://cdn
   ws.getColumn('sell').numFmt='$#,##0.00';ws.getColumn('date').numFmt='dd/mm/yyyy';const n=ws.rowCount;const t=ws.addRow({desc:'Total',sell:{formula:`SUM(D2:D${n})`,result:Math.round(varRegCount(RR).reduce((a,r)=>a+r.sell,0)*100)/100}});t.font={bold:true};
   const buf=await wb.xlsx.writeBuffer();const name=`${(S.info.job||'Project').replace(/[^\w.-]+/g,'_')} - Variation register.xlsx`;if(!downloads){setSave('error','Downloads are not available in this view');return}
   await downloads.save({filename:name,data:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})}catch(e){if(e&&e.code==='declined')return;console.error(e);setSave('error','Could not make the Excel file')}}
-V.variations=()=>{
+V.variations=()=>{{const n=syncVarTasks();if(n)UI.varTaskMsg=`Added ${n} approved variation${n===1?'':'s'} to Labour & tasks → Variation.`}
   const c=calc();
   const TOPV=Object.entries(S.vars).filter(([,v])=>!varIsKid(v)).sort((a,b)=>(a[1].created||0)-(b[1].created||0));
   const rows=TOPV.flatMap(r=>[r,...(COLL.has('vsub:'+r[0])?[]:varKids(r[0]))]);const PARS=TOPV.filter(r=>varKids(r[0]).length);
@@ -1223,6 +1223,8 @@ function varToTask(vid,quiet){const v=S.vars[vid];if(!v||varIsSumm(v))return;con
   if(subs.length>1||(subs.length===1&&v.bu))it.subs=subs.map(x=>({...newItem(sec.id),...x,id:uid('s')}));else it.estHrs=subs[0]?subs[0].estHrs:'';
   d.items.push(it);persist('tasks/'+t);
   const tot=subs.reduce((a,x)=>a+num(x.estHrs),0);if(!quiet)UI.varTaskMsg=subs.length?`Added ${name} to Labour & tasks → Variation with ${subs.length} sub-line${subs.length===1?'':'s'} (${hrs(tot)} estimated).`:`Added ${name} to Labour & tasks → Variation, but its build-up has no labour hours yet, so the estimate is 0. Add hours to the build-up and press → Labour & tasks again to refresh it.`}
+/* every approved variation (not a summary) has its section in Labour & tasks → Variation; ones approved before this existed are added the first time either tab opens */
+function syncVarTasks(){if(typeof roView==='function'&&roView())return 0;let n=0;for(const [id,v] of Object.entries(S.vars||{})){if((v.status||'')!=='Approved'||varIsSumm(v))continue;if(!varInTask(id)){varToTask(id,true);n++}}return n}
 const varInTask=vid=>{const d=taskDoc(VAR_TASK());return !!(d&&(d.sections||[]).some(x=>x.vid===vid))};
 if(/\/test\/?$/.test(location.pathname)||/\/test\/index\.html$/.test(location.pathname)){document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='TEST VERSION';b.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9999;background:#c62828;color:#fff;font:700 12px/1 system-ui;letter-spacing:.08em;padding:6px 12px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none';document.body.appendChild(b)})}
 function varSummPanel(pid){const P=S.vars[pid];const K=varKids(pid);const G=vGroup(pid);const by={};K.forEach(([,x])=>{const st=x.status||'Submitted';by[st]=(by[st]||0)+vNums(x).sell});
@@ -2576,7 +2578,7 @@ V.boq=()=>{
 };
 /* WBS column retired: any WBS code moves to the front of its description */
 function foldWbs(){for(const t of TASK_IDS){const d=taskDoc(t);if(!d||!Array.isArray(d.items))continue;let ch=false;const fold=x=>{if(x&&x.wbs!=null&&String(x.wbs).trim()!==''){const w=String(x.wbs).trim(),de=String(x.desc||'').trim();x.desc=de.toLowerCase().startsWith(w.toLowerCase())?de:[w,de].filter(Boolean).join(' ');delete x.wbs;ch=true}else if(x&&'wbs' in x){delete x.wbs}(x&&x.subs||[]).forEach(fold)};d.items.forEach(fold);if(ch)persist('tasks/'+t)}}
-V.labour=()=>{foldWbs();
+V.labour=()=>{foldWbs();syncVarTasks();
   syncTasks();if(!TASK_IDS.includes(UI.task))UI.task=TASK_IDS[0];
   const c=calc();const t=UI.task;const td=taskDoc(t);const ti=TASK_IDS.indexOf(t);
   const rows=crewRows();
