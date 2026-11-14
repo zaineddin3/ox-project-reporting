@@ -800,6 +800,9 @@ function crewRate(){
   let c=0,h=0;for(const r of crewRows()){c+=num(r.qty)*num(r.rate)*num(r.hrs);h+=num(r.qty)*num(r.hrs)}
   return h?c/h:0;
 }
+/* labour cost log weeks: r.date = week starting, r.wend = week ending */
+function isoAddDays(iso,n){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return '';const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]+n));return d.toISOString().slice(0,10)}
+const llogStart=r=>r.date||(r.wend?isoAddDays(r.wend,-6):'');
 function logTotals(){let h=0,o=0,pm=0,c=0,hc=0;for(const r of S.llog.rows){h+=num(r.hire);o+=num(r.ox);pm+=num(r.pm);c+=num(r.cost);hc+=num(r.hireCost)}
   for(const r of siteDays()){h+=r.hire;o+=r.ox;pm+=r.pm;c+=r.cost;hc+=r.hireCost}const t=h+o+pm;return {hire:h,ox:o,pm,hrs:t,cost:c,hireCost:hc,total:c+hc,rate:t?(c+hc)/t:0}}
 function labourRateSrc(){if(num(S.info.labourRate))return 'Override set in project details';if(logTotals().rate)return 'Average from labour cost log';if(num(S.info.tenderRate))return 'Tendered rate (no labour cost log entries yet)';return 'Blended crew rate (add rows to the labour cost log to use actual costs)'}
@@ -1017,7 +1020,7 @@ function ledger(c){
 }
 /* actual costs by month: labour cost log (Oxford + subcontractor + labour hire) and invoices in Orders & invoices */
 function actCosts(){const M={};const add=(k,f,v)=>{if(!/^\d{4}-\d{2}$/.test(k)||!v)return;const r=M[k]||(M[k]={lab:0,inv:0,n:0});r[f]+=v;r.n++};
-  for(const r of (S.llog.rows||[]))add(String(r.date||'').slice(0,7),'lab',num(r.cost)+num(r.hireCost));
+  for(const r of (S.llog.rows||[]))add(String(llogStart(r)).slice(0,7),'lab',num(r.cost)+num(r.hireCost));
   for(const r of siteDays())add(String(r.date||'').slice(0,7),'lab',r.cost+r.hireCost);
   for(const o of Object.values(S.orders))for(const iv of (o.inv||[]))add(String(iv.date||'').slice(0,7),'inv',invAmt(iv));
   return M}
@@ -1031,7 +1034,7 @@ function cashEnd(){const tm=thisMonth();if(/^\d{4}-\d{2}$/.test(S.cash.end||''))
 /* forecast cost by month = that month's labour cost (labour cost log in Labour & tasks, by date) + that month's invoices (Orders & invoices, by invoice date) — each month on its own, not added up */
 function cashForecast(){const ms=months();const first=ms[0],last=ms[ms.length-1];const tm=thisMonth();const now=tm<first?first:tm>last?last:tm;
   const F={};const put=(k,f,v)=>{if(!v)return;const r=F[k]||(F[k]={inv:0,lab:0,other:0,total:0});r[f]+=v;r.total+=v};
-  for(const r of (S.llog.rows||[])){const k=String(r.date||'').slice(0,7);put(/^\d{4}-\d{2}$/.test(k)?(k<first?first:k>last?last:k):now,'lab',num(r.cost)+num(r.hireCost))}
+  for(const r of (S.llog.rows||[])){const k=String(llogStart(r)).slice(0,7);put(/^\d{4}-\d{2}$/.test(k)?(k<first?first:k>last?last:k):now,'lab',num(r.cost)+num(r.hireCost))}
   for(const r of siteDays()){const k=String(r.date||'').slice(0,7);put(/^\d{4}-\d{2}$/.test(k)?(k<first?first:k>last?last:k):now,'lab',r.cost+r.hireCost)}
   for(const o of Object.values(S.orders))for(const iv of (o.inv||[])){const k=String(iv.date||'').slice(0,7);put(/^\d{4}-\d{2}$/.test(k)?(k<first?first:k>last?last:k):now,'inv',invAmt(iv))}
   put(now,'other',num(S.info.otherCostToDate));
@@ -2213,13 +2216,13 @@ V.site=()=>{const date=UI.siteDate||todayISO();const tab=UI.siteTab||'day';const
 function sitePhotoView(id){document.getElementById('site_lb')?.remove();const el=document.createElement('div');el.id='site_lb';el.className='site-lb';el.innerHTML=`<button class="btn" aria-label="Close photo">✕ Close</button><img data-ph="${esc(id)}" src="${photoSrc(id)}" alt="Site photo">`;el.onclick=()=>el.remove();document.body.appendChild(el)}
 function labourLogPanel(){
   const T=logTotals();
-  return `<div class="panel llog-drop"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by date. Total hours = labour hire + Oxford + subcontractor + project management. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
+  return `<div class="panel llog-drop"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by week. The cash flow counts each week's labour cost in the month of its week starting date. Total hours = labour hire + Oxford + subcontractor + project management. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
     <div style="display:flex;gap:28px;text-align:right;flex-wrap:wrap;justify-content:flex-end"><div><div class="kpi" style="padding:0;background:none"><span class="l">Total cost</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1.1">${money(T.total)}</div><div class="hint" style="font-size:11.5px">Oxford + subcontractor + labour hire</div></div><div><div class="kpi" style="padding:0;background:none"><span class="l">Average labour rate</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${T.hrs?'$'+T.rate.toFixed(2)+'/hr':'—'}</div></div></div></div>
-  <div class="tw"><table style="min-width:760px"><thead><tr><th></th><th>Date</th><th class="n" style="white-space:normal">Labour hire</th><th class="n" style="white-space:normal">Oxford + subcontractor</th><th class="n" style="white-space:normal">Project management</th><th class="n" style="white-space:normal">Total hours</th><th class="n" style="white-space:normal">Oxford + subcontractor cost</th><th class="n" style="white-space:normal">Labour hire cost</th><th class="n" style="white-space:normal" title="Oxford + subcontractor cost + labour hire cost">Total cost</th><th class="n" title="(Oxford + subcontractor cost + labour hire cost) ÷ total hours">Rate $/hr<br><span style="font-weight:500;text-transform:none;letter-spacing:0">incl. labour hire</span></th></tr></thead><tbody>
-  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox)+num(r.pm);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Date'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford + subcontractor',ph:'0'})}</td><td style="min-width:90px">${inp(k+'pm',r.pm,{num:1,label:'Project management hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money"><b>${num(r.cost)+num(r.hireCost)?money(num(r.cost)+num(r.hireCost)):'—'}</b></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="10" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
-  ${siteDays().map(r=>`<tr class="ro-row" title="From site timesheets"><td><button class="rowlink" data-act="site-go" data-v="${esc(r.date)}">Site hours</button></td><td>${esc(fmtDate(r.date))}</td><td class="n money">${hrs(r.hire)}</td><td class="n money">${hrs(r.ox)}</td><td class="n money">${hrs(r.pm)}</td><td class="n money">${hrs(r.hire+r.ox+r.pm)}</td><td class="n money">${money(r.cost)}</td><td class="n money">${money(r.hireCost)}</td><td class="n money">${money(r.cost+r.hireCost)}</td><td class="n money">${r.hire+r.ox+r.pm?'$'+((r.cost+r.hireCost)/(r.hire+r.ox+r.pm)).toFixed(2):'—'}</td></tr>`).join('')}
-  <tr class="addrow"><td colspan="10"><div class="toolbar"><button class="btn" data-act="llog-add">+ Add row</button><label class="btn" for="llog_file">Import Excel, CSV or PDF</label><input type="file" id="llog_file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
-    <span class="hint">or drag an Excel (.xlsx), CSV or PDF onto this panel. Columns are matched by their headings: date, labour hire, Oxford + subcontractor, project management, Oxford + subcontractor cost, labour hire cost.</span></div>${UI.llogMsg?`<div class="hint" style="margin-top:6px;color:${UI.llogMsg.err?'var(--bad)':'var(--good,#2f7d4f)'}">${esc(UI.llogMsg.txt)}</div>`:''}</td></tr>
+  <div class="tw"><table style="min-width:900px"><thead><tr><th></th><th style="white-space:normal">Week starting</th><th style="white-space:normal">Week ending</th><th class="n" style="white-space:normal">Labour hire</th><th class="n" style="white-space:normal">Oxford + subcontractor</th><th class="n" style="white-space:normal">Project management</th><th class="n" style="white-space:normal">Total hours</th><th class="n" style="white-space:normal">Oxford + subcontractor cost</th><th class="n" style="white-space:normal">Labour hire cost</th><th class="n" style="white-space:normal" title="Oxford + subcontractor cost + labour hire cost">Total cost</th><th class="n" title="(Oxford + subcontractor cost + labour hire cost) ÷ total hours">Rate $/hr<br><span style="font-weight:500;text-transform:none;letter-spacing:0">incl. labour hire</span></th></tr></thead><tbody>
+  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox)+num(r.pm);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Week starting'})}</td><td style="width:150px">${inp(k+'wend',r.wend,{type:'date',label:'Week ending'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford + subcontractor',ph:'0'})}</td><td style="min-width:90px">${inp(k+'pm',r.pm,{num:1,label:'Project management hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money"><b>${num(r.cost)+num(r.hireCost)?money(num(r.cost)+num(r.hireCost)):'—'}</b></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="11" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
+  ${siteDays().map(r=>`<tr class="ro-row" title="From site timesheets"><td><button class="rowlink" data-act="site-go" data-v="${esc(r.date)}">Site hours</button></td><td>${esc(fmtDate(r.date))}</td><td></td><td class="n money">${hrs(r.hire)}</td><td class="n money">${hrs(r.ox)}</td><td class="n money">${hrs(r.pm)}</td><td class="n money">${hrs(r.hire+r.ox+r.pm)}</td><td class="n money">${money(r.cost)}</td><td class="n money">${money(r.hireCost)}</td><td class="n money">${money(r.cost+r.hireCost)}</td><td class="n money">${r.hire+r.ox+r.pm?'$'+((r.cost+r.hireCost)/(r.hire+r.ox+r.pm)).toFixed(2):'—'}</td></tr>`).join('')}
+  <tr class="addrow"><td colspan="11"><div class="toolbar"><button class="btn" data-act="llog-add">+ Add row</button><label class="btn" for="llog_file">Import Excel, CSV or PDF</label><input type="file" id="llog_file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
+    <span class="hint">or drag an Excel (.xlsx), CSV or PDF onto this panel. Columns are matched by their headings: week starting, week ending, labour hire, Oxford + subcontractor, project management, Oxford + subcontractor cost, labour hire cost.</span></div>${UI.llogMsg?`<div class="hint" style="margin-top:6px;color:${UI.llogMsg.err?'var(--bad)':'var(--good,#2f7d4f)'}">${esc(UI.llogMsg.txt)}</div>`:''}</td></tr>
   </tbody><tfoot><tr><td colspan="2">Totals</td><td class="n money">${hrs(T.hire)}</td><td class="n money">${hrs(T.ox)}</td><td class="n money">${hrs(T.pm)}</td><td class="n money">${hrs(T.hrs)}</td><td class="n money">${money(T.cost)}</td><td class="n money">${money(T.hireCost)}</td><td class="n money">${money(T.total)}</td><td class="n money">${T.hrs?'$'+T.rate.toFixed(2):'—'}</td></tr></tfoot></table></div></div>`;
 }
 function allLinesPanel(){
@@ -4711,7 +4714,8 @@ function llogIso(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+S
 function llogCell(v){if(v&&typeof v==='object'){if(v instanceof Date)return v;if('result' in v)return v.result;if(v.richText)return v.richText.map(x=>x.text).join('');if('text' in v)return v.text}return v}
 function llogMap(rows){
   const kind=h=>{h=String(h??'').toLowerCase().replace(/\s+/g,' ').trim();if(!h)return null;
-    if(/date|week|period/.test(h))return 'date';
+    if(/(week|period)\s*end|ending|end\s*date|\bto\b/.test(h))return 'wend';
+    if(/date|week|period|start|from/.test(h))return 'date';
     if(/hire/.test(h)&&/cost|\$|amount|value|spend/.test(h))return 'hireCost';
     if(/hire/.test(h)&&!/rate/.test(h))return 'hire';
     if(/project\s*manag|\bpm\b/.test(h)&&!/cost|\$|amount|rate/.test(h))return 'pm';
@@ -4723,8 +4727,9 @@ function llogMap(rows){
   let guessed=false;if(!map){map={date:0,hire:1,ox:2,cost:3,hireCost:4};hi=-1;guessed=true}
   const out=[];for(const r of rows.slice(hi+1)){const g=k=>map[k]!==undefined?r[map[k]]:undefined;const first=String(r.find(x=>x!==null&&x!==undefined&&x!=='')??'').toLowerCase();if(/^total/.test(first))continue;
     const nv=k=>{const v=g(k);if(v===undefined||v===null||v==='')return '';const n=num(v);return isFinite(n)&&String(v).trim()!==''?String(Math.round(n*100)/100):''};
-    const row={date:llogIso(g('date')),hire:nv('hire'),ox:nv('ox'),pm:nv('pm'),cost:nv('cost'),hireCost:nv('hireCost')};
+    const row={date:llogIso(g('date')),wend:llogIso(g('wend')),hire:nv('hire'),ox:nv('ox'),pm:nv('pm'),cost:nv('cost'),hireCost:nv('hireCost')};
     if(!row.ox&&map.ox===undefined&&map.totHrs!==undefined&&row.hire!==''){const t=num(g('totHrs'));if(t)row.ox=String(Math.round((t-num(row.hire)-num(row.pm))*100)/100)}
+    if(!row.date&&row.wend)row.date=isoAddDays(row.wend,-6);if(row.date&&!row.wend)row.wend=isoAddDays(row.date,6);
     if(row.hire||row.ox||row.pm||row.cost||row.hireCost)out.push(row)}
   return {rows:out,guessed,found:Object.keys(map).filter(k=>['date','hire','ox','pm','cost','hireCost'].includes(k))}}
 /* rows of the first sheet with data, as arrays of text (Excel or CSV) */
@@ -4761,12 +4766,12 @@ async function llogImport(file){
     if(/\.pdf$/i.test(name)||file.type==='application/pdf'){
       if(!sampleFn){UI.llogMsg={err:1,txt:HOSTED?'Reading PDFs isn’t set up in this version yet. Use Excel or CSV.':'Reading PDFs isn’t available in this view. Use Excel or CSV.'};render();return}
       UI.llogMsg={txt:'Reading '+name+' (PDF)…'};render();const {text,images}=await readPdf(file);
-      const prompt=`You are reading a labour cost report or timesheet summary for an Australian electrical contractor. Extract one row per date or week.
-Reply with only JSON in exactly this shape: {"rows":[{"date":"YYYY-MM-DD or empty","hire":number,"ox":number,"pm":number,"cost":number,"hireCost":number}]}
+      const prompt=`You are reading a labour cost report or timesheet summary for an Australian electrical contractor. Extract one row per week (or date).
+Reply with only JSON in exactly this shape: {"rows":[{"date":"week starting YYYY-MM-DD or empty","wend":"week ending YYYY-MM-DD or empty","hire":number,"ox":number,"pm":number,"cost":number,"hireCost":number}]}
 "hire" = labour hire HOURS, "ox" = Oxford + subcontractor HOURS, "pm" = project management HOURS, "cost" = Oxford + subcontractor COST in dollars, "hireCost" = labour hire COST in dollars. Use 0 when a value isn't shown. Skip total and subtotal rows. Numbers only, no $ or commas. Dates are Australian (day/month/year).
 ${images.length?'The document is attached as page images.':'Document text (columns separated by spaces):\n'+text}`;
       const out=await sampleFn.json(prompt,images.length?{images,modelTier:'default'}:{modelTier:'default'});
-      const rr=(Array.isArray(out&&out.rows)?out.rows:[]).map(r=>({date:llogIso(r.date),hire:num(r.hire)?String(num(r.hire)):'',ox:num(r.ox)?String(num(r.ox)):'',pm:num(r.pm)?String(num(r.pm)):'',cost:num(r.cost)?String(num(r.cost)):'',hireCost:num(r.hireCost)?String(num(r.hireCost)):''})).filter(r=>r.hire||r.ox||r.pm||r.cost||r.hireCost);
+      const rr=(Array.isArray(out&&out.rows)?out.rows:[]).map(r=>{const d=llogIso(r.date),we=llogIso(r.wend);return {date:d||(we?isoAddDays(we,-6):''),wend:we||(d?isoAddDays(d,6):''),hire:num(r.hire)?String(num(r.hire)):'',ox:num(r.ox)?String(num(r.ox)):'',pm:num(r.pm)?String(num(r.pm)):'',cost:num(r.cost)?String(num(r.cost)):'',hireCost:num(r.hireCost)?String(num(r.hireCost)):''}}).filter(r=>r.hire||r.ox||r.pm||r.cost||r.hireCost);
       if(!rr.length){UI.llogMsg={err:1,txt:'No rows with hours or costs were found in '+name+'.'};render();return}
       undoRecord();S.llog.rows.push(...rr);persist('project/labourlog');UI.llogMsg={txt:`Added ${rr.length} row${rr.length===1?'':'s'} from ${name}, read from the PDF. Check the figures — use Undo at the top if they aren’t right.`};render();return}
     if(/\.csv$/i.test(name)||file.type==='text/csv'){const txt=await file.text();rows=txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===','){out.push(cur);cur=''}else cur+=c}out.push(cur);return out})}
@@ -4976,7 +4981,7 @@ function apply(parts,v){
     else return;
     persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
-  if(kind==='llog'){if(S.llog.rows[+a]){S.llog.rows[+a][b]=v;persist('project/labourlog')}return}
+  if(kind==='llog'){const r=S.llog.rows[+a];if(r){r[b]=v;if(b==='date'&&v&&!r.wend)r.wend=isoAddDays(v,6);if(b==='wend'&&v&&!r.date)r.date=isoAddDays(v,-6);persist('project/labourlog');if(b==='date'||b==='wend')render()}return}
   if(kind==='sited'){const [id,d]=siteDiaryDoc(a);d[b]=v;persist('site/'+id);return}
   if(kind==='sitet'){const t=S.site[a];if(!t)return;
     if(b==='tid'){t.tid=v;t.task=v?TASKS[TASK_IDS.indexOf(v)]||'':'';t.line=''}
@@ -5276,7 +5281,7 @@ if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],
   if(act==='proc-msg-x'){UI.procMsg=null;render();return}
 if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
-  if(act==='llog-add'){S.llog.rows.push({date:todayISO(),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
+  if(act==='llog-add'){const t=todayISO();const dw=(new Date(t+'T00:00:00Z').getUTCDay()+6)%7;const ws=isoAddDays(t,-dw);S.llog.rows.push({date:ws,wend:isoAddDays(ws,6),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
   if(act==='pc-xlmsg-x'){UI.pcXlMsg=null;render();return}
 if(act==='pc-addsec'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='pc-addq'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const L=d.secs[+btn.dataset.s]?.lines;const l=L&&L[+btn.dataset.v];if(!l)return;
