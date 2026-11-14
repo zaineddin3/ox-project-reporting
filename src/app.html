@@ -4962,7 +4962,7 @@ function apply(parts,v){
     else return;
     persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
-  if(kind==='llog'){const r=S.llog.rows[+a];if(r){r[b]=v;if(b==='date'&&v&&!r.wend)r.wend=isoAddDays(v,6);if(b==='wend'&&v&&!r.date)r.date=isoAddDays(v,-6);persist('project/labourlog');if(b==='date'||b==='wend')render()}return}
+  if(kind==='llog'){const r=S.llog.rows[+a];if(r){r[b]=v;if(b==='date'&&v)r.wend=isoAddDays(v,6);if(b==='wend'&&v&&!r.date)r.date=isoAddDays(v,-6);persist('project/labourlog');if(b==='date'||b==='wend')render()}return}
   if(kind==='sited'){const [id,d]=siteDiaryDoc(a);d[b]=v;persist('site/'+id);return}
   if(kind==='sitet'){const t=S.site[a];if(!t)return;
     if(b==='tid'){t.tid=v;t.task=v?TASKS[TASK_IDS.indexOf(v)]||'':'';t.line=''}
