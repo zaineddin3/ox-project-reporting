@@ -4737,8 +4737,16 @@ function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{try{apply
 /* while a date box is being used (calendar open, or typing day/month/year) the page isn't redrawn: a redraw would close the picker and drop the typing. It redraws when you leave the box. */
 let DATE_HOLD=false;const isDateBox=el=>el&&el.tagName==='INPUT'&&/^(date|month|time|datetime-local|week)$/.test(el.type)&&viewEl&&viewEl.contains(el);
 document.addEventListener('focusout',e=>{if(isDateBox(e.target)&&DATE_HOLD){DATE_HOLD=false;setTimeout(()=>{if(!isDateBox(document.activeElement))render()},0)}},true);
+/* phones and tablets: redrawing the page swaps the box being typed in for a new one, which resets the on-screen keyboard (Shift / Caps turn off,
+   suggestions reset). So while a data-entry box has focus on a touch screen the redraw waits until you leave the box; what you type is still saved as you go. */
+let TYPE_HOLD=false;const TOUCH=()=>{try{return matchMedia('(pointer: coarse)').matches||matchMedia('(hover: none)').matches}catch(e){return false}};
+const isTypeBox=el=>!!el&&viewEl&&viewEl.contains(el)&&el.dataset&&el.dataset.b!==undefined&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&/^(text|search|email|tel|url|number|password|)$/.test(el.type||'')))&&TOUCH();
+/* wait a moment after leaving the box so a button tapped to leave it gets its click before the page is redrawn */
+document.addEventListener('focusout',e=>{if(TYPE_HOLD&&isTypeBox(e.target)){setTimeout(()=>{if(TYPE_HOLD&&!isTypeBox(document.activeElement))render()},250)}},true);
 function render(){
   if(isDateBox(document.activeElement)){DATE_HOLD=true;return}
+  if(isTypeBox(document.activeElement)){TYPE_HOLD=true;return}
+  TYPE_HOLD=false;
   syncTasks();
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
