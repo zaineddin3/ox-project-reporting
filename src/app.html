@@ -215,6 +215,15 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .to-page svg[data-tool="snapl"]{cursor:crosshair}
 .to-symdrop{display:block;align-self:stretch;border:1.5px dashed color-mix(in srgb,#f59f00 55%,var(--line));border-radius:8px;padding:10px;text-align:center;font-size:12.5px;color:var(--muted);cursor:pointer;background:var(--surface)}.to-symdrop:hover,.to-symdrop.dropping{border-color:#f59f00;background:color-mix(in srgb,#f59f00 10%,var(--surface))}.to-symdrop b{color:var(--ink)}
 .to-mem{background:color-mix(in srgb,#7048e8 7%,var(--surface));border-color:color-mix(in srgb,#7048e8 30%,var(--line))}
+.to-learnmsg{margin:0 0 10px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--accent) 6%,var(--surface));color:var(--text)}
+.to-legpanel{display:flex;flex-direction:column;gap:10px}.to-legpanel .sec-head{margin-bottom:0!important}
+.to-legdrop{display:block;border:1.5px dashed color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:10px;padding:18px 12px;text-align:center;font-size:13px;color:var(--muted);cursor:pointer;background:var(--surface)}
+.to-legdrop:hover,.to-legdrop.dropping{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--surface));color:var(--text)}
+.to-legbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.to-legbar .f{flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+.to-leglist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,480px),1fr));gap:6px;max-height:420px;overflow:auto}
+.to-legi{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}.to-legi .f{flex:1;min-width:120px;font-weight:600}.to-legi .btn{padding:4px 10px;font-size:12px;white-space:nowrap}
+.to-legimg{width:34px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;flex:none}
+@media(max-width:560px){.to-legi{flex-wrap:wrap}.to-legi .f{flex-basis:calc(100% - 50px)}}
 .to-memlist{display:flex;flex-direction:column;gap:4px;align-self:stretch;max-height:240px;overflow:auto}
 .to-memi{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:13px}.to-memi .btn{padding:3px 8px;font-size:12px}.to-memi.on{border-color:#1c7ed6;background:color-mix(in srgb,#1c7ed6 8%,var(--surface))}.to-memi .f{padding:2px 5px}.to-memi .to-thumb{margin-right:0}
 .to-lsw{display:inline-block;width:22px;height:0;border-top:3px solid #333}
@@ -3403,8 +3412,28 @@ V.takeoff=()=>{
     <div class="to-row"><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-split" ${UI.toSplit!==false?'checked':''}> Split into sections automatically (e.g. each kitchen)</label><label class="to-row hint" style="font-size:12.5px"><input type="checkbox" data-act="to-revs" ${UI.toRevs!==false?'checked':''}> Same drawing number = new revision</label><label class="btn primary" for="to_file" style="cursor:pointer">Choose from files</label></div><input type="file" id="to_file" accept="application/pdf,.pdf" multiple hidden></div>
     ${busy?`<p class="hint" style="margin:10px 0 0"><span class="to-spin"></span>${busyRev?'New revision found: comparing with the old one and updating the take off…':`Uploading ${busy} drawing${busy===1?'':'s'}…`}</p>`:''}${UI.toMsg?`<p class="${UI.toMsg.err?'neg':'hint'}" style="margin:10px 0 0">${esc(UI.toMsg.t)}</p>`:''}</div>
   <div class="tw"><table><thead><tr><th style="width:40px">#</th><th>Drawing</th><th>Drawing no.</th><th>Rev</th><th class="n">Pages</th><th>Take off</th><th>Uploaded</th><th></th></tr></thead>
-  <tbody>${rows||`<tr><td colspan="8" class="empty"><b>No drawings yet</b>Upload PDF drawings above to start a take off.</td></tr>`}</tbody></table></div>${toAllSummary()}${toPerDwg()}</div>`;
+  <tbody>${rows||`<tr><td colspan="8" class="empty"><b>No drawings yet</b>Upload PDF drawings above to start a take off.</td></tr>`}</tbody></table></div>${toLegPanel()}${toAllSummary()}${toPerDwg()}</div>`;
 };
+/* ---------- Take off: the legend as a tool. Drop the legend / symbol schedule here; its symbols are kept for the project,
+   searchable by description, and each one (or all of them) can be counted on every drawing uploaded. ---------- */
+function toLegStatus(){const st=document.getElementById('to_legstatus');if(!st)return;const A=TO.auto;
+  if(A.busy){st.innerHTML=`<p class="hint" style="margin:0"><span class="to-spin"></span>${esc(A.busy)}</p>`;return}
+  if(!TO.id&&UI.view==='takeoff')scheduleRender(20)}
+function toLegPanel(){const L=toLib();const A=TO.auto;const busy=!!A.busy;const nd=Object.keys(S.dwgs).filter(id=>S.dwgs[id]&&S.dwgs[id].file).length;
+  const q=String(TO.legQ||'');const words=q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits=words.length?L.filter(e=>{const h=(e.name+' '+(e.from||'')).toLowerCase();return words.every(w=>h.includes(w))}):L;
+  const froms=[...new Set(L.map(e=>e.from).filter(Boolean))];
+  return `<div class="panel to-legpanel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Legend</h3><p class="hint">Drop your legend or symbol schedule here. Each symbol is read with its description and kept for this project, so you can search the legend and count any symbol on every drawing you upload. Legend sheets inside the drawings are left out of the counts.</p></div></div>
+    <label class="to-legdrop" for="to_legfile"><span><b>Drop your legend here</b> · a legend PDF or pictures of symbols (PNG or JPG), or choose files</span><input type="file" id="to_legfile" accept="image/*,application/pdf,.pdf" multiple hidden></label>
+    <div id="to_legstatus">${busy?`<p class="hint" style="margin:0"><span class="to-spin"></span>${esc(A.busy)}</p>`:A.note&&!TO.id?`<p class="hint" style="margin:0">${esc(A.note)}</p>`:''}</div>
+    ${TO.memPdf?toMemPdfHtml():''}
+    ${L.length?`<div class="to-legbar"><input class="f" id="to_legq" type="search" data-tk="legq|" value="${esc(q)}" placeholder="Search the legend, e.g. GPO, downlight, data" autocomplete="off" aria-label="Search the legend">
+      <button class="btn primary" data-ta="legevery" data-v="${words.length?hits.map(e=>e.id).join(','):''}" ${busy||!nd||!hits.length?'disabled':''} title="Counts ${words.length?'the symbols found':'every legend symbol'} on every page of every drawing uploaded, leaving out legend sheets">✨ Count ${words.length?`${hits.length} found`:`all ${L.length}`} on every drawing${nd?` (${nd})`:''}</button></div>
+      ${!nd?'<p class="hint" style="margin:0">Upload drawings above, then count the legend symbols on them.</p>':''}
+      <div class="to-leglist">${hits.length?hits.map(e=>`<div class="to-legi"><img src="${e.img}" alt="" class="to-legimg"><input class="f" data-tk="memname|${e.id}" value="${esc(e.name)}" aria-label="Symbol description">
+        <button class="btn" data-ta="legone" data-v="${e.id}" ${busy||!nd?'disabled':''} title="Count ${esc(e.name)} on every drawing">Count on every drawing</button><button class="btn ghost" data-ta="memdel" data-v="${e.id}" aria-label="Remove ${esc(e.name)} from the legend">✕</button></div>`).join(''):`<p class="hint" style="margin:4px 0">Nothing in the legend matches “${esc(q)}”.</p>`}</div>
+      <p class="hint" style="margin:0">${L.length} symbol${L.length===1?'':'s'}${froms.length?' from '+esc(froms.join(', ')):''}. Open a drawing and use the ✨ auto tool to count them on just that drawing or page.</p>`:''}
+    ${TO.id?'':toMemEveryHtml()}</div>`}
 async function toUpload(files){
   const list=[...files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));
   if(!list.length){UI.toMsg={t:'Only PDF drawings can be uploaded.',err:1};render();return}
@@ -3488,7 +3517,7 @@ function toBar(){const el=document.getElementById('toBar');if(!el)return;const d
     <div class="to-seg">${tb('pan','✋ Move')}${tb('take',it?`✚ ${esc(TO_TYPE[it.type])}`:'✚ Take off',!it,'Add to the selected item')}${tb('sel','Select')}${tb('erase','⌫ Erase','','Click take off points or lines to delete them one by one')}${tb('zone','▭ Section')}${tb('acount','🎯 Auto count','','Click one symbol and every matching one is counted for you')}${tb('auto','✨ Auto')}${tb('snapl','📷 Snapshot')}${tb('cal','📏 Scale')}</div><div class="to-seg"><button class="seg-b${TO.snap?' on':''}" data-ta="snap" aria-pressed="${TO.snap}" title="Snap to line ends and lines on the drawing">🧲 Snap ${TO.snap?'on':'off'}</button><button class="seg-b${TO.lbl?' on':''}" data-ta="lbl" aria-pressed="${TO.lbl}" title="Show lengths and areas on the drawing">Show measurements</button></div>
     <div class="to-seg">${['all','sec'].map(m=>`<button class="seg-b${TO.mode===m?' on':''}" data-ta="mode" data-v="${m}">${m==='all'?'Entire drawing':'By section'}</button>`).join('')}</div>
     <span class="tag ${sc?'good':'warn'}" title="Scale for this page">${sc?esc(sc.label||'Scale set'):'No scale on this page'}</span>`}
-function toSide(){const el=document.getElementById('toSide');if(!el)return;const d=dwgDoc(TO.id);if(!d)return;const z=toCurZone(d);const sc=toScale(d,TO.page);
+function toSide(){const el=document.getElementById('toSide');if(!el){toLegStatus();return}const d=dwgDoc(TO.id);if(!d)return;const z=toCurZone(d);const sc=toScale(d,TO.page);
   const hints={acount:'',erase:'Click a take off point, line or area to delete it. Each click removes one. Undo brings it back.',auto:'',snapl:'',pan:'Drag to move around the drawing. Ctrl + scroll to zoom.',take:'',sel:'Click a mark or section to select it, then press Delete or use the button below.',zone:'Drag a box over the part of the drawing you want as a section.',cal:'Click two points a known distance apart, then type the real length.'};
   const it=d.items.find(i=>i.id===TO.item);
   if(it)hints.take=it.type==='count'?`Click each ${esc(it.name||'item')} on the drawing to count it.`:`Click points along the ${it.type==='area'?'area outline':'run'}. Double-click or press Enter to finish, Backspace removes the last point, Esc cancels. Hold Shift for straight lines.`;
@@ -3512,7 +3541,7 @@ function toSide(){const el=document.getElementById('toSide');if(!el)return;const
     <p class="hint" style="margin:4px 0">Use the ratio if the PDF is at its printed size, or calibrate: ${TO.cal&&TO.cal.length===2?'':'click two points on the drawing a known distance apart.'}</p>
     ${TO.cal&&TO.cal.length===2?`<div class="to-row"><span class="hint">Real length</span><input class="f num" id="to_callen" placeholder="e.g. 6.0" style="width:90px"><span class="hint">m</span><button class="btn primary" data-ta="calset">Apply</button></div>`:TO.cal&&TO.cal.length===1?'<p class="hint" style="margin:0">Now click the second point.</p>':''}
     ${Object.keys(d.scale).length?`<button class="btn" data-ta="calall" style="margin-top:6px">Use this page’s scale on all pages</button>`:''}</div>`:'';
-  el.innerHTML=`${toRevBox(d)}${toLayerBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${TO.tool==='acount'?toAcountBox(d):''}${sel}${draft}${cal}
+  el.innerHTML=`${TO.learnMsg&&Date.now()-TO.learnMsg.at<15000?`<p class="hint to-learnmsg" role="status">🧠 ${esc(TO.learnMsg.t)}</p>`:''}${toRevBox(d)}${toLayerBox(d)}${TO.viewRev!=null?'':toAppliedBox(d)}${toAreaBox(d)}${TO.tool==='snapl'?toSnapBox(d):''}${hints[TO.tool]?`<p class="hint" style="margin:0 0 10px">${hints[TO.tool]}</p>`:''}${TO.tool==='auto'?toLibBox(d)+toAutoBox(d):''}${TO.tool==='acount'?toAcountBox(d):''}${sel}${draft}${cal}
     <div class="to-h"><h3>Items</h3><span class="hint">${scope}</span></div>
     <div class="to-list">${items||'<p class="hint" style="margin:0">Add what you want to take off, e.g. downlights (count), cable tray (length), ceiling (area).</p>'}</div>
     <div class="to-row" style="margin:8px 0 18px">${['count','length','area'].map(t=>`<button class="btn" data-ta="iadd" data-v="${t}">+ ${TO_TYPE[t]}</button>`).join('')}${d.items.length||d.marks.length?`<button class="btn ${TO.clrArm?'armed':'ghost'}" data-ta="clrto" title="Remove every item and mark on this drawing. Sections and scale are kept.">${TO.clrArm?'Confirm: clear take off':'Clear take off'}</button>`:''}</div>
@@ -3607,10 +3636,7 @@ function toWire(h){
     if(a==='areax'){TO.areas=null;toSide();toDraw();return}
     if(a==='mpcancel'){TO.memPdf=null;toSide();return}
 if(a==='mpall'){if(TO.memPdf){for(const r of TO.memPdf.rows)r.on=v==='1';toSide()}return}
-if(a==='mpsave'){const P=TO.memPdf;if(!P)return;const L=toLib();let n=0;for(const r of P.rows){if(!r.on)continue;const nm=(r.name||'').trim()||'Symbol '+(L.length+1);
-    const ex=L.find(x=>x.kind==='sym'&&x.name.trim().toLowerCase()===nm.toLowerCase());const e={id:ex?ex.id:uid('y'),kind:'sym',loaded:1,name:nm,img:r.img,src:r.src,ar:r.ar,ptHint:r.pt,thr:0.85,rot:true,used:ex?ex.used||0:0,at:Date.now(),from:P.name};
-    if(ex)Object.assign(ex,e,{pt:undefined});else L.push(e);n++}
-  toLibSave();TO.memPdf=null;TO.auto.note=`Memorised ${n} symbol${n===1?'':'s'} from ${P.name}. Press ✨ Count all memorised, or Count next to one.`;toSide();return}
+if(a==='mpsave'){toMemPdfSave();return}
 if(a==='memall')return toMemAll(d);
     if(a==='lyrtog'){COLL.has('tolyr')?COLL.delete('tolyr'):COLL.add('tolyr');saveColl();toSide();return}
     if(a==='lyr'){const id=v;const off=new Set(d.layersOff||[]);off.has(id)?off.delete(id):off.add(id);S.dwgs[TO.id].layersOff=[...off];toLyrChanged(d);return}
@@ -3637,7 +3663,7 @@ if(a==='memall')return toMemAll(d);
   });
   h.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.tk==='revsel'){const v=e.target.value;TO.viewRev=v==='cur'?null:+v;TO.rvc=null;TO.tool='pan';TO.draft=[];TO.sel=null;TO.page=1;TO.zoom=0;TO.item=null;toLoadPage();toSync()}});
   h.addEventListener('input',e=>{const t=e.target.dataset&&e.target.dataset.tk;if(!t)return;if(TO.viewRev!=null&&!/^(revsel)$/.test(t))return;const [k,id]=t.split('|');const d=dwgDoc(TO.id);if(!d)return;
-    if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum()}}
+    if(k==='iname'){const it=d.items.find(i=>i.id===id);if(it){it.name=e.target.value;persist('drawings/'+TO.id);toSum();const le=it.lib&&toLib().find(x=>x.id===it.lib&&x.learned);if(le&&it.name.trim()){le.name=it.name.trim();toLibSave()}}}
     if(k==='aname'||k==='aper'){const [iid,aid]=e.target.dataset.tk.split('|').slice(1);const it=d.items.find(i=>i.id===iid);const A=it&&(it.also||[]).find(x=>x.id===aid);if(A){A[k==='aname'?'name':'per']=e.target.value;persist('drawings/'+TO.id);toSum();if(k==='aper'){const q=toItemQty(dwgDoc(TO.id),it,toCurZone(d));const sp=e.target.parentElement.querySelector('.to-aq');if(sp)sp.textContent=toFmt(it.type,q.v*(A.per===''?1:num(A.per)))}}}
     if(k==='iallow'||k==='iwaste'){const it=d.items.find(i=>i.id===id);if(it){it[k==='iallow'?'allow':'waste']=e.target.value;persist('drawings/'+TO.id);toSum();const q=toItemQty(dwgDoc(TO.id),it,toCurZone(d));const row=e.target.closest('.to-allow');const qe=row&&row.previousElementSibling&&row.previousElementSibling.querySelector('.to-q');if(qe)qe.textContent=toFmt('length',q.v)+(q.miss?' *':'');const me=document.getElementById('to_alq_'+id);if(me)me.textContent=toHasAllow(it)?`Measured ${toFmt('length',q.raw)} in ${q.runs} run${q.runs===1?'':'s'}`:'Add drops, terminations and waste to each run'}}
     if(k==='zname'){const z=d.zones.find(x=>x.id===id);if(z){z.name=e.target.value;persist('drawings/'+TO.id);toSum();toDraw()}}
@@ -3699,7 +3725,7 @@ if(k==='lyrq'){TO.lyrQ=e.target.value;toSide();setTimeout(()=>{const i=document.
     if(TO.noClick&&Date.now()-TO.noClick<400){TO.noClick=0;return}
     if(TO.tool==='auto'){const A=TO.auto;const i=toAutoHit(e);if(i>=0&&A.res){A.res[i].on=!A.res[i].on;toSide();toDraw();return}if(A.m==='line'&&!A.busy)toPickLine(d,toPt(e));return}
     if(TO.tool==='take'){const it=d.items.find(i=>i.id===TO.item);if(!it)return;const p=it.type==='count'?toPt(e):toSnapAt(e,TO.draft);
-      if(it.type==='count'){undoRecord();d.marks.push({id:uid('m'),it:it.id,pg:TO.page,pts:[p]});toSave();return}
+      if(it.type==='count'){undoRecord();d.marks.push({id:uid('m'),it:it.id,pg:TO.page,pts:[p]});toSave();toLearnMark(d,it,TO.page,p);return}
       if(e.detail>1)return;TO.draft.push(p);toSide();toDraw();return}
     if(TO.tool==='cal'){const p=toSnapAt(e,TO.cal||[]);TO.cal=TO.cal&&TO.cal.length<2?[...TO.cal,p]:[p];TO.hover=null;toSide();toDraw();if(TO.cal.length===2)setTimeout(()=>document.getElementById('to_callen')?.focus(),20);return}
     if(TO.tool==='acount'){const A=TO.ac;if(A.busy||A.draft)return;const p=toPt(e);A.busy='Finding the edges of that symbol…';A.note='';toSide();
@@ -4135,6 +4161,33 @@ function toMemoUpd(it,A,thr){if(A.m!=='symbol')return;const sn=A.snapId&&toSnaps
 function toLibSave(){persist('project/info')}
 function toLearnThr(A){const ex=(A.res||[]).filter(c=>!c.on&&c.s!=null).map(c=>c.s),kept=(A.res||[]).filter(c=>c.on&&c.s!=null).map(c=>c.s);let t=A.thr;
   if(ex.length&&kept.length){const mx=Math.max(...ex),mn=Math.min(...kept);if(mx<mn)t=Math.max(t,Math.min(mn-0.005,mx+0.01))}return Math.round(t*1000)/1000}
+/* a symbol counted by hand is memorised the first time: the drawing around the click is read, the symbol under it
+   (the ink joined to the spot clicked) is cut out and kept in the legend under the item's name, so it can be searched and counted everywhere */
+async function toLearnMark(d,it,pg,p){try{
+  if(!d||!it||!d.file||!d.file.id)return;const L=toLib();if(it.lib&&L.some(x=>x.id===it.lib))return;
+  const nm=String(it.name||'').trim();if(nm&&L.some(x=>x.name.trim().toLowerCase()===nm.toLowerCase())){const ex=L.find(x=>x.name.trim().toLowerCase()===nm.toLowerCase());it.lib=ex.id;return}
+  const W=36;const z=[p[0]-W/2,p[1]-W/2,W,W];const R=6;const pdf=await toPdf(d.file.id);const pgo=await pdf.getPage(pg);const vp=pgo.getViewport({scale:R});
+  const cv=document.createElement('canvas');cv.width=Math.ceil(W*R);cv.height=Math.ceil(W*R);const cx2=cv.getContext('2d',{willReadFrequently:true});cx2.fillStyle='#fff';cx2.fillRect(0,0,cv.width,cv.height);cx2.translate(-z[0]*R,-z[1]*R);
+  await bgRender(pgo,{canvasContext:cx2,viewport:vp,occ:toOcc(d.file.id)});const w=cv.width,h=cv.height;const px=cx2.getImageData(0,0,w,h).data;
+  /* ink map, with long straight lines (walls, grid, cables running through) taken out so the symbol stands on its own */
+  const ink=new Uint8Array(w*h);for(let i=0,j=0;i<w*h;i++,j+=4)ink[i]=px[j]*0.3+px[j+1]*0.59+px[j+2]*0.11<170?1:0;const run=Math.round(w*0.45);const cut=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){let x0=0;for(let x=0;x<=w;x++){if(x<w&&ink[y*w+x])continue;if(x-x0>=run)for(let k=x0;k<x;k++)cut[y*w+k]=1;x0=x+1}}
+  for(let x=0;x<w;x++){let y0=0;for(let y=0;y<=h;y++){if(y<h&&ink[y*w+x])continue;if(y-y0>=run)for(let k=y0;k<y;k++)cut[k*w+x]=1;y0=y+1}}
+  const dark=(x,y)=>x>=0&&y>=0&&x<w&&y<h&&ink[y*w+x]&&!cut[y*w+x];
+  /* nearest ink to the click, within about 6 pt */
+  const cx=Math.round(w/2),cy=Math.round(h/2);let st=null;const rmax=Math.round(6*R);
+  for(let rr=0;rr<=rmax&&!st;rr++)for(let dy=-rr;dy<=rr&&!st;dy++)for(let dx=-rr;dx<=rr;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;if(dark(cx+dx,cy+dy)){st=[cx+dx,cy+dy];break}}
+  if(!st)return;
+  /* ink joined to it (small gaps bridged), stopping if it runs off the window (a wire or wall, not a symbol) */
+  const seen=new Uint8Array(w*h);const Q=[st];seen[st[1]*w+st[0]]=1;let l=st[0],r=st[0],t=st[1],b=st[1],n=0;const gap=3;
+  while(Q.length){const [x,y]=Q.pop();n++;if(x<l)l=x;if(x>r)r=x;if(y<t)t=y;if(y>b)b=y;if(n>60000)break;
+    for(let dy=-gap;dy<=gap;dy++)for(let dx=-gap;dx<=gap;dx++){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=w||Y>=h)continue;const k=Y*w+X;if(seen[k])continue;if(dark(X,Y)){seen[k]=1;Q.push([X,Y])}}}
+  const bw=(r-l+1)/R,bh=(b-t+1)/R;if(l<=1||t<=1||r>=w-2||b>=h-2||Math.max(bw,bh)<2||Math.max(bw,bh)>30)return;
+  const rect=[z[0]+l/R-0.6,z[1]+t/R-0.6,bw+1.2,bh+1.2];const c=await toCropSrc(d.file.id,pg,rect);if(!c||!c.src)return;
+  const name=nm||'Symbol '+(L.length+1);const e={id:uid('y'),kind:'sym',loaded:1,learned:1,name,img:c.src,src:c.src,ar:c.ar,ptHint:c.pt,thr:0.85,rot:true,used:0,at:Date.now(),from:'counted by hand on '+(d.name||d.no||d.file.name||'a drawing')};
+  if(toLib().some(x=>x.name.trim().toLowerCase()===name.toLowerCase()))return;
+  S.info.symlib=toLib();S.info.symlib.push(e);it.lib=e.id;toLibSave();persist('drawings/'+TO.id);
+  TO.learnMsg={t:`Memorised “${name}” from your count. Search for it in the legend and count it on every drawing.`,at:Date.now()};toSide()}catch(err){console.error(err)}}
 async function toCropSrc(fid,pg,r){const pdf=await toPdf(fid);const p=await pdf.getPage(pg);const k=Math.min(8,240/Math.max(r[2],r[3]));const vp=p.getViewport({scale:k});
   const c=document.createElement('canvas');c.width=Math.ceil(r[2]*k);c.height=Math.ceil(r[3]*k);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(-r[0]*k,-r[1]*k);
   await bgRender(p,{canvasContext:x,viewport:vp});const px=x.getImageData(0,0,c.width,c.height).data;let t=c.height,b=-1,l=c.width,rr=-1;
@@ -4212,6 +4265,10 @@ async function toLibFromPdf(f){const A=TO.auto;const fid='legend-'+uid('l');DWG_
   catch(e){console.error(e);A.busy='';A.note='Could not read '+f.name+'. Check it’s a PDF exported from CAD, not a scanned image.'}
   finally{try{(await PDFC[fid])?.destroy()}catch(e){}delete PDFC[fid];delete DWG_BLOB[fid];if(TO.txt)for(const k in TO.txt)if(k.startsWith(fid+'#'))delete TO.txt[k];if(PGC.fid===fid){if(PGC.c)PGC.c.width=PGC.c.height=1;Object.assign(PGC,{k:null,c:null,fid:null})}}
   if(COLL.has('tomem')){COLL.delete('tomem');saveColl()}toSide()}
+function toMemPdfSave(){const P=TO.memPdf;if(!P)return;const L=toLib();let n=0;for(const r of P.rows){if(!r.on)continue;const nm=(r.name||'').trim()||'Symbol '+(L.length+1);
+    const ex=L.find(x=>x.kind==='sym'&&x.name.trim().toLowerCase()===nm.toLowerCase());const e={id:ex?ex.id:uid('y'),kind:'sym',loaded:1,name:nm,img:r.img,src:r.src,ar:r.ar,ptHint:r.pt,thr:0.85,rot:true,used:ex?ex.used||0:0,at:Date.now(),from:P.name};
+    if(ex)Object.assign(ex,e,{pt:undefined});else L.push(e);n++}
+  toLibSave();TO.memPdf=null;TO.auto.note=`Memorised ${n} symbol${n===1?'':'s'} from ${P.name}. Press ✨ Count all memorised, or Count next to one.`;toSide();}
 function toMemPdfHtml(){const P=TO.memPdf;const on=P.rows.filter(r=>r.on).length;
   return `<div class="to-mempdf"><div class="to-row" style="justify-content:space-between;align-self:stretch"><b>From ${esc(P.name)}</b><span class="hint">${P.rows.length} found</span></div>
     <p class="hint" style="margin:0">Untick anything that isn’t a symbol, and fix names if needed.</p>
@@ -4234,26 +4291,28 @@ async function toMemRun(d,e,quiet){const A=TO.auto;const ex=d.items.find(i=>i.na
   if(quiet==='collect'){const res=(A.res||[]).filter(c=>c.on);return res.length?{e,snap:Object.assign({},A),res,pt:A.imgPt||e.pt||8}:null}
   if(quiet){const n=(A.res||[]).filter(c=>c.on).length;if(!n)return null;const before=TO.applied;toAutoAdd(d,{memo:false,lib:e});return TO.applied}
   toSide();toDraw();return null}
-async function toMemAll(d){const L=toLib().slice();if(!L.length)return;const got=[];const miss=[];TO.memBusy=true;
+async function toMemAll(d,only){const ALL=toLib();let L=(only?ALL.filter(e=>only.includes(e.id)):ALL).slice();if(!L.length)return;
+  /* counting some symbols only: still look for the other legend symbols of a similar size, so look-alikes are given to the symbol that fits best, but only add the ones asked for */
+  const want=new Set(L.map(e=>e.id));if(only){const sz=e=>num(e.pt||e.ptHint);const rv=ALL.filter(e=>!want.has(e.id)&&L.some(c=>{const a=sz(c),b=sz(e);return !a||!b||(b>a*0.6&&b<a*1.6)}));L=L.concat(rv)}const got=[];const miss=[];TO.memBusy=true;
   /* find every symbol first, then give any spot two symbols both claim to the one that matches it better (look-alike symbols otherwise count each other) */
-  const runs=[];for(let i=0;i<L.length;i++){TO.auto.busy=`Looking for ${L[i].name} (${i+1} of ${L.length})…`;toSide();const r=await toMemRun(d,L[i],'collect');if(r)runs.push(r);else miss.push(L[i].name)}
+  const runs=[];for(let i=0;i<L.length;i++){TO.auto.busy=`Looking for ${L[i].name} (${i+1} of ${L.length})…`;toSide();const r=await toMemRun(d,L[i],'collect');if(r)runs.push(r);else if(want.has(L[i].id))miss.push(L[i].name)}
   const G=new Map(),gs=12;const key=(pg,x,y)=>pg+':'+Math.floor(x/gs)+':'+Math.floor(y/gs);
   runs.forEach((r,ri)=>(r.snap.all||r.res).forEach(c=>{if(c.s==null&&!r.res.includes(c))return;const [x,y]=c.pts[0];const k=key(c.pg,x,y);(G.get(k)||G.set(k,[]).get(k)).push({ri,c})}));
   const drop=new Set();for(const [ri,r] of runs.entries())for(const c of r.res){const [x,y]=c.pts[0];const gx=Math.floor(x/gs),gy=Math.floor(y/gs);
     for(let yy=gy-1;yy<=gy+1;yy++)for(let xx=gx-1;xx<=gx+1;xx++)for(const o of G.get(c.pg+':'+xx+':'+yy)||[]){if(o.ri===ri||o.c===c)continue;const rad=0.5*Math.min(r.pt,runs[o.ri].pt);
       if(Math.hypot(o.c.pts[0][0]-x,o.c.pts[0][1]-y)<rad&&((o.c.s||0)>(c.s||0)||((o.c.s||0)===(c.s||0)&&o.ri<ri)))drop.add(c)}}
-  for(let i=0;i<runs.length;i++){const r=runs[i];const keep=r.res.filter(c=>!drop.has(c));if(!keep.length){miss.push(r.e.name);continue}TO.auto.busy=`Adding ${r.e.name} (${i+1} of ${runs.length})…`;toSide();
+  for(let i=0;i<runs.length;i++){const r=runs[i];if(!want.has(r.e.id))continue;const keep=r.res.filter(c=>!drop.has(c));if(!keep.length){miss.push(r.e.name);continue}TO.auto.busy=`Adding ${r.e.name} (${i+1} of ${runs.length})…`;toSide();
     Object.assign(TO.auto,r.snap,{res:keep,all:keep});toAutoAdd(d,{memo:false,lib:r.e});if(TO.applied)got.push(TO.applied)}
   TO.memBusy=false;TO.auto.busy='';TO.auto.res=null;TO.auto.all=null;
   TO.applied=got.length?{did:TO.id,multi:got,miss}:null;TO.auto.note=got.length?'':'None of the memorised items were found on this '+(TO.auto.pages==='all'?'drawing':'page')+'.';toSync()}
 /* count every memorised symbol on every page of every drawing; legend / symbol schedule sheets are left out so their own symbols aren't counted */
-async function toMemEvery(){const L=toLib();if(!L.length)return;const ids=Object.keys(S.dwgs).filter(id=>S.dwgs[id]&&S.dwgs[id].file);if(!ids.length)return;
+async function toMemEvery(only){const L=toLib();if(!L.length)return;const ids=Object.keys(S.dwgs).filter(id=>S.dwgs[id]&&S.dwgs[id].file);if(!ids.length)return;
   const back={id:TO.id,page:TO.page,pages:TO.auto.pages};const names=L.map(e=>e.name.trim().toLowerCase()).filter(n=>n.length>2);const per=[];const skipped=[];
   undoRecord();
   for(let k=0;k<ids.length;k++){const id=ids[k];const d=dwgDoc(id);if(!d)continue;TO.id=id;TO.page=1;TO.auto.pages='all';
     TO.auto.busy=`Drawing ${k+1} of ${ids.length}: ${d.name||d.file.name||'drawing'}…`;toSide();
     let legend=new Set();try{const pdf=await toPdf(d.file.id);for(let pg=1;pg<=pdf.numPages;pg++){const T=await toTextLines(d,pg);const txt=T.lines.map(l=>l.s.toLowerCase()).join('\n');const hit=names.filter(n=>txt.includes(n)).length;if(names.length>=3&&hit>=Math.max(3,names.length*0.5)||/\b(symbol|electrical)\s+legend\b/.test(txt)&&hit>=2)legend.add(pg)}}catch(e){console.error(e)}
-    const before=new Set(d.marks.map(m=>m.id));await toMemAll(d);
+    const before=new Set(d.marks.map(m=>m.id));await toMemAll(d,only);
     const dd=dwgDoc(id);const added=dd.marks.filter(m=>!before.has(m.id));const onLeg=added.filter(m=>legend.has(m.pg));if(onLeg.length){const gone=new Set(onLeg.map(m=>m.id));dd.marks=dd.marks.filter(m=>!gone.has(m.id));persist('drawings/'+id)}
     if(legend.size)skipped.push((dd.name||dd.file.name||'drawing')+' p'+[...legend].join(','));
     const cnt={};for(const m of added)if(!legend.has(m.pg)){const it=dd.items.find(i=>i.id===m.it);if(it)cnt[it.name]=(cnt[it.name]||0)+1}per.push({name:dd.name||dd.file.name||'drawing',cnt})}
@@ -4402,10 +4461,10 @@ function toWholeAdd(d){const O=TO.whole;if(!O.rows)return;const on=O.rows.filter
 const toHasFiles=e=>{const t=e.dataTransfer&&e.dataTransfer.types;return !!t&&[...t].includes('Files')};
 function toDropOv(on,txt){let o=document.getElementById('toDropOv');if(!on){if(o)o.remove();return}if(!o){o=document.createElement('div');o.id='toDropOv';o.className='to-dropov';document.body.appendChild(o)}o.innerHTML=`<div><b>Drop to add</b><span>${esc(txt)}</span></div>`}
 let toDragN=0;
-document.addEventListener('dragenter',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN++;const sym=e.target.closest&&e.target.closest('.to-symdrop');if(sym){toDropOv(false);return}toDropOv(true,'PDF drawings are added to the Take off list'+(TO.id?' (you stay on this drawing)':''))});
-document.addEventListener('dragover',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;e.preventDefault();const sym=e.target.closest&&e.target.closest('.to-symdrop');if(sym)toDropOv(false);else if(!document.getElementById('toDropOv'))toDropOv(true,'PDF drawings are added to the Take off list');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
+document.addEventListener('dragenter',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN++;const sym=e.target.closest&&e.target.closest('.to-symdrop,.to-legdrop');if(sym){toDropOv(false);return}toDropOv(true,'PDF drawings are added to the Take off list'+(TO.id?' (you stay on this drawing)':''))});
+document.addEventListener('dragover',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;e.preventDefault();const sym=e.target.closest&&e.target.closest('.to-symdrop,.to-legdrop');if(sym)toDropOv(false);else if(!document.getElementById('toDropOv'))toDropOv(true,'PDF drawings are added to the Take off list');try{e.dataTransfer.dropEffect='copy'}catch(x){}});
 document.addEventListener('dragleave',e=>{if(UI.view!=='takeoff')return;toDragN=Math.max(0,toDragN-1);if(!toDragN||!e.relatedTarget)toDropOv(false)});
-document.addEventListener('drop',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN=0;toDropOv(false);if(e.target.closest&&e.target.closest('.to-symdrop'))return;e.preventDefault();
+document.addEventListener('drop',e=>{if(UI.view!=='takeoff'||!toHasFiles(e))return;toDragN=0;toDropOv(false);if(e.target.closest&&e.target.closest('.to-symdrop,.to-legdrop'))return;e.preventDefault();
   const fs=[...e.dataTransfer.files];const pdfs=fs.filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name));const imgs=fs.filter(f=>/^image\//.test(f.type));
   if(pdfs.length){if(TO.id){toUpload(pdfs).then(()=>{TO.msg='';const d=dwgDoc(TO.id);if(d){TO.auto.note=UI.toMsg?UI.toMsg.t+' Go back to Drawings to open them.':'';toSide()}})}else toUpload(pdfs);return}
   if(imgs.length&&TO.id){if(TO.tool==='auto'||TO.tool==='snapl'){TO.auto.m='symbol';toSymbolFile(imgs[0])}else{TO.tool='auto';toLibLoad(imgs)}return}
@@ -4863,6 +4922,25 @@ ${images.length?'The document is attached as page images.':'Document text (colum
   catch(e){console.error(e);UI.llogMsg={err:1,txt:'Could not read '+name+'. Try an .xlsx, .csv or PDF file.'};render()}}
 viewEl.addEventListener('dragover',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
 viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
+/* Take off drawings page: the legend panel */
+const inLeg=e=>UI.view==='takeoff'&&!TO.id&&e.target.closest&&e.target.closest('.to-legpanel');
+viewEl.addEventListener('click',e=>{if(!inLeg(e))return;const b=e.target.closest('[data-ta]');if(!b)return;const a=b.dataset.ta,v=b.dataset.v;e.stopPropagation();
+  if(a==='mpall'){if(TO.memPdf){for(const r of TO.memPdf.rows)r.on=v==='1';render()}return}
+  if(a==='mpsave'){toMemPdfSave();const n=toLib().length;TO.auto.note=`The legend now has ${n} symbol${n===1?'':'s'}. Search it below, then count a symbol, or all of them, on every drawing.`;render();return}
+  if(a==='mpcancel'){TO.memPdf=null;render();return}
+  if(a==='memdel'){S.info.symlib=toLib().filter(x=>x.id!==v);toLibSave();render();return}
+  if(a==='evclose'){TO.memEvery=null;render();return}
+  if(a==='legone'){toMemEvery([v]);return}
+  if(a==='legevery'){toMemEvery(v?v.split(','):null);return}},true);
+viewEl.addEventListener('input',e=>{if(!inLeg(e))return;const k=(e.target.dataset&&e.target.dataset.tk||'').split('|');
+  if(k[0]==='legq'){TO.legQ=e.target.value;scheduleRender(200);return}
+  if(k[0]==='memname'){const le=toLib().find(x=>x.id===k[1]);if(le){le.name=e.target.value;le.renamed=1;toLibSave()}return}
+  if(k[0]==='mpname'){const r=TO.memPdf&&TO.memPdf.rows.find(x=>x.id===k[1]);if(r)r.name=e.target.value;return}});
+viewEl.addEventListener('change',e=>{if(!inLeg(e))return;if(e.target.id==='to_legfile'&&e.target.files&&e.target.files.length){const fs=[...e.target.files];e.target.value='';TO.auto.note='';toLibLoad(fs);return}
+  const id=e.target.dataset&&e.target.dataset.mp;if(id&&TO.memPdf){const r=TO.memPdf.rows.find(x=>x.id===id);if(r)r.on=e.target.checked;render()}});
+viewEl.addEventListener('dragover',e=>{const z=UI.view==='takeoff'&&e.target.closest&&e.target.closest('.to-legdrop');if(!z)return;e.preventDefault();z.classList.add('dropping')});
+viewEl.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('.to-legdrop');if(z&&!z.contains(e.relatedTarget))z.classList.remove('dropping')});
+viewEl.addEventListener('drop',e=>{const z=UI.view==='takeoff'&&e.target.closest&&e.target.closest('.to-legdrop');if(!z)return;e.preventDefault();e.stopPropagation();z.classList.remove('dropping');if(e.dataTransfer&&e.dataTransfer.files.length){TO.auto.note='';toLibLoad(e.dataTransfer.files)}});
 viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.llog-drop');if(!z)return;e.preventDefault();z.classList.remove('dropping');const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)llogImport(f)});
 
 /* ---------- Orders & invoices: drag invoice PDFs onto an order ---------- */
