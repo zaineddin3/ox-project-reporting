@@ -860,7 +860,8 @@ function calc(){syncTasks();
   for(const x of (Array.isArray(S.info.ordSecs)?S.info.ordSecs:[])){const a=secExtraAdj(x);matAnt+=a;matFc+=a}/* section-wide extras */
   const rate=labourRate();
   let lEst=0,lSpent=0,lFc=0,lEarned=0;
-  for(const t of TASK_IDS){const c=taskCalc(t);lEst+=c.est;lSpent+=c.spent;lFc+=c.fc;lEarned+=c.earned}
+  let lSpentX=0,lFcX=0;/* % complete: hours spent ÷ forecast hours at completion, leaving out Management & supervision (time on site, not installed work) */
+  for(const t of TASK_IDS){const c=taskCalc(t);lEst+=c.est;lSpent+=c.spent;lFc+=c.fc;lEarned+=c.earned;if(t!==VH_TASK){lSpentX+=c.spent;lFcX+=c.fc}}
   const otherHrs=num(S.info.otherHrs);lSpent+=otherHrs;lFc+=otherHrs;
   const labAct=lSpent*rate,labFc=lFc*rate;
   const other=num(S.info.otherCost);
@@ -870,7 +871,7 @@ function calc(){syncTasks();
   const gp=revised-fcCost;const TR=tradeIds().map(aptCalc);const subTotal=TR.reduce((a,x)=>a+x.total,0),subClaimed=TR.reduce((a,x)=>a+x.claimed,0);
   return {contract,pcSum,vApp,vUn,vRej,vProfit,vCount,revised,poTotal,matInv,matAnt,matFc,ret,rate,lEst,lSpent,lFc,lEarned,labAct,labFc,other,fcCost,costToDate,labLog,labCostToDate,otherToDate,
     invoiced,retention,gp,gpPct:revised?gp/revised:0,leftInvoice:revised-invoiced,leftSpend:Math.max(lFc-lSpent,0)*rate+leftPO+matAnt,labHrsToGo:Math.max(lFc-lSpent,0),leftPO,marginToDate:invoiced-costToDate,pctInv:revised?invoiced/revised:0,
-    trades:TR,subTotal,subClaimed,pctCost:fcCost?costToDate/fcCost:0,pctHrs:lEst?lEarned/lEst:0,pctSub:subTotal?subClaimed/subTotal:0};
+    trades:TR,subTotal,subClaimed,pctCost:fcCost?costToDate/fcCost:0,lSpentX,lFcX,pctHrs:lFcX?Math.min(lSpentX/lFcX,1):0,pctSub:subTotal?subClaimed/subTotal:0};
 }
 function months(){
   let st=projStartMonth()||S.cash.start;if(!/^\d{4}-\d{2}$/.test(st||'')){const d=new Date();st=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
@@ -1017,15 +1018,15 @@ function labourCostPanel(c){
 }
 function completionMeasures(c){return [['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
     ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
-    ['hrs','Labour hours earned vs estimate',c.lEst,c.pctHrs,`${hrs(c.lEarned)} of ${hrs(c.lEst)} hrs`],
+    ['hrs','Labour hours spent vs forecast at completion',c.lFcX,c.pctHrs,`${hrs(c.lSpentX)} of ${hrs(c.lFcX)} hrs`],
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]]}
 function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
-function jobComp(c){const lv=c.lEst*c.rate,sv=c.subTotal,le=c.lEarned*c.rate,se=c.subClaimed,tot=lv+sv;return {lv,sv,le,se,tot,pct:tot?(le+se)/tot:0}}
-function jobTile(c){const J=jobComp(c);return `<div class="kpi jtile" title="Weighted by value: labour hours earned × labour rate plus subcontractor work complete, over estimated labour value plus total subcontract value"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lEst?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></div>`}
+function jobComp(c){const lv=c.lFcX*c.rate,sv=c.subTotal,le=c.lFcX*c.pctHrs*c.rate,se=c.subClaimed,tot=lv+sv;return {lv,sv,le,se,tot,pct:tot?(le+se)/tot:0}}
+function jobTile(c){const J=jobComp(c);return `<div class="kpi jtile" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></div>`}
 /* job completion, then one tile for Labour & tasks and one for each subcontractor (a new subcontractor gets its own tile automatically) */
 function jobRow(c){
   const bar=v=>`<div class="bar"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div>`;
-  const lab=`<div class="kpi jtile" data-jt="labour"><span class="l">Labour &amp; tasks</span><span class="v">${c.lEst?pct(c.pctHrs):'—'}</span>${c.lEst?bar(c.pctHrs):''}<span class="d">${c.lEst?`${hrs(c.lEarned)} of ${hrs(c.lEst)} hrs earned`:'No task estimates yet'}</span></div>`;
+  const lab=`<div class="kpi jtile" data-jt="labour"><span class="l">Labour &amp; tasks</span><span class="v">${c.lFcX?pct(c.pctHrs):'—'}</span>${c.lFcX?bar(c.pctHrs):''}<span class="d">${c.lFcX?`${hrs(c.lSpentX)} hrs spent of ${hrs(c.lFcX)} forecast at completion`:'No task estimates yet'}</span><span class="d">Management &amp; supervision left out</span></div>`;
   const subs=c.trades.map((a,i)=>{const p=a.total?a.claimed/a.total:0;return `<div class="kpi jtile" data-jt="sub"><span class="l">${esc(a.name||'Untitled trade')}</span><span class="v">${a.total?pct(p):'—'}</span>${a.total?bar(p):''}<span class="d">${a.total?`${money(a.claimed)} of ${money(a.total)} claimed`:'No contract value yet'}</span></div>`}).join('');
   return `<div class="jrow">${jobTile(c)}${lab}${subs}</div>`;
 }
@@ -1033,17 +1034,17 @@ function completionPanel(){
   const c=calc();
   const m=[['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
     ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
-    ['hrs','Labour hours earned vs estimate',c.lEst,c.pctHrs,`${hrs(c.lEarned)} of ${hrs(c.lEst)} hrs`],
+    ['hrs','Labour hours spent vs forecast at completion',c.lFcX,c.pctHrs,`${hrs(c.lSpentX)} of ${hrs(c.lFcX)} hrs`],
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]];
   const lead=m.find(x=>x[2]>0);
-  const tasks=TASK_IDS.map((t,i)=>({i,c:taskCalc(t)})).filter(x=>x.c.est>0);
+  const tasks=TASK_IDS.map((t,i)=>{const x=taskCalc(t);return {i,c:{...x,pct:x.fc?Math.min(x.spent/x.fc,1):0}}}).filter((x,k)=>x.c.est>0&&TASK_IDS[x.i]!==VH_TASK);
   return `<div class="panel"><div class="complete">
     <div><div class="kpi" style="padding:0;background:none"><span class="l">Overall completion</span></div><div class="big">${lead?pct(lead[3]):'—'}</div><div class="hint">${lead?lead[1]:'Enter contract, cost, labour or subcontractor figures to calculate completion.'}</div></div>
     <div class="crow">${m.map(([k,l,den,v,dd],i)=>`<div><div class="ct"><span>${l}</span><span class="money">${den?pct(v):'—'}</span></div><div class="bar${i%2?' b2':''}"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div><div class="hint" style="margin-top:4px">${den?dd:'No figures yet'}</div></div>`).join('')}</div>
   </div>
   ${jobRow(c)}
   <div class="grid2" style="margin-top:20px"><div><h3 style="margin-bottom:10px">By trade</h3>${tradeBars(c)}</div>
-  <div><div class="ct" style="margin-bottom:10px"><h3>Labour & tasks</h3><span class="money" style="font-size:14px"><b>${pct(c.pctHrs)}</b> overall · ${hrs(c.lEarned)} / ${hrs(c.lEst)} hrs</span></div><div class="bar" style="height:12px;margin-bottom:16px"><i style="width:${Math.min(c.pctHrs*100,100).toFixed(1)}%"></i></div>${tasks.length?tasks.map(x=>`<div class="ct"><span>${esc(TASKS[x.i])}</span><span class="money">${pct(x.c.pct,0)}</span></div><div class="bar" style="margin-bottom:10px"><i style="width:${Math.min(x.c.pct*100,100).toFixed(1)}%"></i></div>`).join(''):'<p class="hint" style="margin:0">No task estimates yet. Add line items under Labour & tasks.</p>'}</div></div></div>`;
+  <div><div class="ct" style="margin-bottom:10px;flex-wrap:wrap;gap:4px 12px"><h3>Labour & tasks</h3><span class="money" style="font-size:14px;white-space:normal"><b>${pct(c.pctHrs)}</b> overall · ${hrs(c.lSpentX)} spent / ${hrs(c.lFcX)} forecast hrs</span></div><div class="bar" style="height:12px;margin-bottom:16px"><i style="width:${Math.min(c.pctHrs*100,100).toFixed(1)}%"></i></div>${tasks.length?tasks.map(x=>`<div class="ct"><span>${esc(TASKS[x.i])}</span><span class="money">${pct(x.c.pct,0)}</span></div><div class="bar" style="margin-bottom:10px"><i style="width:${Math.min(x.c.pct*100,100).toFixed(1)}%"></i></div>`).join(''):'<p class="hint" style="margin:0">No task estimates yet. Add line items under Labour & tasks.</p>'}</div></div></div>`;
 }
 function ctdTiles(c,o={}){return `<div class="kpis">
     <div class="kpi"><span class="l">Cost to date</span><span class="v">${money(c.costToDate)}</span><span class="d">${pct(c.pctCost)} of ${money(c.fcCost)} forecast cost</span></div>
