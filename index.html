@@ -139,7 +139,11 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:22px}
 .bw{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:color-mix(in srgb,var(--accent) 4%,var(--surface))}.bw-q{display:flex;flex-direction:column;gap:6px;font-weight:500;max-width:420px}.bw-act{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}.bw-sum{margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap}.bw-all{display:flex;gap:8px;align-items:center;margin:0 0 8px;flex-wrap:wrap}.bw-tab td{padding:4px 6px}.bw-all .f{border:1px solid var(--line);background:var(--surface)}
 .jrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px;margin-top:20px}
-.jrow .jtile{border:1px solid var(--line);border-radius:10px;gap:6px}.kpi.jtile .v{color:var(--good)}.jrow .jtile .bar{height:6px}
+.jrow .jtile{border:1px solid var(--line);border-radius:10px;gap:6px}
+button.go{font:inherit;color:inherit;text-align:left;width:100%;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .15s,box-shadow .15s,transform .15s}
+button.go:hover{border-color:var(--accent);box-shadow:0 2px 10px rgba(0,0,0,.08)}button.go:active{transform:translateY(1px)}
+button.go:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.cgo{background:none;border:1px solid transparent;border-radius:10px;padding:8px 10px;margin:-8px -10px;width:calc(100% + 20px);display:block}.kpi.jtile .v{color:var(--good)}.jrow .jtile .bar{height:6px}
 .to-drop.dropping{outline:2px dashed var(--accent);outline-offset:-6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .to-dropin{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 #toHost{margin-top:14px}
@@ -1048,12 +1052,12 @@ function completionMeasures(c){return [['cost','Cost incurred vs forecast final 
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]]}
 function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
 function jobComp(c){const lv=c.lFcX*c.rate,sv=c.subTotal,le=c.lFcX*c.pctHrs*c.rate,se=c.subClaimed,tot=lv+sv;return {lv,sv,le,se,tot,pct:tot?(le+se)/tot:0}}
-function jobTile(c){const J=jobComp(c);return `<div class="kpi jtile" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></div>`}
+function jobTile(c){const J=jobComp(c);return `<button type="button" class="kpi jtile go" data-act="ov-go" data-v="overview" data-to="ov-break" aria-label="Job completion: show the breakdown by trade and task" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></button>`}
 /* job completion, then one tile for Labour & tasks and one for each subcontractor (a new subcontractor gets its own tile automatically) */
 function jobRow(c){
   const bar=v=>`<div class="bar"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div>`;
-  const lab=`<div class="kpi jtile" data-jt="labour"><span class="l">Labour &amp; tasks</span><span class="v">${c.lFcX?pct(c.pctHrs):'—'}</span>${c.lFcX?bar(c.pctHrs):''}<span class="d">${c.lFcX?`${hrs(c.lSpentX)} hrs spent of ${hrs(c.lFcX)} forecast at completion`:'No task estimates yet'}</span><span class="d">Management &amp; supervision left out</span></div>`;
-  const subs=c.trades.map((a,i)=>{const p=a.total?a.claimed/a.total:0;return `<div class="kpi jtile" data-jt="sub"><span class="l">${esc(a.name||'Untitled trade')}</span><span class="v">${a.total?pct(p):'—'}</span>${a.total?bar(p):''}<span class="d">${a.total?`${money(a.claimed)} of ${money(a.total)} claimed`:'No contract value yet'}</span></div>`}).join('');
+  const lab=`<button type="button" class="kpi jtile go" data-jt="labour" data-act="ov-go" data-v="labour" aria-label="Open Labour &amp; tasks"><span class="l">Labour &amp; tasks</span><span class="v">${c.lFcX?pct(c.pctHrs):'—'}</span>${c.lFcX?bar(c.pctHrs):''}<span class="d">${c.lFcX?`${hrs(c.lSpentX)} hrs spent of ${hrs(c.lFcX)} forecast at completion`:'No task estimates yet'}</span><span class="d">Management &amp; supervision left out</span></button>`;
+  const ids=tradeIds();const subs=c.trades.map((a,i)=>{const p=a.total?a.claimed/a.total:0;return `<button type="button" class="kpi jtile go" data-jt="sub" data-act="ov-go" data-v="subcontractors" data-bld="${ids[i]}" aria-label="Open ${esc(a.name||'Untitled trade')} in Subcontractors"><span class="l">${esc(a.name||'Untitled trade')}</span><span class="v">${a.total?pct(p):'—'}</span>${a.total?bar(p):''}<span class="d">${a.total?`${money(a.claimed)} of ${money(a.total)} claimed`:'No contract value yet'}</span></button>`}).join('');
   return `<div class="jrow">${jobTile(c)}${lab}${subs}</div>`;
 }
 function completionPanel(){
@@ -1066,10 +1070,10 @@ function completionPanel(){
   const tasks=TASK_IDS.map((t,i)=>{const x=taskCalc(t);return {i,c:{...x,pct:x.fc?Math.min(x.spent/x.fc,1):0}}}).filter((x,k)=>x.c.est>0&&TASK_IDS[x.i]!==VH_TASK);
   return `<div class="panel"><div class="complete">
     <div><div class="kpi" style="padding:0;background:none"><span class="l">Overall completion</span></div><div class="big">${lead?pct(lead[3]):'—'}</div><div class="hint">${lead?lead[1]:'Enter contract, cost, labour or subcontractor figures to calculate completion.'}</div></div>
-    <div class="crow">${m.map(([k,l,den,v,dd],i)=>`<div><div class="ct"><span>${l}</span><span class="money">${den?pct(v):'—'}</span></div><div class="bar${i%2?' b2':''}"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div><div class="hint" style="margin-top:4px">${den?dd:'No figures yet'}</div></div>`).join('')}</div>
+    <div class="crow">${m.map(([k,l,den,v,dd],i)=>`<button type="button" class="cgo go" data-act="ov-go" data-v="${{cost:'cost',inv:'claim',hrs:'labour',sub:'subcontractors'}[k]}" aria-label="Open ${l}"><div class="ct"><span>${l}</span><span class="money">${den?pct(v):'—'}</span></div><div class="bar${i%2?' b2':''}"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div><div class="hint" style="margin-top:4px">${den?dd:'No figures yet'}</div></button>`).join('')}</div>
   </div>
   ${jobRow(c)}
-  <div class="grid2" style="margin-top:20px"><div><h3 style="margin-bottom:10px">By trade</h3>${tradeBars(c)}</div>
+  <div class="grid2" id="ov-break" style="margin-top:20px"><div><h3 style="margin-bottom:10px">By trade</h3>${tradeBars(c)}</div>
   <div><div class="ct" style="margin-bottom:10px;flex-wrap:wrap;gap:4px 12px"><h3>Labour & tasks</h3><span class="money" style="font-size:14px;white-space:normal"><b>${pct(c.pctHrs)}</b> overall · ${hrs(c.lSpentX)} spent / ${hrs(c.lFcX)} forecast hrs</span></div><div class="bar" style="height:12px;margin-bottom:16px"><i style="width:${Math.min(c.pctHrs*100,100).toFixed(1)}%"></i></div>${tasks.length?tasks.map(x=>`<div class="ct"><span>${esc(TASKS[x.i])}</span><span class="money">${pct(x.c.pct,0)}</span></div><div class="bar" style="margin-bottom:10px"><i style="width:${Math.min(x.c.pct*100,100).toFixed(1)}%"></i></div>`).join(''):'<p class="hint" style="margin:0">No task estimates yet. Add line items under Labour & tasks.</p>'}</div></div></div>`;
 }
 function ctdTiles(c,o={}){return `<div class="kpis">
@@ -5136,6 +5140,9 @@ document.addEventListener('click',async e=>{
     UI.armed=null;removeProject(id);return}
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
+  if(act==='ov-go'){const v=btn.dataset.v;if(btn.dataset.bld)UI.bld=btn.dataset.bld;
+    if(v===UI.view){const el=document.getElementById(btn.dataset.to||'');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+    UI.view=v;if(v==='labour'||v==='progress')collapseAllTasks(v);if(v==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+v)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;if(UI.view==='labour'||UI.view==='progress')collapseAllTasks(UI.view);if(UI.view==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
@@ -5566,7 +5573,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=un
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['ov-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
