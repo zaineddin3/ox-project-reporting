@@ -116,6 +116,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .inv-search{display:flex;gap:8px;align-items:center}.inv-search .f{flex:1;min-width:0}
 .inv-results{margin-top:-6px}.inv-results .btn{padding:4px 12px;font-size:12px}
 .invbox.inv-hit{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
+.po-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px;margin-bottom:8px}.po-tiles>.ms-appr-tile{margin:0}.po-tiles>.ms-appr-tile>div:first-child{flex:1 1 220px;min-width:0}.po-tiles .itp{flex-wrap:wrap;max-width:100%;min-width:0}.po-tiles>.ms-appr-tile{min-width:0;overflow:hidden}.po-tiles .itp.itp-multi{max-width:100%;flex:1 1 100%}
 .jrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px;margin-top:20px}
 .jrow .jtile{border:1px solid var(--line);border-radius:10px;gap:6px}
 button.go{font:inherit;color:inherit;text-align:left;width:100%;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .15s,box-shadow .15s,transform .15s}
@@ -1518,7 +1519,7 @@ async function uploadPhotos(key,files){if(!assets)return;const ok=[...files].fil
   delete UP['ph:'+key];render()}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.phkey||!t.files||!t.files.length)return;const fl=[...t.files];t.value='';uploadPhotos(t.dataset.phkey,fl)});
 function itpCell(key,f,L='ITP'){
-  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');const ACC=/^inv\|/.test(key)?'application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/webp':'application/pdf,.pdf';
+  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');const ACC=/^(inv|poatt)\|/.test(key)?'application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/webp':'application/pdf,.pdf';
   if(UP[key])return `<span class="hint">Uploading…</span>`;
   const ACCM=ACC.includes('image/')?ACC:ACC+',image/jpeg,.jpg,.jpeg,image/png,.png';/* extra attachments can be PDFs or photos anywhere */
   if(f&&f.id){const armed=UI.armed==='itpf'+key;const MORE=Array.isArray(f.more)?f.more.filter(x=>x&&x.id):[];const lnk=(x,t)=>`<a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(x.id)}" data-file="${esc(x.id)}" target="_blank" rel="noopener" title="${esc(x.name||t)}">${esc(t)}</a>`;
@@ -1527,8 +1528,8 @@ function itpCell(key,f,L='ITP'){
       ${assets?`<label class="btn ghost itp-act itp-more" for="${eid}_m" title="Add more files (PDF or JPG / PNG). You can pick several at once.">+ Add</label><input type="file" accept="${ACCM}" id="${eid}_m" data-itpmore="${esc(key)}" multiple hidden>`:''}</div>`}
   return assets?`<label class="btn itp-up" for="${eid}" title="${/^inv\|/.test(key)?'PDF or a JPG / PNG photo. ':''}You can pick several files at once">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="${ACC}" id="${eid}" data-itp="${esc(key)}" multiple hidden>`:`<span class="hint">—</span>`;
 }
-function setItp(key,v){const parts=key.split('|');if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
-function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+function setItp(key,v){const parts=key.split('|');if(parts[0]==='poatt'){const o=S.orders[parts[1]];if(!o)return;if(v)o.attFile=v;else delete o.attFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='poatt')return S.orders[a]?.attFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
@@ -1727,7 +1728,7 @@ ${images.length?'The invoice is attached as page images (it has no readable text
 }
 async function uploadItp(key,file){
   if(!assets)return;
-  const photoOk=/^inv\|/.test(key)&&isImgFile(file);
+  const photoOk=/^(inv|poatt)\|/.test(key)&&isImgFile(file);
   if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name)||photoOk)){setSave('error',/^inv\|/.test(key)?'Invoices must be a PDF or a JPG / PNG photo':'File must be a PDF');return}
   if(file.size>50*1024*1024){setSave('error','File is over 50 MB');return}
   UP[key]=true;render();
@@ -1740,7 +1741,7 @@ async function uploadItp(key,file){
 }
 /* several files at once: the first is the main file (the one read, merged or counted, as before); the rest are extra attachments kept with it */
 async function uploadItpFiles(key,files,extraOnly){files=[...(files||[])];if(!files.length||!assets)return;
-  const okMain=f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||(/^inv\|/.test(key)&&isImgFile(f));
+  const okMain=f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||(/^(inv|poatt)\|/.test(key)&&isImgFile(f));
   if(!extraOnly&&!(getItp(key)&&getItp(key).id)){const i=files.findIndex(okMain);if(i<0){setSave('error',/^inv\|/.test(key)?'Invoices must be a PDF or a JPG / PNG photo':'The first file must be a PDF');return}const [m]=files.splice(i,1);await uploadItp(key,m)}
   if(files.length)await uploadItpMore(key,files)}
 async function uploadItpMore(key,files){if(!assets)return;const base=getItp(key);if(!base||!base.id){return uploadItpFiles(key,files)}
@@ -1873,25 +1874,40 @@ function ordPoTotals(id){const o=S.orders[id];const el=document.getElementById('
 /* terms & conditions: a PDF kept on the order; its pages are added to the end of the raised PO's PDF, so they're seen wherever the PO is opened */
 function poTcTile(oid,pre){const o=S.orders[oid];if(!o||(!pre&&(!o.poFile||!o.poFile.id)))return '';const has=o.tcFile&&o.tcFile.id;const raised=!!(o.poFile&&o.poFile.id);
   return `<div class="ms-appr-tile po-tc" data-potc="${oid}" title="Drop the terms & conditions PDF here"><div><b>Terms & conditions</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':has?(raised&&o.poFile.tc&&String(o.poFile.tc).split('+')[0]===o.tcFile.id?`On the PO: its pages are at the end of PO ${esc(o.poNo||'')} Rev ${num(o.poFile.rev)}.`:raised?'Attached.':'Attached. Its pages are added to the end of the PO when you raise it.'):raised?'Attach or drop the terms & conditions PDF. Its pages are added to the end of the PO PDF, and to every revision you raise after.':'Attach or drop the terms & conditions PDF now; its pages are added to the end of the PO when you raise it.'}</div></div>${itpCell('potc|'+oid,o.tcFile,'Terms & conditions')}</div>`}
+/* the PO PDF people open or download = the raised PO, then the attachments (PDF pages, and photos each on their own page), then the terms & conditions */
+const poAtts=o=>o.attFile&&o.attFile.id?[o.attFile,...(Array.isArray(o.attFile.more)?o.attFile.more:[])].filter(x=>x&&x.id):[];
+const poTcs=o=>o.tcFile&&o.tcFile.id?[o.tcFile,...(Array.isArray(o.tcFile.more)?o.tcFile.more:[])].filter(x=>x&&x.id&&!/^image\//.test(x.type||'')):[];
+async function poImgPng(bl){const u=URL.createObjectURL(bl);try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u});const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0);
+  return await new Promise(ok=>c.toBlob(b=>ok(b),'image/png'))}finally{URL.revokeObjectURL(u)}}
 async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.id)return;
-  const base=o.poBase&&o.poFile.tc?o.poBase:o.poFile;/* the PO without terms */
-  if(!o.tcFile||!o.tcFile.id){if(o.poFile.tc&&o.poBase){o.poFile={...o.poBase};delete o.poBase;persist('orders/'+oid);render()}return}
-  const TCS=[o.tcFile,...(Array.isArray(o.tcFile.more)?o.tcFile.more:[])].filter(x=>x&&x.id&&!/^image\//.test(x.type||''));const sig=TCS.map(x=>x.id).join('+');
-  if(o.poFile.tc===sig&&o.poBase)return;
+  const merged=!!(o.poBase&&(o.poFile.tc||o.poFile.att));const base=merged?o.poBase:o.poFile;/* the PO on its own */
+  const ATT=poAtts(o),TCS=poTcs(o);const sig=TCS.map(x=>x.id).join('+'),asig=ATT.map(x=>x.id).join('+');
+  if(!ATT.length&&!TCS.length){if(merged){o.poFile={...o.poBase};delete o.poBase;persist('orders/'+oid);render()}return}
+  if(merged&&(o.poFile.tc||'')===sig&&(o.poFile.att||'')===asig)return;
   UI.tcBusy=oid;render();
   try{if(!window.PDFLib)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');const {PDFDocument}=window.PDFLib;
-    const BL=await Promise.all([base,...TCS].map(fileBlob));const out=await PDFDocument.create();
-    for(const bl of BL){if(!bl)continue;const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p))}
+    const parts=[base,...ATT,...TCS];const BL=await Promise.all(parts.map(f=>fileBlob(f).catch(()=>null)));const out=await PDFDocument.create();const skipped=[];
+    for(let i=0;i<parts.length;i++){const f=parts[i],bl=BL[i];if(!bl){if(i)skipped.push(f.name||'a file');continue}
+      const isImg=/^image\//.test(f.type||bl.type||'')||/\.(jpe?g|png|webp|gif)$/i.test(f.name||'');
+      try{if(isImg){const jpg=/jpe?g/i.test(f.type||bl.type||'')||/\.jpe?g$/i.test(f.name||'');const png=/png/i.test(f.type||bl.type||'')||/\.png$/i.test(f.name||'');
+          const im=jpg?await out.embedJpg(await bl.arrayBuffer()):png?await out.embedPng(await bl.arrayBuffer()):await out.embedPng(await (await poImgPng(bl)).arrayBuffer());
+          const A4=[595.28,841.89],land=im.width>im.height,PW=land?A4[1]:A4[0],PH=land?A4[0]:A4[1],m=28;const k=Math.min((PW-2*m)/im.width,(PH-2*m)/im.height,1.5);
+          const pg=out.addPage([PW,PH]);const w=im.width*k,h=im.height*k;pg.drawImage(im,{x:(PW-w)/2,y:(PH-h)/2,width:w,height:h})}
+        else{const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p))}}
+      catch(err){console.error(err);if(!i)throw err;skipped.push(f.name||'a file')}}
     const bytes=await out.save();const r=await assets.upload(new File([bytes],base.name||'PO.pdf',{type:'application/pdf'}),{type:'application/pdf'});
-    o.poBase={...base};o.poFile={...base,id:r.id,tc:sig};persist('orders/'+oid);setSave('saved')}
-  catch(e){console.error(e);setSave('error','Couldn’t add the terms & conditions to the PO PDF')}
+    o.poBase={...base};o.poFile={...base,id:r.id,tc:sig,att:asig};persist('orders/'+oid);setSave(skipped.length?'error':'saved',skipped.length?'Couldn’t add '+skipped.join(', ')+' to the PO PDF':undefined)}
+  catch(e){console.error(e);setSave('error','Couldn’t add the attachments and terms & conditions to the PO PDF')}
   UI.tcBusy=null;render()}
+/* attachments tile: drawings, quotes, photos… kept on the order and added to the PO PDF after its own pages */
+function poAttTile(oid){const o=S.orders[oid];if(!o)return '';const A=poAtts(o);const raised=!!(o.poFile&&o.poFile.id);const on=raised&&A.length&&(o.poFile.att||'')===A.map(x=>x.id).join('+');
+  return `<div class="ms-appr-tile po-att" data-poatt="${oid}" title="Drop attachments here"><div><b>Attachments${A.length?` (${A.length})`:''}</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':A.length?(on?`In the PO PDF after its own pages${o.tcFile&&o.tcFile.id?', before the terms & conditions':''}.`:raised?'Attached.':'Attached. Added to the PO PDF when you raise it.'):'Attach or drop PDFs or photos (JPG / PNG), e.g. drawings, the quote or a spec. They’re added to the PO PDF after its own pages.'}</div></div>${itpCell('poatt|'+oid,o.attFile,'Attachment')}</div>`}
 function ordPoPanel(id,o){
   const ms=o.fromMsod&&S.msods[o.fromMsod];const pf=o.poFile&&o.poFile.id?o.poFile:null;
-  if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MSOD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MSOD</button></div></div>${pf?poTcTile(id):''}`;
+  if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MSOD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MSOD</button></div></div>${pf?`<div class="po-tiles">${poTcTile(id)}${poAttTile(id)}</div>`:''}`;
   const pm=o.poMeta||{};const k='opm|'+id+'|';const T=ordPoSum(o);const lines=o.lines||[];
   const raiser=pm.printName??(window.__me?(window.__me.name||window.__me.email):'');
-  return `${poTcTile(id,true)}<div class="opo opo-drop" data-opo="${id}"><div class="opo-h"><b>Purchase order${pf?` · <span class="tag">Rev ${num(pf.rev)}</span>`:''}</b><span class="hint">Type the line items, or drop an Excel sheet (.xlsx or .csv) here with description, qty, unit and rate columns. The PO number and date are in the row above; leave the PO number blank to number it automatically.</span></div>
+  return `<div class="po-tiles">${poTcTile(id,true)}${poAttTile(id)}</div><div class="opo opo-drop" data-opo="${id}"><div class="opo-h"><b>Purchase order${pf?` · <span class="tag">Rev ${num(pf.rev)}</span>`:''}</b><span class="hint">Type the line items, or drop an Excel sheet (.xlsx or .csv) here with description, qty, unit and rate columns. The PO number and date are in the row above; leave the PO number blank to number it automatically.</span></div>
     <div class="tw" style="margin:6px 0"><table class="opo-t"><thead><tr><th>#</th><th style="min-width:280px">Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate (ex GST)</th><th class="n">Total</th><th></th></tr></thead><tbody>
     ${lines.map((l,i)=>{const kl='opl|'+id+'|'+i+'|';return `<tr><td class="hint">${i+1}</td><td>${inp(kl+'desc',l.desc||'',{label:'Description line '+(i+1),ph:'e.g. Double GPO white'})}</td><td style="width:90px">${inp(kl+'qty',l.qty??'',{num:1,label:'Qty line '+(i+1),ph:'0'})}</td><td style="width:80px">${inp(kl+'unit',l.unit||'',{label:'Unit line '+(i+1),ph:'ea'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate??'',{num:1,label:'Rate line '+(i+1),ph:'0'})}</div></td><td class="n money" id="opo_lt_${id}_${i}">${num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''}</td><td>${delBtn('opl',id,String(i),'Remove')}</td></tr>`}).join('')||`<tr><td colspan="7" class="hint">No lines yet. Add a line or drop an Excel sheet here.</td></tr>`}
     </tbody></table></div>
@@ -1915,7 +1931,7 @@ async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMet
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
   UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
-  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(o.tcFile&&o.tcFile.id)setTimeout(()=>poMergeTc(id),0)}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
+  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(poTcs(o).length||poAtts(o).length)setTimeout(()=>poMergeTc(id),0)}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
   persist('orders/'+id);UI.opoBusy=null;UI.opoMsg={id,t:saved?`Raised PO ${no} Rev ${rev} for ${money2(amt)} ex GST.`:'PDF downloaded, but it could not be saved on the order here.'};render();
   if(!saved&&downloads){try{await downloads.save({filename:fname,data:blob})}catch(e){}}}
 function poParseRows(rows){const clean=v=>v==null?'':String(v).trim();const isNum=v=>v!==''&&!isNaN(num(String(v).replace(/[$,\s]/g,'')));const n=v=>num(String(v).replace(/[$,\s]/g,''));
@@ -2917,7 +2933,7 @@ async function msPo(id){
   if(oid){Object.assign(S.orders[oid],{poNo:no,supplier:desc,po:String(amt),date});delete S.orders[oid].budgetPo}else{oid=uid('o');S.orders[oid]={created:Date.now(),inv:[],retention:false,date,poNo:no,supplier:desc,po:String(amt),fromMsod:id}}
   const o=S.orders[oid];o.raisedBy=raisedBy;let saved=false;
   if(assets){try{const old=o.poFile;const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});
-    if(old&&old.id&&old.id!==r.id)o.poHist=[...(o.poHist||[]),old];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(o.tcFile&&o.tcFile.id)setTimeout(()=>poMergeTc(oid),0)}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
+    if(old&&old.id&&old.id!==r.id)o.poHist=[...(o.poHist||[]),old];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(poTcs(o).length||poAtts(o).length)setTimeout(()=>poMergeTc(oid),0)}catch(e){console.error(e);setSave('error','The PO was added to Orders & invoices, but the PDF could not be saved with it')}}
   persist('orders/'+oid);
   m.poLog=[...(m.poLog||[]),{no,date,supplier:d.supplier,total:amt,lines:L.length,orderId:oid,by:raisedBy,pdf:saved,rev}];if(no){m.hdr=m.hdr||{};m.hdr.orderNo=no}persist('msod/'+id);
   UI.msPoBusy=false;UI.msPoDone=oid;render();
@@ -5055,6 +5071,10 @@ viewEl.addEventListener('drop',e=>{if(!ordHasFiles(e))return;const t=pcXlTarget(
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.pcxlf===undefined)return;const f=t.files&&t.files[0];if(f)pcStartRun(t.dataset.pcxlf,f);t.value=''});
 
 /* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
+viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
+viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
+viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
+  const fl=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));if(!fl.length){setSave('error','Attachments must be PDFs or JPG / PNG photos');return}if(!assets){setSave('error','File storage is not available in this view');return}uploadItpFiles('poatt|'+t.dataset.poatt,fl)},true);
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
 viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-potc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
