@@ -186,6 +186,7 @@ tr.ro-row td{background:color-mix(in srgb,var(--soft) 55%,transparent);color:var
 .splitacts{display:flex;gap:4px;margin-top:3px}.xtask-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xtask-h h3{margin:0}.xtask-h .f{font-size:17px;font-weight:600;min-width:220px;border:1px solid var(--line);background:var(--surface)}
 .cp-list{max-height:min(52vh,460px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}.cp-sec{padding:4px 0;border-bottom:1px solid var(--line)}.cp-sec:last-child{border-bottom:0}
 .cp-clr{margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}.cp-clr .cp-opt{padding:2px 0}
+.cp-row{display:flex;align-items:center;gap:4px}.cp-row .cp-opt{flex:1;min-width:0}.cp-tog{width:22px;flex:none;display:inline-flex;justify-content:center}.cp-n{white-space:nowrap;margin-left:6px}
 .cp-opt{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.cp-secopt{font-size:14px}
 .tabs-pick{padding:6px 2px;position:sticky;left:12px;max-width:min(940px,calc(100vw - 360px))}@media (max-width:860px){.tabs-pick{max-width:calc(100vw - 64px)}}.tabs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}.tabs-opt{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 4px 3px 8px;border-radius:7px;border:1px solid var(--line)}.tabs-opt select.f{width:auto;min-width:104px;padding:3px 6px;font-size:12.5px;min-height:0}.tabs-opt.lv-h{opacity:.6}.tabs-opt.lv-v{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
 .ro-banner{margin:0 0 12px;padding:9px 12px;border-radius:9px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:13.5px;font-weight:500}.ro-view input:disabled,.ro-view select:disabled,.ro-view textarea:disabled{opacity:.85;cursor:not-allowed}.tabs-btn{padding:3px 8px;font-size:12px}
@@ -3313,17 +3314,23 @@ function cptoCounts(){const M=UI.cpto;if(!M)return;const n=(M.sel||[]).length;co
   const go=document.querySelector('[data-act=cpto-go]');if(go){go.textContent=`Paste into ${n} place${n===1?'':'s'}`;go.disabled=!n}
   document.querySelectorAll('[data-ui=cptoTo] option').forEach(o=>{const i=TASK_IDS.indexOf(o.value);o.textContent=`${String(i+1).padStart(3,'0')} · ${TASKS[i]}${per[o.value]?` (${per[o.value]} ticked)`:''}`})}
 const secLines=(t,sec)=>{const d=ensureTask(t);const sids=taskSecs(t).map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];return d.items.filter(x=>so(x)===sec)};
+/* Copy to…: sections and lines start minimised; open a section to see its lines, open a line to see its sub-lines */
+function cpRows(M,tt,z,rows,sel,k,lineHint){const op=new Set(M.open||[]);const sk=tt+'|'+z.id;const open=op.has(sk);
+  const tick=[...sel].filter(x=>{if(!x.startsWith(tt+'|'))return false;const kk=x.slice(tt.length+1);if(kk==='S:'+z.id)return true;if(!kk.startsWith('N:'))return false;const top=kk.slice(2).split('.')[0];return rows.some(r=>r.path.split('.')[0]===top)}).length;
+  const kids=new Set(rows.filter(r=>r.depth>0).map(r=>r.path.split('.').slice(0,-1).join('.')));
+  const vis=open?rows.filter(r=>{const p=r.path.split('.');for(let i=1;i<p.length;i++)if(!op.has(tt+'|'+p.slice(0,i).join('.')))return false;return true}):[];
+  return `<div class="cp-sec"><div class="cp-row"><button type="button" class="tog cp-tog" data-act="cpto-tog" data-v="${esc(sk)}" aria-expanded="${open}" aria-label="${open?'Minimise':'Show lines in'} ${esc(z.name||'section')}">${rows.length?(open?'▾':'▸'):''}</button><label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('S:'+z.id))}" ${sel.has(k('S:'+z.id))?'checked':''}> <b>${esc(z.name||'Untitled section')}</b> <span class="hint">${lineHint}</span></label>${!open&&rows.length?`<span class="hint cp-n">${rows.filter(r=>!r.depth).length} line${rows.filter(r=>!r.depth).length===1?'':'s'}${tick?` · <b>${tick} ticked</b>`:''}</span>`:''}</div>
+    ${vis.map(x=>{const hasK=kids.has(x.path);const ko=op.has(tt+'|'+x.path);return `<div class="cp-row" style="padding-left:${18+x.depth*18}px">${hasK?`<button type="button" class="tog cp-tog" data-act="cpto-tog" data-v="${esc(tt+'|'+x.path)}" aria-expanded="${ko}" aria-label="${ko?'Minimise':'Show sub-lines of'} ${esc(nodeLabel(x.n))}">${ko?'▾':'▸'}</button>`:'<span class="cp-tog"></span>'}<label class="cp-opt"><input type="checkbox" data-cpk="${esc(k('N:'+x.path))}" ${sel.has(k('N:'+x.path))?'checked':''}> ${x.depth?'↳ ':''}${esc(nodeLabel(x.n))}${M.kind==='sec'?' <span class="hint">as sub-lines</span>':''}</label></div>`}).join('')}</div>`}
 function cptoSecHtml(M){const srcSec=taskSecs(M.t).find(z=>z.id===M.sec);if(!srcSec){UI.cpto=null;return ''}const L=secLines(M.t,M.sec);
   const tt=M.to||M.t;const secs=taskSecs(tt);const sel=new Set(M.sel||[]);const k=x=>tt+'|'+x;const nTot=sel.size;const per={};for(const x of sel){const t=x.split('|')[0];per[t]=(per[t]||0)+1}
   const d2=ensureTask(tt);const sids2=secs.map(z=>z.id);const so2=x=>sids2.includes(x.sec)?x.sec:sids2[0];const N=taskNodes(tt);
   const body=secs.map(z=>{if(z.id===M.sec&&tt===M.t)return '';const rows=N.filter(x=>so2(d2.items[+x.path.split('.')[0]])===z.id);
-    return `<div class="cp-sec"><label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('S:'+z.id))}" ${sel.has(k('S:'+z.id))?'checked':''}> <b>${esc(z.name||'Untitled section')}</b> <span class="hint">as lines at the end</span></label>
-      ${rows.map(x=>`<label class="cp-opt" style="padding-left:${22+x.depth*16}px"><input type="checkbox" data-cpk="${esc(k('N:'+x.path))}" ${sel.has(k('N:'+x.path))?'checked':''}> ${x.depth?'↳ ':''}${esc(nodeLabel(x.n))} <span class="hint">as sub-lines</span></label>`).join('')}</div>`}).join('')
+    return cpRows(M,tt,z,rows,sel,k,'as lines at the end')}).join('')
     +`<label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('NEW'))}" ${sel.has(k('NEW'))?'checked':''}> <b>+ New section “${esc(srcSec.name||'Section')}”</b> <span class="hint">in this task</span></label>`;
   return `<div class="vpick-ov" data-act="cpto-close"><div class="vpick" style="width:min(620px,100%)" role="dialog" aria-modal="true" aria-label="Copy section" data-stop="1">
     <div class="sec-head"><div><h3>Copy section “${esc(srcSec.name||'Section')}” to…</h3><p class="hint">Pastes its ${L.length} line${L.length===1?'':'s'} (with their sub-lines) into every place you tick: a ticked section gets them as lines at the end; a ticked line or sub-line gets them underneath as sub-lines. Spent hours and % complete start at zero.</p></div><button class="btn" data-act="cpto-close">Close</button></div>
     <div class="form"><label>Task<select class="f" data-ui="cptoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}${per[t]?` (${per[t]} ticked)`:''}</option>`).join('')}</select></label></div>
-    <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button></div>
+    <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button><span style="flex:1"></span><button class="btn ghost" data-act="cpto-openall">Show all lines</button><button class="btn ghost" data-act="cpto-shutall">Minimise all</button></div>
     <div class="cp-list" id="cp_list">${body}</div>
     ${cpOptsHtml(M)}
     <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button class="btn" data-act="cpto-close">Cancel</button><button class="btn primary" data-act="cpto-go" ${nTot&&L.length?'':'disabled'}>Paste into ${nTot} place${nTot===1?'':'s'}</button></div></div></div>`}
@@ -3332,12 +3339,11 @@ function cptoHtml(){const M=UI.cpto;if(!M||UI.view!=='labour')return '';if(M.kin
   const own=p=>tt===M.t&&(p===String(M.path)||p.startsWith(String(M.path)+'.'));const sel=new Set(M.sel||[]);const k=x=>tt+'|'+x;
   const N=taskNodes(tt);const nTot=sel.size;const perTask={};for(const x of sel){const t=x.split('|')[0];perTask[t]=(perTask[t]||0)+1}
   const body=secs.map(z=>{const rows=N.filter(x=>so(d.items[+x.path.split('.')[0]])===z.id&&!own(x.path));
-    return `<div class="cp-sec"><label class="cp-opt cp-secopt"><input type="checkbox" data-cpk="${esc(k('S:'+z.id))}" ${sel.has(k('S:'+z.id))?'checked':''}> <b>${esc(z.name||'Untitled section')}</b> <span class="hint">as a new line</span></label>
-      ${rows.map(x=>`<label class="cp-opt" style="padding-left:${22+x.depth*16}px"><input type="checkbox" data-cpk="${esc(k('N:'+x.path))}" ${sel.has(k('N:'+x.path))?'checked':''}> ${x.depth?'↳ ':''}${esc(nodeLabel(x.n))}</label>`).join('')}</div>`}).join('');
+    return cpRows(M,tt,z,rows,sel,k,'as a new line')}).join('');
   return `<div class="vpick-ov" data-act="cpto-close"><div class="vpick" style="width:min(620px,100%)" role="dialog" aria-modal="true" aria-label="Copy line" data-stop="1">
     <div class="sec-head"><div><h3>Copy “${esc(src.desc||'line')}” to…</h3><p class="hint">Tick every place to paste a copy${src.subs&&src.subs.length?' (with its sub-lines)':''}. A ticked section gets it as a new line; a ticked line or sub-line gets it as a sub-line underneath. Spent hours and % complete start at zero.</p></div><button class="btn" data-act="cpto-close">Close</button></div>
     <div class="form"><label>Task<select class="f" data-ui="cptoTo" aria-label="Task">${TASK_IDS.map((t,i)=>`<option value="${t}"${t===tt?' selected':''}>${String(i+1).padStart(3,'0')} · ${esc(TASKS[i])}${perTask[t]?` (${perTask[t]} ticked)`:''}</option>`).join('')}</select></label></div>
-    <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button></div>
+    <div class="toolbar" style="margin:4px 0 6px"><button class="btn ghost" data-act="cpto-allsec">Tick all sections</button><button class="btn ghost" data-act="cpto-none">Clear ticks</button><span style="flex:1"></span><button class="btn ghost" data-act="cpto-openall">Show all lines</button><button class="btn ghost" data-act="cpto-shutall">Minimise all</button></div>
     <div class="cp-list" id="cp_list">${body}</div>
     ${cpOptsHtml(M)}
     <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button class="btn" data-act="cpto-close">Cancel</button><button class="btn primary" data-act="cpto-go" ${nTot?'':'disabled'}>Paste into ${nTot} place${nTot===1?'':'s'}</button></div></div></div>`}
@@ -5634,6 +5640,9 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
   if(act==='mvflash-x'){UI.mvFlash=null;render();return}
   if(act==='cpto'){UI.cpto={t:UI.task,path:btn.dataset.v,to:UI.task,sel:[],hrs:true};render();return}
   if(act==='cpto-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=cpto-close]'))return;UI.cpto=null;render();return}
+  if(act==='cpto-tog'&&UI.cpto){const o=new Set(UI.cpto.open||[]);o.has(btn.dataset.v)?o.delete(btn.dataset.v):o.add(btn.dataset.v);UI.cpto.open=[...o];render();return}
+  if(act==='cpto-shutall'&&UI.cpto){UI.cpto.open=[];render();return}
+  if(act==='cpto-openall'&&UI.cpto){const M=UI.cpto;const tt=M.to||M.t;const o=new Set(M.open||[]);for(const z of taskSecs(tt))o.add(tt+'|'+z.id);for(const x of taskNodes(tt))if(!x.leaf)o.add(tt+'|'+x.path);M.open=[...o];render();return}
   if(act==='cpto-none'){if(UI.cpto){UI.cpto.sel=[];document.querySelectorAll('input[data-cpk]').forEach(i=>i.checked=false);cptoCounts()}return}
   if(act==='tsec-move'){const t=UI.task;const d=ensureTask(t);taskSecs(t);const i=d.sections.findIndex(z=>z.id===btn.dataset.v),j=i+(+btn.dataset.d);if(i<0||j<0||j>=d.sections.length)return;
     /* lines with no section belong to the first one: pin them before the order changes */
@@ -5651,7 +5660,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
       const sids=taskSecs(t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];const idx=d.items.map((y,j)=>j).filter(j=>so(d.items[j])===sec);let at=idx.length?idx[idx.length-1]+1:d.items.length;
       for(const ln of L){const cp=cpClean(ln,cpOpt(M));cp.sec=sec;d.items.splice(at++,0,cp)}S.tasks[t]=d;touched.add(t);n++}
     for(const t of touched)persist('tasks/'+t);
-    UI.mvFlash={t:M.t,txt:`Pasted section “${srcSec.name||'Section'}” (${L.length} line${L.length===1?'':'s'}) into ${n} place${n===1?'':'s'}${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;render();return}
+    UI.mvFlash={t:M.t,txt:`Pasted section “${srcSec.name||'Section'}” (${L.length} line${L.length===1?'':'s'}) into ${n} place${n===1?'':'s'}${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;collapseAllTasks('labour');render();return}
   if(act==='cpto-go'){const M=UI.cpto;if(!M||!(M.sel||[]).length)return;const src=nodeAt(ensureTask(M.t),M.path);if(!src)return;
     /* resolve every target first, so pasting into one place can't shift the others */
     const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),k=x.slice(i+1);const d=ensureTask(t);return k.startsWith('S:')?{t,d,sec:k.slice(2)}:{t,d,node:nodeAt(d,k.slice(2))}}).filter(x=>x.sec?taskSecs(x.t).some(z=>z.id===x.sec):x.node);
@@ -5661,7 +5670,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
       else{const sids=taskSecs(x.t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];cp.sec=x.sec;const idx=x.d.items.map((y,i)=>i).filter(i=>so(x.d.items[i])===x.sec);x.d.items.splice(idx.length?idx[idx.length-1]+1:x.d.items.length,0,cp)}
       S.tasks[x.t]=x.d;touched.add(x.t);n++}
     for(const t of touched)persist('tasks/'+t);
-    UI.mvFlash={t:M.t,txt:`Pasted ${n} cop${n===1?'y':'ies'} of “${src.desc||'line'}”${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;render();return}
+    UI.mvFlash={t:M.t,txt:`Pasted ${n} cop${n===1?'y':'ies'} of “${src.desc||'line'}”${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;collapseAllTasks('labour');render();return}
   if(act==='mvto'){UI.mvto={t:UI.task,path:btn.dataset.v,to:UI.task,sec:''};render();return}
   if(act==='mvto-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=mvto-close]'))return;UI.mvto=null;render();return}
   if(act==='mvto-go'&&UI.mvto&&UI.mvto.par){const M=UI.mvto;const d=ensureTask(M.t),td=ensureTask(M.to||M.t);const src=nodeAt(d,M.path),tgt=nodeAt(td,M.par);
