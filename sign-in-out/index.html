@@ -58,10 +58,24 @@
     #kioskView{display:grid;grid-template-columns:1fr minmax(280px,34%);grid-template-rows:auto 1fr auto;}
     .kTop{grid-column:1/3}
     #stage{grid-row:2/4}
-    #banner{align-self:end}
-    .kRight{display:flex;flex-direction:column;gap:10px;justify-content:flex-end;grid-row:2/4}
+    .kRight{display:flex;flex-direction:column;gap:14px;justify-content:space-between;grid-row:2/4}
+    #kioskView #kInfo{display:flex}
+    .kTop .kClock{display:none}
+    .kTop #locChip{margin-left:auto}
   }
   .kRight{display:flex;flex-direction:column;gap:10px}
+  #kInfo{display:none;flex-direction:column;justify-content:center;flex:1;text-align:center;gap:6px}
+  #kBigTime{font-size:clamp(48px,7vw,84px);font-weight:700;letter-spacing:-2px;font-variant-numeric:tabular-nums;line-height:1}
+  #kDate{font-size:18px;color:#94a3b8}
+  #kSite{font-size:20px;font-weight:600;color:#93c5fd;margin-top:10px}
+  @media (min-width:700px){
+    #banner{font-size:26px;padding:22px;min-height:92px;border-radius:18px}
+    #banner small{font-size:17px}
+    .kSeg button{padding:18px 8px;font-size:19px}
+    .kBrand{font-size:20px}
+    .adminBtn{font-size:14px;padding:8px 14px}
+    .chip{font-size:13px}
+  }
 
   /* ---------- PIN MODAL ---------- */
   #pinModal{position:fixed;inset:0;background:rgba(2,6,23,.75);display:flex;align-items:center;justify-content:center;z-index:30;padding:20px}
@@ -158,6 +172,7 @@
     </div>
   </div>
   <div class="kRight">
+    <div id="kInfo"><div id="kBigTime"></div><div id="kDate"></div><div id="kSite"></div></div>
     <div id="banner" class="idle">Loading…</div>
     <div class="kSeg" id="modeSeg">
       <button data-mode="auto" class="active">Auto</button>
@@ -1219,7 +1234,12 @@
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
   // ---------- init ----------
-  const tickClock = () => { $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+  const tickClock = () => {
+    const now = new Date(), t = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    $('#clock').textContent = t; $('#kBigTime').textContent = t;
+    $('#kDate').textContent = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+    try { const st = resolveSite(freshPos()).site; $('#kSite').textContent = st ? st.name : ''; } catch {}
+  };
   setInterval(tickClock, 1000); tickClock();
   setInterval(renderLocChip, 15000);
   $('#logDate').value = dayKey(Date.now());
