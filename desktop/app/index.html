@@ -1528,7 +1528,9 @@ const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub
 const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k)?OPENED.add(k):OPENED.delete(k);nodeCollNote(k)},delete:k=>{collPlain(k)?OPENED.delete(k):OPENED.add(k);nodeCollNote(k)}};
 /* Labour & tasks lines remember open / minimised by the line itself, not its position: adding, pasting, moving or deleting lines
    no longer shifts what is open, and new lines show open. Everything is minimised again only when you come back to the tab. */
-const NODE_COLL=new WeakMap();const TSEEN=new Set();
+const NODE_COLL_O=new WeakMap(),NODE_COLL_I=new Map();const TSEEN=new Set();
+/* by the line's id where it has one, so it holds even when the task is reloaded after saving or from another device */
+const NODE_COLL={has:n=>n.id?NODE_COLL_I.has(n.id):NODE_COLL_O.has(n),get:n=>n.id?NODE_COLL_I.get(n.id):NODE_COLL_O.get(n),set:(n,v)=>{n.id?NODE_COLL_I.set(n.id,v):NODE_COLL_O.set(n,v)}};
 function nodeCollNote(k){const m=/^t(t\d+)_(\d+(?:\.\d+)*)$/.exec(k);if(!m||typeof taskDoc!=='function')return;try{const n=nodeAt(taskDoc(m[1]),m[2]);if(n)NODE_COLL.set(n,!OPENED.has(k))}catch(e){}}
 function syncNodeColl(){let ch=false;for(const t of TASK_IDS){let N;try{N=taskNodes(t)}catch(e){continue}const seen=TSEEN.has(t);
     for(const x of N){if(x.leaf)continue;const k='t'+t+'_'+x.path;let want;if(NODE_COLL.has(x.n))want=NODE_COLL.get(x.n);else{want=seen?false:!OPENED.has(k);NODE_COLL.set(x.n,want)}
