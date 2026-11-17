@@ -1525,7 +1525,16 @@ let assets=null;const UP={};
 /* every drop-down section starts minimised: OPENED holds what you've opened (per device). Keys starting "todsopen:" already mean "open". */
 let OPENED=new Set();try{OPENED=new Set(JSON.parse(localStorage.getItem('ox_open')||'[]'))}catch(e){}
 const collPlain=k=>String(k).startsWith('todsopen:')||String(k).startsWith('vsub:')||String(k).startsWith('vbh:')||k==='tolyr'||k==='ctcmat'||k==='tochk'||k==='tonote';/* vsub: sub-variations show until minimised */
-const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k)?OPENED.add(k):OPENED.delete(k)},delete:k=>{collPlain(k)?OPENED.delete(k):OPENED.add(k)}};
+const COLL={has:k=>collPlain(k)?OPENED.has(k):!OPENED.has(k),add:k=>{collPlain(k)?OPENED.add(k):OPENED.delete(k);nodeCollNote(k)},delete:k=>{collPlain(k)?OPENED.delete(k):OPENED.add(k);nodeCollNote(k)}};
+/* Labour & tasks lines remember open / minimised by the line itself, not its position: adding, pasting, moving or deleting lines
+   no longer shifts what is open, and new lines show open. Everything is minimised again only when you come back to the tab. */
+const NODE_COLL=new WeakMap();const TSEEN=new Set();
+function nodeCollNote(k){const m=/^t(t\d+)_(\d+(?:\.\d+)*)$/.exec(k);if(!m||typeof taskDoc!=='function')return;try{const n=nodeAt(taskDoc(m[1]),m[2]);if(n)NODE_COLL.set(n,!OPENED.has(k))}catch(e){}}
+function syncNodeColl(){let ch=false;for(const t of TASK_IDS){let N;try{N=taskNodes(t)}catch(e){continue}const seen=TSEEN.has(t);
+    for(const x of N){if(x.leaf)continue;const k='t'+t+'_'+x.path;let want;if(NODE_COLL.has(x.n))want=NODE_COLL.get(x.n);else{want=seen?false:!OPENED.has(k);NODE_COLL.set(x.n,want)}
+      if(want===OPENED.has(k)){want?OPENED.delete(k):OPENED.add(k);ch=true}}
+    if(N.length)TSEEN.add(t)}
+  if(ch)saveColl()}
 function saveColl(){try{localStorage.setItem('ox_open',JSON.stringify([...OPENED].slice(-3000)))}catch(e){}}
 const NO_ITP=new Set(['t15','t16']);
 /* site photos on a progress line or sub-line: take them with the phone camera or pick several, kept with the line */
@@ -3315,6 +3324,12 @@ function cptoCounts(){const M=UI.cpto;if(!M)return;const n=(M.sel||[]).length;co
   document.querySelectorAll('[data-ui=cptoTo] option').forEach(o=>{const i=TASK_IDS.indexOf(o.value);o.textContent=`${String(i+1).padStart(3,'0')} · ${TASKS[i]}${per[o.value]?` (${per[o.value]} ticked)`:''}`})}
 const secLines=(t,sec)=>{const d=ensureTask(t);const sids=taskSecs(t).map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];return d.items.filter(x=>so(x)===sec)};
 /* Copy to…: sections and lines start minimised; open a section to see its lines, open a line to see its sub-lines */
+/* after pasting, nothing is minimised: the sections and lines pasted into are opened so the copies can be seen (Labour & tasks only minimises when you come back to the tab) */
+function cpOpenTargets(M){let ch=false;const open=k=>{if(COLL.has(k)){COLL.delete(k);ch=true}};
+  for(const x of [...(M.sel||[]),...(M.newSecs||[]).map(y=>y.replace('|','|S:'))]){const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);const d=ensureTask(t);const sids=taskSecs(t).map(z=>z.id);
+    if(key.startsWith('S:')){open('lbs'+t+'_'+key.slice(2));continue}
+    if(key.startsWith('N:')){const p=key.slice(2).split('.');const top=d.items[+p[0]];if(top)open('lbs'+t+'_'+(sids.includes(top.sec)?top.sec:sids[0]));for(let j=1;j<=p.length;j++)open('t'+t+'_'+p.slice(0,j).join('.'))}}
+  if(ch)saveColl()}
 function cpRows(M,tt,z,rows,sel,k,lineHint){const op=new Set(M.open||[]);const sk=tt+'|'+z.id;const open=op.has(sk);
   const tick=[...sel].filter(x=>{if(!x.startsWith(tt+'|'))return false;const kk=x.slice(tt.length+1);if(kk==='S:'+z.id)return true;if(!kk.startsWith('N:'))return false;const top=kk.slice(2).split('.')[0];return rows.some(r=>r.path.split('.')[0]===top)}).length;
   const kids=new Set(rows.filter(r=>r.depth>0).map(r=>r.path.split('.').slice(0,-1).join('.')));
@@ -4922,6 +4937,7 @@ function render(){
   if(isTypeBox(document.activeElement)){TYPE_HOLD=true;return}
   TYPE_HOLD=false;
   syncTasks();
+  if(UI.view==='labour'||UI.view==='progress')try{syncNodeColl()}catch(e){console.error(e)}
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
   const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;
@@ -5495,7 +5511,7 @@ document.addEventListener('click',async e=>{
   if(act==='task-del'){const id=btn.dataset.v;if(!TASK_IDS.includes(id)||TASK_IDS.length<2)return;if(UI.armed!=='xt'+id){UI.armed='xt'+id;render();setTimeout(()=>{if(UI.armed==='xt'+id){UI.armed=null;render()}},4000);return}UI.armed=null;
     const i=TASK_IDS.indexOf(id);S.info.removedTasks=[...new Set([...(S.info.removedTasks||[]),id])];persist('project/info');syncTasks();UI.task=TASK_IDS[Math.min(i,TASK_IDS.length-1)]||TASK_IDS[0];render();return}
   if(act==='task-restore'){const id=btn.dataset.v;S.info.removedTasks=(S.info.removedTasks||[]).filter(x=>x!==id);persist('project/info');syncTasks();UI.task=id;render();return}
-  if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;collapseAllTasks('labour');render();return}
+  if(act==='task'){UI.task=btn.dataset.v;UI.mvFlash=null;render();return}
   if(act==='toggle'){UI.open[btn.dataset.id]=!UI.open[btn.dataset.id];render();return}
   if(act==='opl-add'){const o=S.orders[btn.dataset.id];if(!o)return;undoRecord();o.lines=[...(o.lines||[]),{desc:'',qty:'',unit:'',rate:''}];persist('orders/'+btn.dataset.id);render();setTimeout(()=>document.getElementById(('opl|'+btn.dataset.id+'|'+(o.lines.length-1)+'|desc').replace(/\|/g,'_'))?.focus(),30);return}
   if(act==='opo-raise'){ordPoRaise(btn.dataset.id);return}
@@ -5656,11 +5672,11 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
     const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);return {t,key,node:key.startsWith('N:')?nodeAt(ensureTask(t),key.slice(2)):null}});
     for(const x of T){if(!x.node)continue;cpParentify(x.node);for(const ln of L)x.node.subs.push(cpClean(ln,cpOpt(M)));S.tasks[x.t]=ensureTask(x.t);touched.add(x.t);n++}
     for(const x of M.sel){const i=x.indexOf('|'),t=x.slice(0,i),key=x.slice(i+1);if(key.startsWith('N:'))continue;const d=ensureTask(t);let sec;
-      if(key==='NEW'){sec=uid('S');d.sections.push({id:sec,name:srcSec.name||'Section'})}else{sec=key.slice(2);if(!taskSecs(t).some(z=>z.id===sec))continue}
+      if(key==='NEW'){sec=uid('S');d.sections.push({id:sec,name:srcSec.name||'Section'});(M.newSecs=M.newSecs||[]).push(t+'|'+sec)}else{sec=key.slice(2);if(!taskSecs(t).some(z=>z.id===sec))continue}
       const sids=taskSecs(t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];const idx=d.items.map((y,j)=>j).filter(j=>so(d.items[j])===sec);let at=idx.length?idx[idx.length-1]+1:d.items.length;
       for(const ln of L){const cp=cpClean(ln,cpOpt(M));cp.sec=sec;d.items.splice(at++,0,cp)}S.tasks[t]=d;touched.add(t);n++}
     for(const t of touched)persist('tasks/'+t);
-    UI.mvFlash={t:M.t,txt:`Pasted section “${srcSec.name||'Section'}” (${L.length} line${L.length===1?'':'s'}) into ${n} place${n===1?'':'s'}${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;collapseAllTasks('labour');render();return}
+    UI.mvFlash={t:M.t,txt:`Pasted section “${srcSec.name||'Section'}” (${L.length} line${L.length===1?'':'s'}) into ${n} place${n===1?'':'s'}${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;cpOpenTargets(M);render();return}
   if(act==='cpto-go'){const M=UI.cpto;if(!M||!(M.sel||[]).length)return;const src=nodeAt(ensureTask(M.t),M.path);if(!src)return;
     /* resolve every target first, so pasting into one place can't shift the others */
     const T=M.sel.map(x=>{const i=x.indexOf('|'),t=x.slice(0,i),k=x.slice(i+1);const d=ensureTask(t);return k.startsWith('S:')?{t,d,sec:k.slice(2)}:{t,d,node:nodeAt(d,k.slice(2))}}).filter(x=>x.sec?taskSecs(x.t).some(z=>z.id===x.sec):x.node);
@@ -5670,7 +5686,7 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
       else{const sids=taskSecs(x.t).map(z=>z.id);const so=y=>sids.includes(y.sec)?y.sec:sids[0];cp.sec=x.sec;const idx=x.d.items.map((y,i)=>i).filter(i=>so(x.d.items[i])===x.sec);x.d.items.splice(idx.length?idx[idx.length-1]+1:x.d.items.length,0,cp)}
       S.tasks[x.t]=x.d;touched.add(x.t);n++}
     for(const t of touched)persist('tasks/'+t);
-    UI.mvFlash={t:M.t,txt:`Pasted ${n} cop${n===1?'y':'ies'} of “${src.desc||'line'}”${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;collapseAllTasks('labour');render();return}
+    UI.mvFlash={t:M.t,txt:`Pasted ${n} cop${n===1?'y':'ies'} of “${src.desc||'line'}”${touched.size>1||!touched.has(M.t)?` across ${touched.size} task${touched.size===1?'':'s'}`:''}.`};UI.cpto=null;cpOpenTargets(M);render();return}
   if(act==='mvto'){UI.mvto={t:UI.task,path:btn.dataset.v,to:UI.task,sec:''};render();return}
   if(act==='mvto-close'){if(e.target.closest('[data-stop]')&&!e.target.closest('button[data-act=mvto-close]'))return;UI.mvto=null;render();return}
   if(act==='mvto-go'&&UI.mvto&&UI.mvto.par){const M=UI.mvto;const d=ensureTask(M.t),td=ensureTask(M.to||M.t);const src=nodeAt(d,M.path),tgt=nodeAt(td,M.par);
@@ -5682,7 +5698,7 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
     const ti=TASK_IDS.indexOf(tto);UI.mvFlash={t:tto,txt:`Moved “${src.desc||'line'}” under “${nodeLabel(tgt)}”${tto!==M.t?' in '+String(ti+1).padStart(3,'0')+' · '+TASKS[ti]:''}.`};UI.mvto=null;render();return}
   if(act==='mvto-go'){const M=UI.mvto;if(!M)return;const d=ensureTask(M.t);const P=String(M.path).split('.');let node;
     if(P.length===1){node=d.items[+P[0]];if(!node)return;d.items.splice(+P[0],1)}else{const q=+P.pop();const par=nodeAt(d,P.join('.'));node=par?.subs?.[q];if(!node)return;par.subs.splice(q,1);if(!par.subs.length)delete par.subs}
-    const td=ensureTask(M.to);let sec=M.sec||taskSecs(M.to)[0].id;if(sec==='__new'){sec=uid('S');td.sections.push({id:sec,name:'Moved from '+TASKS[TASK_IDS.indexOf(M.t)]})}
+    const td=ensureTask(M.to);let sec=M.sec||taskSecs(M.to)[0].id;if(sec==='__new'){sec=uid('S');td.sections.push({id:sec,name:'Moved from '+TASKS[TASK_IDS.indexOf(M.t)]})}COLL.delete('lbs'+M.to+'_'+sec);saveColl();
     const sids=td.sections.map(z=>z.id);const so=x=>sids.includes(x.sec)?x.sec:sids[0];node.sec=sec;
     const idx=td.items.map((x,i)=>i).filter(i=>so(td.items[i])===sec);td.items.splice(idx.length?idx[idx.length-1]+1:td.items.length,0,node);
     S.tasks[M.t]=d;S.tasks[M.to]=td;persist('tasks/'+M.t);if(M.to!==M.t)persist('tasks/'+M.to);
@@ -5702,7 +5718,7 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
   if(act==='imerge'){const t=UI.task;const key='imerge'+t+btn.dataset.v;if(UI.armed!==key){UI.armed=key;render();setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},5000);return}
     UI.armed=null;const d=ensureTask(t);const it=nodeAt(d,btn.dataset.v);if(!it)return;const x=itemCalc(it);
     Object.assign(it,{qty:String(Math.round(x.qty*100)/100),estHrs:String(Math.round(x.est*100)/100),budHrs:(()=>{const ex=n=>n.subs&&n.subs.length?n.subs.some(ex):(n.budHrs!==undefined&&n.budHrs!==null&&String(n.budHrs).trim()!=='');if(!ex(it))return '';const n=budOf(it);return String(Math.round(n*100)/100)})(),spentHrs:String(Math.round(x.spent*100)/100),newHrs:(()=>{const n=pendOf(it);return n?String(Math.round(n*100)/100):''})(),pct:String(Math.round(x.pct*1000)/10)});delete it.subs;delete it.hist;delete it.subPct;persist('tasks/'+t);render();return}
-  if(act==='add-tsec'){const t=UI.task;const d=ensureTask(t);const id=uid('S');d.sections.push({id,name:''});d.items.push(newItem(id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('tksec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+  if(act==='add-tsec'){const t=UI.task;const d=ensureTask(t);const id=uid('S');d.sections.push({id,name:''});COLL.delete('lbs'+t+'_'+id);saveColl();d.items.push(newItem(id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('tksec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='bulk'){
     const t=UI.bld;if(!t)return;const d=S.apt[t]=aptDoc(t);const q=UI.q.trim().toUpperCase();const v=num(UI.bulkPct);const Q=aptQueue[t]=aptQueue[t]||new Set();
     for(const x of d.sections)if(UI.level==='all'||x.id===UI.level)for(const l of x.lines)if(lineMatch(l,q)){if(l.subs&&l.subs.length){let hit=false;for(const sb of l.subs)if(sb.task===UI.bulkStage){sb.pct=String(v);hit=true}if(hit)structDirty.add(t);continue}const st=unitState(t,l.id);st.s[UI.bulkStage]=v;d.units[l.id]=st;Q.add(l.id)}
