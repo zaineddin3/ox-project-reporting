@@ -33,7 +33,8 @@
   .kBrand{font-weight:700;font-size:17px;letter-spacing:-.2px}
   .kBrand span{color:#60a5fa}
   .kClock{margin-left:auto;font-variant-numeric:tabular-nums;color:#94a3b8;font-size:14px}
-  .adminBtn{border:1px solid #334155;background:#1e293b;color:#cbd5e1;border-radius:99px;padding:6px 12px;font-size:13px}
+  .adminBtn{border:1px solid #334155;background:#1e293b;color:#cbd5e1;border-radius:99px;padding:6px 12px;font-size:13px;white-space:nowrap}
+  @media (max-width:520px) and (orientation:portrait){ .kBrand{display:none} .kClock{margin-left:0} #locChip{margin-left:auto} .adminBtn{padding:6px 10px} }
   #stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;background:#000}
   #camHome{position:absolute;inset:0}
   #camHome video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -78,7 +79,7 @@
   }
 
   /* ---------- PIN MODAL ---------- */
-  #pinModal{position:fixed;inset:0;background:rgba(2,6,23,.75);display:flex;align-items:center;justify-content:center;z-index:30;padding:20px}
+  #pinModal,#pwModal{position:fixed;inset:0;background:rgba(2,6,23,.75);display:flex;align-items:center;justify-content:center;z-index:30;padding:20px}
   .pinCard{background:#fff;color:var(--ink);border-radius:18px;padding:22px;width:100%;max-width:340px;text-align:center}
   .pinCard h2{margin:0 0 6px;font-size:19px}
   .pinDots{display:flex;justify-content:center;gap:12px;margin:18px 0 6px}
@@ -158,6 +159,7 @@
     <div class="kBrand">Sign In <span>and</span> Out</div>
     <div class="kClock" id="clock"></div>
     <div id="locChip" class="chip none">Location: off</div>
+    <button class="adminBtn" id="indBtn" aria-label="Inductions">📋 Inductions</button>
     <button class="adminBtn" id="adminBtn" aria-label="Admin">🔒 Admin</button>
   </div>
   <div id="stage">
@@ -199,10 +201,21 @@
   </div>
 </div>
 
+<!-- ================= INDUCTIONS PASSWORD ================= -->
+<div id="pwModal" hidden>
+  <div class="pinCard">
+    <h2>Inductions</h2>
+    <div class="sub">Enter your induction password</div>
+    <input type="password" id="pwInput" autocomplete="current-password" style="margin-top:16px;text-align:center">
+    <div class="pinErr" id="pwErr" style="margin-top:8px"></div>
+    <div class="row"><button class="btn" id="pwCancel">Cancel</button><button class="btn primary" id="pwOk">Open inductions</button></div>
+  </div>
+</div>
+
 <!-- ================= ADMIN ================= -->
 <div id="adminView" hidden>
   <div class="aHead">
-    <h1>Admin</h1>
+    <h1 id="aTitle">Admin</h1>
     <span class="sub" id="whoAmI"></span>
     <button class="btn small" id="myPinBtn">Change my PIN</button>
     <button class="btn exit" id="exitAdmin">Lock &amp; back to kiosk</button>
@@ -288,7 +301,7 @@
         <h3>Daily summary</h3>
         <div class="tableWrap"><table><thead><tr><th>Name</th><th>ID</th><th>Site</th><th>First in</th><th>Last out</th><th>Total time</th><th>Status</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
         <h3>All events</h3>
-        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Name</th><th>ID</th><th>Site</th><th>Action</th><th>Match</th><th>Method</th><th>Location</th></tr></thead><tbody id="logBody"></tbody></table></div>
+        <div class="tableWrap"><table><thead><tr><th>Date &amp; time</th><th>Name</th><th>ID</th><th>Site</th><th>Action</th><th>Match</th><th>Method</th><th>Location</th></tr></thead><tbody id="logBody"></tbody></table></div>
       </div>
     </section>
 
@@ -297,21 +310,29 @@
       <div class="grid2">
         <div class="card">
           <h2>Admin users</h2>
-          <p class="note">Each admin user opens the Admin area with their own PIN and only sees what you allow.</p>
+          <p class="note">Admin users open 🔒 Admin with their own PIN and only see what you allow. Induction users open 📋 Inductions with a password and can only register people.</p>
           <ul class="list" id="userList"></ul>
         </div>
         <div class="card">
-          <h2 id="uFormTitle">Add admin user</h2>
+          <h2 id="uFormTitle">Add user</h2>
+          <label for="uKind">User type</label>
+          <select id="uKind">
+            <option value="admin">Admin user — opens 🔒 Admin with a PIN</option>
+            <option value="induction">Induction user — opens 📋 Inductions with a password, can only register people</option>
+          </select>
           <label for="uName">Name</label>
           <input type="text" id="uName" placeholder="e.g. Site Supervisor – John" autocomplete="off">
           <label for="uPin" id="uPinLabel">PIN (4–8 digits)</label>
           <input type="password" id="uPin" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password">
+          <div id="uAdminOnly">
           <label for="uRole">Role</label>
           <select id="uRole"></select>
           <h3>Access</h3>
           <div id="uPerms"></div>
           <h3>Sites this user can see</h3>
           <div id="uSites"></div>
+          </div>
+          <p class="note" id="uIndNote" hidden>Induction users only see the Inductions screen, where they can register new people (name, ID and face). They can't see attendance, people, settings or other users.</p>
           <div class="row" style="margin-top:14px">
             <button class="btn primary" id="uSave">Add user</button>
             <button class="btn" id="uCancel">Clear</button>
@@ -484,8 +505,12 @@
   const mySites = () => currentUser?.sites?.length ? currentUser.sites : null; // null = all sites
   const visibleSites = () => { const m = mySites(); return m ? settings.sites.filter(x => m.includes(x.id)) : settings.sites; };
   const seesEntry = e => { const m = mySites(); return !m || m.includes(e.siteId); };
-  const managers = () => users.filter(u => u.perms.includes('users'));
-  const TAB_ALLOWED = { dash: () => can('dash'), register: () => can('register'), people: () => can('people') || can('register'),
+  const managers = () => users.filter(u => u.kind !== 'induction' && u.perms.includes('users'));
+  const isInd = u => u?.kind === 'induction';
+  const fmtStamp = ts => new Date(ts).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const fmtStampSec = ts => new Date(ts).toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const isoLocal = ts => { const d = new Date(ts), z = n => String(n).padStart(2, '0'); return `${dayKey(ts)} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`; };
+  const TAB_ALLOWED = { dash: () => can('dash'), register: () => can('register'), people: () => can('people') || (can('register') && !isInd(currentUser)),
     log: () => can('log'), settings: () => can('settings'), users: () => can('users') };
 
   // ---------- GPS ----------
@@ -586,10 +611,10 @@
     lastAction[person.id] = entry.ts;
     if (view === 'kiosk') {
       beep(action);
-      if (action === 'in') setBanner('in', `Welcome, ${person.name}`, `Signed in${entry.siteName ? ' to ' + entry.siteName : ''} at ${fmtTime(entry.ts)}`);
+      if (action === 'in') setBanner('in', `Welcome, ${person.name}`, `Signed in${entry.siteName ? ' to ' + entry.siteName : ''} · ${fmtStamp(entry.ts)}`);
       else {
         const today = log.filter(e => e.personId === person.id && dayKey(e.ts) === dayKey(entry.ts));
-        setBanner('out', `Goodbye, ${person.name}`, `Signed out at ${fmtTime(entry.ts)} · ${fmtDur(totalTime(today, entry.ts))} today`);
+        setBanner('out', `Goodbye, ${person.name}`, `Signed out · ${fmtStamp(entry.ts)} · ${fmtDur(totalTime(today, entry.ts))} today`);
       }
     }
     renderAdmin();
@@ -744,7 +769,8 @@
   }
   let pinState = null; // {step:'enter'|'new'|'confirm', value, first, onOk}
   let pinFails = 0, pinLockedUntil = 0;
-  async function findUserByPin(pin) { for (const u of users) if (await hashPin(pin, u.salt) === u.hash) return u; return null; }
+  async function findUserByPin(pin) { for (const u of users) if (!isInd(u) && await hashPin(pin, u.salt) === u.hash) return u; return null; }
+  async function findInductionUser(pw) { for (const u of users) if (isInd(u) && await hashPin(pw, u.salt) === u.hash) return u; return null; }
   function openPin(step, onOk, forUser = null) {
     pinState = { step, value: '', first: '', onOk, forUser };
     renderPin(); $('#pinModal').hidden = false;
@@ -809,6 +835,9 @@
     view = 'admin'; $('#kioskView').hidden = true; $('#adminView').hidden = false;
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
     $('#whoAmI').textContent = `Signed in as ${currentUser.name}`;
+    $('#aTitle').textContent = isInd(currentUser) ? 'Inductions' : 'Admin';
+    $('#myPinBtn').hidden = isInd(currentUser);
+    $('#nav button[data-tab=register]').textContent = isInd(currentUser) ? 'Register new person' : 'Register';
     $$('#nav button').forEach(b => b.hidden = !TAB_ALLOWED[b.dataset.tab]());
     const first = Object.keys(TAB_ALLOWED).find(t => TAB_ALLOWED[t]());
     if (!first) { toast('Your user has no access — ask the owner'); showKiosk(); return; }
@@ -822,6 +851,23 @@
     setBanner('idle', camReady ? 'Look at the camera' : modelsReady ? 'Tap “Start camera”' : 'Loading…');
     requestWake();
   }
+  let pwFails = 0, pwLockedUntil = 0;
+  function openPw() {
+    if (!users.some(isInd)) { toast('No induction users yet — an admin can add one in Admin → Users & access'); return; }
+    $('#pwInput').value = ''; $('#pwErr').textContent = ''; $('#pwModal').hidden = false; setTimeout(() => $('#pwInput').focus(), 50);
+  }
+  async function pwSubmit() {
+    if (Date.now() < pwLockedUntil) { $('#pwErr').textContent = `Too many attempts — wait ${Math.ceil((pwLockedUntil - Date.now()) / 1000)}s`; return; }
+    const who = await findInductionUser($('#pwInput').value);
+    if (who) { pwFails = 0; $('#pwModal').hidden = true; currentUser = who; who.lastLogin = Date.now(); saveUsers(); tab = 'register'; showAdmin(); return; }
+    $('#pwInput').value = ''; pwFails++;
+    if (pwFails >= 5) { pwLockedUntil = Date.now() + 30000; pwFails = 0; $('#pwErr').textContent = 'Too many attempts — locked for 30s'; }
+    else $('#pwErr').textContent = 'Wrong password';
+  }
+  $('#indBtn').addEventListener('click', openPw);
+  $('#pwOk').addEventListener('click', pwSubmit);
+  $('#pwCancel').addEventListener('click', () => { $('#pwModal').hidden = true; });
+  $('#pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') pwSubmit(); if (e.key === 'Escape') $('#pwModal').hidden = true; });
   $('#adminBtn').addEventListener('click', () => openPin(users.length ? 'enter' : 'new', showAdmin));
   $('#myPinBtn').addEventListener('click', () => currentUser && openPin('new', () => {}, currentUser.id));
   $('#exitAdmin').addEventListener('click', showKiosk);
@@ -888,8 +934,10 @@
       p.empId = empId; toast(`Updated ${p.name}`);
     } else {
       if (empId && people.some(p => p.empId && p.empId.toLowerCase() === empId.toLowerCase())) { toast('That ID is already in use'); return; }
-      people.push({ id: uid(), name, empId, descriptors: samples.map(s => Array.from(s.descriptor)), photo: samples[0].thumb, createdAt: Date.now() });
-      toast(`${name} registered`);
+      const now = Date.now();
+      people.push({ id: uid(), name, empId, descriptors: samples.map(s => Array.from(s.descriptor)), photo: samples[0].thumb, createdAt: now,
+        inductedAt: now, inductedBy: currentUser?.name || '' });
+      toast(`${name} registered — inducted ${fmtStamp(now)}`);
     }
     savePeople(); rebuildMatcher(); resetRegistration();
   }
@@ -928,7 +976,7 @@
     const list = people.filter(p => !q || p.name.toLowerCase().includes(q) || (p.empId || '').toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name));
     $('#peopleList').innerHTML = list.length ? list.map(p => {
       const st = isIn(p.id);
-      return personRow(p, `<span class="pill ${st ? 'in' : 'none'}">${st ? 'In' : 'Out'}</span>
+      return personRow({ ...p, empId: [p.empId, p.inductedAt ? `Inducted ${fmtStamp(p.inductedAt)}${p.inductedBy ? ' by ' + p.inductedBy : ''}` : ''].filter(Boolean).join(' · ') }, `<span class="pill ${st ? 'in' : 'none'}">${st ? 'In' : 'Out'}</span>
         ${can('people') ? `<button class="btn small" data-act="manual" data-id="${p.id}">${st ? 'Sign out' : 'Sign in'}</button>` : ''}
         ${can('register') ? `<button class="btn small" data-act="samples" data-id="${p.id}">Add samples</button>` : ''}
         ${can('people') ? `<button class="btn small" data-act="delete" data-id="${p.id}">Delete</button>` : ''}`);
@@ -963,12 +1011,12 @@
     const sum = summaryRows();
     $('#summaryBody').innerHTML = sum.length ? sum.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.empId)}</td><td>${esc(r.site)}</td><td>${r.firstIn}</td><td>${r.lastOut}</td><td>${r.total}</td><td><span class="pill ${r.status === 'On site' ? 'in' : r.status === 'Signed out' ? 'none' : 'out'}">${r.status}</span></td></tr>`).join('') : '<tr><td colspan="7" class="empty">No attendance for this day</td></tr>';
     const rows = logRows().slice().reverse();
-    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td>${esc(e.siteName || '—')}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No events</td></tr>';
+    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${fmtStampSec(e.ts)}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td>${esc(e.siteName || '—')}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No events</td></tr>';
   }
   function buildCsv() {
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const lines = [['Date', 'Time', 'Name', 'ID', 'Site', 'Action', 'Match', 'Method', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from site (m)', 'On site', 'Map link'].map(q).join(',')];
-    logRows().forEach(e => lines.push([dayKey(e.ts), new Date(e.ts).toLocaleTimeString(), e.name, e.empId, e.siteName || '', e.action.toUpperCase(), e.confidence ?? '', e.method || 'face',
+    const lines = [['Timestamp', 'Date', 'Time', 'Name', 'ID', 'Site', 'Action', 'Match', 'Method', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from site (m)', 'On site', 'Map link'].map(q).join(',')];
+    logRows().forEach(e => lines.push([isoLocal(e.ts), dayKey(e.ts), new Date(e.ts).toLocaleTimeString('en-AU'), e.name, e.empId, e.siteName || '', e.action.toUpperCase(), e.confidence ?? '', e.method || 'face',
       e.loc?.lat ?? '', e.loc?.lng ?? '', e.loc?.acc ?? '', e.loc?.siteDist ?? '', e.loc ? (e.loc.onSite === true ? 'Yes' : e.loc.onSite === false ? 'No' : '') : '', e.loc ? mapUrl(e.loc) : ''].map(q).join(',')));
     lines.push('', ['Name', 'ID', 'Site', 'First in', 'Last out', 'Total', 'Status'].map(q).join(','));
     summaryRows().forEach(r => lines.push([r.name, r.empId, r.site, r.firstIn, r.lastOut, r.total, r.status].map(q).join(',')));
@@ -1013,18 +1061,28 @@
   $('#uSites').addEventListener('change', e => {
     if (e.target.value === '__all') renderUserSites(e.target.checked ? [] : settings.sites.map(x => x.id));
   });
+  function applyKind() {
+    const ind = $('#uKind').value === 'induction';
+    $('#uAdminOnly').hidden = ind; $('#uIndNote').hidden = !ind;
+    const pin = $('#uPin');
+    if (ind) { pin.removeAttribute('inputmode'); pin.removeAttribute('pattern'); pin.maxLength = 64; }
+    else { pin.inputMode = 'numeric'; pin.pattern = '[0-9]*'; pin.maxLength = 8; }
+    const word = ind ? 'password' : 'PIN';
+    $('#uPinLabel').textContent = editingUser ? `New ${word} (leave blank to keep current)` : (ind ? 'Password (at least 6 characters)' : 'PIN (4–8 digits)');
+  }
+  $('#uKind').addEventListener('change', applyKind);
   function resetUserForm() {
     renderUserSites([]);
-    editingUser = null; $('#uName').value = ''; $('#uPin').value = '';
+    editingUser = null; $('#uName').value = ''; $('#uPin').value = ''; $('#uKind').value = 'admin';
     $('#uRole').value = 'supervisor'; setFormPerms(ROLES.supervisor.perms);
-    $('#uFormTitle').textContent = 'Add admin user'; $('#uSave').textContent = 'Add user';
-    $('#uPinLabel').textContent = 'PIN (4–8 digits)'; $('#uPin').placeholder = '';
+    $('#uFormTitle').textContent = 'Add user'; $('#uSave').textContent = 'Add user';
+    $('#uPin').placeholder = ''; applyKind();
   }
   function editUser(u) {
-    editingUser = u.id; $('#uName').value = u.name; $('#uPin').value = '';
+    editingUser = u.id; $('#uName').value = u.name; $('#uPin').value = ''; $('#uKind').value = isInd(u) ? 'induction' : 'admin';
     setFormPerms(u.perms); $('#uRole').value = roleFor(u.perms); renderUserSites(u.sites || []);
     $('#uFormTitle').textContent = `Edit ${u.name}`; $('#uSave').textContent = 'Save changes';
-    $('#uPinLabel').textContent = 'New PIN (leave blank to keep current)'; $('#uPin').placeholder = '••••';
+    $('#uPin').placeholder = '••••'; applyKind();
     $('#uName').focus();
   }
   function renderUsers() {
@@ -1033,10 +1091,10 @@
       <li>
         <div class="avatar" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#3730a3;background:#eef2ff">${esc(u.name.trim()[0] || '?').toUpperCase()}</div>
         <div class="grow"><div class="name">${esc(u.name)}${u.id === currentUser?.id ? ' <span class="sub">(you)</span>' : ''}</div>
-          <div class="sub">${u.perms.length === ALL.length ? 'Full access' : u.perms.map(permLabel).join(' · ')}</div>
-          <div class="sub">Sites: ${u.sites?.length ? u.sites.map(id => esc(siteById(id)?.name || '?')).join(', ') : 'All sites'}</div>
+          ${isInd(u) ? '<div class="sub">Inductions only — can register people (password)</div>' : `<div class="sub">${u.perms.length === ALL.length ? 'Full access' : u.perms.map(permLabel).join(' · ')}</div>
+          <div class="sub">Sites: ${u.sites?.length ? u.sites.map(id => esc(siteById(id)?.name || '?')).join(', ') : 'All sites'}</div>`}
           <div class="sub">Last sign-in: ${fmtAgo(u.lastLogin)}</div></div>
-        <span class="pill role">${esc((ROLES[roleFor(u.perms)] || ROLES.custom).label.replace(' (full access)', ''))}</span>
+        <span class="pill role">${isInd(u) ? 'Inductions' : esc((ROLES[roleFor(u.perms)] || ROLES.custom).label.replace(' (full access)', ''))}</span>
         <button class="btn small" data-uact="edit" data-id="${u.id}">Edit</button>
         <button class="btn small" data-uact="delete" data-id="${u.id}">Delete</button>
       </li>`).join('') || '<li class="empty">No users</li>';
@@ -1047,27 +1105,36 @@
   $('#uCancel').addEventListener('click', resetUserForm);
   $('#uSave').addEventListener('click', async () => {
     if (!can('users')) { toast('You don\'t have access to manage users'); return; }
-    const name = $('#uName').value.trim(), pin = $('#uPin').value.trim(), perms = formPerms(), siteList = formSites();
-    if (!$('#uSites input[value=__all]').checked && !siteList.length) { toast('Tick at least one site, or All sites'); return; }
+    const ind = $('#uKind').value === 'induction';
+    const name = $('#uName').value.trim(), pin = ind ? $('#uPin').value : $('#uPin').value.trim();
+    const perms = ind ? ['register'] : formPerms(), siteList = ind ? [] : formSites();
+    if (!ind && !$('#uSites input[value=__all]').checked && !siteList.length) { toast('Tick at least one site, or All sites'); return; }
     if (!name) { toast('Enter a name'); return; }
     if (users.some(u => u.id !== editingUser && u.name.toLowerCase() === name.toLowerCase())) { toast('A user with that name already exists'); return; }
     if (!editingUser || pin) {
-      if (!/^\d{4,8}$/.test(pin)) { toast('PIN must be 4–8 digits'); return; }
-      const clash = await findUserByPin(pin);
-      if (clash && clash.id !== editingUser) { toast('That PIN is already used by another user'); return; }
+      if (ind) {
+        if (pin.length < 6) { toast('Password must be at least 6 characters'); return; }
+        const clash = await findInductionUser(pin);
+        if (clash && clash.id !== editingUser) { toast('That password is already used by another induction user'); return; }
+      } else {
+        if (!/^\d{4,8}$/.test(pin)) { toast('PIN must be 4–8 digits'); return; }
+        const clash = await findUserByPin(pin);
+        if (clash && clash.id !== editingUser) { toast('That PIN is already used by another user'); return; }
+      }
     }
+    if (editingUser && !pin && isInd(users.find(x => x.id === editingUser)) !== ind) { toast(`Changing user type — set a new ${ind ? 'password' : 'PIN'}`); return; }
     if (!perms.length) { toast('Give the user at least one permission'); return; }
     if (editingUser) {
       const u = users.find(x => x.id === editingUser);
-      if (u.perms.includes('users') && !perms.includes('users') && managers().length === 1) { toast('At least one user must keep "Manage users & access"'); return; }
-      u.name = name; u.perms = perms; u.role = roleFor(perms); u.sites = siteList;
+      if (!isInd(u) && u.perms.includes('users') && (ind || !perms.includes('users')) && managers().length === 1) { toast('At least one user must keep "Manage users & access"'); return; }
+      u.name = name; u.perms = perms; u.role = ind ? 'induction' : roleFor(perms); u.sites = siteList; u.kind = ind ? 'induction' : 'admin';
       if (pin) { u.salt = uid(); u.hash = await hashPin(pin, u.salt); }
       saveUsers(); toast(`${name} updated`);
       if (u.id === currentUser.id) { resetUserForm(); showAdmin(); return; }
     } else {
       const salt = uid();
-      users.push({ id: uid(), name, salt, hash: await hashPin(pin, salt), role: roleFor(perms), perms, sites: siteList, createdAt: Date.now() });
-      saveUsers(); toast(`${name} added — they can now open Admin with their PIN`);
+      users.push({ id: uid(), name, salt, hash: await hashPin(pin, salt), kind: ind ? 'induction' : 'admin', role: ind ? 'induction' : roleFor(perms), perms, sites: siteList, createdAt: Date.now() });
+      saveUsers(); toast(ind ? `${name} added — they can now open 📋 Inductions with their password` : `${name} added — they can now open Admin with their PIN`);
     }
     resetUserForm(); renderUsers();
   });
@@ -1076,7 +1143,7 @@
     const u = users.find(x => x.id === b.dataset.id); if (!u) return;
     if (b.dataset.uact === 'edit') editUser(u);
     if (b.dataset.uact === 'delete') {
-      if (u.perms.includes('users') && managers().length === 1) { toast('You can\'t delete the last user who can manage users'); return; }
+      if (!isInd(u) && u.perms.includes('users') && managers().length === 1) { toast('You can\'t delete the last user who can manage users'); return; }
       armConfirm(b, () => {
         users = users.filter(x => x.id !== u.id); saveUsers(); toast(`${u.name} deleted`);
         if (u.id === currentUser.id) { showKiosk(); return; }
