@@ -143,6 +143,10 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .inv-results{margin-top:-6px}.inv-results .btn{padding:4px 12px;font-size:12px}
 .invbox.inv-hit{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
 .po-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px;margin-bottom:8px}.po-tiles>.ms-appr-tile{margin:0}.po-tiles>.ms-appr-tile>div:first-child{flex:1 1 220px;min-width:0}.po-tiles .itp{flex-wrap:wrap;max-width:100%;min-width:0}.po-tiles>.ms-appr-tile{min-width:0;overflow:hidden}.po-tiles .itp.itp-multi{max-width:100%;flex:1 1 100%}
+.apt-done{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-color:color-mix(in srgb,#2f7d4f 45%,var(--line))}
+.apt-selbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 14px;border-color:var(--accent)}
+.apt-selgrp{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.apt-selgrp .f{width:auto;max-width:220px}
+.apt-ck{margin:0 6px 0 0;vertical-align:middle;width:16px;height:16px;accent-color:var(--accent)}tr.apt-sel td{background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
 .apt-headrow td{background:var(--soft)}.apt-headrow input.f{font-weight:700}.apt-kind{width:auto;max-width:120px;flex:none;font-size:12px}
 #view.apt-dropping{outline:3px dashed var(--accent);outline-offset:-6px}.apt-imp-sec td{background:var(--soft)}.apt-imp-skip td{opacity:.45}
 .ov-bar{display:flex;justify-content:flex-end;margin-bottom:-6px}
@@ -2232,19 +2236,19 @@ V.subcontractors=()=>{
     if(q&&!lines.length)return '';
     const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
     const shut=COLL.has('sec'+x.id)&&!q;
-    return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname">${aptCk('S:'+x.id,'section '+(x.name||si+1))}<button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
     (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
       const kindSel=`<select class="f apt-kind" data-b="${kl}kind" aria-label="Row type">${[['line','Line'],['head','Sub-heading']].map(([v,x])=>`<option value="${v}"${(l.head?'head':'line')===v?' selected':''}>${x}</option>`).join('')}</select>`;
-      if(l.head)return `<tr class="apt-headrow"><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
+      if(l.head)return `<tr class="apt-headrow${aptIsSel('L:'+l.id)?' apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'sub-heading '+(l.desc||''))}${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
       const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
       if(l.subs&&l.subs.length){
         let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
         const nS=d.stages.length;
-        return `<tr class="parentrow"><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+        return `<tr class="parentrow${aptIsSel('L:'+l.id)?' apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
         <td colspan="${2+nS+d.itps.length}" class="hint">${COLL.has(l.id)?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}Split into ${l.subs.length} task${l.subs.length===1?'':'s'} · <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="unsplit" data-id="${t}" data-x="${si}.${li}">${UI.armed==='unsplit'+t+si+'.'+li?'Confirm merge (tasks without a stage are dropped)':'Merge back'}</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line and its tasks">Clone</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></td>
         <td class="n money"><b>${money(v)}</b></td><td class="n money"><b>${money(uc)}</b></td><td class="n"><b>${v?pct(uc/v,0):'—'}</b></td></tr>`+
         (COLL.has(l.id)?'':l.subs.map((sb,ji)=>{const x=xs[ji];const ks='tsub|'+t+'|'+si+'|'+li+'|'+ji+'|';const sg=d.stages.find(z=>z.id===sb.task);
-          return `<tr class="subrow"><td style="width:86px">${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
+          return `<tr class="subrow${aptIsSel('J:'+l.id+':'+sb.id)?' apt-sel':''}"><td style="width:86px">${aptCk('J:'+l.id+':'+sb.id,'sub-line '+num0+'.'+(ji+1))}${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
           <td><div class="subtask">${sel(ks+'task',sb.task||'',[['','Other task'],...d.stages.map(z=>[z.id,z.name||'Unnamed stage'])],{label:'Task'})}${inp(ks+'desc',sb.desc,{label:'Task description',ph:sg?sg.name:'Task description'})}</div></td>
           <td>${itpCell('tsub|'+t+'|'+si+'|'+li+'|'+ji,sb.itpFile)}</td>
           <td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity',ph:'1'})}</td><td><div class="cur">${inp(ks+'rate',sb.rate,{num:1,label:'Rate',ph:String(sg?num(sg.rate):0)})}</div></td>
@@ -2253,7 +2257,7 @@ V.subcontractors=()=>{
         `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
       }
       const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
-      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+      return `<tr class="${aptIsSel('L:'+l.id)?'apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
       ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
@@ -2282,7 +2286,7 @@ V.subcontractors=()=>{
     <label>to <select id="apt_bp" data-ui="bulkPct">${opts.map(([v,x])=>`<option value="${v}"${UI.bulkPct===v?' selected':''}>${x}</option>`).join('')}</select></label>
     <button class="btn" data-act="bulk">Apply to ${nLines} shown</button>`:''}
   </div></div>
-  ${aptImpHtml(t)}
+  ${aptImpHtml(t)}${aptSelBar(t)}
   <div class="tw tall apt"><table><thead><tr><th></th><th>#</th><th style="min-width:340px">Description</th><th>ITP</th><th class="n">Qty</th><th class="n">Rate</th>${d.stages.map(x=>`<th>${esc(x.name||'Unnamed stage')}</th>`).join('')}${d.itps.map(x=>`<th>${esc(x.name||'Check')}</th>`).join('')}<th class="n">Value</th><th class="n">Claimed</th><th class="n">Complete</th></tr></thead><tbody>
   ${body||`<tr><td colspan="${ncol}" class="empty">${d.sections.length?'No lines match.':'No sections yet. Add one below.'}</td></tr>`}
   </tbody></table></div>
@@ -2339,6 +2343,68 @@ function aptImpApply(){const M=UI.aptImp;if(!M||!M.rows)return;const t=M.t;const
     const l={...newLine(),desc:r.desc,qty:r.qty||'1',rate:r.rate};sec.lines.push(l);last=l;n.line++}
   saveColl();UI.level='all';UI.q='';structDirty.add(t);persist('apartments/'+t);
   UI.aptImp={t,done:`Added ${n.sec} section${n.sec===1?'':'s'}, ${n.head} sub-heading${n.head===1?'':'s'}, ${n.line} line${n.line===1?'':'s'} and ${n.sub} sub-line${n.sub===1?'':'s'} from ${M.name}.`};render()}
+/* ---------- Subcontractors: tick several sections, lines and sub-lines, then move, copy, minimise, delete or change what they are ---------- */
+const aptSelSet=()=>{const t=UI.bld;if(!UI.aptSel||UI.aptSel.t!==t)UI.aptSel={t,k:[]};return UI.aptSel};
+const aptIsSel=k=>{const S0=UI.aptSel;return !!(S0&&S0.t===UI.bld&&S0.k.includes(k))};
+const aptCk=(k,lbl)=>`<input type="checkbox" class="apt-ck" data-aptsel="${esc(k)}" ${aptIsSel(k)?'checked':''} aria-label="Select ${esc(lbl)}">`;
+/* the ticked items in the order they appear */
+function aptPicked(t){const d=aptDoc(t);const K=new Set(aptSelSet().k);const out=[];
+  d.sections.forEach((x,si)=>{if(K.has('S:'+x.id))out.push({k:'sec',x,si});x.lines.forEach((l,li)=>{if(K.has('L:'+l.id))out.push({k:l.head?'head':'line',x,si,l,li});(l.subs||[]).forEach((sb,ji)=>{if(K.has('J:'+l.id+':'+sb.id))out.push({k:'sub',x,si,l,li,sb,ji})})})});return out}
+function aptSelBar(t){const P=aptPicked(t);if(!P.length)return UI.aptDone&&UI.aptDone.t===t?`<div class="panel apt-done" role="status"><span>✓ ${esc(UI.aptDone.msg)}</span> <button class="btn ghost" data-act="aptdone-x">Close</button></div>`:'<p class="hint" style="margin:0">Tick sections, lines or sub-lines to move, copy, minimise, delete or change them several at a time.</p>';const d=aptDoc(t);const c=k=>P.filter(p=>p.k===k).length;
+  const parts=[['sec','section'],['head','sub-heading'],['line','line'],['sub','sub-line']].filter(([k])=>c(k)).map(([k,w])=>`${c(k)} ${w}${c(k)===1?'':'s'}`).join(', ');
+  const secOpts=d.sections.map((x,i)=>`<option value="${t}|${x.id}">${esc(x.name||'Section '+(i+1))}</option>`).join('');
+  const copyOpts=tradeIds().map(tt=>{const dd=aptDoc(tt);return `<optgroup label="${esc(dd.name||'Untitled trade')}">${dd.sections.map((x,i)=>`<option value="${tt}|${x.id}">${esc(x.name||'Section '+(i+1))}</option>`).join('')}<option value="${tt}|__new">New section at the end</option></optgroup>`}).join('');
+  const armed=!!UI.aptDelArm;
+  return `<div class="panel apt-selbar" role="region" aria-label="Selected rows"><b>${P.length} selected</b> <span class="hint">${parts}</span>
+    <span class="apt-selgrp"><label>Move to <select class="f" id="apt_mv_to"><option value="">Choose a section…</option>${secOpts}<option value="${t}|__new">New section at the end</option></select></label><button class="btn" data-act="aptsel-move">Move</button></span>
+    <span class="apt-selgrp"><label>Copy to <select class="f" id="apt_cp_to"><option value="">Choose a section…</option>${copyOpts}</select></label><button class="btn" data-act="aptsel-copy">Copy</button></span>
+    <span class="apt-selgrp"><label>Change to <select class="f" id="apt_kind_to"><option value="">Choose…</option><option value="sec">Section</option><option value="head">Sub-heading</option><option value="line">Line</option><option value="sub">Sub-line</option></select></label><button class="btn" data-act="aptsel-kind">Change</button></span>
+    <span class="apt-selgrp"><button class="btn" data-act="aptsel-min" data-v="1">Minimise</button><button class="btn" data-act="aptsel-min" data-v="0">Expand</button><button class="btn ${armed?'armed':''}" data-act="aptsel-del">${armed?'Confirm: delete '+P.length:'Delete'}</button><button class="btn ghost" data-act="aptsel-clear">Clear ticks</button></span>
+    ${UI.aptSelMsg?`<div class="hint" style="width:100%;margin-top:4px">${esc(UI.aptSelMsg)}</div>`:''}</div>`}
+const aptSubFrom=l=>({id:uid('j'),task:'',desc:l.desc||l.name||'',qty:l.qty===''||l.qty==null?'1':l.qty,rate:l.rate||'',pct:''});
+const aptLineFrom=sb=>({...newLine(),desc:sb.desc||'',qty:sb.qty||'1',rate:sb.rate||''});
+const aptCloneLine=l=>{const n={...JSON.parse(JSON.stringify(l)),id:uid('l')};if(n.subs)n.subs=n.subs.map(sb=>({...sb,id:uid('j'),pct:''}));delete n.itpFile;return n};
+/* take the ticked rows out (whole sections stay as sections), returning them in order as {kind,line|sec} */
+function aptTakeOut(t,P){const d=aptDoc(t);const out=P.map(p=>p.k==='sec'?{kind:'sec',sec:p.x}:p.k==='sub'?{kind:'sub',line:aptLineFrom(p.sb),sb:p.sb,from:p.l}:{kind:p.k,line:p.l});
+  const secIds=new Set(P.filter(p=>p.k==='sec').map(p=>p.x.id));const lineIds=new Set(P.filter(p=>p.k==='line'||p.k==='head').map(p=>p.l.id));
+  for(const p of P.filter(p=>p.k==='sub'))if(!lineIds.has(p.l.id)&&!secIds.has(p.x.id))p.l.subs=p.l.subs.filter(z=>z!==p.sb);
+  for(const x of d.sections)if(!secIds.has(x.id))x.lines=x.lines.filter(l=>!lineIds.has(l.id));
+  d.sections=d.sections.filter(x=>!secIds.has(x.id));
+  /* rows inside a ticked section or line travel with it */
+  return out.filter(o=>!(o.kind!=='sec'&&P.find(p=>p.k==='sec'&&(p.x.lines.includes(o.line)||(o.from&&p.x.lines.includes(o.from)))))&&!(o.kind==='sub'&&lineIds.has(o.from.id)))}
+function aptTarget(v){const [tt,sid]=String(v||'').split('|');if(!tt)return null;const d=aptDoc(tt);let x=d.sections.find(z=>z.id===sid);if(!x){x={id:uid('S'),name:'New section',lines:[]};d.sections.push(x)}COLL.delete('sec'+x.id);return {tt,d,x}}
+function aptSelDone(t,msg){UI.aptSel={t,k:[]};UI.aptSelMsg='';UI.armed=null;UI.aptDone={t,msg};saveColl();structDirty.add(t);persist('apartments/'+t);render()}
+function aptSelAct(a,btn){const t=UI.bld;let P=aptPicked(t);if(!P.length)return;const d=aptDoc(t);if(a!=='aptsel-del')UI.aptDelArm=0;
+  /* rows inside a ticked section go with the section */const tS=new Set(P.filter(p=>p.k==='sec').map(p=>p.x.id));if(a==='aptsel-kind')P=P.filter(p=>p.k==='sec'||!tS.has(p.x.id));
+  if(a==='aptsel-clear'){UI.aptSel={t,k:[]};UI.aptSelMsg='';render();return}
+  if(a==='aptsel-min'){const on=btn.dataset.v==='1';for(const p of P){const k=p.k==='sec'?'sec'+p.x.id:p.l&&p.l.subs&&p.l.subs.length?p.l.id:null;if(k)on?COLL.add(k):COLL.delete(k)}saveColl();render();return}
+  if(a==='aptsel-del'){if(!UI.aptDelArm){UI.aptDelArm=1;render();return}UI.aptDelArm=0;aptTakeOut(t,P);for(const p of P)if(p.l&&d.units[p.l.id]&&p.k!=='sub')delete d.units[p.l.id];aptSelDone(t,`Deleted ${P.length} row${P.length===1?'':'s'}.`);return}
+  if(a==='aptsel-move'){const v=(document.getElementById('apt_mv_to')||{}).value;if(!v){UI.aptSelMsg='Choose the section to move to.';render();return}
+    const tgtSid=v.split('|')[1];if(P.some(p=>p.k==='sec'&&p.x.id===tgtSid)){UI.aptSelMsg='A ticked section can’t be moved into itself.';render();return}
+    const items=aptTakeOut(t,P);const T=aptTarget(v);let n=0;let after=T.d.sections.indexOf(T.x);
+    for(const o of items){if(o.kind==='sec'){T.d.sections.splice(++after,0,o.sec);n++}else{T.x.lines.push(o.line);n++}}
+    aptSelDone(t,`Moved ${n} row${n===1?'':'s'} to ${T.x.name||'the section'}.`);return}
+  if(a==='aptsel-copy'){const v=(document.getElementById('apt_cp_to')||{}).value;if(!v){UI.aptSelMsg='Choose where to copy to.';render();return}
+    const T=aptTarget(v);let n=0;let after=T.d.sections.indexOf(T.x);const inSec=new Set(P.filter(p=>p.k==='sec').map(p=>p.x.id)),inLine=new Set(P.filter(p=>p.k==='line'||p.k==='head').map(p=>p.l.id));
+    for(const p of P){if(p.k==='sec'){T.d.sections.splice(++after,0,{id:uid('S'),name:p.x.name,lines:p.x.lines.map(aptCloneLine)});n++;continue}
+      if(inSec.has(p.x.id))continue;if(p.k==='sub'){if(inLine.has(p.l.id))continue;T.x.lines.push(aptLineFrom(p.sb));n++;continue}T.x.lines.push(aptCloneLine(p.l));n++}
+    if(T.tt!==t){structDirty.add(T.tt);persist('apartments/'+T.tt)}aptSelDone(t,`Copied ${n} row${n===1?'':'s'} to ${T.d.name&&T.tt!==t?T.d.name+' · ':''}${T.x.name||'the section'}.`);return}
+  if(a==='aptsel-kind'){const to=(document.getElementById('apt_kind_to')||{}).value;if(!to){UI.aptSelMsg='Choose what to change the rows to.';render();return}let n=0,skip=0;
+    /* work from the bottom up so positions stay right */
+    for(const p of P.slice().reverse()){const secs=d.sections;const si=secs.indexOf(p.x);if(si<0)continue;
+      if(p.k===to||(p.k==='line'&&to==='line')){continue}
+      if(p.k==='sec'){/* a section becomes a row at the end of the section before it, followed by its lines */
+        if(si===0){skip++;continue}const prev=secs[si-1];let row;
+        if(to==='sub'){const host=[...prev.lines].reverse().find(l=>!l.head);if(host){if(!(host.subs&&host.subs.length))host.subs=[aptSubFrom(host)];host.subs.push({...aptSubFrom({desc:p.x.name,qty:'1'})});prev.lines.push(...p.x.lines);secs.splice(si,1);n++;continue}row={...newLine(),desc:p.x.name}}
+        else row={...newLine(),desc:p.x.name,...(to==='head'?{head:true,qty:'',rate:''}:{})};prev.lines.push(row,...p.x.lines);secs.splice(si,1);n++;continue}
+      let L=p.x.lines,li=L.indexOf(p.l);if(li<0)continue;let row=p.l;
+      if(p.k==='sub'){p.l.subs=p.l.subs.filter(z=>z!==p.sb);row=aptLineFrom(p.sb);L.splice(li+1,0,row);li=li+1}
+      if(to==='line'){delete row.head;n++;continue}
+      if(to==='head'){row.head=true;if(row.subs&&row.subs.length){L.splice(li+1,0,...row.subs.map(aptLineFrom));delete row.subs}n++;continue}
+      if(to==='sec'){const rest=L.splice(li+1);L.splice(li,1);if(row.subs&&row.subs.length)rest.unshift(...row.subs.map(aptLineFrom));const ns={id:uid('S'),name:row.desc||row.name||'Section',lines:rest};secs.splice(si+1,0,ns);COLL.delete('sec'+ns.id);n++;continue}
+      if(to==='sub'){let h=li-1;while(h>=0&&L[h].head)h--;if(h<0){skip++;if(p.k==='sub'){/* put it back */L.splice(li,1);(p.l.subs=p.l.subs||[]).push(p.sb)}continue}
+        const host=L[h];if(!(host.subs&&host.subs.length))host.subs=[aptSubFrom(host)];host.subs.push(aptSubFrom(row));if(row.subs)host.subs.push(...row.subs.map(z=>({...z,id:uid('j')})));L.splice(li,1);COLL.delete(host.id);n++}}
+    aptSelDone(t,`Changed ${n} row${n===1?'':'s'} to ${{sec:'sections',head:'sub-headings',line:'lines',sub:'sub-lines'}[to]}.${skip?` ${skip} couldn’t be changed (a sub-line needs a line above it in its section, and the first section has no section above to join).`:''}`);return}}
 function bldWizard(t){
   const W=UI.bw&&UI.bw.t===t?UI.bw:{t,step:1,name:'',n:'',secs:[]};
   const cnt=n=>`<span class="tag">${n}</span>`;
@@ -5297,6 +5363,10 @@ viewEl.addEventListener('dragover',e=>{if(UI.view!=='subcontractors'||!UI.bld||!
 viewEl.addEventListener('dragleave',e=>{if(UI.view==='subcontractors'&&(!e.relatedTarget||!viewEl.contains(e.relatedTarget)))viewEl.classList.remove('apt-dropping')});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.remove('apt-dropping');const f=[...e.dataTransfer.files][0];if(f)aptImport(UI.bld,f)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='apt_imp_file'&&e.target.files&&e.target.files[0]){const f=e.target.files[0];e.target.value='';aptImport(UI.bld,f);return}
+  const sk=e.target.dataset&&e.target.dataset.aptsel;if(sk!==undefined&&UI.view==='subcontractors'){const S0=aptSelSet();const set=new Set(S0.k);e.target.checked?set.add(sk):set.delete(sk);
+    /* ticking a section or a line ticks what is inside it */
+    const d=aptDoc(UI.bld);if(sk.startsWith('S:')){const x=d.sections.find(z=>z.id===sk.slice(2));if(x)for(const l of x.lines){e.target.checked?set.add('L:'+l.id):set.delete('L:'+l.id)}}
+    S0.k=[...set];UI.aptSelMsg='';UI.aptDelArm=0;render();return}
   const k=e.target.dataset&&e.target.dataset.aptk;if(k!==undefined&&UI.aptImp&&UI.aptImp.rows){UI.aptImp.rows[+k].type=e.target.value;render()}});
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
@@ -5468,6 +5538,8 @@ document.addEventListener('click',async e=>{
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
   if(act==='ov-pdf'){ovPdf();return}
+  if(act==='aptdone-x'){UI.aptDone=null;render();return}
+  if(act&&act.startsWith('aptsel-')){UI.aptDone=null;aptSelAct(act,btn);return}
   if(act==='aptimp-x'){UI.aptImp=null;render();return}
   if(act==='aptimp-go'){aptImpApply();return}
   if(act==='inv-q-clear'){UI.invQ='';render();const el=document.getElementById('inv_q');if(el)el.focus();return}
@@ -5479,7 +5551,7 @@ document.addEventListener('click',async e=>{
     if(v===UI.view){const el=document.getElementById(btn.dataset.to||'');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
     UI.view=v;if(v==='labour'||v==='progress')collapseAllTasks(v);if(v==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+v)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;if(UI.view==='labour'||UI.view==='progress')collapseAllTasks(UI.view);if(UI.view==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
-  if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';render();return}
+  if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';UI.aptSel=null;UI.aptSelMsg='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
   if(act==='vparts'){const k=btn.dataset.v;UI.vpo=UI.vpo||{};UI.vpo[k]=!UI.vpo[k];render();return}
   if(act==='vpart-add'){const v=S.vars[btn.dataset.id];const l=v?.bu?.lines?.[+btn.dataset.x];if(!l)return;l.hrsParts=l.hrsParts||[];l.hrsParts.push({custom:true,desc:'',code:'',qty:'1',unit:'',hrs:0,main:!l.hrsParts.length});partsRecalc(l);persist('variations/'+btn.dataset.id);render();
