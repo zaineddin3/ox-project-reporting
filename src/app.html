@@ -118,6 +118,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .invbox.inv-hit{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
 .po-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px;margin-bottom:8px}.po-tiles>.ms-appr-tile{margin:0}.po-tiles>.ms-appr-tile>div:first-child{flex:1 1 220px;min-width:0}.po-tiles .itp{flex-wrap:wrap;max-width:100%;min-width:0}.po-tiles>.ms-appr-tile{min-width:0;overflow:hidden}.po-tiles .itp.itp-multi{max-width:100%;flex:1 1 100%}
 .apt-done{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-color:color-mix(in srgb,#2f7d4f 45%,var(--line))}
+.apt-impbar{position:static;margin:0 0 8px;padding:8px 12px}
 .apt-selbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 14px;border-color:var(--accent)}
 .apt-selgrp{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.apt-selgrp .f{width:auto;max-width:220px}
 .apt-ck{margin:0 6px 0 0;vertical-align:middle;width:16px;height:16px;accent-color:var(--accent)}tr.apt-sel td{background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
@@ -2304,8 +2305,11 @@ function aptImpHtml(t){const M=UI.aptImp;if(!M||M.t!==t)return '';
   return `<div class="panel apt-imp"><div class="sec-head" style="margin-bottom:8px"><div><h3>Import from ${esc(M.name)}</h3><p class="hint">Choose what each row is. A section starts a new section; a sub-heading is a label inside a section; a line is claimed against the stages; a sub-line goes under the line above it. Rows are guessed from the numbering, indents and blank quantities — check them before adding.</p></div></div>
     <div class="toolbar" style="margin-bottom:6px"><span class="hint">${cnt('sec')} section${cnt('sec')===1?'':'s'} · ${cnt('head')} sub-heading${cnt('head')===1?'':'s'} · ${cnt('line')} line${cnt('line')===1?'':'s'} · ${cnt('sub')} sub-line${cnt('sub')===1?'':'s'}${cnt('skip')?' · '+cnt('skip')+' left out':''}</span><span style="flex:1"></span>
       ${M.rows[0]&&M.rows[0].type!=='sec'?`<span class="hint">Rows before the first section go into ${d.sections.length?'“'+esc(d.sections[d.sections.length-1].name||'the last section')+'”':'a new section'}.</span>`:''}</div>
-    <div class="tw" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:150px">Row is a</th><th>Description</th><th class="n">Qty</th><th class="n">Rate</th></tr></thead><tbody>
-    ${M.rows.map((r,i)=>`<tr class="apt-imp-${r.type}"><td><select class="f" data-aptk="${i}" aria-label="Row ${i+1} type">${APT_KINDS.map(([v,l])=>`<option value="${v}"${r.type===v?' selected':''}>${l}</option>`).join('')}</select></td><td style="padding-left:${r.type==='sub'?28:r.type==='line'?14:r.type==='head'?8:4}px">${r.type==='sec'||r.type==='head'?'<b>':''}${esc(r.desc)}${r.type==='sec'||r.type==='head'?'</b>':''}</td><td class="n">${esc(r.qty)}</td><td class="n">${r.rate?money(num(r.rate)):''}</td></tr>`).join('')}
+    ${(()=>{const sel=M.sel||[];const n=sel.length;return n?`<div class="apt-selbar apt-impbar" role="region" aria-label="Ticked rows"><b>${n} ticked</b>
+      <span class="apt-selgrp"><label>Change to <select class="f" id="apt_imp_kind">${APT_KINDS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label><button class="btn" data-act="aptimpsel-kind">Change</button></span>
+      <span class="apt-selgrp"><button class="btn" data-act="aptimpsel-mv" data-v="-1" title="Move the ticked rows up one">↑ Up</button><button class="btn" data-act="aptimpsel-mv" data-v="1" title="Move the ticked rows down one">↓ Down</button><button class="btn" data-act="aptimpsel-del">Remove</button><button class="btn ghost" data-act="aptimpsel-clear">Clear ticks</button></span></div>`:'<p class="hint" style="margin:0 0 6px">Tick rows to change several at once. Shift-click a tick to tick every row in between.</p>'})()}
+    <div class="tw" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px"><input type="checkbox" class="apt-ck" data-aptimpall="1" ${M.sel&&M.sel.length===M.rows.length&&M.rows.length?'checked':''} aria-label="Tick every row"></th><th style="width:150px">Row is a</th><th>Description</th><th class="n">Qty</th><th class="n">Rate</th></tr></thead><tbody>
+    ${M.rows.map((r,i)=>`<tr class="apt-imp-${r.type}${(M.sel||[]).includes(i)?' apt-sel':''}"><td><input type="checkbox" class="apt-ck" data-aptimpck="${i}" ${(M.sel||[]).includes(i)?'checked':''} aria-label="Tick row ${i+1}"></td><td><select class="f" data-aptk="${i}" aria-label="Row ${i+1} type">${APT_KINDS.map(([v,l])=>`<option value="${v}"${r.type===v?' selected':''}>${l}</option>`).join('')}</select></td><td style="padding-left:${r.type==='sub'?28:r.type==='line'?14:r.type==='head'?8:4}px">${r.type==='sec'||r.type==='head'?'<b>':''}${esc(r.desc)}${r.type==='sec'||r.type==='head'?'</b>':''}</td><td class="n">${esc(r.qty)}</td><td class="n">${r.rate?money(num(r.rate)):''}</td></tr>`).join('')}
     </tbody></table></div>
     <div class="toolbar" style="margin-top:10px;justify-content:flex-end"><button class="btn" data-act="aptimp-x">Cancel</button><button class="btn primary" data-act="aptimp-go">Add to ${esc(d.name||'this trade')}</button></div></div>`}
 function aptImpApply(){const M=UI.aptImp;if(!M||!M.rows)return;const t=M.t;const d=aptDoc(t);let sec=d.sections[d.sections.length-1]||null;let last=null;const n={sec:0,head:0,line:0,sub:0};
@@ -5333,6 +5337,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dat
 
 /* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
 /* Subcontractors: drop an Excel / CSV anywhere on the tab */
+viewEl.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.aptimpck!==undefined&&UI.aptImp)UI.aptImp.shift=e.shiftKey},true);
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.add('apt-dropping')});
 viewEl.addEventListener('dragleave',e=>{if(UI.view==='subcontractors'&&(!e.relatedTarget||!viewEl.contains(e.relatedTarget)))viewEl.classList.remove('apt-dropping')});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.remove('apt-dropping');const f=[...e.dataTransfer.files][0];if(f)aptImport(UI.bld,f)});
@@ -5341,7 +5346,11 @@ viewEl.addEventListener('change',e=>{if(e.target.id==='apt_imp_file'&&e.target.f
     /* ticking a section or a line ticks what is inside it */
     const d=aptDoc(UI.bld);if(sk.startsWith('S:')){const x=d.sections.find(z=>z.id===sk.slice(2));if(x)for(const l of x.lines){e.target.checked?set.add('L:'+l.id):set.delete('L:'+l.id)}}
     S0.k=[...set];UI.aptSelMsg='';UI.aptDelArm=0;render();return}
-  const k=e.target.dataset&&e.target.dataset.aptk;if(k!==undefined&&UI.aptImp&&UI.aptImp.rows){UI.aptImp.rows[+k].type=e.target.value;render()}});
+  if(e.target.dataset&&e.target.dataset.aptimpall&&UI.aptImp&&UI.aptImp.rows){UI.aptImp.sel=e.target.checked?UI.aptImp.rows.map((_,i)=>i):[];render();return}
+  const ik=e.target.dataset&&e.target.dataset.aptimpck;if(ik!==undefined&&UI.aptImp&&UI.aptImp.rows){const M=UI.aptImp;const i=+ik;const S1=new Set(M.sel||[]);
+    if(M.shift&&M.last!=null){const [a0,b0]=[Math.min(M.last,i),Math.max(M.last,i)];for(let j=a0;j<=b0;j++)e.target.checked?S1.add(j):S1.delete(j)}else e.target.checked?S1.add(i):S1.delete(i);
+    M.last=i;M.shift=false;M.sel=[...S1];render();return}
+  const k=e.target.dataset&&e.target.dataset.aptk;if(k!==undefined&&UI.aptImp&&UI.aptImp.rows){const M=UI.aptImp;const sel=M.sel||[];if(sel.includes(+k))for(const i of sel)M.rows[i].type=e.target.value;else M.rows[+k].type=e.target.value;render()}});
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
 viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
@@ -5515,6 +5524,12 @@ document.addEventListener('click',async e=>{
   if(act==='aptdone-x'){UI.aptDone=null;render();return}
   if(act&&act.startsWith('aptsel-')){UI.aptDone=null;aptSelAct(act,btn);return}
   if(act==='aptimp-x'){UI.aptImp=null;render();return}
+  if(act&&act.startsWith('aptimpsel-')&&UI.aptImp&&UI.aptImp.rows){const M=UI.aptImp;const sel=(M.sel||[]).slice().sort((x,y)=>x-y);if(!sel.length)return;
+    if(act==='aptimpsel-clear'){M.sel=[];render();return}
+    if(act==='aptimpsel-kind'){const v=(document.getElementById('apt_imp_kind')||{}).value;if(v)for(const i of sel)M.rows[i].type=v;render();return}
+    if(act==='aptimpsel-del'){const k=new Set(sel);M.rows=M.rows.filter((_,i)=>!k.has(i));M.sel=[];M.last=null;render();return}
+    if(act==='aptimpsel-mv'){const dir=+btn.dataset.v;const R=M.rows;const set=new Set(sel);const order=dir<0?sel:sel.slice().reverse();
+      for(const i of order){const j=i+dir;if(j<0||j>=R.length||set.has(j))continue;[R[i],R[j]]=[R[j],R[i]];set.delete(i);set.add(j)}M.sel=[...set];render();return}}
   if(act==='aptimp-go'){aptImpApply();return}
   if(act==='inv-q-clear'){UI.invQ='';render();const el=document.getElementById('inv_q');if(el)el.focus();return}
   if(act==='inv-q-go'){const id=btn.dataset.id,j=btn.dataset.x;const o=S.orders[id];if(!o)return;const top=ordIsKid(o)?o.parent:id;
