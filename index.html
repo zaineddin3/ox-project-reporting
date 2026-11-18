@@ -143,6 +143,8 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .inv-results{margin-top:-6px}.inv-results .btn{padding:4px 12px;font-size:12px}
 .invbox.inv-hit{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
 .po-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px;margin-bottom:8px}.po-tiles>.ms-appr-tile{margin:0}.po-tiles>.ms-appr-tile>div:first-child{flex:1 1 220px;min-width:0}.po-tiles .itp{flex-wrap:wrap;max-width:100%;min-width:0}.po-tiles>.ms-appr-tile{min-width:0;overflow:hidden}.po-tiles .itp.itp-multi{max-width:100%;flex:1 1 100%}
+.apt-headrow td{background:var(--soft)}.apt-headrow input.f{font-weight:700}.apt-kind{width:auto;max-width:120px;flex:none;font-size:12px}
+#view.apt-dropping{outline:3px dashed var(--accent);outline-offset:-6px}.apt-imp-sec td{background:var(--soft)}.apt-imp-skip td{opacity:.45}
 .ov-bar{display:flex;justify-content:flex-end;margin-bottom:-6px}
 .jrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px;margin-top:20px}
 .jrow .jtile{border:1px solid var(--line);border-radius:10px;gap:6px}
@@ -746,7 +748,7 @@ function normTrade(id,d){
 }
 const aptDoc=t=>S.apt[t]||(S.apt[t]=normTrade(t,null));
 const tradeIds=()=>[...new Set([...(PID==='main'?['E','F']:[]),...Object.keys(S.apt)])].filter(id=>!aptDoc(id).removed).sort((a,b)=>aptDoc(a).created-aptDoc(b).created);
-const tradeLines=t=>aptDoc(t).sections.flatMap((x,si)=>x.lines.map((l,li)=>({...l,si,li,sec:x.id})));
+const tradeLines=t=>aptDoc(t).sections.flatMap((x,si)=>x.lines.map((l,li)=>({...l,si,li,sec:x.id})).filter(l=>!l.head));
 const lineQty=l=>(l.qty===''||l.qty==null)?1:num(l.qty);
 const unitState=(t,u)=>{const d=aptDoc(t).units[u];return {s:{...(d?.s||{})},itp:{...(d?.itp||{})}}};
 const structDirty=new Set();
@@ -890,7 +892,7 @@ function aptCalc(t){
   const stage=d.stages.map((s,i)=>({id:s.id,name:s.name,price:rates[i],total:0,claimed:0,done:0}));
   const itp={};d.itps.forEach(x=>itp[x.id]=0);let claimed=0,full=0,total=0,count=0;const secs={};
   for(const sec of d.sections){const sc=secs[sec.id]={total:0,claimed:0,count:sec.lines.length};
-    for(const l of sec.lines){count++;const st=d.units[l.id]||{};let uc=0,v=0,all;
+    for(const l of sec.lines){if(l.head)continue;count++;const st=d.units[l.id]||{};let uc=0,v=0,all;
       if(l.subs&&l.subs.length){all=true;for(const sb of l.subs){const x=subCalc(d,sb);v+=x.v;uc+=x.c;const sg=stage.find(z=>z.id===sb.task);if(sg){sg.total+=x.v;sg.claimed+=x.c;if(x.p>=1)sg.done++}if(x.p<1)all=false}total+=v;sc.total+=v}
       else{v=(num(l.rate)||per)*lineQty(l);total+=v;sc.total+=v;all=n>0;
       stage.forEach((s,i)=>{const p=num(st.s?.[s.id]);const sv=v*share(i);s.total+=sv;s.claimed+=sv*p/100;uc+=sv*p/100;if(p>=100)s.done++;else all=false})}
@@ -2232,6 +2234,8 @@ V.subcontractors=()=>{
     const shut=COLL.has('sec'+x.id)&&!q;
     return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname"><button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
     (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
+      const kindSel=`<select class="f apt-kind" data-b="${kl}kind" aria-label="Row type">${[['line','Line'],['head','Sub-heading']].map(([v,x])=>`<option value="${v}"${(l.head?'head':'line')===v?' selected':''}>${x}</option>`).join('')}</select>`;
+      if(l.head)return `<tr class="apt-headrow"><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
       const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
       if(l.subs&&l.subs.length){
         let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
@@ -2249,7 +2253,7 @@ V.subcontractors=()=>{
         `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
       }
       const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
-      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button><button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+      return `<tr><td style="width:86px">${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
       ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
@@ -2278,11 +2282,63 @@ V.subcontractors=()=>{
     <label>to <select id="apt_bp" data-ui="bulkPct">${opts.map(([v,x])=>`<option value="${v}"${UI.bulkPct===v?' selected':''}>${x}</option>`).join('')}</select></label>
     <button class="btn" data-act="bulk">Apply to ${nLines} shown</button>`:''}
   </div></div>
+  ${aptImpHtml(t)}
   <div class="tw tall apt"><table><thead><tr><th></th><th>#</th><th style="min-width:340px">Description</th><th>ITP</th><th class="n">Qty</th><th class="n">Rate</th>${d.stages.map(x=>`<th>${esc(x.name||'Unnamed stage')}</th>`).join('')}${d.itps.map(x=>`<th>${esc(x.name||'Check')}</th>`).join('')}<th class="n">Value</th><th class="n">Claimed</th><th class="n">Complete</th></tr></thead><tbody>
   ${body||`<tr><td colspan="${ncol}" class="empty">${d.sections.length?'No lines match.':'No sections yet. Add one below.'}</td></tr>`}
   </tbody></table></div>
-  <div class="toolbar"><button class="btn primary" data-act="add-sec" data-id="${t}">+ Add section</button><span class="hint">Sections group lines, for example a level, a building or common areas.</span></div></div>`;
+  <div class="toolbar"><button class="btn primary" data-act="add-sec" data-id="${t}">+ Add section</button><label class="btn" for="apt_imp_file">Import Excel or CSV</label><input type="file" id="apt_imp_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">Sections group lines, for example a level, a building or common areas. Or drag an Excel or CSV file onto this page to add sections, sub-headings, lines and sub-lines.</span></div></div>`;
 };
+/* ---------- Subcontractors: import a trade's breakdown from Excel / CSV, choosing what each row is ---------- */
+const APT_KINDS=[['sec','Section'],['head','Sub-heading'],['line','Line'],['sub','Sub-line'],['skip','Leave out']];
+async function aptReadRows(file){const name=file.name||'';
+  if(/\.csv$/i.test(name)||file.type==='text/csv'){return (await sheetRows(file)).map(r=>({cells:r,indent:0,bold:false}))}
+  if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');const wb=new window.ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+  const ws=wb.worksheets.find(w=>w.actualRowCount>0)||wb.worksheets[0];const out=[];
+  ws.eachRow({includeEmpty:false},r=>{const a=[];let ind=0,bold=false,raw='';r.eachCell({includeEmpty:true},(c,ci)=>{const v=llogCell(c.value);a[ci-1]=v==null?'':String(v);if(!raw&&String(v||'').trim()){raw=String(v);ind=c.alignment&&c.alignment.indent||0;bold=!!(c.font&&c.font.bold)}});
+    out.push({cells:Array.from(a,v=>v==null?'':String(v).trim()),indent:ind+((raw.match(/^\s+/)||[''])[0].length>=2?1:0),bold})});return out}
+function aptGuess(R){/* find the heading row and the description / qty / rate / item / type columns */
+  const low=r=>r.cells.map(c=>c.toLowerCase());let hi=R.findIndex(r=>low(r).some(c=>/^(description|item description|scope|works?|details?)$/.test(c))||(low(r).some(c=>/desc/.test(c))&&low(r).some(c=>/qty|quantity|rate|amount|total/.test(c))));
+  const H=hi>=0?low(R[hi]):[];const col=rx=>H.findIndex(c=>rx.test(c));
+  let cD=[/desc/,/scope|work|detail/,/name/,/^item$/].map(col).find(i=>i>=0);if(cD===undefined)cD=-1;let cQ=col(/^qty|quantity|^no\.?$|count/),cR=col(/rate|unit (price|cost)|price|\$\/|each/),cA=col(/amount|total|value|sum/),cI=col(/^(item|no|ref|#|code|item no\.?)$/),cT=col(/^(type|kind|level)$/);
+  if(cI===cD)cI=-1;const body=R.slice(hi+1);
+  if(cD<0){/* no headings: the widest text column is the description */const w=[];body.forEach(r=>r.cells.forEach((c,i)=>{if(c&&isNaN(num(c)))w[i]=(w[i]||0)+c.length}));cD=w.indexOf(Math.max(...w.filter(x=>x!=null)));if(cD<0)cD=0}
+  const rows=[];let d2='';
+  for(const r of body){const c=r.cells;let desc=String(c[cD]||'').trim();const item=cI>=0?String(c[cI]||'').trim():'';const qty=cQ>=0?c[cQ]:'';let rate=cR>=0?c[cR]:'';const amt=cA>=0?c[cA]:'';
+    if(!desc&&!item)continue;if(/^(sub ?total|total|grand total|gst|total \(?ex)/i.test(desc))continue;
+    if(!num(rate)&&num(amt)){rate=String(num(amt)/(num(qty)||1))}
+    const has=num(qty)||num(rate)||num(amt);let type='line';const bullet=/^[-–•*·]\s*/.test(desc);if(bullet)desc=desc.replace(/^[-–•*·]\s*/,'');
+    const tv=cT>=0?String(c[cT]||'').toLowerCase():'';
+    if(/sec/.test(tv))type='sec';else if(/head/.test(tv))type='head';else if(/sub/.test(tv))type='sub';else if(/line/.test(tv))type='line';
+    else if(/^\d+(\.\d+)*$/.test(item)){/* numbering: 1 = section, 1.1 = line (or a sub-heading if it has no amount), the next level down = a line under a sub-heading, otherwise a sub-line */
+      const dp=item.split('.').length;if(dp===1)type=has?'line':'sec';else if(dp===2){type=has?'line':'head';d2=type}else if(dp===3)type=d2==='head'?'line':'sub';else type='sub'}
+    else if(bullet||r.indent>=2)type=has?'sub':'head';else if(r.indent===1&&has)type='sub';
+    else if(!has)type=(rows.length===0||/^(level|lvl|building|bldg|block|stage|floor|section|area|zone|basement|ground|roof|podium|tower|common)\b/i.test(desc)||(desc===desc.toUpperCase()&&/[A-Z]/.test(desc))||r.bold)?'sec':'head';
+    if(!desc)desc=item;rows.push({type,desc:(item&&!/^\d+(\.\d+)*$/.test(item)?item+' ':'')+desc,qty:has&&qty!==''?String(num(qty)):'',rate:num(rate)?String(Math.round(num(rate)*100)/100):''})}
+  return rows}
+async function aptImport(t,file){if(!/\.(xlsx|csv)$/i.test(file.name||'')){UI.aptImp={t,err:'Use an Excel (.xlsx) or CSV file.'};render();return}
+  UI.aptImp={t,busy:'Reading '+file.name+'…'};render();
+  try{const R=await aptReadRows(file);const rows=aptGuess(R);UI.aptImp=rows.length?{t,name:file.name,rows}:{t,err:'No rows were found in '+file.name+'.'}}catch(e){console.error(e);UI.aptImp={t,err:'Could not read '+file.name+'.'}}render()}
+function aptImpHtml(t){const M=UI.aptImp;if(!M||M.t!==t)return '';
+  if(M.busy)return `<div class="panel"><p class="hint" style="margin:0"><span class="to-spin"></span>${esc(M.busy)}</p></div>`;
+  if(M.err)return `<div class="panel"><p class="hint neg" style="margin:0">${esc(M.err)} <button class="btn ghost" data-act="aptimp-x">Close</button></p></div>`;
+  if(M.done)return `<div class="panel"><p class="hint" style="margin:0;color:var(--good,#2f7d4f)">${esc(M.done)} <button class="btn ghost" data-act="aptimp-x">Close</button></p></div>`;
+  const cnt=k=>M.rows.filter(r=>r.type===k).length;const d=aptDoc(t);
+  return `<div class="panel apt-imp"><div class="sec-head" style="margin-bottom:8px"><div><h3>Import from ${esc(M.name)}</h3><p class="hint">Choose what each row is. A section starts a new section; a sub-heading is a label inside a section; a line is claimed against the stages; a sub-line goes under the line above it. Rows are guessed from the numbering, indents and blank quantities — check them before adding.</p></div></div>
+    <div class="toolbar" style="margin-bottom:6px"><span class="hint">${cnt('sec')} section${cnt('sec')===1?'':'s'} · ${cnt('head')} sub-heading${cnt('head')===1?'':'s'} · ${cnt('line')} line${cnt('line')===1?'':'s'} · ${cnt('sub')} sub-line${cnt('sub')===1?'':'s'}${cnt('skip')?' · '+cnt('skip')+' left out':''}</span><span style="flex:1"></span>
+      ${M.rows[0]&&M.rows[0].type!=='sec'?`<span class="hint">Rows before the first section go into ${d.sections.length?'“'+esc(d.sections[d.sections.length-1].name||'the last section')+'”':'a new section'}.</span>`:''}</div>
+    <div class="tw" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:150px">Row is a</th><th>Description</th><th class="n">Qty</th><th class="n">Rate</th></tr></thead><tbody>
+    ${M.rows.map((r,i)=>`<tr class="apt-imp-${r.type}"><td><select class="f" data-aptk="${i}" aria-label="Row ${i+1} type">${APT_KINDS.map(([v,l])=>`<option value="${v}"${r.type===v?' selected':''}>${l}</option>`).join('')}</select></td><td style="padding-left:${r.type==='sub'?28:r.type==='line'?14:r.type==='head'?8:4}px">${r.type==='sec'||r.type==='head'?'<b>':''}${esc(r.desc)}${r.type==='sec'||r.type==='head'?'</b>':''}</td><td class="n">${esc(r.qty)}</td><td class="n">${r.rate?money(num(r.rate)):''}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="toolbar" style="margin-top:10px;justify-content:flex-end"><button class="btn" data-act="aptimp-x">Cancel</button><button class="btn primary" data-act="aptimp-go">Add to ${esc(d.name||'this trade')}</button></div></div>`}
+function aptImpApply(){const M=UI.aptImp;if(!M||!M.rows)return;const t=M.t;const d=aptDoc(t);let sec=d.sections[d.sections.length-1]||null;let last=null;const n={sec:0,head:0,line:0,sub:0};
+  for(const r of M.rows){if(r.type==='skip')continue;
+    if(r.type==='sec'){sec={id:uid('S'),name:r.desc,lines:[]};d.sections.push(sec);COLL.delete('sec'+sec.id);last=null;n.sec++;continue}
+    if(!sec){sec={id:uid('S'),name:'Imported',lines:[]};d.sections.push(sec);COLL.delete('sec'+sec.id);n.sec++}else COLL.delete('sec'+sec.id);
+    if(r.type==='head'){sec.lines.push({id:uid('l'),name:'',desc:r.desc,qty:'',rate:'',head:true});last=null;n.head++;continue}
+    if(r.type==='sub'&&last){(last.subs=last.subs||[]).push({id:uid('j'),task:'',desc:r.desc,qty:r.qty||'1',rate:r.rate,pct:''});n.sub++;continue}
+    const l={...newLine(),desc:r.desc,qty:r.qty||'1',rate:r.rate};sec.lines.push(l);last=l;n.line++}
+  saveColl();UI.level='all';UI.q='';structDirty.add(t);persist('apartments/'+t);
+  UI.aptImp={t,done:`Added ${n.sec} section${n.sec===1?'':'s'}, ${n.head} sub-heading${n.head===1?'':'s'}, ${n.line} line${n.line===1?'':'s'} and ${n.sub} sub-line${n.sub===1?'':'s'} from ${M.name}.`};render()}
 function bldWizard(t){
   const W=UI.bw&&UI.bw.t===t?UI.bw:{t,step:1,name:'',n:'',secs:[]};
   const cnt=n=>`<span class="tag">${n}</span>`;
@@ -5236,6 +5292,12 @@ viewEl.addEventListener('drop',e=>{if(!ordHasFiles(e))return;const t=pcXlTarget(
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.pcxlf===undefined)return;const f=t.files&&t.files[0];if(f)pcStartRun(t.dataset.pcxlf,f);t.value=''});
 
 /* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
+/* Subcontractors: drop an Excel / CSV anywhere on the tab */
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.add('apt-dropping')});
+viewEl.addEventListener('dragleave',e=>{if(UI.view==='subcontractors'&&(!e.relatedTarget||!viewEl.contains(e.relatedTarget)))viewEl.classList.remove('apt-dropping')});
+viewEl.addEventListener('drop',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.remove('apt-dropping');const f=[...e.dataTransfer.files][0];if(f)aptImport(UI.bld,f)});
+viewEl.addEventListener('change',e=>{if(e.target.id==='apt_imp_file'&&e.target.files&&e.target.files[0]){const f=e.target.files[0];e.target.value='';aptImport(UI.bld,f);return}
+  const k=e.target.dataset&&e.target.dataset.aptk;if(k!==undefined&&UI.aptImp&&UI.aptImp.rows){UI.aptImp.rows[+k].type=e.target.value;render()}});
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
 viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
@@ -5348,7 +5410,7 @@ function apply(parts,v){
   if(kind==='item'){const t=S.tasks[a]=taskDoc(a);const it=t.items[+b];if(it){lhRec(it,c);if(c==='pct'&&it.subPct===undefined)it.subPct=it.pct||'';it[c]=v;persist('tasks/'+a)}return}
   if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
   if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
-  if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
+  if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){if(parts[4]==='kind'){if(v==='head')l.head=true;else delete l.head;structDirty.add(a);persist('apartments/'+a);render();return}l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tsub'){const d=aptDoc(a);const sb=d.sections[+b]?.lines[+c]?.subs?.[+parts[4]];if(sb){sb[parts[5]]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tstage'){const d=S.apt[a]=aptDoc(a);if(d.stages[+b]){d.stages[+b][c]=v;persist('apartments/'+a)}return}
   if(kind==='titp'){const d=S.apt[a]=aptDoc(a);if(d.itps[+b]){d.itps[+b][c]=v;persist('apartments/'+a)}return}
@@ -5406,6 +5468,8 @@ document.addEventListener('click',async e=>{
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
   if(act==='ov-pdf'){ovPdf();return}
+  if(act==='aptimp-x'){UI.aptImp=null;render();return}
+  if(act==='aptimp-go'){aptImpApply();return}
   if(act==='inv-q-clear'){UI.invQ='';render();const el=document.getElementById('inv_q');if(el)el.focus();return}
   if(act==='inv-q-go'){const id=btn.dataset.id,j=btn.dataset.x;const o=S.orders[id];if(!o)return;const top=ordIsKid(o)?o.parent:id;
     UI.open[id]=true;if(top!==id)UI.open[top]=UI.open[top]||false;const g=ordSecOf(o);if(g)COLL.delete('ordsec:'+g);else COLL.add('ordsec:none');
@@ -5848,7 +5912,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=un
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['aptimp-x','ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
