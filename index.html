@@ -913,8 +913,8 @@ function calc(){syncTasks();
   for(const x of (Array.isArray(S.info.ordSecs)?S.info.ordSecs:[])){const a=secExtraAdj(x);matAnt+=a;matFc+=a}/* section-wide extras */
   const rate=labourRate();
   let lEst=0,lSpent=0,lFc=0,lEarned=0;
-  let lSpentX=0,lFcX=0;/* % complete: hours spent ÷ forecast hours at completion, leaving out Management & supervision (time on site, not installed work) */
-  for(const t of TASK_IDS){const c=taskCalc(t);lEst+=c.est;lSpent+=c.spent;lFc+=c.fc;lEarned+=c.earned;if(t!==VH_TASK){lSpentX+=c.spent;lFcX+=c.fc}}
+  let lSpentX=0,lFcX=0;/* % complete: hours spent ÷ forecast hours at completion, leaving out Management & supervision (time on site, not installed work) and Downtime & defects */const DT=DT_TASK();
+  for(const t of TASK_IDS){const c=taskCalc(t);lEst+=c.est;lSpent+=c.spent;lFc+=c.fc;lEarned+=c.earned;if(t!==VH_TASK&&t!==DT){lSpentX+=c.spent;lFcX+=c.fc}}
   const otherHrs=num(S.info.otherHrs);lSpent+=otherHrs;lFc+=otherHrs;
   const labAct=lSpent*rate,labFc=lFc*rate;
   const other=num(S.info.otherCost);
@@ -1069,17 +1069,19 @@ function labourCostPanel(c){
     ${tileDiff}
   </div>${why}${notes.map(t=>`<p class="hint lcc-note">${t}</p>`).join('')}</div>`;
 }
-function completionMeasures(c){return [['cost','Cost incurred vs forecast final cost',c.fcCost,c.pctCost,`${money(c.costToDate)} of ${money(c.fcCost)}`],
+function completionMeasures(c){/* Downtime & defects is left out of % complete: its labour (hours × labour rate) comes off the cost to date and the forecast final cost */
+  const dx=taskCalc(DT_TASK());const dS=dx.spent*c.rate,dF=dx.fc*c.rate;const cn=Math.max(c.costToDate-dS,0),cd=Math.max(c.fcCost-dF,0);const dtl=dF>0.005;
+  return [['cost','Cost incurred vs forecast final cost'+(dtl?' (without downtime & defects)':''),cd,cd?Math.min(cn/cd,1):0,`${money(cn)} of ${money(cd)}`],
     ['inv','Invoiced vs revised contract',c.revised,c.pctInv,`${money(c.invoiced)} of ${money(c.revised)}`],
     ['hrs','Labour hours spent vs forecast at completion',c.lFcX,c.pctHrs,`${hrs(c.lSpentX)} of ${hrs(c.lFcX)} hrs`],
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]]}
 function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
 function jobComp(c){const lv=c.lFcX*c.rate,sv=c.subTotal,le=c.lFcX*c.pctHrs*c.rate,se=c.subClaimed,tot=lv+sv;return {lv,sv,le,se,tot,pct:tot?(le+se)/tot:0}}
-function jobTile(c){const J=jobComp(c);return `<button type="button" class="kpi jtile go" data-act="ov-go" data-v="overview" data-to="ov-break" aria-label="Job completion: show the breakdown by trade and task" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></button>`}
+function jobTile(c){const J=jobComp(c);return `<button type="button" class="kpi jtile go" data-act="ov-go" data-v="overview" data-to="ov-break" aria-label="Job completion: show the breakdown by trade and task" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision and downtime &amp; defects left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></button>`}
 /* job completion, then one tile for Labour & tasks and one for each subcontractor (a new subcontractor gets its own tile automatically) */
 function jobRow(c){
   const bar=v=>`<div class="bar"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div>`;
-  const lab=`<button type="button" class="kpi jtile go" data-jt="labour" data-act="ov-go" data-v="labour" aria-label="Open Labour &amp; tasks"><span class="l">Labour &amp; tasks</span><span class="v">${c.lFcX?pct(c.pctHrs):'—'}</span>${c.lFcX?bar(c.pctHrs):''}<span class="d">${c.lFcX?`${hrs(c.lSpentX)} hrs spent of ${hrs(c.lFcX)} forecast at completion`:'No task estimates yet'}</span><span class="d">Management &amp; supervision left out</span></button>`;
+  const lab=`<button type="button" class="kpi jtile go" data-jt="labour" data-act="ov-go" data-v="labour" aria-label="Open Labour &amp; tasks"><span class="l">Labour &amp; tasks</span><span class="v">${c.lFcX?pct(c.pctHrs):'—'}</span>${c.lFcX?bar(c.pctHrs):''}<span class="d">${c.lFcX?`${hrs(c.lSpentX)} hrs spent of ${hrs(c.lFcX)} forecast at completion`:'No task estimates yet'}</span><span class="d">Management &amp; supervision and downtime &amp; defects left out</span></button>`;
   const ids=tradeIds();const subs=c.trades.map((a,i)=>{const p=a.total?a.claimed/a.total:0;return `<button type="button" class="kpi jtile go" data-jt="sub" data-act="ov-go" data-v="subcontractors" data-bld="${ids[i]}" aria-label="Open ${esc(a.name||'Untitled trade')} in Subcontractors"><span class="l">${esc(a.name||'Untitled trade')}</span><span class="v">${a.total?pct(p):'—'}</span>${a.total?bar(p):''}<span class="d">${a.total?`${money(a.claimed)} of ${money(a.total)} claimed`:'No contract value yet'}</span></button>`}).join('');
   return `<div class="jrow">${jobTile(c)}${lab}${subs}</div>`;
 }
@@ -1090,7 +1092,7 @@ function completionPanel(){
     ['hrs','Labour hours spent vs forecast at completion',c.lFcX,c.pctHrs,`${hrs(c.lSpentX)} of ${hrs(c.lFcX)} hrs`],
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]];
   const lead=m.find(x=>x[2]>0);
-  const tasks=TASK_IDS.map((t,i)=>{const x=taskCalc(t);return {i,c:{...x,pct:x.fc?Math.min(x.spent/x.fc,1):0}}}).filter((x,k)=>x.c.est>0&&TASK_IDS[x.i]!==VH_TASK);
+  const tasks=TASK_IDS.map((t,i)=>{const x=taskCalc(t);return {i,c:{...x,pct:x.fc?Math.min(x.spent/x.fc,1):0}}}).filter((x,k)=>x.c.est>0&&TASK_IDS[x.i]!==VH_TASK&&TASK_IDS[x.i]!==DT_TASK());
   return `<div class="panel"><div class="complete">
     <div><div class="kpi" style="padding:0;background:none"><span class="l">Overall completion</span></div><div class="big">${lead?pct(lead[3]):'—'}</div><div class="hint">${lead?lead[1]:'Enter contract, cost, labour or subcontractor figures to calculate completion.'}</div></div>
     <div class="crow">${m.map(([k,l,den,v,dd],i)=>`<button type="button" class="cgo go" data-act="ov-go" data-v="${{cost:'cost',inv:'claim',hrs:'labour',sub:'subcontractors'}[k]}" aria-label="Open ${l}"><div class="ct"><span>${l}</span><span class="money">${den?pct(v):'—'}</span></div><div class="bar${i%2?' b2':''}"><i style="width:${Math.min(Math.max(v,0)*100,100).toFixed(1)}%"></i></div><div class="hint" style="margin-top:4px">${den?dd:'No figures yet'}</div></button>`).join('')}</div>
@@ -1302,6 +1304,7 @@ function vbNums(lines){let a=0,b=0;return (lines||[]).map(l=>{const h=vbHead(l);
 function vbBlockEnd(lines,li){const lv=vbHead(lines[li]);let j=li+1;for(;j<lines.length;j++){const h=vbHead(lines[j]);if(h&&h<=lv)break;if(!h&&kindOf(lines[j])!=='L')break}return j}
 /* an approved variation gets its own section in Labour & tasks → Variation: heading "VQ002 – description",
    one line for the variation, and a sub-line per labour line of the build-up with its hours as estimated hours (supervision and PM left out) */
+const DT_TASK=()=>TASK_IDS[TASKS.indexOf('Downtime & defects')]||'t16';
 const VAR_TASK=()=>TASK_IDS[TASKS.indexOf('Variation')]||'t11';
 function varTaskGroups(v){const bu=v.bu;const G=[];let cur=null;
   if(bu&&Array.isArray(bu.lines)&&bu.lines.length){for(const l of bu.lines){const hd=vbHead(l);if(hd===1){cur={head:String(l.item||'').trim()||'Heading',subs:[]};G.push(cur);continue}if(hd)continue;
