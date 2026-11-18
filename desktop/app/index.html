@@ -136,6 +136,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .inv-results{margin-top:-6px}.inv-results .btn{padding:4px 12px;font-size:12px}
 .invbox.inv-hit{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
 .po-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px;margin-bottom:8px}.po-tiles>.ms-appr-tile{margin:0}.po-tiles>.ms-appr-tile>div:first-child{flex:1 1 220px;min-width:0}.po-tiles .itp{flex-wrap:wrap;max-width:100%;min-width:0}.po-tiles>.ms-appr-tile{min-width:0;overflow:hidden}.po-tiles .itp.itp-multi{max-width:100%;flex:1 1 100%}
+.ov-bar{display:flex;justify-content:flex-end;margin-bottom:-6px}
 .jrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px;margin-top:20px}
 .jrow .jtile{border:1px solid var(--line);border-radius:10px;gap:6px}
 button.go{font:inherit;color:inherit;text-align:left;width:100%;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .15s,box-shadow .15s,transform .15s}
@@ -937,6 +938,7 @@ V.overview=()=>{
   const vSt=VSTATUS.filter(s=>c.vCount[s]).map(s=>`<span class="tag ${s==='Approved'?'good':s==='Rejected'||s==='Withdrawn'?'bad':s==='Submitted'?'warn':''}">${c.vCount[s]} ${s.toLowerCase()}</span>`).join(' ');
   const taskRows=TASK_IDS.map((t,i)=>({t,i,c:taskCalc(t)})).filter(x=>x.c.est||x.c.spent).sort((a,b)=>a.c.varHrs-b.c.varHrs).slice(0,5);
   return `<div class="stack">
+  <div class="ov-bar"><button class="btn primary" data-act="ov-pdf" title="A PDF summary of this page: headline figures, financial position, completion, labour against tender and variations">🖨 Print summary</button></div>
   <div class="kpis">
     <div class="kpi"><span class="l">Revised contract</span><span class="v">${kmoney(c.revised)}</span><span class="d">${money(c.contract)} original + ${money(c.vApp)} approved variations</span></div>
     <div class="kpi"><span class="l">Forecast cost</span><span class="v">${kmoney(c.fcCost)}</span><span class="d">${money(c.costToDate)} cost to date (labour ${money(c.labCostToDate)} + invoiced ${money(c.matInv)})</span></div>
@@ -1069,6 +1071,40 @@ function completionMeasures(c){/* Downtime & defects is left out of % complete: 
     ['hrs','Labour hours spent vs forecast at completion',c.lFcX,c.pctHrs,`${hrs(c.lSpentX)} of ${hrs(c.lFcX)} hrs`],
     ['sub','Subcontractor work claimed',c.subTotal,c.pctSub,`${money(c.subClaimed)} of ${money(c.subTotal)}`]]}
 function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
+/* Overview → PDF summary for printing or sending */
+async function ovPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=doc.internal.pageSize.getWidth();pdfHeader(doc,'Project summary');
+  const c=calc();const asc=x=>String(x).replace(/−/g,'-');const m2=v=>asc(money(v));const P=v=>asc(pct(v));const H=v=>asc(hrs(v));const proj=PROJ[PID]?.name||S.info.name||'';
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(`Project: ${proj}${S.info.job?'   Job no.: '+S.info.job:''}   Printed: ${fmtDate(todayISO())}`,14,53);
+  let y=58;const T=(title,head,body,opt={})=>{if(y>255){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.setFontSize(11.5);doc.setTextColor(176,84,28);doc.text(title,14,y+4);doc.setTextColor(0);
+    doc.autoTable({startY:y+6,head:head?[head]:undefined,body,theme:'grid',styles:{fontSize:8.6,cellPadding:1.7,overflow:'linebreak'},headStyles:{fillColor:[51,51,51]},margin:{left:14,right:14},...opt});y=doc.lastAutoTable.finalY+7};
+  const R={halign:'right'};
+  /* headline figures */
+  T('Headline figures',null,[['Revised contract',m2(c.revised),`${m2(c.contract)} original + ${m2(c.vApp)} approved variations`],['Forecast cost',m2(c.fcCost),`${m2(c.costToDate)} cost to date`],['Forecast margin',P(c.gpPct),`${m2(c.gp)} gross profit`],
+    ['Overall % invoiced',c.revised?P(c.pctInv):'—',c.revised?`${m2(c.invoiced)} invoiced of ${m2(c.revised)}`:''],['Overall complete',asc(overallPct().v),overallPct().l]],{columnStyles:{0:{fontStyle:'bold',cellWidth:48},1:{...R,cellWidth:36}}});
+  /* financial position */
+  const fp=[['Original contract value',c.contract],['Approved variations',c.vApp],['Revised contract value',c.revised,1],['Forecast cost, materials',c.matFc],['Forecast cost, labour',c.labFc],...(c.other?[['Forecast cost, other',c.other]]:[]),['Total forecast cost',c.fcCost,1],['Forecast gross profit',c.gp,1],['Forecast margin',null,0,P(c.gpPct)],
+    ['Invoiced to date',c.invoiced],['Retention held to date',c.retention],['Labour cost to date',c.labCostToDate],['Invoiced from orders & invoices',c.matInv],...(c.otherToDate?[['Other costs to date',c.otherToDate]]:[]),['Cost to date',c.costToDate,1],['Margin to date',c.marginToDate,1],['Left to invoice',c.leftInvoice],['Left to spend',c.leftSpend]];
+  T('Financial position',null,fp.map(r=>[r[0],r[3]!==undefined?r[3]:m2(r[1])]),{columnStyles:{1:{...R,cellWidth:44}},didParseCell:d=>{const r=fp[d.row.index];if(r&&r[2])d.cell.styles.fontStyle='bold';if(r&&r[1]<0&&d.column.index===1)d.cell.styles.textColor=[192,40,40]}});
+  /* completion */
+  const J=jobComp(c);const ids=tradeIds();
+  T('Completion',['Measure','% complete','Detail'],[['Job completion',J.tot?P(J.pct):'—','Labour (without management & supervision and downtime & defects) and subcontractors, weighted by value'],
+    ...completionMeasures(c).filter(m=>m[2]>0).map(m=>[m[1],P(m[3]),m[4]]),['Labour & tasks',c.lFcX?P(c.pctHrs):'—',c.lFcX?`${H(c.lSpentX)} hrs spent of ${H(c.lFcX)} forecast`:''],
+    ...c.trades.map((a,i)=>[a.name||'Untitled trade',a.total?P(a.claimed/a.total):'—',a.total?`${m2(a.claimed)} of ${m2(a.total)} claimed`:''])],{columnStyles:{0:{cellWidth:62},1:{...R,cellWidth:24}}});
+  /* tasks */
+  const tr=TASK_IDS.map((t,i)=>({i,x:taskCalc(t),t})).filter(r=>r.x.est||r.x.spent);
+  if(tr.length)T('Labour & tasks',['Task','Estimate hrs','Spent hrs','Forecast hrs','% complete'],tr.map(r=>[String(r.i+1).padStart(3,'0')+' · '+TASKS[r.i]+(r.t===VH_TASK||r.t===DT_TASK()?' *':''),H(r.x.est),H(r.x.spent),H(r.x.fc),r.x.fc?P(Math.min(r.x.spent/r.x.fc,1)):'—']),{columnStyles:{1:R,2:R,3:R,4:R},didDrawPage:()=>{}});
+  if(tr.some(r=>r.t===VH_TASK||r.t===DT_TASK())){doc.setFontSize(7.5);doc.setTextColor(110);doc.text('* not counted in % complete',14,y-4);doc.setTextColor(0)}
+  /* labour against tender */
+  const N=tenderNums(c);if(N.th||N.fcAll){const rows=[['Tendered hours',H(N.th)+' hrs'],['Tendered rate','$'+N.tr.toFixed(2)+'/hr'],['Tendered labour value',m2(N.tv)],['Actual hours to date',H(N.act)+' hrs'],['Forecast hours at completion',H(N.fc)+' hrs'+(N.th?` (${N.fc>N.th?H(N.fc-N.th)+' over':H(N.th-N.fc)+' under'} tender)`:'')],
+      ['Rate used for forecast','$'+N.rate.toFixed(2)+'/hr'],['Forecast labour cost at completion',m2(N.fcCostAll)],...(N.vHrs>0.005?[['Variation work (not in the tender)',m2(N.varCost)]]:[]),
+      ...(N.th&&N.tr&&N.fc?[['Hours against tender',(N.hrsCost>0?'+':'')+m2(N.hrsCost)],['Rate against tender',(N.rateCost>0?'+':'')+m2(N.rateCost)],[N.diff>0?'Over tender by':'Under tender by',m2(Math.abs(N.diff))]]:[])];
+    T('Labour against tender',null,rows,{columnStyles:{0:{cellWidth:72},1:R}})}
+  /* variations */
+  const vs=VSTATUS.filter(st=>c.vCount[st]);if(vs.length)T('Variations',['Status','Count'],vs.map(st=>[st,String(c.vCount[st])]),{columnStyles:{1:{...R,cellWidth:30}},tableWidth:90});
+  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(120);doc.text([proj,'Project summary',`page ${i} of ${n}`].filter(Boolean).join(' · '),W/2,290,{align:'center'});doc.setTextColor(0)}
+  const name=`${(S.info.job||proj||'Project').replace(/[^\w.-]+/g,'_')} - Project summary ${todayISO()}.pdf`;
+  try{await downloads.save({filename:name,data:doc.output('blob')})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}}catch(e){console.error(e);setSave('error','Could not make the summary PDF')}}
 function jobComp(c){const lv=c.lFcX*c.rate,sv=c.subTotal,le=c.lFcX*c.pctHrs*c.rate,se=c.subClaimed,tot=lv+sv;return {lv,sv,le,se,tot,pct:tot?(le+se)/tot:0}}
 function jobTile(c){const J=jobComp(c);return `<button type="button" class="kpi jtile go" data-act="ov-go" data-v="overview" data-to="ov-break" aria-label="Job completion: show the breakdown by trade and task" title="Weighted by value: labour hours spent × labour rate plus subcontractor work claimed, over forecast labour value at completion plus total subcontract value (Management &amp; supervision and downtime &amp; defects left out)"><span class="l">Job completion · labour & tasks + subcontractors</span><span class="v">${J.tot?pct(J.pct):'—'}</span><span class="d">${J.tot?`Labour & tasks ${c.lFcX?pct(c.pctHrs,0):'—'} · Subcontractors ${c.subTotal?pct(c.pctSub,0):'—'}`:'No labour estimates or subcontract values yet'}</span></button>`}
 /* job completion, then one tile for Labour & tasks and one for each subcontractor (a new subcontractor gets its own tile automatically) */
@@ -5361,6 +5397,7 @@ document.addEventListener('click',async e=>{
     UI.armed=null;removeProject(id);return}
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
+  if(act==='ov-pdf'){ovPdf();return}
   if(act==='inv-q-clear'){UI.invQ='';render();const el=document.getElementById('inv_q');if(el)el.focus();return}
   if(act==='inv-q-go'){const id=btn.dataset.id,j=btn.dataset.x;const o=S.orders[id];if(!o)return;const top=ordIsKid(o)?o.parent:id;
     UI.open[id]=true;if(top!==id)UI.open[top]=UI.open[top]||false;const g=ordSecOf(o);if(g)COLL.delete('ordsec:'+g);else COLL.add('ordsec:none');
@@ -5803,7 +5840,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=un
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
