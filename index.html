@@ -1088,7 +1088,7 @@ async function ovPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error
   const R={halign:'right'};
   /* headline figures */
   T('Headline figures',null,[['Revised contract',m2(c.revised),`${m2(c.contract)} original + ${m2(c.vApp)} approved variations`],['Forecast cost',m2(c.fcCost),`${m2(c.costToDate)} cost to date`],['Forecast margin',P(c.gpPct),`${m2(c.gp)} gross profit`],
-    ['Overall % invoiced',c.revised?P(c.pctInv):'—',c.revised?`${m2(c.invoiced)} invoiced of ${m2(c.revised)}`:''],['Overall complete',asc(overallPct().v),overallPct().l]],{columnStyles:{0:{fontStyle:'bold',cellWidth:48},1:{...R,cellWidth:36}}});
+    ['Overall % invoiced',c.revised?P(c.pctInv):'—',c.revised?`${m2(c.invoiced)} invoiced of ${m2(c.revised)}`:''],['Overall complete',asc(overallPct().v),overallPct().l],['Forecast total hours',c.lFc?H(c.lFc)+' hrs':'—',c.lFc?`all tasks: ${H(c.lSpent)} hrs spent + ${H(Math.max(c.lFc-c.lSpent,0))} hrs to go`:'No task estimates yet']],{columnStyles:{0:{fontStyle:'bold',cellWidth:48},1:{...R,cellWidth:36}}});
   /* financial position */
   const fp=[['Original contract value',c.contract],['Approved variations',c.vApp],['Revised contract value',c.revised,1],['Forecast cost, materials',c.matFc],['Forecast cost, labour',c.labFc],...(c.other?[['Forecast cost, other',c.other]]:[]),['Total forecast cost',c.fcCost,1],['Forecast gross profit',c.gp,1],['Forecast margin',null,0,P(c.gpPct)],
     ['Invoiced to date',c.invoiced],['Retention held to date',c.retention],['Labour cost to date',c.labCostToDate],['Invoiced from orders & invoices',c.matInv],...(c.otherToDate?[['Other costs to date',c.otherToDate]]:[]),['Cost to date',c.costToDate,1],['Margin to date',c.marginToDate,1],['Left to invoice',c.leftInvoice],['Left to spend',c.leftSpend]];
@@ -1100,7 +1100,8 @@ async function ovPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error
     ...c.trades.map((a,i)=>[a.name||'Untitled trade',a.total?P(a.claimed/a.total):'—',a.total?`${m2(a.claimed)} of ${m2(a.total)} claimed`:''])],{columnStyles:{0:{cellWidth:62},1:{...R,cellWidth:24}}});
   /* tasks */
   const tr=TASK_IDS.map((t,i)=>({i,x:taskCalc(t),t})).filter(r=>r.x.est||r.x.spent);
-  if(tr.length)T('Labour & tasks',['Task','Estimate hrs','Spent hrs','Forecast hrs','% complete'],tr.map(r=>[String(r.i+1).padStart(3,'0')+' · '+TASKS[r.i]+(r.t===VH_TASK||r.t===DT_TASK()?' *':''),H(r.x.est),H(r.x.spent),H(r.x.fc),r.x.fc?P(Math.min(r.x.spent/r.x.fc,1)):'—']),{columnStyles:{1:R,2:R,3:R,4:R},didDrawPage:()=>{}});
+  if(tr.length)T('Labour & tasks',['Task','Estimate hrs','Spent hrs','Forecast hrs','% complete'],tr.map(r=>[String(r.i+1).padStart(3,'0')+' · '+TASKS[r.i]+(r.t===VH_TASK||r.t===DT_TASK()?' *':''),H(r.x.est),H(r.x.spent),H(r.x.fc),r.x.fc?P(Math.min(r.x.spent/r.x.fc,1)):'—']),{columnStyles:{1:R,2:R,3:R,4:R},
+    foot:[['Total (all tasks)',H(tr.reduce((a,r)=>a+r.x.est,0)),H(tr.reduce((a,r)=>a+r.x.spent,0)),H(tr.reduce((a,r)=>a+r.x.fc,0)),'']],footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold',halign:'right'},showFoot:'lastPage',didParseCell:d=>{if(d.section==='foot'&&d.column.index===0)d.cell.styles.halign='left'}});
   if(tr.some(r=>r.t===VH_TASK||r.t===DT_TASK())){doc.setFontSize(7.5);doc.setTextColor(110);doc.text('* not counted in % complete',14,y-4);doc.setTextColor(0)}
   /* labour against tender */
   const N=tenderNums(c);if(N.th||N.fcAll){const rows=[['Tendered hours',H(N.th)+' hrs'],['Tendered rate','$'+N.tr.toFixed(2)+'/hr'],['Tendered labour value',m2(N.tv)],['Actual hours to date',H(N.act)+' hrs'],['Forecast hours at completion',H(N.fc)+' hrs'+(N.th?` (${N.fc>N.th?H(N.fc-N.th)+' over':H(N.th-N.fc)+' under'} tender)`:'')],
