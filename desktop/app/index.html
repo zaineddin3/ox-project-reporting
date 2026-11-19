@@ -141,7 +141,12 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;line-hei
 .apt-selbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 14px;border-color:var(--accent)}
 .apt-selgrp{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.apt-selgrp .f{width:auto;max-width:220px}
 .apt-ck{margin:0 6px 0 0;vertical-align:middle;width:16px;height:16px;accent-color:var(--accent)}tr.apt-sel td{background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
-.apt-headrow td{background:var(--soft)}.apt-headrow input.f{font-weight:700}.apt-kind{width:auto;max-width:120px;flex:none;font-size:12px}
+.apt-headrow td{background:var(--soft)}
+.secrow.sec-done td{background:color-mix(in srgb,#2f9e44 16%,var(--surface))}.secrow.sec-done input.f{color:#1f6b33}
+.sec-donebtn{white-space:nowrap;padding:3px 10px;font-size:12.5px;margin-right:8px}.sec-donebtn.on{background:#2f9e44;border-color:#2f9e44;color:#fff}
+.chip.chip-done{background:color-mix(in srgb,#2f9e44 18%,var(--surface));border-color:#2f9e44;color:#1f6b33}.chip.chip-done[aria-pressed=true]{background:#2f9e44;color:#fff}
+.trade-chip{cursor:grab;touch-action:pan-y}.dragging{opacity:.45}.drag-over{outline:2px dashed var(--accent);outline-offset:2px}tr.drag-over td{box-shadow:inset 0 3px 0 var(--accent)}
+.drag-h{cursor:grab;color:var(--muted);margin-right:4px;user-select:none}.apt-headrow input.f{font-weight:700}.apt-kind{width:auto;max-width:120px;flex:none;font-size:12px}
 #view.apt-dropping{outline:3px dashed var(--accent);outline-offset:-6px}.apt-imp-sec td{background:var(--soft)}.apt-imp-skip td{opacity:.45}
 .ov-bar{display:flex;justify-content:flex-end;margin-bottom:-6px}
 .jrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px;margin-top:20px}
@@ -736,16 +741,16 @@ function normTrade(id,d){
   let stages=d.stages,itps=d.itps;
   if(!Array.isArray(stages)){stages=def?clone(def.stages):[{id:'s0',name:'Complete',rate:'0'}];if(Array.isArray(d.prices))d.prices.forEach((p,i)=>{if(stages[i])stages[i].rate=String(p)})}
   if(!Array.isArray(itps))itps=def?clone(def.itps):[];
-  const sections=Array.isArray(d.sections)?d.sections.map(x=>({id:x.id,name:x.name||'',lines:Array.isArray(x.lines)?x.lines:[]})):[{id:'S1',name:'Section 1',lines:[{id:'l1',name:'',desc:'',qty:'1',rate:''}]}];
+  const sections=Array.isArray(d.sections)?d.sections.map(x=>({id:x.id,name:x.name||'',lines:Array.isArray(x.lines)?x.lines:[],...(x.done?{done:true}:{})})):[{id:'S1',name:'Section 1',lines:[{id:'l1',name:'',desc:'',qty:'1',rate:''}]}];
   const units={};
   for(const [u,v] of Object.entries(d.units||{})){
     if(Array.isArray(v.s)){const s={},it={};v.s.forEach((x,i)=>s['s'+i]=x);(v.itp||[]).forEach((x,i)=>it['i'+i]=x);units[u]={s,itp:it}}
     else units[u]={s:v.s||{},itp:v.itp||{}};
   }
-  return {name:d.name??(def?def.name:'New trade'),created:d.created||(def?def.created:Date.now()),removed:!!d.removed,stages,itps,sections,units};
+  return {name:d.name??(def?def.name:'New trade'),created:d.created||(def?def.created:Date.now()),...(d.order!=null?{order:d.order}:{}),removed:!!d.removed,stages,itps,sections,units};
 }
 const aptDoc=t=>S.apt[t]||(S.apt[t]=normTrade(t,null));
-const tradeIds=()=>[...new Set([...(PID==='main'?['E','F']:[]),...Object.keys(S.apt)])].filter(id=>!aptDoc(id).removed).sort((a,b)=>aptDoc(a).created-aptDoc(b).created);
+const tradeIds=()=>[...new Set([...(PID==='main'?['E','F']:[]),...Object.keys(S.apt)])].filter(id=>!aptDoc(id).removed).sort((a,b)=>{const A=aptDoc(a),B=aptDoc(b);const oa=A.order??1e9,ob=B.order??1e9;return oa-ob||A.created-B.created});
 const tradeLines=t=>aptDoc(t).sections.flatMap((x,si)=>x.lines.map((l,li)=>({...l,si,li,sec:x.id})).filter(l=>!l.head));
 const lineQty=l=>(l.qty===''||l.qty==null)?1:num(l.qty);
 const unitState=(t,u)=>{const d=aptDoc(t).units[u];return {s:{...(d?.s||{})},itp:{...(d?.itp||{})}}};
@@ -2212,7 +2217,7 @@ V.cashflow=()=>{
 V.subcontractors=()=>{
   const ids=tradeIds();if(!ids.includes(UI.bld))UI.bld=ids[0]||'';
   const t=UI.bld;
-  const chips=`<div class="chips" role="group" aria-label="Trade">${ids.map(x=>`<button class="chip" data-act="bld" data-v="${x}" aria-pressed="${t===x}">${esc(aptDoc(x).name||'Untitled trade')}</button>`).join('')}<button class="chip add" data-act="add-trade">+ Add trade</button></div>`;
+  const chips=`<div class="chips" role="group" aria-label="Trade">${ids.map(x=>{const dd=aptDoc(x);const done=dd.sections.length&&dd.sections.every(z=>z.done);return `<button class="chip trade-chip${done?' chip-done':''}" data-trade="${x}" data-act="bld" data-v="${x}" aria-pressed="${t===x}" title="Drag to change the order${done?' · every section marked done':''}">${done?'✓ ':''}${esc(dd.name||'Untitled trade')}</button>`}).join('')}<button class="chip add" data-act="add-trade">+ Add trade</button></div>`;
   const hd=head('Subcontractors','Build each trade’s claim from your own sections and lines. A line with no rate uses the trade’s standard rate from its claim stages.',t?`<button class="btn ${UI.armed==='trade'+t?'armed':''}" data-act="del" data-kind="trade" data-id="${t}" data-x="">${UI.armed==='trade'+t?'Confirm: remove '+esc(aptDoc(t).name||'this trade'):'Remove trade'}</button> <button class="btn" data-act="setup" aria-expanded="${UI.setup}">${UI.setup?'Close setup':'Edit trade setup'}</button>`:'');
   if(!t)return `<div class="stack">${hd}${chips}<div class="panel empty"><b>No trades yet</b>Add a trade to track a subcontractor's progress line by line.</div></div>`;
   const d=aptDoc(t),a=aptCalc(t);
@@ -2230,7 +2235,7 @@ V.subcontractors=()=>{
     if(q&&!lines.length)return '';
     const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
     const shut=COLL.has('sec'+x.id)&&!q;
-    return `<tr class="secrow" data-tsec="${esc(sc.id)}"><td colspan="3"><div class="secname">${aptCk('S:'+x.id,'section '+(x.name||si+1))}<button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    return `<tr class="secrow${x.done?' sec-done':''}" data-tsec="${esc(sc.id)}" data-secdrag="${si}" draggable="true"><td colspan="3"><div class="secname"><span class="drag-h" title="Drag to move this section" aria-hidden="true">⠿</span>${aptCk('S:'+x.id,'section '+(x.name||si+1))}<button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button><button class="btn ${x.done?'sec-donebtn on':'ghost sec-donebtn'}" data-act="sec-done" data-id="${t}" data-x="${si}" aria-pressed="${!!x.done}" title="${x.done?'Marked done — click to reopen':'Mark this section done once its data is in'}">${x.done?'✓ Done':'Mark done'}</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
     (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
       const kindSel=`<select class="f apt-kind" data-b="${kl}kind" aria-label="Row type">${[['line','Line'],['head','Sub-heading']].map(([v,x])=>`<option value="${v}"${(l.head?'head':'line')===v?' selected':''}>${x}</option>`).join('')}</select>`;
       if(l.head)return `<tr class="apt-headrow${aptIsSel('L:'+l.id)?' apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'sub-heading '+(l.desc||''))}${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
@@ -5357,6 +5362,27 @@ viewEl.addEventListener('drop',e=>{if(!ordHasFiles(e))return;const t=pcXlTarget(
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.pcxlf===undefined)return;const f=t.files&&t.files[0];if(f)pcStartRun(t.dataset.pcxlf,f);t.value=''});
 
 /* ---------- Terms & conditions: drop a PDF on the tile of a raised PO ---------- */
+/* Subcontractors: drag trade tiles to change their order, drag a section row to move the section */
+let APT_DRAG=null;
+/* trade tiles: press and drag (mouse or finger) */
+let CH_DRAG=null,CH_NOCLICK=false;
+viewEl.addEventListener('pointerdown',e=>{const c=e.target.closest&&e.target.closest('[data-trade]');if(!c||e.button>0)return;CH_DRAG={id:c.dataset.trade,x:e.clientX,y:e.clientY,on:false,el:c}});
+document.addEventListener('pointermove',e=>{const D=CH_DRAG;if(!D)return;if(!D.on){if(Math.hypot(e.clientX-D.x,e.clientY-D.y)<8)return;D.on=true;D.el.classList.add('dragging');try{D.el.setPointerCapture(e.pointerId)}catch(err){}}
+  e.preventDefault();const z=document.elementFromPoint(e.clientX,e.clientY);const t=z&&z.closest&&z.closest('[data-trade]');document.querySelectorAll('.trade-chip.drag-over').forEach(x=>x!==t&&x.classList.remove('drag-over'));if(t&&t!==D.el)t.classList.add('drag-over');D.tgt=t&&t!==D.el?t:null;D.after=t?e.clientX>t.getBoundingClientRect().left+t.offsetWidth/2:false});
+document.addEventListener('pointerup',e=>{const D=CH_DRAG;CH_DRAG=null;if(!D||!D.on)return;CH_NOCLICK=true;setTimeout(()=>CH_NOCLICK=false,50);document.querySelectorAll('.trade-chip.dragging,.trade-chip.drag-over').forEach(x=>x.classList.remove('dragging','drag-over'));
+  if(!D.tgt)return;undoRecord();const ids=tradeIds().filter(x=>x!==D.id);ids.splice(ids.indexOf(D.tgt.dataset.trade)+(D.after?1:0),0,D.id);
+  ids.forEach((x,i)=>{const dd=aptDoc(x);if(dd.order!==i){dd.order=i;structDirty.add(x);persist('apartments/'+x)}});render()});
+document.addEventListener('pointercancel',()=>{if(CH_DRAG&&CH_DRAG.el)CH_DRAG.el.classList.remove('dragging');CH_DRAG=null});
+document.addEventListener('click',e=>{if(CH_NOCLICK&&e.target.closest&&e.target.closest('[data-trade]')){e.stopPropagation();e.preventDefault()}},true);
+viewEl.addEventListener('dragstart',e=>{if(UI.view!=='subcontractors')return;const c=null;const r=e.target.closest&&e.target.closest('[data-secdrag]');
+  if(c){APT_DRAG={k:'trade',v:c.dataset.trade}}else if(r&&!(e.target.matches&&e.target.matches('input,select,textarea'))){APT_DRAG={k:'sec',v:+r.dataset.secdrag}}else return;
+  try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x')}catch(err){}(c||r).classList.add('dragging')});
+viewEl.addEventListener('dragend',()=>{APT_DRAG=null;document.querySelectorAll('.dragging,.drag-over').forEach(x=>x.classList.remove('dragging','drag-over'))});
+viewEl.addEventListener('dragover',e=>{if(!APT_DRAG)return;const z=APT_DRAG.k==='trade'?e.target.closest('[data-trade]'):e.target.closest('[data-secdrag]');if(!z)return;e.preventDefault();e.stopPropagation();document.querySelectorAll('.drag-over').forEach(x=>x!==z&&x.classList.remove('drag-over'));z.classList.add('drag-over')},true);
+viewEl.addEventListener('drop',e=>{if(!APT_DRAG)return;const D=APT_DRAG;APT_DRAG=null;e.preventDefault();e.stopPropagation();document.querySelectorAll('.dragging,.drag-over').forEach(x=>x.classList.remove('dragging','drag-over'));
+  if(D.k==='trade'){const z=e.target.closest('[data-trade]');if(!z||z.dataset.trade===D.v)return;undoRecord();const ids=tradeIds().filter(x=>x!==D.v);ids.splice(ids.indexOf(z.dataset.trade)+(e.offsetX>z.offsetWidth/2?1:0),0,D.v);
+    ids.forEach((x,i)=>{const dd=aptDoc(x);if(dd.order!==i){dd.order=i;structDirty.add(x);persist('apartments/'+x)}});render();return}
+  const z=e.target.closest('[data-secdrag]');if(!z)return;const to=+z.dataset.secdrag;if(to===D.v)return;const t=UI.bld;const d=aptDoc(t);undoRecord();const [x]=d.sections.splice(D.v,1);d.sections.splice(to,0,x);structDirty.add(t);persist('apartments/'+t);render()},true);
 /* Subcontractors: drop an Excel / CSV anywhere on the tab */
 viewEl.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.aptimpck!==undefined&&UI.aptImp)UI.aptImp.shift=e.shiftKey},true);
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='subcontractors'||!UI.bld||!ordHasFiles(e))return;e.preventDefault();viewEl.classList.add('apt-dropping')});
@@ -5542,6 +5568,7 @@ document.addEventListener('click',async e=>{
   if(act==='add-proj'){addProject();return}
   if(act==='ptog'){const id=btn.dataset.v;PEXP[id]=!isOpenProj(id);savePexp();renderChrome();return}
   if(act==='ov-pdf'){ovPdf();return}
+  if(act==='sec-done'){const t=btn.dataset.id;const d=aptDoc(t);const x=d.sections[+btn.dataset.x];if(!x)return;if(x.done)delete x.done;else x.done=true;structDirty.add(t);persist('apartments/'+t);render();return}
   if(act==='aptdone-x'){UI.aptDone=null;render();return}
   if(act&&act.startsWith('aptsel-')){UI.aptDone=null;aptSelAct(act,btn);return}
   if(act==='aptimp-x'){UI.aptImp=null;render();return}
