@@ -1974,9 +1974,14 @@ function poTcTile(oid,pre){const o=S.orders[oid];if(!o||(!pre&&(!o.poFile||!o.po
   return `<div class="ms-appr-tile po-tc" data-potc="${oid}" title="Drop the terms & conditions PDF here"><div><b>Terms & conditions</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':has?(raised&&o.poFile.tc&&String(o.poFile.tc).split('+')[0]===o.tcFile.id?`On the PO: its pages are at the end of PO ${esc(o.poNo||'')} Rev ${num(o.poFile.rev)}.`:raised?'Attached.':'Attached. Its pages are added to the end of the PO when you raise it.'):raised?'Attach or drop the terms & conditions PDF. Its pages are added to the end of the PO PDF, and to every revision you raise after.':'Attach or drop the terms & conditions PDF now; its pages are added to the end of the PO when you raise it.'}</div></div>${itpCell('potc|'+oid,o.tcFile,'Terms & conditions')}</div>`}
 /* the PO PDF people open or download = the raised PO, then the attachments (PDF pages, and photos each on their own page), then the terms & conditions */
 const poAtts=o=>o.attFile&&o.attFile.id?[o.attFile,...(Array.isArray(o.attFile.more)?o.attFile.more:[])].filter(x=>x&&x.id):[];
-const poTcs=o=>o.tcFile&&o.tcFile.id?[o.tcFile,...(Array.isArray(o.tcFile.more)?o.tcFile.more:[])].filter(x=>x&&x.id&&!/^image\//.test(x.type||'')):[];
+const poTcs=o=>o.tcFile&&o.tcFile.id?[o.tcFile,...(Array.isArray(o.tcFile.more)?o.tcFile.more:[])].filter(x=>x&&x.id):[];
 async function poImgPng(bl){const u=URL.createObjectURL(bl);try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u});const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0);
   return await new Promise(ok=>c.toBlob(b=>ok(b),'image/png'))}finally{URL.revokeObjectURL(u)}}
+/* a PO whose PDF is missing its attachments or terms (e.g. an earlier merge was interrupted) is rebuilt when Orders & invoices is opened */
+const MERGE_TRIED=new Set();
+function poMergeCheck(){for(const [oid,o] of Object.entries(S.orders)){if(!o||!o.poFile||!o.poFile.id||MERGE_TRIED.has(oid)||UI.tcBusy)continue;
+  const A=poAtts(o),T=poTcs(o);const sig=T.map(x=>x.id).join('+'),asig=A.map(x=>x.id).join('+');const merged=!!(o.poBase&&(o.poFile.tc||o.poFile.att));
+  const ok=(!A.length&&!T.length)?!merged:(merged&&(o.poFile.tc||'')===sig&&(o.poFile.att||'')===asig);if(ok)continue;MERGE_TRIED.add(oid);setTimeout(()=>poMergeTc(oid),0);return}}
 async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.id)return;
   const merged=!!(o.poBase&&(o.poFile.tc||o.poFile.att));const base=merged?o.poBase:o.poFile;/* the PO on its own */
   const ATT=poAtts(o),TCS=poTcs(o);const sig=TCS.map(x=>x.id).join('+'),asig=ATT.map(x=>x.id).join('+');
@@ -1994,9 +1999,13 @@ async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.
         else{const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p))}}
       catch(err){console.error(err);if(!i)throw err;skipped.push(f.name||'a file')}}
     const bytes=await out.save();const r=await assets.upload(new File([bytes],base.name||'PO.pdf',{type:'application/pdf'}),{type:'application/pdf'});
-    o.poBase={...base};o.poFile={...base,id:r.id,tc:sig,att:asig};persist('orders/'+oid);setSave(skipped.length?'error':'saved',skipped.length?'Couldn’t add '+skipped.join(', ')+' to the PO PDF':undefined)}
+    /* the order may have been reloaded while the PDF was being built (saving, or a change from another device): write to the current copy,
+       and only if it is still the same PO */
+    const o2=S.orders[oid];if(!o2||!o2.poFile)throw new Error('order gone');const base2=o2.poBase&&(o2.poFile.tc||o2.poFile.att)?o2.poBase:o2.poFile;
+    if(base2.id!==base.id){UI.tcBusy=null;MERGE_TRIED.delete(oid);setTimeout(()=>poMergeTc(oid),0);return}
+    o2.poBase={...base};o2.poFile={...base,id:r.id,tc:sig,att:asig};persist('orders/'+oid);setSave(skipped.length?'error':'saved',skipped.length?'Couldn’t add '+skipped.join(', ')+' to the PO PDF':undefined)}
   catch(e){console.error(e);setSave('error','Couldn’t add the attachments and terms & conditions to the PO PDF')}
-  UI.tcBusy=null;render()}
+  UI.tcBusy=null;render();if(UI.view==='orders')setTimeout(poMergeCheck,300)}
 /* attachments tile: drawings, quotes, photos… kept on the order and added to the PO PDF after its own pages */
 function poAttTile(oid){const o=S.orders[oid];if(!o)return '';const A=poAtts(o);const raised=!!(o.poFile&&o.poFile.id);const on=raised&&A.length&&(o.poFile.att||'')===A.map(x=>x.id).join('+');
   return `<div class="ms-appr-tile po-att" data-poatt="${oid}" title="Drop attachments here"><div><b>Attachments${A.length?` (${A.length})`:''}</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':A.length?(on?`In the PO PDF after its own pages${o.tcFile&&o.tcFile.id?', before the terms & conditions':''}.`:raised?'Attached.':'Attached. Added to the PO PDF when you raise it.'):'Attach or drop PDFs or photos (JPG / PNG), e.g. drawings, the quote or a spec. They’re added to the PO PDF after its own pages.'}</div></div>${itpCell('poatt|'+oid,o.attFile,'Attachment')}</div>`}
@@ -2092,6 +2101,7 @@ function invSearchHtml(){
 }
 V.orders=()=>{
   try{procSync()}catch(e){}
+  try{if(assets)setTimeout(poMergeCheck,600)}catch(e){}
   const c=calc();const PX=priceIndex();
   const rows=ordRows();const TOP=rows.filter(r=>!ordIsKid(r[1]));const DUP=invDupMap();const dupOf=oid=>(S.orders[oid].inv||[]).filter((x,j)=>DUP[oid+'|'+j]&&!x.dupOk).length;const nDup=Object.keys(S.orders).reduce((a,oid)=>a+dupOf(oid),0);const OG=ordGroups(TOP);const SECS=ordSecs();
   return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. Orders are listed by PO number, then PO date; move them with ▲ ▼ to set your own order. Use + Add section to break the orders into sections (e.g. Switchboards, Lighting, Level 1) with subtotals, and pick each order’s section under its supplier. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.',`${Object.values(S.orders).some(o=>o.pos!=null&&o.pos!=='')?'<button class="btn" data-act="ord-sort" title="Put the orders back in PO number order">Sort by PO number</button>':''}<button class="btn" data-act="ordsec-add" title="Group orders into sections such as Switchboards or Level 1">+ Add section</button><button class="btn primary" data-act="add-order">+ Add order</button>`)}
