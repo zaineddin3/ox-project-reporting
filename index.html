@@ -2409,6 +2409,8 @@ function aptSelAct(a,btn){const t=UI.bld;let P=aptPicked(t);if(!P.length)return;
       if(to==='sub'){let h=li-1;while(h>=0&&L[h].head)h--;if(h<0){skip++;if(p.k==='sub'){/* put it back */L.splice(li,1);(p.l.subs=p.l.subs||[]).push(p.sb)}continue}
         const host=L[h];if(!(host.subs&&host.subs.length))host.subs=[aptSubFrom(host)];host.subs.push(aptSubFrom(row));if(row.subs)host.subs.push(...row.subs.map(z=>({...z,id:uid('j')})));L.splice(li,1);COLL.delete(host.id);n++}}
     aptSelDone(t,`Changed ${n} row${n===1?'':'s'} to ${{sec:'sections',head:'sub-headings',line:'lines',sub:'sub-lines'}[to]}.${skip?` ${skip} couldn’t be changed (a sub-line needs a line above it in its section, and the first section has no section above to join).`:''}`);return}}
+/* coming back to Subcontractors: every section of every trade starts minimised */
+function collapseTrades(){for(const t of tradeIds())for(const x of aptDoc(t).sections)COLL.add('sec'+x.id);saveColl()}
 function bldWizard(t){
   const W=UI.bw&&UI.bw.t===t?UI.bw:{t,step:1,name:'',n:'',secs:[]};
   const cnt=n=>`<span class="tag">${n}</span>`;
@@ -5564,8 +5566,8 @@ document.addEventListener('click',async e=>{
     setTimeout(()=>{if(Date.now()>=UI.invHitTill){UI.invHit='';document.querySelectorAll('.invbox.inv-hit').forEach(e=>e.classList.remove('inv-hit'))}},2700);return}
   if(act==='ov-go'){const v=btn.dataset.v;if(btn.dataset.bld)UI.bld=btn.dataset.bld;
     if(v===UI.view){const el=document.getElementById(btn.dataset.to||'');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
-    UI.view=v;if(v==='labour'||v==='progress')collapseAllTasks(v);if(v==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+v)}catch(err){}render();window.scrollTo(0,0);return}
-  if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;if(UI.view==='labour'||UI.view==='progress')collapseAllTasks(UI.view);if(UI.view==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
+    UI.view=v;if(v==='labour'||v==='progress')collapseAllTasks(v);if(v==='subcontractors')collapseTrades();if(v==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+v)}catch(err){}render();window.scrollTo(0,0);return}
+  if(act==='nav'){if(btn.dataset.pid&&btn.dataset.pid!==PID){const v=btn.dataset.v;await switchProject(btn.dataset.pid);UI.view=v;try{history.replaceState(null,'','#'+v)}catch(err){}render();return}UI.view=btn.dataset.v;if(UI.view==='labour'||UI.view==='progress')collapseAllTasks(UI.view);if(UI.view==='subcontractors')collapseTrades();if(UI.view==='claim'){collapseClaim();PC_ENTERED=true}try{history.replaceState(null,'','#'+UI.view)}catch(err){}render();window.scrollTo(0,0);return}
   if(act==='bld'){UI.bld=btn.dataset.v;UI.level='all';UI.q='';UI.aptSel=null;UI.aptSelMsg='';render();return}
   if(act==='setup'){UI.setup=!UI.setup;render();return}
   if(act==='vparts'){const k=btn.dataset.v;UI.vpo=UI.vpo||{};UI.vpo[k]=!UI.vpo[k];render();return}
