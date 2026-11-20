@@ -641,7 +641,7 @@ tr.sel td{background:var(--accent-soft)}
 .gt-left{border:0!important;border-radius:0!important;margin:0!important;overflow-x:auto;overflow-y:visible!important;max-height:none!important}
 .gt-tbl{border-collapse:collapse;width:max-content;min-width:100%}.gt-tbl th{height:48px;vertical-align:bottom;padding:4px 6px 7px;white-space:nowrap;font-size:12px;position:static!important}
 .gt-tbl td{padding:2px 4px;height:34px;white-space:nowrap;vertical-align:middle}.gt-tbl .f{padding:4px 6px;height:28px;font-size:13px;min-width:0}
-.gt-ck{width:28px;text-align:center}.gt-no{width:30px;text-align:right}.gt-name .f{width:230px}.gt-dur .f{width:62px;text-align:right}.gt-dt .f{width:122px}.gt-pr .f{width:96px}.gt-pc .f{width:48px;text-align:right}.gt-pcw{display:inline-flex;align-items:center;gap:3px}.gt-pct{fill:var(--ink);font-weight:600}.gt-done{fill:var(--good)}.gt-res .f{width:120px}.gt-var{width:48px}
+.gt-ck{width:28px;text-align:center}.gt-no{width:30px;text-align:right}.gt-name .f{width:230px}.gt-dur .f{width:62px;text-align:right}.gt-dt .f{width:122px}.gt-dbtn{width:96px;height:28px;border:1px solid transparent;border-radius:6px;background:none;font:inherit;font-size:13px;color:var(--ink);text-align:left;padding:0 6px;cursor:pointer;font-variant-numeric:tabular-nums}.gt-dbtn:hover,.gt-dbtn:focus-visible{border-color:var(--line);background:var(--surface)}.gt-dbtn.gt-pin{border-color:var(--accent)}.gt-pr .f{width:96px}.gt-pc .f{width:48px;text-align:right}.gt-pcw{display:inline-flex;align-items:center;gap:3px}.gt-pct{fill:var(--ink);font-weight:600}.gt-done{fill:var(--good)}.gt-res .f{width:120px}.gt-var{width:48px}
 .gt-nm{display:flex;align-items:center;gap:3px}.gt-tg{border:0;background:none;color:var(--ink);font-size:13px;width:20px;height:24px;cursor:pointer;padding:0;border-radius:4px}.gt-tg:hover{background:var(--soft)}.gt-tgsp{width:20px;text-align:center;font-size:11px;color:var(--muted)}
 .gt-sum td{background:color-mix(in srgb,var(--accent) 5%,transparent)}.gt-sum .gt-name .f{font-weight:700}.gt-ro{display:inline-block;padding:0 6px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .gt-selrow td{background:color-mix(in srgb,var(--series2) 12%,transparent)}.gt-pin{border-color:var(--accent)!important}.gt-warn{color:var(--bad);cursor:help;margin-left:3px}
@@ -5540,8 +5540,9 @@ const gtUTC=iso=>{const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);ret
 const gtISO=ms=>new Date(ms).toISOString().slice(0,10);
 const gtAdd=(iso,n)=>gtISO(gtUTC(iso)+n*864e5);
 const gtDiff=(a,b)=>Math.round((gtUTC(b)-gtUTC(a))/864e5);
-const gtFmt=iso=>{if(!iso)return '';const d=new Date(gtUTC(iso));return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'2-digit',timeZone:'UTC'})};
-const gtFmtS=iso=>{if(!iso)return '';const d=new Date(gtUTC(iso));return d.toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'UTC'})};
+const GT_F1=new Intl.DateTimeFormat('en-AU',{weekday:'short',day:'numeric',month:'short',year:'2-digit',timeZone:'UTC'}),GT_F2=new Intl.DateTimeFormat('en-AU',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'UTC'});const GT_FC={};
+const gtFmt=iso=>{if(!iso)return '';return GT_FC['a'+iso]||(GT_FC['a'+iso]=GT_F1.format(new Date(gtUTC(iso))))};
+const gtFmtS=iso=>{if(!iso)return '';return GT_FC['b'+iso]||(GT_FC['b'+iso]=GT_F2.format(new Date(gtUTC(iso))))};
 /* working-day calendar: index 0 = the first working day on or after the project start */
 function gtCal(P){const days=new Set(P.days&&P.days.length?P.days:[1,2,3,4,5]);const hol=new Set(P.hol||[]);
   const work=iso=>days.has(new Date(gtUTC(iso)).getUTCDay())&&!hol.has(iso);
@@ -5558,43 +5559,54 @@ function gtPredParse(txt,tasks,selfId){const out=[];const bad=[];
     if(!m){bad.push(s);continue}const t=tasks[+m[1]-1];if(!t||t.id===selfId){bad.push(s);continue}
     let lag=m[3]?(+m[5])*(/^W/.test(m[6]||'')?5:1)*(m[4]==='-'?-1:1):0;out.push({id:t.id,t:m[2]||'FS',lag:Math.round(lag)})}
   return {pred:out,bad}}
-function gtPredTxt(t,tasks){const pos={};tasks.forEach((x,i)=>pos[x.id]=i+1);return (t.pred||[]).filter(p=>pos[p.id]).map(p=>pos[p.id]+(p.t&&p.t!=='FS'||p.lag?(p.t||'FS'):'')+(p.lag?(p.lag>0?'+':'')+p.lag+'d':'')).join(', ')}
+function gtPos(tasks){if(gtPos.k===tasks&&gtPos.n===tasks.length&&gtPos.f===tasks[0])return gtPos.m;const m={};tasks.forEach((x,i)=>m[x.id]=i+1);gtPos.k=tasks;gtPos.n=tasks.length;gtPos.f=tasks[0];gtPos.m=m;return m}
+function gtPredTxt(t,tasks){const pos=gtPos(tasks);return (t.pred||[]).filter(p=>pos[p.id]).map(p=>pos[p.id]+(p.t&&p.t!=='FS'||p.lag?(p.t||'FS'):'')+(p.lag?(p.lag>0?'+':'')+p.lag+'d':'')).join(', ')}
 /* schedule: forward pass, backward pass, summaries */
-function gtCalc(P){P=P||progDoc();const T=P.tasks;const n=T.length;const C=gtCal(P);
+function gtCalc(P){P=P||progDoc();gtPos.k=null;const T=P.tasks;const n=T.length;const C=gtCal(P);
   const lvl=[];T.forEach((t,i)=>{let l=Math.max(0,Math.round(+t.lvl||0));if(i===0)l=0;else l=Math.min(l,lvl[i-1]+1);lvl.push(l)});
   const sum=T.map((t,i)=>i+1<n&&lvl[i+1]>lvl[i]);const par=[];const st=[];T.forEach((t,i)=>{while(st.length&&lvl[st[st.length-1]]>=lvl[i])st.pop();par.push(st.length?st[st.length-1]:-1);st.push(i)});
   const endOf=i=>{let e=i+1;while(e<n&&lvl[e]>lvl[i])e++;return e};
   const leaves=i=>{if(!sum[i])return [i];const r=[];for(let j=i+1,e=endOf(i);j<e;j++)if(!sum[j])r.push(j);return r};
   const pos={};T.forEach((t,i)=>pos[t.id]=i);
   const anc=i=>{const a=[];let p=par[i];while(p>=0){a.push(p);p=par[p]}return a};
-  /* links between leaf tasks (a link to or from a summary applies to every task inside it) */
-  const L=[];const bad=new Set();
+  /* the network: one node per task; a summary is a start gate (its row) plus a finish gate, so a link to or from
+     a summary costs one link however many tasks are inside it. Everything inside starts no earlier than the summary's start gate,
+     and the summary's finish gate waits for everything inside it. */
+  const FG=T.map(()=>-1);let NN=n;T.forEach((t,i)=>{if(sum[i])FG[i]=NN++});
+  const ND=new Array(NN).fill(0);T.forEach((t,i)=>{if(!sum[i])ND[i]=Math.max(0,Math.round(+t.dur||0))});
+  const NR=new Array(NN).fill(-1);T.forEach((t,i)=>{NR[i]=i;if(FG[i]>=0)NR[FG[i]]=i});
+  const E=[];const bad=new Set();const L=[];
+  T.forEach((t,j)=>{const p0=par[j];if(p0>=0){E.push({a:p0,b:j,t:'SS',lag:0});E.push({a:sum[j]?FG[j]:j,b:FG[p0],t:'FF',lag:0})}});
   T.forEach((t,j)=>{for(const p of t.pred||[]){const i=pos[p.id];if(i===undefined||i===j)continue;if(anc(j).includes(i)||anc(i).includes(j)){bad.add(t.id);continue}
-    for(const a of leaves(i))for(const b of leaves(j))if(a!==b)L.push({a,b,t:p.t||'FS',lag:+p.lag||0})}});
-  const outL=T.map(()=>[]),inL=T.map(()=>[]);L.forEach(l=>{outL[l.a].push(l);inL[l.b].push(l)});
-  const indeg=T.map((t,i)=>inL[i].length);const Q=[];T.forEach((t,i)=>{if(!sum[i]&&!indeg[i])Q.push(i)});const order=[];
-  while(Q.length){const i=Q.shift();order.push(i);for(const l of outL[i])if(--indeg[l.b]===0)Q.push(l.b)}
-  const loop=new Set();T.forEach((t,i)=>{if(!sum[i]&&!order.includes(i)){loop.add(t.id);order.push(i)}});
-  const dur=T.map((t,i)=>sum[i]?0:Math.max(0,Math.round(+t.dur||0)));
-  const ES=T.map(()=>0),EF=T.map(()=>0);
-  for(const i of order){let s=0;const cs=[T[i].cs,...anc(i).map(a=>T[a].cs)].filter(Boolean);for(const c of cs)s=Math.max(s,C.idx(c));
-    if(!loop.has(T[i].id))for(const l of inL[i]){if(loop.has(T[l.a].id))continue;const a=l.a;
-      if(l.t==='SS')s=Math.max(s,ES[a]+l.lag);else if(l.t==='FF')s=Math.max(s,EF[a]+l.lag-dur[i]);else if(l.t==='SF')s=Math.max(s,ES[a]+l.lag-dur[i]);else s=Math.max(s,EF[a]+l.lag)}
-    ES[i]=s;EF[i]=s+dur[i]}
-  for(let i=n-1;i>=0;i--)if(sum[i]){const lv=leaves(i);if(lv.length){ES[i]=Math.min(...lv.map(x=>ES[x]));EF[i]=Math.max(...lv.map(x=>EF[x]))}}
-  const end=n?Math.max(...T.map((t,i)=>EF[i])):0;
-  const LF=T.map(()=>end);
-  for(const i of [...order].reverse()){if(loop.has(T[i].id))continue;let f=end;for(const l of outL[i]){const b=l.b;if(loop.has(T[b].id))continue;const LSb=LF[b]-dur[b];
-      if(l.t==='SS')f=Math.min(f,LSb-l.lag+dur[i]);else if(l.t==='FF')f=Math.min(f,LF[b]-l.lag);else if(l.t==='SF')f=Math.min(f,LF[b]-l.lag+dur[i]);else f=Math.min(f,LSb-l.lag)}
-    LF[i]=f}
+    const ty=p.t||'FS';const a=sum[i]?((ty==='FS'||ty==='FF')?FG[i]:i):i;const l={a,b:j,t:ty,lag:+p.lag||0};E.push(l);L.push(l)}});
+  const outL=Array.from({length:NN},()=>[]),inL=Array.from({length:NN},()=>[]);E.forEach(l=>{outL[l.a].push(l);inL[l.b].push(l)});
+  const indeg=inL.map(x=>x.length);const Q=[];for(let k=0;k<NN;k++)if(!indeg[k])Q.push(k);const order=[];
+  for(let h=0;h<Q.length;h++){const k=Q[h];order.push(k);for(const l of outL[k])if(--indeg[l.b]===0)Q.push(l.b)}
+  const inOrder=new Uint8Array(NN);order.forEach(k=>inOrder[k]=1);const loopN=new Uint8Array(NN);const loop=new Set();
+  for(let k=0;k<NN;k++)if(!inOrder[k]){loopN[k]=1;loop.add(T[NR[k]].id);order.push(k)}
+  const ES=new Array(NN).fill(0),EF=new Array(NN).fill(0);
+  for(const k of order){let s=0;if(k<n&&T[k].cs)s=Math.max(s,C.idx(T[k].cs));const d=ND[k];
+    for(const l of inL[k]){if(loopN[l.a]&&loopN[k])continue;const a=l.a;
+      if(l.t==='SS')s=Math.max(s,ES[a]+l.lag);else if(l.t==='FF')s=Math.max(s,EF[a]+l.lag-d);else if(l.t==='SF')s=Math.max(s,ES[a]+l.lag-d);else s=Math.max(s,EF[a]+l.lag)}
+    ES[k]=s;EF[k]=s+d}
+  /* what a summary shows: from its first task's start to its last task's finish */
+  const dur=T.map((t,i)=>sum[i]?0:ND[i]);
+  const rS=new Array(n).fill(0),rF=new Array(n).fill(0);
+  for(let i=n-1;i>=0;i--){if(!sum[i]){rS[i]=ES[i];rF[i]=EF[i]}else{let a=Infinity,b=-Infinity;for(let j=i+1,e=endOf(i);j<e;j++)if(par[j]===i){a=Math.min(a,rS[j]);b=Math.max(b,rF[j])}rS[i]=a===Infinity?ES[i]:a;rF[i]=b===-Infinity?ES[i]:b}}
+  const end=n?Math.max(...rF):0;
+  const LF=new Array(NN).fill(end);
+  for(const k of [...order].reverse()){if(loopN[k])continue;let f=end;const d=ND[k];for(const l of outL[k]){const b=l.b;if(loopN[b])continue;const LSb=LF[b]-ND[b];
+      if(l.t==='SS')f=Math.min(f,LSb-l.lag+d);else if(l.t==='FF')f=Math.min(f,LF[b]-l.lag);else if(l.t==='SF')f=Math.min(f,LF[b]-l.lag+d);else f=Math.min(f,LSb-l.lag)}
+    LF[k]=f}
   const slack=T.map((t,i)=>sum[i]?null:LF[i]-EF[i]);
   const LV=T.some(t=>t.src)?gtLive():{};const live=T.map(t=>!!t.src&&LV[t.src]!=null);const pc1=x=>Math.max(0,Math.min(100,live[x]?LV[T[x].src]:(+T[x].pct||0)));const wOf=lv=>{const byH=lv.length&&lv.every(x=>num(T[x].hrs)>0);return x=>byH?num(T[x].hrs):Math.max(1,dur[x])};
-  const pct=T.map((t,i)=>{if(!sum[i])return pc1(i);const lv=leaves(i);const wf=wOf(lv);const w=lv.reduce((a,x)=>a+wf(x),0);return w?lv.reduce((a,x)=>a+wf(x)*pc1(x),0)/w:0});
+  const pct=new Array(n).fill(0);const kids=T.map(()=>[]);T.forEach((t,j)=>{if(par[j]>=0)kids[par[j]].push(j)});const LVS=T.map(()=>null);
+  for(let i=n-1;i>=0;i--){if(!sum[i]){pct[i]=pc1(i);LVS[i]=[i];continue}const lv=[].concat(...kids[i].map(j=>LVS[j]));LVS[i]=lv;const wf=wOf(lv);const w=lv.reduce((a,x)=>a+wf(x),0);pct[i]=w?lv.reduce((a,x)=>a+wf(x)*pc1(x),0)/w:0}
   const allLv=T.map((t,i)=>i).filter(i=>!sum[i]);const wfA=wOf(allLv);const wA=allLv.reduce((a,x)=>a+wfA(x),0);const pctAll=wA?allLv.reduce((a,x)=>a+wfA(x)*pc1(x),0)/wA:0;
-  const sD=i=>C.at(ES[i]);const fD=i=>EF[i]>ES[i]?C.at(EF[i]-1):C.at(ES[i]);
-  const rows=T.map((t,i)=>({t,i,no:i+1,lvl:lvl[i],sum:sum[i],par:par[i],dur:sum[i]?EF[i]-ES[i]:dur[i],ms:!sum[i]&&dur[i]===0,s:sD(i),f:fD(i),es:ES[i],ef:EF[i],slack:slack[i],crit:!sum[i]&&slack[i]!==null&&slack[i]<=0&&L.length>0,pct:pct[i],live:live[i],loop:loop.has(t.id),bad:bad.has(t.id)}));
-  const pS=n?C.at(Math.min(...ES)):C.origin;const pF=n?(end>Math.min(...ES)?C.at(end-1):pS):C.origin;
-  return {rows,C,start:pS,finish:pF,days:n?end-Math.min(...ES):0,links:L,loops:loop.size,pct:pctAll}}
+  const sD=i=>C.at(rS[i]);const fD=i=>rF[i]>rS[i]?C.at(rF[i]-1):C.at(rS[i]);
+  const rows=T.map((t,i)=>({t,i,no:i+1,lvl:lvl[i],sum:sum[i],par:par[i],dur:sum[i]?rF[i]-rS[i]:dur[i],ms:!sum[i]&&dur[i]===0,s:sD(i),f:fD(i),es:rS[i],ef:rF[i],slack:slack[i],crit:!sum[i]&&slack[i]!==null&&slack[i]<=0&&L.length>0,pct:pct[i],live:live[i],loop:loop.has(t.id),bad:bad.has(t.id)}));
+  const mS=n?Math.min(...rS):0;const pS=n?C.at(mS):C.origin;const pF=n?(end>mS?C.at(end-1):pS):C.origin;
+  return {rows,C,start:pS,finish:pF,days:n?end-mS:0,links:L,loops:loop.size,pct:pctAll}}
 function gtHidden(R){const H=UI.gtColl||new Set();const hid=R.map(()=>false);R.forEach((r,i)=>{if(r.sum&&H.has(r.t.id)){for(let j=i+1;j<R.length&&R[j].lvl>r.lvl;j++)hid[j]=true}});return hid}
 function gtSel(){UI.gtSel=UI.gtSel||new Set();const P=progDoc();const ids=new Set(P.tasks.map(t=>t.id));for(const k of [...UI.gtSel])if(!ids.has(k))UI.gtSel.delete(k);return UI.gtSel}
 const gtNew=(o={})=>({id:uid('g'),name:'',lvl:0,dur:5,pred:[],pct:0,res:'',...o});
@@ -5645,8 +5657,8 @@ V.programme=()=>{const P=progDoc();const R=gtCalc(P);const SEL=gtSel();const hid
       <td class="gt-name"><div class="gt-nm" style="padding-left:${r.lvl*16}px">${r.sum?`<button class="gt-tg" data-act="gt-tg" data-v="${t.id}" aria-expanded="${!coll}" aria-label="${coll?'Expand':'Minimise'} ${esc(t.name||'summary')}">${coll?'▸':'▾'}</button>`:`<span class="gt-tgsp">${r.ms?'◆':''}</span>`}${inp(k+'name',t.name||'',{label:'Task '+r.no+' name',ph:r.ms?'Milestone':'Task name'})}${warn?`<span class="gt-warn" title="${esc(warn)}" role="img" aria-label="${esc(warn)}">⚠</span>`:''}</div></td>
       <td class="gt-dur">${r.sum?`<span class="gt-ro">${r.dur}d</span>`:`<input class="f num" data-gtdur="${t.id}" value="${r.dur}d" aria-label="Duration of task ${r.no}" inputmode="text">`}</td>
       <td class="gt-pc">${r.sum?`<span class="gt-ro"><b>${Math.round(r.pct)}%</b></span>`:r.live?`<button class="gt-live" data-act="nav" data-v="progress" title="Linked to the Progress tab: update it there">${Math.round(r.pct)}% <span aria-hidden="true">↗</span></button>`:`<span class="gt-pcw">${inp(k+'pct',t.pct||'',{num:1,label:'Percent complete task '+r.no,ph:'0'})}<span class="hint">%</span></span>`}</td>
-      <td class="gt-dt">${r.sum?`<span class="gt-ro">${gtFmtS(r.s)}</span>`:`<input class="f${t.cs?' gt-pin':''}" type="date" data-gtstart="${t.id}" value="${r.s}" aria-label="Start of task ${r.no}" title="${t.cs?'Start no earlier than '+gtFmt(t.cs)+'. Clear the date to let links set it.':'Set by links. Type a date to fix it'}">`}</td>
-      <td class="gt-dt">${r.sum||r.ms?`<span class="gt-ro">${gtFmtS(r.f)}</span>`:`<input class="f" type="date" data-gtfin="${t.id}" value="${r.f}" aria-label="Finish of task ${r.no}">`}</td>
+      <td class="gt-dt">${r.sum?`<span class="gt-ro">${gtFmtS(r.s)}</span>`:`<button class="gt-dbtn${t.cs?' gt-pin':''}" data-gtd="start" data-id="${t.id}" data-val="${r.s}" aria-label="Start of task ${r.no}: ${gtFmt(r.s)}. Change" title="${t.cs?'Start no earlier than '+gtFmt(t.cs)+'. Clear the date to let links set it.':'Set by links. Click to fix a date'}">${gtFmtS(r.s)}</button>`}</td>
+      <td class="gt-dt">${r.sum||r.ms?`<span class="gt-ro">${gtFmtS(r.f)}</span>`:`<button class="gt-dbtn" data-gtd="fin" data-id="${t.id}" data-val="${r.f}" aria-label="Finish of task ${r.no}: ${gtFmt(r.f)}. Change" title="Click to change the finish date">${gtFmtS(r.f)}</button>`}</td>
       <td class="gt-pr"><input class="f" data-gtpred="${t.id}" value="${esc(gtPredTxt(t,P.tasks))}" aria-label="Predecessors of task ${r.no}" title="Task numbers this one follows. 3 = after 3 finishes · 3SS = starts with 3 · 3FF = finishes with 3 · +2 / -1 = lag in working days"></td>
       <td class="gt-res">${r.sum?'':inp(k+'res',t.res||'',{label:'Resource for task '+r.no,ph:'Crew / trade'})}</td>
       ${P.base?`<td class="gt-var n">${t.bf?(()=>{const v=gtDiff(t.bf,r.f);return `<span class="${v>0?'gt-late':v<0?'gt-early':'hint'}">${v>0?'+':''}${v}d</span>`})():'<span class="hint">—</span>'}</td>`:''}
@@ -5694,7 +5706,7 @@ function gtDraw(){const host=document.getElementById('gt_chart');if(!host)return
     let d;if(!toEnd&&ex-sx>=12)d=`M${sx} ${a.cy}H${sx+6}V${b.cy}H${ex-1}`;
     else if(!toEnd)d=`M${sx} ${a.cy}H${sx+6}V${b.cy-dn*12}H${ex-10}V${b.cy}H${ex-1}`;
     else d=`M${sx} ${a.cy}H${Math.max(sx,ex)+10}V${b.cy}H${ex+1}`;
-    const cr=crit&&R.rows[P.tasks.findIndex(x=>x.id===p.id)]?.crit&&r.crit;s.push(`<path d="${d}" class="gt-lk${cr?' gt-lkc':''}" marker-end="url(#gtarr${cr?'c':''})"/>`)}}
+    const pi=gtPos(P.tasks)[p.id];const cr=crit&&pi&&R.rows[pi-1]?.crit&&r.crit;s.push(`<path d="${d}" class="gt-lk${cr?' gt-lkc':''}" marker-end="url(#gtarr${cr?'c':''})"/>`)}}
   host.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gantt chart from ${gtFmt(c0)}"><defs><marker id="gtarr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" class="gt-ah"/></marker><marker id="gtarrc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" class="gt-ahc"/></marker></defs>${s.join('')}</svg>`;
   host.dataset.c0=c0;host.dataset.ppd=ppd;
   if(UI.gtScrollToday){UI.gtScrollToday=false;host.scrollLeft=Math.max(0,tx-host.clientWidth/3)}
@@ -5728,6 +5740,11 @@ viewEl.addEventListener('click',e=>{if(UI.view!=='programme')return;const c=e.ta
   if(e.shiftKey&&UI.gtLast){const a=R.rows.findIndex(r=>r.t.id===UI.gtLast);if(a>=0){const [l,h]=a<i?[a,i]:[i,a];for(let j=l;j<=h;j++)SEL.add(R.rows[j].t.id)}}
   else{/* a summary brings everything under it */let e2=i+1;if(R.rows[i].sum)while(e2<R.rows.length&&R.rows[e2].lvl>R.rows[i].lvl)e2++;for(let j=i;j<e2;j++){if(c.checked)SEL.add(R.rows[j].t.id);else SEL.delete(R.rows[j].t.id)}}
   UI.gtLast=k;UI.gtArm=null;render();setTimeout(()=>{const el=document.querySelector(`input[data-gtsel="${k}"]`);if(el)el.focus({preventScroll:true})},0)});
+/* dates show as text until clicked (thousands of date boxes are slow to draw) */
+viewEl.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.gt-dbtn');if(!b||UI.view!=='programme')return;e.preventDefault();
+  const k=b.dataset.gtd;const el=document.createElement('input');el.type='date';el.className='f'+(b.classList.contains('gt-pin')?' gt-pin':'');el.value=b.dataset.val;el.setAttribute('aria-label',b.getAttribute('aria-label').replace(/\. Change$/,''));el.title=b.title;el.dataset[k==='start'?'gtstart':'gtfin']=b.dataset.id;
+  b.replaceWith(el);el.focus();try{el.showPicker&&el.showPicker()}catch(_){}
+  el.addEventListener('blur',()=>{setTimeout(()=>{if(el.isConnected&&document.activeElement!==el)gtRender()},150)},{once:true})});
 /* Enter in a task name goes to the next task, adding one at the end */
 viewEl.addEventListener('keydown',e=>{if(UI.view!=='programme'||e.key!=='Enter')return;const t=e.target;const b=t.dataset&&t.dataset.b;
   if(t.dataset&&(t.dataset.gtdur||t.dataset.gtpred||t.dataset.gtstart||t.dataset.gtfin)){e.preventDefault();t.blur();return}
@@ -5780,8 +5797,8 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 /* what Labour & tasks holds: each task, its sections and lines, with forecast hours and % complete */
 function gtLabSrc(){syncTasks();const out=[];
   TASK_IDS.forEach((tid,ti)=>{const items=taskDoc(tid).items||[];if(!items.length)return;const secs=taskSecs(tid);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));
-    const node=(n,path)=>{const x=itemCalc(n);const subs=(n.subs||[]).map((c,k)=>node(c,path+'.'+k)).filter(l=>l.fc>0||l.est>0||l.bud>0);return {key:'line:'+tid+':'+(n.id||path),name:nodeLabel(n),fc:x.fc,est:x.est,bud:budOf(n),earned:x.earned,pct:x.pct*100,subs}};
-    const S2=secs.map(sc=>{const lines=items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id).map(({it,j})=>node(it,String(j))).filter(l=>l.fc>0||l.est>0||l.bud>0);
+    const node=(n,path)=>{const x=itemCalc(n);const subs=(n.subs||[]).map((c,k)=>node(c,path+'.'+k));return {key:'line:'+tid+':'+(n.id||path),name:nodeLabel(n),fc:x.fc,est:x.est,bud:budOf(n),earned:x.earned,pct:x.pct*100,subs}};
+    const S2=secs.map(sc=>{const lines=items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id).map(({it,j})=>node(it,String(j)));
       const sm=k=>lines.reduce((a,l)=>a+l[k],0);const est=sm('est'),earned=sm('earned');return {key:'sec:'+tid+':'+sc.id,name:(sc.name||'').trim()||'Section',lines,fc:sm('fc'),est,bud:sm('bud'),earned,pct:est?earned/est*100:0}}).filter(s=>s.lines.length);
     const c=taskCalc(tid);out.push({tid,key:'task:'+tid,name:TASKS[ti],secs:S2,fc:c.fc,est:c.est,bud:taskBud(tid),earned:c.earned,pct:c.pct*100})});return out}
 const GT_BASIS={bud:['Budget hours','Budget hrs'],fc:['Forecast hours','Forecast hrs'],est:['Estimated hours','Est. hrs']};
@@ -5792,8 +5809,8 @@ function gtLive(){const m={};for(const s of gtLabSrc()){m[s.key]=s.pct;for(const
 function gtEnsureIds(tids){for(const t of tids){const d=taskDoc(t);let ch=false;const walk=n=>{if(!n.id){n.id=uid('i');ch=true}(n.subs||[]).forEach(walk)};(d.items||[]).forEach(walk);if(ch){S.tasks[t]=d;persist('tasks/'+t)}}}
 const GT_SKIP=new Set(['t15','t16']);
 function gtLabOpen(){const P=progDoc();const src=gtLabSrc();const old=UI.gtB||{};
-  const basis=old.basis||'bud';UI.gtB={level:old.level||'sec',basis,hpd:old.hpd||'8',crew:old.crew||'4',links:old.links||'chain',mode:'replace',
-    tk:Object.fromEntries(src.map(s=>[s.tid,{on:!GT_SKIP.has(s.tid)&&gtH(s,basis)>0,crew:''}]))};render();
+  const basis=old.basis||'bud';UI.gtB={level:old.level||'all',basis,hpd:old.hpd||'8',crew:old.crew||'4',links:old.links||'chain',mode:'replace',
+    tk:Object.fromEntries(src.map(s=>[s.tid,{on:!GT_SKIP.has(s.tid),crew:''}]))};render();
   setTimeout(()=>document.getElementById('gt_build')?.scrollIntoView({block:'nearest'}),40)}
 const gtDays=(h,crew,hpd)=>h>0?Math.max(1,Math.ceil(h/(Math.max(.1,num(crew)||1)*(Math.max(.5,num(hpd)||8))))):0;
 function gtLabPanel(){const B=UI.gtB;if(!B)return '';const P=progDoc();const src=gtLabSrc();
@@ -5806,7 +5823,7 @@ function gtLabPanel(){const B=UI.gtB;if(!B)return '';const P=progDoc();const src
   return `<div class="panel gt-build" id="gt_build" role="region" aria-label="Build from Progress">
     <div class="sec-head" style="margin:0 0 8px"><div><h3 style="margin:0">Build from Progress</h3><p class="hint" style="margin:4px 0 0">Each task on the Progress tab becomes a summary in the programme, with its sections, lines and sub-lines under it. Durations = ${GT_BASIS[B.basis][0].toLowerCase()} ÷ (crew × hours per day), rounded up to whole days. % complete stays linked to the Progress tab: update progress there and the programme follows.</p></div><button class="btn ghost" data-act="gt-lab-x" aria-label="Close">✕</button></div>
     <div class="gt-bopts">
-      <div class="gt-fl"><span>Detail</span><div class="gt-seg" role="radiogroup" aria-label="Detail">${[['task','Tasks only'],['sec','Tasks + sections'],['line','Tasks, sections + lines'],['all','Everything: lines, sub-lines & splits']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbl" data-gtbo="level" value="${v}" ${B.level===v?'checked':''}> ${l}</label>`).join('')}</div></div>
+      <div class="gt-fl"><span>Detail</span><div class="gt-seg" role="radiogroup" aria-label="Detail">${[['all','Everything on Progress: lines, sub-lines & splits'],['line','Tasks, sections + lines'],['sec','Tasks + sections'],['task','Tasks only']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbl" data-gtbo="level" value="${v}" ${B.level===v?'checked':''}> ${l}</label>`).join('')}</div></div>
       <label class="gt-fl">Duration from<select class="f" data-gtbo="basis" aria-label="Hours to use for durations">${Object.entries(GT_BASIS).map(([v,[l]])=>`<option value="${v}" ${B.basis===v?'selected':''}>${l}</option>`).join('')}</select></label>
       <label class="gt-fl">Hours per day<input class="f num" data-gtbo="hpd" value="${esc(B.hpd)}" style="width:80px" aria-label="Hours per day"></label>
       <label class="gt-fl">Crew size (default)<input class="f num" data-gtbo="crew" value="${esc(B.crew)}" style="width:80px" aria-label="Default crew size"></label>
@@ -5814,17 +5831,17 @@ function gtLabPanel(){const B=UI.gtB;if(!B)return '';const P=progDoc();const src
     </div>
     <div class="tw" style="margin-top:10px"><table class="gt-btbl"><thead><tr><th></th><th>Progress task</th><th class="n">Sections</th><th class="n">Lines</th><th class="n">Sub-lines</th><th class="n">${GT_BASIS[B.basis][1]}</th><th class="n">% complete</th><th>Crew</th><th class="n">Duration</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${has?`<div class="gt-fl" style="margin-top:10px"><span>Your programme already has ${P.tasks.length} task${P.tasks.length===1?'':'s'}</span><div class="gt-seg">${[['replace','Replace it'],['append','Add these after it']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbm" data-gtbo="mode" value="${v}" ${B.mode===v?'checked':''}> ${l}</label>`).join('')}</div></div>`:''}
-    <div class="toolbar" style="margin-top:12px;justify-content:flex-end;align-items:center"><span class="hint" style="margin-right:auto">${nOn} task${nOn===1?'':'s'} ticked → ${nRows} programme row${nRows===1?'':'s'}${nRows>150?' — that’s a lot; try “Tasks + sections”':''}</span>
+    <div class="toolbar" style="margin-top:12px;justify-content:flex-end;align-items:center"><span class="hint" style="margin-right:auto">${nOn} task${nOn===1?'':'s'} ticked → ${nRows} programme row${nRows===1?'':'s'}${nRows>400?' — a big programme: use ▾ / Minimise all to fold it up':''}</span>
       <button class="btn" data-act="gt-lab-x">Cancel</button><button class="btn primary" data-act="gt-lab-go" ${nOn?'':'disabled'}>${has&&B.mode==='replace'?'Replace programme':'Build programme'}</button></div>
     ${nb?`<p class="hint" style="margin:10px 0 0">Already built: <button class="btn ghost" data-act="gt-lab-upd" style="padding:3px 10px">Update durations from Progress</button> recalculates the durations of the ${nb} rows that came from Progress (e.g. after budget hours change), keeping your links and order. % complete updates by itself.</p>`:''}
   </div>`}
 function gtLabBuild(){const B=UI.gtB;const P=progDoc();gtEnsureIds(Object.keys(B.tk).filter(t=>B.tk[t].on));const src=gtLabSrc().filter(s=>B.tk[s.tid]?.on);if(!src.length)return;const H=n=>gtH(n,B.basis);
   const out=[];const pc=(e,a)=>e?Math.round(a/e*100):0;
   for(const s of src){const crew=(B.tk[s.tid].crew||B.crew);const res=`${num(crew)||1} × ${num(B.hpd)||8}h`;
-    const T=gtNew({name:s.name,lvl:0,dur:gtDays(H(s),crew,B.hpd),pct:Math.round(s.pct),res,src:s.key,hrs:Math.round(H(s)||s.est)});out.push(T);T._kids=[];
+    const T=gtNew({name:s.name,lvl:0,dur:Math.max(1,gtDays(H(s),crew,B.hpd)),pct:Math.round(s.pct),res,src:s.key,hrs:Math.round(H(s)||s.est)});out.push(T);T._kids=[];
     if(B.level==='task'||!s.secs.length){T._leafs=[T];continue}
-    T._leafs=[];for(const sc of s.secs){const X=gtNew({name:sc.name,lvl:1,dur:gtDays(H(sc),crew,B.hpd),pct:Math.round(sc.pct),res,src:sc.key,hrs:Math.round(H(sc)||sc.est)});out.push(X);
-      if((B.level==='line'||B.level==='all')&&sc.lines.length){const add=(LS,lvl)=>{let prev=null;for(const l of LS){const y=gtNew({name:l.name,lvl,dur:gtDays(H(l),crew,B.hpd),pct:Math.round(l.pct),res,src:l.key,hrs:Math.round(H(l)||l.est)});if(prev&&B.links!=='none')y.pred=[{id:prev.id,t:'FS',lag:0}];out.push(y);prev=y;if(B.level==='all'&&(l.subs||[]).length)add(l.subs,lvl+1)}};add(sc.lines,2)}
+    T._leafs=[];for(const sc of s.secs){const X=gtNew({name:sc.name,lvl:1,dur:Math.max(1,gtDays(H(sc),crew,B.hpd)),pct:Math.round(sc.pct),res,src:sc.key,hrs:Math.round(H(sc)||sc.est)});out.push(X);
+      if((B.level==='line'||B.level==='all')&&sc.lines.length){const add=(LS,lvl)=>{let prev=null;for(const l of LS){const y=gtNew({name:l.name,lvl,dur:Math.max(1,gtDays(H(l),crew,B.hpd)),pct:Math.round(l.pct),res,src:l.key,hrs:Math.round(H(l)||l.est)});if(prev&&B.links!=='none')y.pred=[{id:prev.id,t:'FS',lag:0}];out.push(y);prev=y;if(B.level==='all'&&(l.subs||[]).length)add(l.subs,lvl+1)}};add(sc.lines,2)}
       T._leafs.push(X)}}
   /* links: sections in order inside each task; tasks one after another */
   if(B.links!=='none'){for(const T of out.filter(t=>t.lvl===0&&t._leafs&&t._leafs[0]!==t)){const L=T._leafs;for(let i=1;i<L.length;i++){L[i].pred=[{id:L[i-1].id,t:'FS',lag:0}]}}
@@ -5838,7 +5855,7 @@ function gtLabUpd(){const P=progDoc();const B=UI.gtB||{hpd:'8',crew:'4',basis:'b
   let n=0,gone=0;for(const t of P.tasks){if(!t.src)continue;const m=map[t.src];if(!m){gone++;continue}
     /* the crew used last time is in the resource text, e.g. "4 × 8h" */
     const mm=String(t.res||'').match(/^(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)h/);const crew=mm?mm[1]:B.crew,hpd=mm?mm[2]:B.hpd;
-    t.dur=gtDays(gtH(m,basis),crew,hpd);t.hrs=Math.round(gtH(m,basis)||m.est);t.pct=Math.round(m.pct);n++}
+    t.dur=Math.max(1,gtDays(gtH(m,basis),crew,hpd));t.hrs=Math.round(gtH(m,basis)||m.est);t.pct=Math.round(m.pct);n++}
   UI.gtB=null;gtAfterEdit(`Updated the durations of ${n} row${n===1?'':'s'} from Progress (${GT_BASIS[basis][0].toLowerCase()}).${gone?` ${gone} no longer match a task, section or line on the Progress tab and were left as they were.`:''}`)}
 viewEl.addEventListener('change',e=>{if(UI.view!=='programme'||!UI.gtB)return;const t=e.target;const B=UI.gtB;
   if(t.dataset.gtbk){B.tk[t.dataset.gtbk].on=t.checked;gtRender();return}
