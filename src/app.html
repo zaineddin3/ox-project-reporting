@@ -5360,7 +5360,9 @@ viewEl.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('
   const vis=msVisible(id,m);const shown=m.items.filter((x,i)=>vis[i]).map(x=>x.id);UI.msSelMsg='';
   if(c.dataset.msselall){if(c.checked)shown.forEach(k=>sel.add(k));else shown.forEach(k=>sel.delete(k));MS_LASTSEL=null;render();return}
   const k=c.dataset.mssel;
-  if(e.shiftKey&&MS_LASTSEL&&shown.includes(MS_LASTSEL)){const a=shown.indexOf(MS_LASTSEL),b=shown.indexOf(k);const [lo,hi]=a<b?[a,b]:[b,a];if(!(e.ctrlKey||e.metaKey))sel.clear();shown.slice(lo,hi+1).forEach(x=>sel.add(x))}
+  if(e.shiftKey&&MS_LASTSEL&&shown.includes(MS_LASTSEL)){const a=shown.indexOf(MS_LASTSEL),b=shown.indexOf(k);const [lo,hi]=a<b?[a,b]:[b,a];if(!(e.ctrlKey||e.metaKey))sel.clear();shown.slice(lo,hi+1).forEach(x=>sel.add(x));
+    /* a heading in the range brings everything under it */
+    m.items.forEach((it,i)=>{if(it.head&&sel.has(it.id)&&shown.slice(lo,hi+1).includes(it.id)){const e2=msBlkEnd(m.items,i);for(let j=i+1;j<e2;j++)if(vis[j])sel.add(m.items[j].id)}})}
   else{/* ticking a heading ticks everything under it, so copy, cut, duplicate and delete take the whole section */
     const i=m.items.findIndex(x=>x.id===k);const e2=i>=0&&m.items[i].head?msBlkEnd(m.items,i):i+1;for(let j=i;j<e2;j++){if(j!==i&&!vis[j])continue;const id2=m.items[j].id;if(c.checked)sel.add(id2);else sel.delete(id2)}}
   MS_LASTSEL=k;render();setTimeout(()=>{const el=document.querySelector(`input[data-mssel="${k}"]`);if(el)el.focus({preventScroll:true})},0)});
