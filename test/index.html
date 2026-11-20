@@ -648,7 +648,7 @@ tr.sel td{background:var(--accent-soft)}
 .gt-left{border:0!important;border-radius:0!important;margin:0!important;overflow-x:auto;overflow-y:visible!important;max-height:none!important}
 .gt-tbl{border-collapse:collapse;width:max-content;min-width:100%}.gt-tbl th{height:48px;vertical-align:bottom;padding:4px 6px 7px;white-space:nowrap;font-size:12px;position:static!important}
 .gt-tbl td{padding:2px 4px;height:34px;white-space:nowrap;vertical-align:middle}.gt-tbl .f{padding:4px 6px;height:28px;font-size:13px;min-width:0}
-.gt-ck{width:28px;text-align:center}.gt-no{width:30px;text-align:right}.gt-name .f{width:230px}.gt-dur .f{width:62px;text-align:right}.gt-dt .f{width:122px}.gt-pr .f{width:96px}.gt-pc .f{width:52px;text-align:right}.gt-res .f{width:120px}.gt-var{width:48px}
+.gt-ck{width:28px;text-align:center}.gt-no{width:30px;text-align:right}.gt-name .f{width:230px}.gt-dur .f{width:62px;text-align:right}.gt-dt .f{width:122px}.gt-pr .f{width:96px}.gt-pc .f{width:48px;text-align:right}.gt-pcw{display:inline-flex;align-items:center;gap:3px}.gt-pct{fill:var(--ink);font-weight:600}.gt-done{fill:var(--good)}.gt-res .f{width:120px}.gt-var{width:48px}
 .gt-nm{display:flex;align-items:center;gap:3px}.gt-tg{border:0;background:none;color:var(--ink);font-size:13px;width:20px;height:24px;cursor:pointer;padding:0;border-radius:4px}.gt-tg:hover{background:var(--soft)}.gt-tgsp{width:20px;text-align:center;font-size:11px;color:var(--muted)}
 .gt-sum td{background:color-mix(in srgb,var(--accent) 5%,transparent)}.gt-sum .gt-name .f{font-weight:700}.gt-ro{display:inline-block;padding:0 6px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .gt-selrow td{background:color-mix(in srgb,var(--series2) 12%,transparent)}.gt-pin{border-color:var(--accent)!important}.gt-warn{color:var(--bad);cursor:help;margin-left:3px}
@@ -5649,17 +5649,17 @@ V.programme=()=>{const P=progDoc();const R=gtCalc(P);const SEL=gtSel();const hid
       <td class="gt-no hint">${r.no}</td>
       <td class="gt-name"><div class="gt-nm" style="padding-left:${r.lvl*16}px">${r.sum?`<button class="gt-tg" data-act="gt-tg" data-v="${t.id}" aria-expanded="${!coll}" aria-label="${coll?'Expand':'Minimise'} ${esc(t.name||'summary')}">${coll?'▸':'▾'}</button>`:`<span class="gt-tgsp">${r.ms?'◆':''}</span>`}${inp(k+'name',t.name||'',{label:'Task '+r.no+' name',ph:r.ms?'Milestone':'Task name'})}${warn?`<span class="gt-warn" title="${esc(warn)}" role="img" aria-label="${esc(warn)}">⚠</span>`:''}</div></td>
       <td class="gt-dur">${r.sum?`<span class="gt-ro">${r.dur}d</span>`:`<input class="f num" data-gtdur="${t.id}" value="${r.dur}d" aria-label="Duration of task ${r.no}" inputmode="text">`}</td>
+      <td class="gt-pc">${r.sum?`<span class="gt-ro"><b>${Math.round(r.pct)}%</b></span>`:`<span class="gt-pcw">${inp(k+'pct',t.pct||'',{num:1,label:'Percent complete task '+r.no,ph:'0'})}<span class="hint">%</span></span>`}</td>
       <td class="gt-dt">${r.sum?`<span class="gt-ro">${gtFmtS(r.s)}</span>`:`<input class="f${t.cs?' gt-pin':''}" type="date" data-gtstart="${t.id}" value="${r.s}" aria-label="Start of task ${r.no}" title="${t.cs?'Start no earlier than '+gtFmt(t.cs)+'. Clear the date to let links set it.':'Set by links. Type a date to fix it'}">`}</td>
       <td class="gt-dt">${r.sum||r.ms?`<span class="gt-ro">${gtFmtS(r.f)}</span>`:`<input class="f" type="date" data-gtfin="${t.id}" value="${r.f}" aria-label="Finish of task ${r.no}">`}</td>
       <td class="gt-pr"><input class="f" data-gtpred="${t.id}" value="${esc(gtPredTxt(t,P.tasks))}" aria-label="Predecessors of task ${r.no}" title="Task numbers this one follows. 3 = after 3 finishes · 3SS = starts with 3 · 3FF = finishes with 3 · +2 / -1 = lag in working days"></td>
-      <td class="gt-pc">${r.sum?`<span class="gt-ro">${Math.round(r.pct)}%</span>`:inp(k+'pct',t.pct||'',{num:1,label:'Percent complete task '+r.no,ph:'0'})}</td>
       <td class="gt-res">${r.sum?'':inp(k+'res',t.res||'',{label:'Resource for task '+r.no,ph:'Crew / trade'})}</td>
       ${P.base?`<td class="gt-var n">${t.bf?(()=>{const v=gtDiff(t.bf,r.f);return `<span class="${v>0?'gt-late':v<0?'gt-early':'hint'}">${v>0?'+':''}${v}d</span>`})():'<span class="hint">—</span>'}</td>`:''}
     </tr>`}).join('');
   return `<div class="stack">${head('Programme','Plan the job like MS Project, but simpler. Durations are in working days; type predecessors (task numbers) to link tasks and the dates move themselves. Tick tasks to indent, link, move or delete them. Drag a bar to move it, or its right end to change the duration.')}
     ${info}${setup}${tb}${UI.gtMsg?`<p class="hint gt-msg" role="status">${esc(UI.gtMsg)}</p>`:''}
     <div class="gt-wrap" data-zoom="${z}" style="--gtl:${(()=>{let w=0;try{w=+localStorage.getItem('ox_gtl')||0}catch(e){}return w?w+'px':'560px'})()}">
-      <div class="gt-left tw"><table class="gt-tbl"><thead><tr><th class="gt-ck"><input type="checkbox" data-gtselall="1" ${allSel?'checked':''} aria-label="Select all tasks"></th><th class="gt-no">#</th><th class="gt-name">Task name</th><th class="gt-dur">Duration</th><th class="gt-dt">Start</th><th class="gt-dt">Finish</th><th class="gt-pr">Predecessors</th><th class="gt-pc">%</th><th class="gt-res">Resource</th>${P.base?'<th class="gt-var n" title="Finish against the baseline, in calendar days">Var.</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
+      <div class="gt-left tw"><table class="gt-tbl"><thead><tr><th class="gt-ck"><input type="checkbox" data-gtselall="1" ${allSel?'checked':''} aria-label="Select all tasks"></th><th class="gt-no">#</th><th class="gt-name">Task name</th><th class="gt-dur">Duration</th><th class="gt-pc">% complete</th><th class="gt-dt">Start</th><th class="gt-dt">Finish</th><th class="gt-pr">Predecessors</th><th class="gt-res">Resource</th>${P.base?'<th class="gt-var n" title="Finish against the baseline, in calendar days">Var.</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
       <div class="gt-split" role="separator" aria-orientation="vertical" aria-label="Drag to resize the task table" title="Drag to resize · double-click to reset" tabindex="0"></div><div class="gt-right" id="gt_chart" aria-label="Gantt chart"></div>
     </div>${tb2}</div>`};
 
@@ -5689,10 +5689,10 @@ function gtDraw(){const host=document.getElementById('gt_chart');if(!host)return
   vis.forEach(r=>{const [y,h]=rowY[r.t.id]||[0,0];const cy=y+h/2;const x0=X(r.s),x1=r.ms?x0:X(r.f)+ppd;bars[r.t.id]={x0,x1,cy,ms:r.ms};
     if(P.base&&r.t.bs&&r.t.bf){const bx0=X(r.t.bs),bx1=X(r.t.bf)+(r.t.bs===r.t.bf&&r.dur===0?0:ppd);s.push(`<rect x="${bx0}" y="${cy+6}" width="${Math.max(2,bx1-bx0)}" height="4" rx="1" class="gt-base"><title>Baseline ${gtFmt(r.t.bs)} – ${gtFmt(r.t.bf)}</title></rect>`)}
     const tip=`${r.no}. ${r.t.name||'Task'} · ${gtFmt(r.s)}${r.ms?'':' – '+gtFmt(r.f)} · ${r.dur} day${r.dur===1?'':'s'}${r.sum?'':' · '+Math.round(r.pct)+'%'}${r.slack!=null&&r.slack>0&&R.links.length?' · '+r.slack+' days float':''}`;
-    if(r.sum){s.push(`<g class="gt-sbar"><rect x="${x0}" y="${cy-4}" width="${Math.max(2,x1-x0)}" height="6"/><path d="M${x0} ${cy-4}v11l5 -5zM${x1} ${cy-4}v11l-5 -5z"/>${r.pct>0?`<rect x="${x0}" y="${cy-2}" width="${(x1-x0)*r.pct/100}" height="2" class="gt-sp"/>`:''}<title>${esc(tip)}</title></g>`)}
-    else if(r.ms){s.push(`<path d="M${x0} ${cy-7}l7 7l-7 7l-7 -7z" class="gt-ms${r.crit&&crit?' gt-crit':''}" data-gtbar="${r.t.id}" data-mode="move"><title>${esc(tip)}</title></path><text x="${x0+11}" y="${cy+4}" class="gt-lbl">${esc(gtFmtS(r.s))}</text>`)}
+    if(r.sum){s.push(`<g class="gt-sbar"><rect x="${x0}" y="${cy-4}" width="${Math.max(2,x1-x0)}" height="6"/><path d="M${x0} ${cy-4}v11l5 -5zM${x1} ${cy-4}v11l-5 -5z"/>${r.pct>0?`<rect x="${x0}" y="${cy-2}" width="${(x1-x0)*r.pct/100}" height="2" class="gt-sp"/>`:''}<title>${esc(tip)}</title></g><text x="${x1+8}" y="${cy+4}" class="gt-lbl gt-pct${r.pct>=100?' gt-done':''}" style="font-weight:700">${Math.round(r.pct)}%</text>`)}
+    else if(r.ms){s.push(`<path d="M${x0} ${cy-7}l7 7l-7 7l-7 -7z" class="gt-ms${r.crit&&crit?' gt-crit':''}" data-gtbar="${r.t.id}" data-mode="move"><title>${esc(tip)}</title></path><text x="${x0+11}" y="${cy+4}" class="gt-lbl">${esc(gtFmtS(r.s))}${r.pct>=100?' ✓':''}</text>`)}
     else{const w=Math.max(3,x1-x0);s.push(`<g class="gt-bar${r.crit&&crit?' gt-crit':''}" data-gtbar="${r.t.id}" data-mode="move"><rect x="${x0}" y="${cy-7}" width="${w}" height="14" rx="3" class="gt-bb"/>${r.pct>0?`<rect x="${x0}" y="${cy-7}" width="${w*Math.min(100,r.pct)/100}" height="14" rx="3" class="gt-bp"/>`:''}<rect x="${x0+w-6}" y="${cy-7}" width="8" height="14" class="gt-rz" data-gtbar="${r.t.id}" data-mode="size"/><title>${esc(tip)}</title></g>`);
-      if(r.t.res)s.push(`<text x="${x0+w+6}" y="${cy+4}" class="gt-lbl">${esc(r.t.res)}</text>`)}});
+      s.push(`<text x="${x0+w+6}" y="${cy+4}" class="gt-lbl"><tspan class="gt-pct${r.pct>=100?' gt-done':''}">${Math.round(r.pct)}%</tspan>${r.t.res?'  '+esc(r.t.res):''}</text>`)}});
   /* link arrows */
   for(const r of vis){for(const p of r.t.pred||[]){const a=bars[p.id],b=bars[r.t.id];if(!a||!b)continue;const t=p.t||'FS';
     const sx=t==='SS'||t==='SF'?a.x0:a.x1,ex=t==='FF'||t==='SF'?b.x1:b.x0;const dn=b.cy>a.cy?1:-1;const toEnd=t==='FF'||t==='SF';
@@ -5850,7 +5850,7 @@ async function gtPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error
     else{doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Programme'+(proj?' – '+proj:''),M,M);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Page '+page,W-M,M,{align:'right'});top=M+4}
     /* column heads + timescale */
     doc.setFillColor(245,240,235);doc.rect(M,top,W-2*M,10,'F');doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(30);
-    [['#',cx[0]+1],['Task name',cx[1]],['Duration',cx[2]],['Start',cx[3]],['Finish',cx[4]],['%',cx[5]]].forEach(([t,x])=>doc.text(t,x,top+6.5));
+    [['#',cx[0]+1],['Task name',cx[1]],['Duration',cx[2]],['Start',cx[3]],['Finish',cx[4]],['% done',cx[5]]].forEach(([t,x])=>doc.text(t,x,top+6.5));
     doc.setFont('helvetica','normal');doc.setFontSize(6.5);for(let d=c0;d<c1;){const m=new Date(gtUTC(d));const nx=gtISO(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));const x=X(d),x2=X(nx);doc.setDrawColor(200);doc.line(x,top,x,top+10);if(x2-x>9)doc.text(m.toLocaleDateString('en-AU',{month:'short',year:x2-x>16?'2-digit':undefined,timeZone:'UTC'}),x+1,top+4);d=nx}
     if(nd/7*k>0){for(let d=gtAdd(c0,(8-new Date(gtUTC(c0)).getUTCDay())%7);d<c1;d=gtAdd(d,7)){const x=X(d);if(k*7>4.2)doc.text(String(new Date(gtUTC(d)).getUTCDate()),x+.5,top+8.6)}}
     return top+10};
@@ -5864,10 +5864,10 @@ async function gtPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error
     doc.text(r.dur+'d',cx[2],cy+1.2);doc.text(gtFmtS(r.s),cx[3],cy+1.2);doc.text(gtFmtS(r.f),cx[4],cy+1.2);doc.text(Math.round(r.pct)+'%',cx[5],cy+1.2);
     const x0=X(r.s),x1=r.ms?x0:X(gtAdd(r.f,1));
     if(P.base&&r.t.bs&&r.t.bf){doc.setFillColor(190);doc.rect(X(r.t.bs),cy+1.4,Math.max(.6,X(gtAdd(r.t.bf,r.dur?1:0))-X(r.t.bs)),.9,'F')}
-    if(r.sum){doc.setFillColor(40,45,50);doc.rect(x0,cy-1.2,Math.max(.6,x1-x0),1.6,'F');doc.triangle(x0,cy-1.2,x0+1.4,cy-1.2,x0,cy+1.6,'F');doc.triangle(x1,cy-1.2,x1-1.4,cy-1.2,x1,cy+1.6,'F')}
+    if(r.sum){doc.setFillColor(40,45,50);doc.rect(x0,cy-1.2,Math.max(.6,x1-x0),1.6,'F');doc.triangle(x0,cy-1.2,x0+1.4,cy-1.2,x0,cy+1.6,'F');doc.triangle(x1,cy-1.2,x1-1.4,cy-1.2,x1,cy+1.6,'F');doc.setFontSize(6);doc.setFont('helvetica','bold');doc.setTextColor(60);doc.text(Math.round(r.pct)+'%',x1+1.5,cy+1)}
     else if(r.ms){doc.setFillColor(...(r.crit&&crit?[176,53,42]:[40,45,50]));doc.triangle(x0,cy-1.8,x0+1.8,cy,x0,cy+1.8,'F');doc.triangle(x0,cy-1.8,x0-1.8,cy,x0,cy+1.8,'F');doc.setFontSize(6);doc.text(gtFmtS(r.s),x0+2.6,cy+1)}
     else{const w=Math.max(.8,x1-x0);doc.setFillColor(...(r.crit&&crit?[239,170,160]:[234,196,170]));doc.rect(x0,cy-1.6,w,3.2,'F');if(r.pct>0){doc.setFillColor(...(r.crit&&crit?[176,53,42]:[176,84,28]));doc.rect(x0,cy-1.6,w*Math.min(100,r.pct)/100,3.2,'F')}
-      if(r.t.res){doc.setFontSize(6);doc.setTextColor(90);doc.text(String(r.t.res),x0+w+1.2,cy+1)}}
+      doc.setFontSize(6);doc.setTextColor(90);doc.text(Math.round(r.pct)+'%'+(r.t.res?'   '+String(r.t.res):''),x0+w+1.2,cy+1)}
     pos[r.t.id]={page,cy,x0,x1};y+=RH}
   drawGrid(pageTop,y);
   /* link lines on the page where both tasks are */
