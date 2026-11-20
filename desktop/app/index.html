@@ -520,7 +520,7 @@ tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!im
 .inv-dup{background:color-mix(in srgb,#d9822b 14%,transparent);border:1px solid color-mix(in srgb,#d9822b 55%,transparent);border-radius:8px;padding:7px 10px;margin:0 0 8px;font-size:13px}.inv-dup .btn{margin-left:6px;padding:2px 8px;font-size:12px}.invbox.inv-isdup{border-color:#d9822b!important;box-shadow:0 0 0 1px #d9822b}
 .ordsec>td{background:color-mix(in srgb,var(--accent) 9%,var(--panel,#fff));border-top:2px solid color-mix(in srgb,var(--accent) 40%,transparent);font-weight:600}.ordsec .ordsec-name{font-weight:700;font-size:15px}.ord-secpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}.ord-secpick .f{font-size:12px;padding:3px 6px}
 .pcxl-dropping,.pcxl-dropping td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 8%,transparent)!important}.pcxl-btn{font-size:12px;padding:3px 8px;margin-left:8px}
-.ms-rn{white-space:nowrap;width:1%}.ms-mv{display:inline-flex;gap:1px}.ms-mv .btn{padding:3px 7px;font-size:11px;line-height:1}.ms-mv .btn[disabled]{opacity:.3;cursor:default}.ms-rn label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.ms-ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.ms-rn{white-space:nowrap;width:1%}.ms-mv{display:inline-flex;gap:1px}.ms-hcell{display:flex;align-items:center;gap:6px}.ms-hcell .f{flex:1}.ms-tg{padding:2px 8px;font-size:13px;line-height:1}.ms-tgn{white-space:nowrap;font-size:12px;order:2}.ms-subrow td{background:color-mix(in srgb,var(--accent) 3%,transparent);border-top:1px dashed color-mix(in srgb,var(--accent) 25%,transparent)}.ms-subrow .ms-hcell{padding-left:22px}.ms-subrow .f{font-size:13px}.ms-mv .btn{padding:3px 7px;font-size:11px;line-height:1}.ms-mv .btn[disabled]{opacity:.3;cursor:default}.ms-rn label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.ms-ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 .mstable tr.ms-selrow>td{background:color-mix(in srgb,var(--accent) 12%,transparent)!important}.mstable tr.ms-selrow>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 .ms-selbar{margin:0 0 8px;padding:6px 4px}.ms-selbar.on{position:sticky;top:8px;z-index:6;background:var(--panel,#fff);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:10px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.08)}.btn.danger-t{color:var(--neg,#c0392b)}
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
@@ -3212,15 +3212,24 @@ function msVisible(id,m){const F=msFlt(id);const cols=MS_COLS[m.type]||MS_COLS.g
       const t=String(it[f]??'').toLowerCase();if(q.startsWith('=')?t!==q.slice(1).trim():!t.includes(q))return false}return true};
   const vis=m.items.map(it=>on?ok(it):true);
   /* a heading shows when any line under it shows */
-  m.items.forEach((it,i)=>{if(!it.head||!on)return;let j=i+1,any=false;while(j<m.items.length&&!m.items[j].head){if(vis[j])any=true;j++}vis[i]=any});
+  m.items.forEach((it,i)=>{if(!it.head||!on)return;const e=msBlkEnd(m.items,i);let any=false;for(let j=i+1;j<e;j++)if(!m.items[j].head&&vis[j])any=true;vis[i]=any});
   return vis}
 /* ---------- item schedule: select rows like a spreadsheet, then copy, cut, paste, duplicate or delete them ---------- */
-function msMvBtns(m,i){const it=m.items[i];const L=m.items.length;let up=i>0,dn;if(it.head){let e=i+1;while(e<L&&!m.items[e].head)e++;dn=e<L}else dn=i<L-1;const w=it.head?'section':'line';return `<span class="ms-mv"><button class="btn ghost" data-act="ms-mv" data-v="${it.id}|-1" aria-label="Move ${w} up" title="Move ${w} up" ${up?'':'disabled'}>▲</button><button class="btn ghost" data-act="ms-mv" data-v="${it.id}|1" aria-label="Move ${w} down" title="Move ${w} down" ${dn?'':'disabled'}>▼</button></span>`}
-function msMove(m,iid,dir){const A=m.items;const i=A.findIndex(x=>x.id===iid);if(i<0)return false;const L=A.length;
-  if(!A[i].head){const j=i+dir;if(j<0||j>=L)return false;[A[i],A[j]]=[A[j],A[i]];return true}
-  let e=i+1;while(e<L&&!A[e].head)e++;const blk=A.slice(i,e);
-  if(dir<0){if(i===0)return false;let p=i-1;while(p>0&&!A[p].head)p--;A.splice(i,blk.length);A.splice(p,0,...blk);return true}
-  if(e>=L)return false;let n=e+1;while(n<L&&!A[n].head)n++;const nxt=A.slice(e,n);A.splice(e,nxt.length);A.splice(i,0,...nxt);return true}
+/* levels: heading 1, sub-heading 2, line 3. A row's block runs to the next row of the same or a higher level */
+function msLvl(it){return it.head?(it.sub?2:1):3}
+function msBlkEnd(A,i){const L=msLvl(A[i]);let e=i+1;while(e<A.length&&msLvl(A[e])>L)e++;return e}
+function msMvBtns(m,i){const A=m.items;const it=A[i];const up=i>0,dn=msBlkEnd(A,i)<A.length;const w=it.head?(it.sub?'sub-heading':'section'):'line';return `<span class="ms-mv"><button class="btn ghost" data-act="ms-mv" data-v="${it.id}|-1" aria-label="Move ${w} up" title="Move ${w} up" ${up?'':'disabled'}>▲</button><button class="btn ghost" data-act="ms-mv" data-v="${it.id}|1" aria-label="Move ${w} down" title="Move ${w} down" ${dn?'':'disabled'}>▼</button></span>`}
+function msMove(m,iid,dir){const A=m.items;const i=A.findIndex(x=>x.id===iid);if(i<0)return false;const L=msLvl(A[i]);const e=msBlkEnd(A,i);const blk=A.slice(i,e);
+  if(dir<0){if(i===0)return false;let p=i-1;while(p>0&&msLvl(A[p])>L)p--;A.splice(i,blk.length);A.splice(p,0,...blk);return true}
+  if(e>=A.length)return false;let n=e+1;while(n<A.length&&msLvl(A[n])>L)n++;const nxt=A.slice(e,n);A.splice(e,nxt.length);A.splice(i,0,...nxt);return true}
+/* minimised headings (per MOSD, kept while the app is open) */
+function msCollSet(id){UI.msColl=UI.msColl||{};return UI.msColl[id]=UI.msColl[id]||new Set()}
+function msCollHide(id,m){const C=msCollSet(id);const A=m.items;const h=A.map(()=>false);if(!C.size)return h;A.forEach((it,i)=>{if(it.head&&C.has(it.id)&&!h[i]){const e=msBlkEnd(A,i);for(let j=i+1;j<e;j++)h[j]=true}});return h}
+function msTg(id,m,i){const it=m.items[i];const c=msCollSet(id).has(it.id);const e=msBlkEnd(m.items,i);let n=0;for(let j=i+1;j<e;j++)if(!m.items[j].head)n++;
+  return `<button class="btn ghost ms-tg" data-act="ms-coll" data-v="${it.id}" aria-expanded="${!c}" aria-label="${c?'Expand':'Minimise'} ${esc(it.desc||'heading')}" title="${c?'Expand':'Minimise'}">${c?'▸':'▾'}</button>${c?`<span class="hint ms-tgn">${n} line${n===1?'':'s'} hidden</span>`:''}`}
+function msShowEnd(id,m){const C=msCollSet(id);const A=m.items;A.forEach((x,i)=>{if(x.head&&C.has(x.id)&&msBlkEnd(A,i)>=A.length)C.delete(x.id)})}
+function msHasHead(m){return m.items.some(x=>x.head)}
+function msCollBtns(id,m){if(!msHasHead(m))return '';return `<button class="btn" data-act="ms-coll-all" data-v="1" title="Minimise every heading">Minimise all</button><button class="btn" data-act="ms-coll-all" data-v="0" title="Expand every heading">Expand all</button>`}
 function msSel(id){UI.msSel=UI.msSel||{};return UI.msSel[id]=UI.msSel[id]||new Set()}
 function msSelItems(id,m){const S_=msSel(id);for(const k of [...S_])if(!m.items.some(it=>it.id===k))S_.delete(k);return m.items.filter(it=>S_.has(it.id))}
 function msClipTsv(m,items){const cols=MS_COLS[m.type]||MS_COLS.general;const qty=m.type!=='submain';const si=m.suppliers.map((s,i)=>i).filter(i=>String(m.suppliers[i]||'').trim());
@@ -3256,7 +3265,7 @@ function msFltBar(id,m){const GF=msGrpF(m),TF=msTxtF(m);const cols=MS_COLS[m.typ
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
-  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-add-head" title="Add a heading row to group the lines below it">+ Add heading</button><button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><button class="btn" data-act="ms-sup-add" title="Add another supplier column">+ Add supplier</button><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
+  const tool=`<div class="toolbar"><button class="btn primary" data-act="ms-add-line">+ Add line</button><button class="btn" data-act="ms-add-head" title="Add a heading row to group the lines below it">+ Add heading</button><button class="btn" data-act="ms-add-head" data-v="sub" title="Add a sub-heading inside the heading above it">+ Add sub-heading</button>${msCollBtns(id,m)}<button class="btn" data-act="ms-paste" aria-expanded="${!!UI.msPaste}">Paste from Excel</button><label class="btn" for="ms_xl_${id}" title="Or drag an Excel file onto the item schedule">Import Excel</label><button class="btn" data-act="ms-sup-add" title="Add another supplier column">+ Add supplier</button><input type="file" id="ms_xl_${id}" data-msxlf="${id}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden><span class="hint">or drop an Excel file on the table</span><span style="flex:1"></span>
     <label class="hint">Chosen supplier ${sel('ms|'+id+'|chosen',ch<0?'':String(ch),supOpts,{label:'Chosen supplier'})}</label>${ch>=0?msSupPoHtml(id,m,ch):''}</div>`;
   const xlMsg=UI.msXlMsg?`<div class="panel" role="status" style="padding:9px 14px;${UI.msXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.msXlMsg.t)}</div>`:'';
   const paste=UI.msPaste?`<div class="panel" style="padding:12px 14px"><p class="hint" style="margin:0 0 8px">Copy rows from Excel and paste below. Columns in order: <b>${cols.map(c=>c[1]).join(', ')}${m.type==='submain'?'':', Qty'}</b>.</p>
@@ -3285,10 +3294,10 @@ function msItems(id,m,C){
   const GF=msGrpF(m);const gVals=[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[GF]??'').trim()))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
   const gSel=l=>`<th><select class="f" id="msf_${id}_${GF}" data-msflt="${GF}" aria-label="Filter ${esc(l)}"><option value="">All ${esc(l.toLowerCase())}s</option>${gVals.map(v=>`<option value="=${esc(v)}" ${String(FL[GF]||'').toLowerCase()==='='+v.toLowerCase()?'selected':''}>${v?esc(v):'(blank)'}</option>`).join('')}</select></th>`;
   const fltRow=`<tr class="ms-fltrow"><th><span class="hint" title="Filter">⏷</span></th>${cols.map(([f,l])=>f===GF?gSel(l):`<th><input class="f" id="msf_${id}_${f}" data-msflt="${f}" list="msfl_${id}_${f}" value="${esc(FL[f]||'')}" placeholder="Filter" aria-label="Filter ${esc(l)}">${dl(f)}</th>`).join('')}<th></th>${m.suppliers.map((_,si)=>`<th colspan="2"><select class="f" id="msf_${id}_r${si}" data-msflt="r${si}" aria-label="Filter ${esc(msSupName(m,si))} rate"><option value="">All rates</option><option value="empty" ${FL['r'+si]==='empty'?'selected':''}>No rate</option><option value="filled" ${FL['r'+si]==='filled'?'selected':''}>Has rate</option></select></th>`).join('')}<th></th><th></th></tr>`;
-  let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
-    if(!VIS[i]){if(!it.head)lineNo++;return ''}
+  let lineNo=0;const CH=msCollHide(id,m);const rows=C.rows.map((x,i)=>{const it=x.it;const k='msi|'+id+'|'+i+'|';
+    if(!VIS[i]||CH[i]){if(!it.head)lineNo++;return ''}
     const ck=`<input type="checkbox" class="ms-ck" data-mssel="${it.id}" ${SEL.has(it.id)?'checked':''} aria-label="Select row">`;
-    if(it.head)return `<tr class="ms-hrow${SEL.has(it.id)?' ms-selrow':''}" data-msrow="${it.id}"><td class="ms-rn"><label>${ck}${msMvBtns(m,i)}</label></td><td colspan="${cols.length+1+ns*2+1}">${inp(k+'desc',it.desc||'',{label:'Heading',ph:'Heading, e.g. Level 1 or Lighting'})}</td><td>${delBtn('msi',id,String(i),'Remove heading')}</td></tr>`;lineNo++;
+    if(it.head)return `<tr class="ms-hrow${it.sub?' ms-subrow':''}${SEL.has(it.id)?' ms-selrow':''}" data-msrow="${it.id}"><td class="ms-rn"><label>${ck}${msMvBtns(m,i)}</label></td><td colspan="${cols.length+1+ns*2+1}"><div class="ms-hcell">${msTg(id,m,i)}${inp(k+'desc',it.desc||'',{label:it.sub?'Sub-heading':'Heading',ph:it.sub?'Sub-heading, e.g. Downlights':'Heading, e.g. Level 1 or Lighting'})}</div></td><td>${delBtn('msi',id,String(i),it.sub?'Remove sub-heading':'Remove heading')}</td></tr>`;lineNo++;
     const qcell=x.src==='manual'?inp(k+'qty',it.qty||'',{num:1,label:'Qty line '+(i+1)}):`<span class="money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</span><br><span class="hint" style="font-size:11px">${x.src==='drawing'?'from drawings':x.src==='takeoff'?'from take off':'cables × run'}</span>`;
     return `<tr class="${SEL.has(it.id)?'ms-selrow':''}" data-msrow="${it.id}"><td class="hint ms-rn"><label>${ck}${msMvBtns(m,i)}<span>${lineNo}</span></label></td>${cols.map(([f,l,w,n])=>`<td style="min-width:${w}px">${inp(k+f,it[f]||'',{num:n,label:l+' line '+(i+1)})}</td>`).join('')}
       <td class="n" style="min-width:90px">${qcell}</td>
@@ -3322,8 +3331,8 @@ function toZoneNames(){const s=new Map();for(const id in S.dwgs){const d=dwgDoc(
 function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math.round(v*100)/100).toLocaleString('en-AU',{maximumFractionDigits:2});
   const linkOpts=[['','Typed in'],...keys.map(k=>[k.k,k.name+' ('+TO_TYPE[k.type].toLowerCase()+')'])];
   if(keys.length)for(const x of C.rows)if(x.it.toLink&&!keys.some(k=>k.k===x.it.toLink))linkOpts.push([x.it.toLink,'Missing: '+x.it.toLink.split('|')[0]]);
-  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]){if(!it.head)lineNo++;return ''}const Q=it.toLink?msQty(m,it):null;
-    if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+1+(m.type==='submain'?1:0)+m.locs.length+1}">${inp('msi|'+id+'|'+i+'|desc',it.desc||'',{label:'Heading',ph:'Heading'})}</td></tr>`;lineNo++;
+  const VIS=msVisible(id,m);let lineNo=0;const CH=msCollHide(id,m);const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]||CH[i]){if(!it.head)lineNo++;return ''}const Q=it.toLink?msQty(m,it):null;
+    if(it.head)return `<tr class="ms-hrow${it.sub?' ms-subrow':''}"><td></td><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+1+(m.type==='submain'?1:0)+m.locs.length+1}"><div class="ms-hcell">${msTg(id,m,i)}${inp('msi|'+id+'|'+i+'|desc',it.desc||'',{label:it.sub?'Sub-heading':'Heading',ph:it.sub?'Sub-heading':'Heading'})}</div></td></tr>`;lineNo++;
     /* the same columns as the item schedule, so the two match and editing one changes the other */
     return `<tr><td class="hint">${lineNo}</td>${(MS_COLS[m.type]||MS_COLS.general).map(([f,l,w,isNum])=>`<td style="min-width:${w}px">${inp('msi|'+id+'|'+i+'|'+f,it[f]??'',{label:l+' line '+(i+1),ph:l,...(isNum?{num:1}:{})})}</td>`).join('')}
     <td style="min-width:170px">${keys.length||it.toLink?sel('msi|'+id+'|'+i+'|toLink',it.toLink||'',linkOpts,{label:'Quantity from drawing, line '+(i+1)}):'<span class="hint">No drawing take off yet</span>'}</td>
@@ -3358,7 +3367,7 @@ function msDeliveries(id,m,C){
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
   const cols=(MS_COLS[m.type]||MS_COLS.general).filter(c=>!(m.type==='submain'&&c[0]==='run'));const NC=cols.length;
-  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${NC+4}"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
+  const VIS=msVisible(id,m);let lineNo=0;const CH=msCollHide(id,m);const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]||CH[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow${it.sub?' ms-subrow':''}"><td></td><td colspan="${NC+4}"><div class="ms-hcell">${msTg(id,m,i)}<b>${esc(it.desc||'')}</b></div></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
     if(out&&!(x.q-prev>0)&&!num(th))return '';
     return `<tr><td class="hint">${lineNo}</td>${cols.map(([f,l,w,isN])=>`<td class="${isN?'n':''}${f==='cat'||f==='cable'?' mono':''}" style="${f==='desc'?'min-width:220px':'min-width:'+Math.min(w,140)+'px'}">${esc(String(it[f]??''))||'<span class="hint">—</span>'}</td>`).join('')}<td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${prev.toLocaleString('en-AU',{maximumFractionDigits:2})}</td>
     <td style="width:120px">${inp('msdq|'+id+'|'+di+'|'+it.id,th,{num:1,label:'This delivery line '+(i+1),ph:'0'})}</td><td class="n money ${bal<0?'neg':''}"><b>${bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td></tr>`}).join('');
@@ -3373,8 +3382,8 @@ function msDeliveries(id,m,C){
 }
 function msSchedule(id,m,C){
   const D=m.dockets;let tv=0,dv=0;
-  const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;tv+=x.total;dv+=x.del*x.rate;
-    if(!VIS[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="${8+D.length}"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;
+  const VIS=msVisible(id,m);let lineNo=0;const CH=msCollHide(id,m);const rows=C.rows.map((x,i)=>{const it=x.it;tv+=x.total;dv+=x.del*x.rate;
+    if(!VIS[i]||CH[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow${it.sub?' ms-subrow':''}"><td></td><td colspan="${8+D.length}"><div class="ms-hcell">${msTg(id,m,i)}<b>${esc(it.desc||'')}</b></div></td></tr>`;lineNo++;
     return `<tr><td class="hint">${lineNo}</td><td style="min-width:220px">${esc(msDesc(m,it))||'<span class="hint">—</span>'}</td><td class="n money">${x.q.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money">${x.del.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td class="n money ${x.bal<0?'neg':''}"><b>${x.bal.toLocaleString('en-AU',{maximumFractionDigits:2})}</b></td>
     <td class="n money">${x.rate?money2(x.rate):'—'}</td><td class="n money">${money2(x.total)}</td><td class="n money">${money2(x.del*x.rate)}</td><td class="n money">${money2(x.bal*x.rate)}</td>
     ${D.map(d=>{const v=num(d.q?.[it.id]);return `<td class="n money ${v?'':'hint'}">${v?v.toLocaleString('en-AU',{maximumFractionDigits:2}):'·'}</td>`}).join('')}</tr>`}).join('');
@@ -3400,7 +3409,7 @@ async function msApprPdf(id){
   const head1=[{content:'#',rowSpan:2},...cols.map(c=>({content:c[1],rowSpan:2})),{content:'Qty',rowSpan:2},...SI.map(si=>({content:msSupName(m,si)+(si===ch?'  (chosen)':''),colSpan:2,styles:{halign:'center'}})),{content:'Lowest rate',rowSpan:2}];
   const head2=SI.flatMap(()=>['Rate','Price']);
   let ln=0;const NC=cols.length+3+SI.length*2;
-  const body=C.rows.map(x=>x.it.head?[{content:String(x.it.desc||''),colSpan:NC,styles:{fontStyle:'bold',fillColor:[245,240,235],halign:'left'}}]:[String(++ln),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
+  const body=C.rows.map(x=>x.it.head?[{content:(x.it.sub?'   ':'')+String(x.it.desc||''),colSpan:NC,styles:{fontStyle:'bold',fillColor:x.it.sub?[251,249,246]:[245,240,235],halign:'left'}}]:[String(++ln),...cols.map(c=>String(x.it[c[0]]??'')),fq(x.q),...SI.flatMap(si=>{const r=num((x.it.r||[])[si]);return [r?f2(r):'',r?f2(r*x.q):'']}),x.lo?f2(x.lo):'']);
   const foot=[[{content:'Total',colSpan:cols.length+2,styles:{halign:'left'}},...SI.flatMap(si=>['',C.sup[si]?'$'+f2(C.sup[si]):'—']),'']];
   const firstNum=cols.length+1;const chCols=new Set();SI.forEach((si,k)=>{if(si===ch){chCols.add(firstNum+1+k*2);chCols.add(firstNum+2+k*2)}});
   doc.autoTable({startY:y+2,head:[head1,head2],body,foot,theme:'grid',styles:{fontSize:SI.length>9?6.5:7.5,cellPadding:1.3,overflow:'linebreak'},headStyles:{fillColor:[51,51,51],textColor:255,fontSize:SI.length>9?6.5:7.5,valign:'middle'},footStyles:{fillColor:[238,238,238],textColor:20,fontStyle:'bold'},
@@ -3437,7 +3446,7 @@ async function msPdf(id,di){
   const f=n=>Number(n).toLocaleString('en-AU',{maximumFractionDigits:2});
   const C=msCalc(m);
   let dl=0;const body=C.rows.map((x,i)=>{const prev=msDelivered(m,x.it,di);const th=num(d.q?.[x.it.id]);return {i,x,prev,th}}).filter(r=>r.x.it.head?String(r.x.it.desc||'').trim():(r.x.q||r.th||msDesc(m,r.x.it)))
-    .flatMap(({i,x,prev,th})=>{if(x.it.head)return [[{content:String(x.it.desc||''),colSpan:cols.length+5,styles:{fontStyle:'bold',fillColor:[245,240,235]}}]];i=dl++;const ln=String((d.ln||{})[x.it.id]||'').trim();
+    .flatMap(({i,x,prev,th})=>{if(x.it.head)return [[{content:(x.it.sub?'   ':'')+String(x.it.desc||''),colSpan:cols.length+5,styles:{fontStyle:'bold',fillColor:x.it.sub?[251,249,246]:[245,240,235]}}]];i=dl++;const ln=String((d.ln||{})[x.it.id]||'').trim();
       const r=[String(i+1),...cols.map(([fl])=>String(x.it[fl]??'')),f(x.q),f(prev),th?f(th):'',f(x.q-prev-th)];
       return ln?[r,[{content:'Note: '+ln,colSpan:cols.length+5,styles:{fontStyle:'italic',textColor:[70,70,70],fillColor:[250,249,246]}}]]:[r]});
   const nc=cols.length;const cs={0:{cellWidth:10}};cols.forEach(([fl,l,w,isN],k)=>{cs[k+1]=fl==='desc'?{cellWidth:'auto',minCellWidth:60}:{cellWidth:Math.round(w*0.2),...(isN?{halign:'right'}:{}),...(fl==='cat'||fl==='cable'?{fontSize:8}:{})}});
@@ -5662,7 +5671,7 @@ document.addEventListener('click',async e=>{
   if(act==='ms-dk'){UI.msd=+btn.dataset.v;render();return}
   if(act==='ms-paste'){UI.msPaste=!UI.msPaste;render();if(UI.msPaste)setTimeout(()=>{const el=document.getElementById('ms_paste');if(el)el.focus()},60);return}
   if(act.startsWith('ms-')){const id=UI.ms;const m=S.msods[id];if(!m)return;
-    if(act==='ms-add-line'){m.items.push(msItem());persist('msod/'+id);render();setTimeout(()=>{const f=(MS_COLS[m.type]||MS_COLS.general)[0][0];const el=document.getElementById('msi_'+id+'_'+(m.items.length-1)+'_'+f);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
+    if(act==='ms-add-line'){m.items.push(msItem());msShowEnd(id,m);persist('msod/'+id);render();setTimeout(()=>{const f=(MS_COLS[m.type]||MS_COLS.general)[0][0];const el=document.getElementById('msi_'+id+'_'+(m.items.length-1)+'_'+f);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
     if(act==='ms-paste-ok'){const n=msPasteRows(id);if(n){UI.msPaste=false;UI.msPasteTxt='';persist('msod/'+id)}render();return}
     if(act==='ms-loc-dwg'){const names=toZoneNames();const untouched=m.locs.every(l=>/^PS\d+$/.test(l.name||'')&&!m.items.some(it=>it.q&&it.q[l.id]!==undefined&&it.q[l.id]!==''));if(untouched)m.locs=[];let n=0;for(const nm of names)if(!m.locs.some(l=>(l.name||'').trim().toLowerCase()===nm.toLowerCase())){m.locs.push({id:uid('L'),name:nm});n++}persist('msod/'+id);setSave('saved');render();return}
     if(act==='ms-add-loc'){m.locs.push({id:uid('L'),name:'PS'+(m.locs.length+1)});persist('msod/'+id);render();return}
@@ -5692,7 +5701,9 @@ document.addEventListener('click',async e=>{
       m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;it.r=it.r||[];if(UI.msFillE&&String(it.r[si]??'').trim()!=='')return;it.r[si]=v;n++});
       UI.msFillMsg=n?`Filled ${n} line${n===1?'':'s'} with $${(+v).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})} for ${msSupName(m,si)}.`:'No lines to fill (they all have a rate).';
       if(n)persist('msod/'+id);render();return}
-    if(act==='ms-add-head'){const it=msItem();it.head=true;m.items.push(it);persist('msod/'+id);render();setTimeout(()=>{const e=document.querySelector(`input[data-b="msi|${id}|${m.items.length-1}|desc"]`);if(e){e.focus();e.scrollIntoView({block:'center'})}},40);return}
+    if(act==='ms-coll'){const C=msCollSet(id);const v=btn.dataset.v;if(C.has(v))C.delete(v);else C.add(v);render();setTimeout(()=>{const e=document.querySelector(`[data-act="ms-coll"][data-v="${v}"]`);if(e)e.focus()},30);return}
+    if(act==='ms-coll-all'){const C=msCollSet(id);C.clear();if(btn.dataset.v==='1')m.items.forEach(x=>{if(x.head)C.add(x.id)});render();return}
+    if(act==='ms-add-head'){const it=msItem();it.head=true;if(btn.dataset.v==='sub')it.sub=true;m.items.push(it);msShowEnd(id,m);persist('msod/'+id);render();setTimeout(()=>{const e=document.querySelector(`input[data-b="msi|${id}|${m.items.length-1}|desc"]`);if(e){e.focus();e.scrollIntoView({block:'center'})}},40);return}
     if(act==='ms-sup-add'){m.suppliers.push('');persist('msod/'+id);render();setTimeout(()=>{const e=document.getElementById(('mssup|'+id+'|'+(m.suppliers.length-1)).replace(/\|/g,'_'));if(e){e.focus();e.scrollIntoView({block:'nearest',inline:'center'})}},40);return}
     if(act==='ms-sup-del'){const si=+btn.dataset.v;if(m.suppliers.length<2||!(si>=0))return;const k='mssupdel'+id+si;if(UI.armed!==k){UI.armed=k;render();setTimeout(()=>{if(UI.armed===k){UI.armed=null;render()}},4000);return}UI.armed=null;undoRecord();
       /* take the supplier out of every line, so the other suppliers' rates, totals and the chosen supplier stay right */
