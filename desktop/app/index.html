@@ -5704,16 +5704,17 @@ function gtDraw(){const host=document.getElementById('gt_chart');if(!host)return
 
 /* ---- editing ---- */
 function gtTask(id){return progDoc().tasks.find(t=>t.id===id)}
-function gtAfterEdit(msg){UI.gtMsg=msg||'';gtSave();render()}
+function gtAfterEdit(msg){UI.gtMsg=msg||'';gtSave();gtRender()}
+function gtRender(){clearTimeout(gtRender.t);gtRender.t=setTimeout(render,0)}
 viewEl.addEventListener('change',e=>{if(UI.view!=='programme')return;const t=e.target;const P=progDoc();
   if(t.id==='gt_file'&&t.files&&t.files[0]){gtImport(t.files[0]);t.value='';return}
   const id=t.dataset.gtdur||t.dataset.gtstart||t.dataset.gtfin||t.dataset.gtpred;
-  if(t.dataset.gtday!==undefined){undoRecord();const d=+t.dataset.gtday;const S2=new Set(P.days);if(t.checked)S2.add(d);else S2.delete(d);if(!S2.size){t.checked=true;UI.gtMsg='At least one working day is needed.';render();return}P.days=[...S2].sort();gtAfterEdit();return}
+  if(t.dataset.gtday!==undefined){undoRecord();const d=+t.dataset.gtday;const S2=new Set(P.days);if(t.checked)S2.add(d);else S2.delete(d);if(!S2.size){t.checked=true;UI.gtMsg='At least one working day is needed.';gtRender();return}P.days=[...S2].sort();gtAfterEdit();return}
   if(t.dataset.gthol!==undefined){undoRecord();const out=[];const bad=[];for(const x of t.value.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean)){const d=llogIso(x);if(d)out.push(d);else bad.push(x)}P.hol=[...new Set(out)].sort();gtAfterEdit(bad.length?`Couldn’t read: ${bad.join(', ')}. Use dates like 25/12/2026.`:'');return}
-  if(t.dataset.gtzoom!==undefined){UI.gtZoom=t.value;UI.gtScroll=null;render();return}
-  if(t.dataset.gtcrit!==undefined){UI.gtCrit=t.checked;render();return}
+  if(t.dataset.gtzoom!==undefined){UI.gtZoom=t.value;UI.gtScroll=null;gtRender();return}
+  if(t.dataset.gtcrit!==undefined){UI.gtCrit=t.checked;gtRender();return}
   if(!id)return;const x=gtTask(id);if(!x)return;undoRecord();
-  if(t.dataset.gtdur){const d=gtDur(t.value);if(d===null){UI.gtMsg='Type a duration like 5, 5d or 2w.';render();return}x.dur=d;gtAfterEdit();return}
+  if(t.dataset.gtdur){const d=gtDur(t.value);if(d===null){UI.gtMsg='Type a duration like 5, 5d or 2w.';gtRender();return}x.dur=d;gtAfterEdit();return}
   if(t.dataset.gtstart){if(t.value)x.cs=t.value;else delete x.cs;gtAfterEdit(t.value&&(x.pred||[]).length?'This task now starts no earlier than '+gtFmt(t.value)+'. Clear the start date to let its links set it again.':'');return}
   if(t.dataset.gtfin){if(!t.value)return;const R=gtCalc(P);const r=R.rows.find(q=>q.t.id===id);const e2=R.C.idx(t.value);x.dur=Math.max(1,e2-r.es+1);gtAfterEdit();return}
   if(t.dataset.gtpred){const {pred,bad}=gtPredParse(t.value,P.tasks,id);x.pred=pred;gtAfterEdit(bad.length?`Ignored “${bad.join(', ')}”: use task numbers like 3, 3SS or 3FS+2.`:'');return}
@@ -5779,7 +5780,8 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 /* what Labour & tasks holds: each task, its sections and lines, with forecast hours and % complete */
 function gtLabSrc(){syncTasks();const out=[];
   TASK_IDS.forEach((tid,ti)=>{const secs=taskSecs(tid);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));const items=taskDoc(tid).items||[];
-    const S2=secs.map(sc=>{const lines=items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id).map(({it,j})=>{const x=itemCalc(it);return {key:'line:'+tid+':'+(it.id||j),name:nodeLabel(it),fc:x.fc,est:x.est,earned:x.earned}}).filter(l=>l.fc>0||l.est>0);
+    const S2=secs.map(sc=>{const node=(n,path)=>{const x=itemCalc(n);const subs=(n.subs||[]).map((c,k)=>node(c,path+'.'+k)).filter(l=>l.fc>0||l.est>0);return {key:'line:'+tid+':'+(n.id||path),name:nodeLabel(n),fc:x.fc,est:x.est,earned:x.earned,subs}};
+      const lines=items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id).map(({it,j})=>node(it,String(j))).filter(l=>l.fc>0||l.est>0);
       const fc=lines.reduce((a,l)=>a+l.fc,0),est=lines.reduce((a,l)=>a+l.est,0),earned=lines.reduce((a,l)=>a+l.earned,0);return {key:'sec:'+tid+':'+sc.id,name:(sc.name||'').trim()||'Section',lines,fc,est,earned}}).filter(s=>s.lines.length);
     const c=taskCalc(tid);out.push({tid,key:'task:'+tid,name:TASKS[ti],secs:S2,fc:c.fc,est:c.est,earned:c.earned})});return out}
 const GT_SKIP=new Set(['t15','t16']);
@@ -5790,19 +5792,20 @@ function gtLabOpen(){const P=progDoc();const src=gtLabSrc();const old=UI.gtB||{}
 const gtDays=(h,crew,hpd)=>h>0?Math.max(1,Math.ceil(h/(Math.max(.1,num(crew)||1)*(Math.max(.5,num(hpd)||8))))):0;
 function gtLabPanel(){const B=UI.gtB;if(!B)return '';const P=progDoc();const src=gtLabSrc();
   const rows=src.map(s=>{const k=B.tk[s.tid]||(B.tk[s.tid]={on:false,crew:''});const crew=k.crew||B.crew;const d=gtDays(s.fc,crew,B.hpd);
-    return `<tr class="${k.on?'':'gt-off'}"><td><input type="checkbox" data-gtbk="${s.tid}" ${k.on?'checked':''} aria-label="Include ${esc(s.name)}"></td><td>${esc(s.name)}${GT_SKIP.has(s.tid)?' <span class="hint">· runs all job long</span>':''}</td><td class="n">${s.secs.length}</td><td class="n">${s.secs.reduce((a,x)=>a+x.lines.length,0)}</td><td class="n money">${hrs(s.fc)}</td><td class="n">${s.est?Math.round(s.earned/s.est*100):0}%</td>
+    return `<tr class="${k.on?'':'gt-off'}"><td><input type="checkbox" data-gtbk="${s.tid}" ${k.on?'checked':''} aria-label="Include ${esc(s.name)}"></td><td>${esc(s.name)}${GT_SKIP.has(s.tid)?' <span class="hint">· runs all job long</span>':''}</td><td class="n">${s.secs.length}</td><td class="n">${s.secs.reduce((a,x)=>a+x.lines.length,0)}</td><td class="n">${(()=>{const c=L=>L.reduce((a,l)=>a+(l.subs||[]).length+c(l.subs||[]),0);return s.secs.reduce((a,x)=>a+c(x.lines),0)})()}</td><td class="n money">${hrs(s.fc)}</td><td class="n">${s.est?Math.round(s.earned/s.est*100):0}%</td>
       <td><input class="f num" data-gtbc="${s.tid}" value="${esc(k.crew)}" placeholder="${esc(B.crew)}" aria-label="Crew size for ${esc(s.name)}" style="width:62px"></td><td class="n"><b>${d}</b> <span class="hint">days</span></td></tr>`}).join('');
   const nOn=src.filter(s=>B.tk[s.tid]?.on).length;const has=P.tasks.length;const nb=P.tasks.filter(t=>t.src).length;
-  const nRows=src.filter(s=>B.tk[s.tid]?.on).reduce((a,s)=>a+1+(B.level!=='task'?s.secs.length+(B.level==='line'?s.secs.reduce((b,x)=>b+x.lines.length,0):0):0),0);
+  const cntL=L=>L.reduce((a,l)=>a+1+(B.level==='all'?cntL(l.subs||[]):0),0);
+  const nRows=src.filter(s=>B.tk[s.tid]?.on).reduce((a,s)=>a+1+(B.level!=='task'?s.secs.length+(B.level==='line'||B.level==='all'?s.secs.reduce((b,x)=>b+cntL(x.lines),0):0):0),0);
   return `<div class="panel gt-build" id="gt_build" role="region" aria-label="Build from Labour & tasks">
     <div class="sec-head" style="margin:0 0 8px"><div><h3 style="margin:0">Build from Labour &amp; tasks</h3><p class="hint" style="margin:4px 0 0">Each labour task becomes a summary in the programme. Durations = forecast hours ÷ (crew × hours per day), rounded up to whole days. % complete comes across from Labour &amp; tasks.</p></div><button class="btn ghost" data-act="gt-lab-x" aria-label="Close">✕</button></div>
     <div class="gt-bopts">
-      <div class="gt-fl"><span>Detail</span><div class="gt-seg" role="radiogroup" aria-label="Detail">${[['task','Tasks only'],['sec','Tasks + sections'],['line','Tasks, sections + lines']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbl" data-gtbo="level" value="${v}" ${B.level===v?'checked':''}> ${l}</label>`).join('')}</div></div>
+      <div class="gt-fl"><span>Detail</span><div class="gt-seg" role="radiogroup" aria-label="Detail">${[['task','Tasks only'],['sec','Tasks + sections'],['line','Tasks, sections + lines'],['all','Everything: lines, sub-lines & splits']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbl" data-gtbo="level" value="${v}" ${B.level===v?'checked':''}> ${l}</label>`).join('')}</div></div>
       <label class="gt-fl">Hours per day<input class="f num" data-gtbo="hpd" value="${esc(B.hpd)}" style="width:80px" aria-label="Hours per day"></label>
       <label class="gt-fl">Crew size (default)<input class="f num" data-gtbo="crew" value="${esc(B.crew)}" style="width:80px" aria-label="Default crew size"></label>
       <label class="gt-fl">Links<select class="f" data-gtbo="links" aria-label="How to link the tasks">${[['chain','Each task follows the one before (finish-to-start)'],['secs','Sections follow on inside each task; tasks start together'],['none','No links — I’ll link them myself']].map(([v,l])=>`<option value="${v}" ${B.links===v?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
-    <div class="tw" style="margin-top:10px"><table class="gt-btbl"><thead><tr><th></th><th>Labour task</th><th class="n">Sections</th><th class="n">Lines</th><th class="n">Forecast hrs</th><th class="n">% done</th><th>Crew</th><th class="n">Duration</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tw" style="margin-top:10px"><table class="gt-btbl"><thead><tr><th></th><th>Labour task</th><th class="n">Sections</th><th class="n">Lines</th><th class="n">Sub-lines</th><th class="n">Forecast hrs</th><th class="n">% done</th><th>Crew</th><th class="n">Duration</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${has?`<div class="gt-fl" style="margin-top:10px"><span>Your programme already has ${P.tasks.length} task${P.tasks.length===1?'':'s'}</span><div class="gt-seg">${[['replace','Replace it'],['append','Add these after it']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbm" data-gtbo="mode" value="${v}" ${B.mode===v?'checked':''}> ${l}</label>`).join('')}</div></div>`:''}
     <div class="toolbar" style="margin-top:12px;justify-content:flex-end;align-items:center"><span class="hint" style="margin-right:auto">${nOn} task${nOn===1?'':'s'} ticked → ${nRows} programme row${nRows===1?'':'s'}${nRows>150?' — that’s a lot; try “Tasks + sections”':''}</span>
       <button class="btn" data-act="gt-lab-x">Cancel</button><button class="btn primary" data-act="gt-lab-go" ${nOn?'':'disabled'}>${has&&B.mode==='replace'?'Replace programme':'Build programme'}</button></div>
@@ -5814,7 +5817,7 @@ function gtLabBuild(){const B=UI.gtB;const P=progDoc();const src=gtLabSrc().filt
     const T=gtNew({name:s.name,lvl:0,dur:gtDays(s.fc,crew,B.hpd),pct:pc(s.est,s.earned),res,src:s.key,hrs:Math.round(s.est||s.fc)});out.push(T);T._kids=[];
     if(B.level==='task'||!s.secs.length){T._leafs=[T];continue}
     T._leafs=[];for(const sc of s.secs){const X=gtNew({name:sc.name,lvl:1,dur:gtDays(sc.fc,crew,B.hpd),pct:pc(sc.est,sc.earned),res,src:sc.key,hrs:Math.round(sc.est||sc.fc)});out.push(X);
-      if(B.level==='line'&&sc.lines.length){const L=sc.lines.map(l=>gtNew({name:l.name,lvl:2,dur:gtDays(l.fc,crew,B.hpd),pct:pc(l.est,l.earned),res,src:l.key,hrs:Math.round(l.est||l.fc)}));L.forEach((y,i)=>{if(i)y.pred=[{id:L[i-1].id,t:'FS',lag:0}]});out.push(...L);X._first=L[0];X._last=L[L.length-1]}
+      if((B.level==='line'||B.level==='all')&&sc.lines.length){const add=(LS,lvl)=>{let prev=null;for(const l of LS){const y=gtNew({name:l.name,lvl,dur:gtDays(l.fc,crew,B.hpd),pct:pc(l.est,l.earned),res,src:l.key,hrs:Math.round(l.est||l.fc)});if(prev&&B.links!=='none')y.pred=[{id:prev.id,t:'FS',lag:0}];out.push(y);prev=y;if(B.level==='all'&&(l.subs||[]).length)add(l.subs,lvl+1)}};add(sc.lines,2)}
       T._leafs.push(X)}}
   /* links: sections in order inside each task; tasks one after another */
   if(B.links!=='none'){for(const T of out.filter(t=>t.lvl===0&&t._leafs&&t._leafs[0]!==t)){const L=T._leafs;for(let i=1;i<L.length;i++){L[i].pred=[{id:L[i-1].id,t:'FS',lag:0}]}}
@@ -5824,16 +5827,16 @@ function gtLabBuild(){const B=UI.gtB;const P=progDoc();const src=gtLabSrc().filt
   if(!P.start)P.start=todayISO();UI.gtB=null;gtSel().clear();
   gtAfterEdit(`Built ${out.length} row${out.length===1?'':'s'} from Labour & tasks. Adjust the links and crews to suit how the job will run — Undo at the top puts it back.`)}
 function gtLabUpd(){const P=progDoc();const B=UI.gtB||{hpd:'8',crew:'4',tk:{}};const src=gtLabSrc();const map={};
-  for(const s of src){const crew=(B.tk&&B.tk[s.tid]&&B.tk[s.tid].crew)||B.crew;map[s.key]={h:s.fc,e:s.est,a:s.earned,crew};for(const sc of s.secs){map[sc.key]={h:sc.fc,e:sc.est,a:sc.earned,crew};for(const l of sc.lines)map[l.key]={h:l.fc,e:l.est,a:l.earned,crew}}}
+  for(const s of src){const crew=(B.tk&&B.tk[s.tid]&&B.tk[s.tid].crew)||B.crew;map[s.key]={h:s.fc,e:s.est,a:s.earned,crew};for(const sc of s.secs){map[sc.key]={h:sc.fc,e:sc.est,a:sc.earned,crew};const put=L=>L.forEach(l=>{map[l.key]={h:l.fc,e:l.est,a:l.earned,crew};put(l.subs||[])});put(sc.lines)}}
   let n=0,gone=0;for(const t of P.tasks){if(!t.src)continue;const m=map[t.src];if(!m){gone++;continue}
     /* the crew used last time is in the resource text, e.g. "4 × 8h" */
     const mm=String(t.res||'').match(/^(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)h/);const crew=mm?mm[1]:m.crew,hpd=mm?mm[2]:B.hpd;
     t.pct=m.e?Math.round(m.a/m.e*100):0;t.dur=gtDays(m.h,crew,hpd);t.hrs=Math.round(m.e||m.h);n++}
   UI.gtB=null;gtAfterEdit(`Updated ${n} row${n===1?'':'s'} from Labour & tasks.${gone?` ${gone} no longer match a task, section or line there and were left as they were.`:''}`)}
 viewEl.addEventListener('change',e=>{if(UI.view!=='programme'||!UI.gtB)return;const t=e.target;const B=UI.gtB;
-  if(t.dataset.gtbk){B.tk[t.dataset.gtbk].on=t.checked;render();return}
-  if(t.dataset.gtbc){B.tk[t.dataset.gtbc].crew=t.value.trim();render();return}
-  if(t.dataset.gtbo){B[t.dataset.gtbo]=t.value;render();return}});
+  if(t.dataset.gtbk){B.tk[t.dataset.gtbk].on=t.checked;gtRender();return}
+  if(t.dataset.gtbc){B.tk[t.dataset.gtbc].crew=t.value.trim();gtRender();return}
+  if(t.dataset.gtbo){B[t.dataset.gtbo]=t.value;gtRender();return}});
 
 /* drag the divider between the task table and the chart */
 let GTS=null;const gtSetL=w=>{const wr=viewEl.querySelector('.gt-wrap');if(!wr)return;w=Math.max(160,Math.min(Math.round(w),wr.clientWidth-150));wr.style.setProperty('--gtl',w+'px');try{localStorage.setItem('ox_gtl',w)}catch(e){}return w};
