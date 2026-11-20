@@ -1618,7 +1618,7 @@ async function uploadPhotos(key,files){if(!assets)return;const ok=[...files].fil
   delete UP['ph:'+key];render()}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.phkey||!t.files||!t.files.length)return;const fl=[...t.files];t.value='';uploadPhotos(t.dataset.phkey,fl)});
 function itpCell(key,f,L='ITP'){
-  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');const ACC=/^(inv|poatt)\|/.test(key)?'application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/webp':'application/pdf,.pdf';
+  const eid='itp_'+key.replace(/[^A-Za-z0-9_-]/g,'_');const ACC=/^(inv|poatt|mstc)\|/.test(key)?'application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/webp':'application/pdf,.pdf';
   if(UP[key])return `<span class="hint">Uploading…</span>`;
   const ACCM=ACC.includes('image/')?ACC:ACC+',image/jpeg,.jpg,.jpeg,image/png,.png';/* extra attachments can be PDFs or photos anywhere */
   if(f&&f.id){const armed=UI.armed==='itpf'+key;const MORE=Array.isArray(f.more)?f.more.filter(x=>x&&x.id):[];const lnk=(x,t)=>`<a class="itp-file" href="${HOSTED?"#":"/_blob/"+esc(x.id)}" data-file="${esc(x.id)}" target="_blank" rel="noopener" title="${esc(x.name||t)}">${esc(t)}</a>`;
@@ -1627,8 +1627,8 @@ function itpCell(key,f,L='ITP'){
       ${assets?`<label class="btn ghost itp-act itp-more" for="${eid}_m" title="Add more files (PDF or JPG / PNG). You can pick several at once.">+ Add</label><input type="file" accept="${ACCM}" id="${eid}_m" data-itpmore="${esc(key)}" multiple hidden>`:''}</div>`}
   return assets?`<label class="btn itp-up" for="${eid}" title="${/^inv\|/.test(key)?'PDF or a JPG / PNG photo. ':''}You can pick several files at once">Upload ${L.toLowerCase()==='itp'?'ITP':L.toLowerCase()}</label><input type="file" accept="${ACC}" id="${eid}" data-itp="${esc(key)}" multiple hidden>`:`<span class="hint">—</span>`;
 }
-function setItp(key,v){const parts=key.split('|');if(parts[0]==='poatt'){const o=S.orders[parts[1]];if(!o)return;if(v)o.attFile=v;else delete o.attFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
-function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='poatt')return S.orders[a]?.attFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
+function setItp(key,v){const parts=key.split('|');if(parts[0]==='mstc'){const m=S.msods[parts[1]];if(!m)return;if(v)m.tcFile=v;else delete m.tcFile;persist('msod/'+parts[1]);render();return}if(parts[0]==='poatt'){const o=S.orders[parts[1]];if(!o)return;if(v)o.attFile=v;else delete o.attFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='potc'){const o=S.orders[parts[1]];if(!o)return;if(v)o.tcFile=v;else delete o.tcFile;persist('orders/'+parts[1]);render();poMergeTc(parts[1]);return}if(parts[0]==='msap'){const m=S.msods[parts[1]];if(!m)return;if(v)m.approval=v;else delete m.approval;persist('msod/'+parts[1]);render();return}parts.push(parts[0]==='vq'?'quoteFile':parts[0]==='inv'?'invFile':'itpFile');apply(parts,v)}
+function getItp(key){const [k,a,b,c]=key.split('|');if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='poatt')return S.orders[a]?.attFile||null;if(k==='mstc')return S.msods[a]?.tcFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
 async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
@@ -1827,7 +1827,7 @@ ${images.length?'The invoice is attached as page images (it has no readable text
 }
 async function uploadItp(key,file){
   if(!assets)return;
-  const photoOk=/^(inv|poatt)\|/.test(key)&&isImgFile(file);
+  const photoOk=/^(inv|poatt|mstc)\|/.test(key)&&isImgFile(file);
   if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name)||photoOk)){setSave('error',/^inv\|/.test(key)?'Invoices must be a PDF or a JPG / PNG photo':'File must be a PDF');return}
   if(file.size>50*1024*1024){setSave('error','File is over 50 MB');return}
   UP[key]=true;render();
@@ -1840,7 +1840,7 @@ async function uploadItp(key,file){
 }
 /* several files at once: the first is the main file (the one read, merged or counted, as before); the rest are extra attachments kept with it */
 async function uploadItpFiles(key,files,extraOnly){files=[...(files||[])];if(!files.length||!assets)return;
-  const okMain=f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||(/^(inv|poatt)\|/.test(key)&&isImgFile(f));
+  const okMain=f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||(/^(inv|poatt|mstc)\|/.test(key)&&isImgFile(f));
   if(!extraOnly&&!(getItp(key)&&getItp(key).id)){const i=files.findIndex(okMain);if(i<0){setSave('error',/^inv\|/.test(key)?'Invoices must be a PDF or a JPG / PNG photo':'The first file must be a PDF');return}const [m]=files.splice(i,1);await uploadItp(key,m)}
   if(files.length)await uploadItpMore(key,files)}
 async function uploadItpMore(key,files){if(!assets)return;const base=getItp(key);if(!base||!base.id){return uploadItpFiles(key,files)}
@@ -3337,12 +3337,25 @@ function msTakeoff(id,m,C){const keys=toKeys();const fmtq=v=>v==null?'—':(Math
   <tfoot><tr><td colspan="${(MS_COLS[m.type]||MS_COLS.general).length+2+(m.type==='submain'?1:0)}">Total</td>${m.locs.map(l=>`<td class="n money">${m.items.reduce((a,it)=>{if(it.toLink){const Q=msQty(m,it);return a+num(Q.per&&Q.per[l.id])}return a+num(it.q?.[l.id])},0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td>`).join('')}<td class="n money">${C.rows.reduce((a,x)=>a+x.q,0).toLocaleString('en-AU',{maximumFractionDigits:2})}</td></tr></tfoot></table></div>`;
 }
 /* notes for every delivery on this MOSD: shown on the Deliveries tab even before the first request, and printed on each delivery request */
+/* terms & conditions for this MOSD: added to the end of every delivery request PDF */
+function msTcTile(id,m){const T=m.tcFile&&m.tcFile.id?[m.tcFile,...(m.tcFile.more||[])]:[];
+  return `<div class="panel ms-tc" data-mstc="${id}"><div class="sec-head" style="margin-bottom:6px"><div><h3>Terms & conditions</h3><p class="hint">${T.length?`${T.length} file${T.length===1?'':'s'} attached. Added to the end of every delivery request PDF you download from this MOSD.`:'Upload or drop the terms & conditions (PDF, or JPG / PNG). They are added to the end of every delivery request PDF you download from this MOSD.'}</p></div></div>${itpCell('mstc|'+id,m.tcFile,'Terms')}</div>`}
+/* add PDFs and photos after the pages of a PDF */
+async function pdfAppend(blob,files){if(!files.length)return {blob,skipped:[]};if(!window.PDFLib)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');const {PDFDocument}=window.PDFLib;
+  const out=await PDFDocument.load(await blob.arrayBuffer());const skipped=[];
+  for(const f of files){let bl;try{bl=await fileBlob(f)}catch(e){bl=null}if(!bl){skipped.push(f.name||'a file');continue}
+    try{const isImg=/^image\//.test(f.type||bl.type||'')||/\.(jpe?g|png|webp|gif)$/i.test(f.name||'');
+      if(isImg){const jpg=/jpe?g/i.test(f.type||bl.type||'')||/\.jpe?g$/i.test(f.name||''),png=/png/i.test(f.type||bl.type||'')||/\.png$/i.test(f.name||'');
+        const im=jpg?await out.embedJpg(await bl.arrayBuffer()):png?await out.embedPng(await bl.arrayBuffer()):await out.embedPng(await (await poImgPng(bl)).arrayBuffer());
+        const A4=[595.28,841.89],land=im.width>im.height,PW=land?A4[1]:A4[0],PH=land?A4[0]:A4[1],mg=28;const k=Math.min((PW-2*mg)/im.width,(PH-2*mg)/im.height,1.5);const pg=out.addPage([PW,PH]);pg.drawImage(im,{x:(PW-im.width*k)/2,y:(PH-im.height*k)/2,width:im.width*k,height:im.height*k})}
+      else{const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});(await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p))}}catch(e){console.error(e);skipped.push(f.name||'a file')}}
+  return {blob:new Blob([await out.save()],{type:'application/pdf'}),skipped}}
 function msGenNotes(id,m){const L=m.dnotes||[];return `<div class="panel"><div class="sec-head"><div><h3>Notes for all deliveries</h3><p class="hint">Standing instructions for this MOSD: site access, delivery hours, unloading, who to call. They print on every delivery request.</p></div><button class="btn" data-act="ms-add-gnote">+ Add note</button></div>
   ${L.length?`<div class="msnotes">${L.map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msgn|'+id+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msgn',id,String(ni),'Remove note')}</div><textarea class="f" id="msgn_${id}_${ni}_text" data-b="msgn|${id}|${ni}|text" rows="3" aria-label="Note ${ni+1} for all deliveries" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>`}
 function msDeliveries(id,m,C){
   const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
   const chips=`<div class="chips" role="group" aria-label="Delivery request">${m.dockets.map((d,k)=>`<button class="chip" data-act="ms-dk" data-v="${k}" aria-pressed="${k===di}">MOSD ${k+1}${d.delivery?' · '+fmtDate(d.delivery):''}</button>`).join('')}<button class="chip add" data-act="ms-add-dk">+ New delivery request</button></div>`;
-  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request can have its own notes too.</div>${msGenNotes(id,m)}`;
+  if(di<0)return `${chips}<div class="panel empty"><b>No delivery requests yet</b>Each delivery request (MOSD 1, 2, 3…) calls materials to site. Delivered to date and balance outstanding carry over from the requests before it. Each request can have its own notes too.</div>${msGenNotes(id,m)}${msTcTile(id,m)}`;
   const d=m.dockets[di];const k='msdk|'+id+'|'+di+'|';const out=!!UI.msOut;
   let tq=0;
   const VIS=msVisible(id,m);let lineNo=0;const rows=C.rows.map((x,i)=>{const it=x.it;if(!VIS[i]){if(!it.head)lineNo++;return ''}if(it.head)return `<tr class="ms-hrow"><td></td><td colspan="6"><b>${esc(it.desc||'')}</b></td></tr>`;lineNo++;const prev=msDelivered(m,it,di);const th=d.q?.[it.id]??'';const bal=x.q-prev-num(th);tq+=num(th);
@@ -3356,7 +3369,7 @@ function msDeliveries(id,m,C){
   <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
   <div class="tw tall"><table><thead><tr><th>#</th><th>Description</th><th>${m.type==='submain'?'Cable ID':'Cat number'}</th><th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
   <tbody>${rows||'<tr><td colspan="7" class="hint">Nothing outstanding.</td></tr>'}</tbody><tfoot><tr><td colspan="5">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>
-  ${msGenNotes(id,m)}`;
+  ${msGenNotes(id,m)}${msTcTile(id,m)}`;
 }
 function msSchedule(id,m,C){
   const D=m.dockets;let tv=0,dv=0;
@@ -3431,7 +3444,9 @@ async function msPdf(id,di){
     for(const n of NL){const t=doc.splitTextToSize((n.date?fmtDate(n.date)+' – ':'')+n.text.trim(),W-28);if(y+t.length*4.4>280){doc.addPage();y=20}doc.setFont('helvetica','normal');doc.text(t,14,y);y+=t.length*4.4+2}}
   y+=6;if(y>265){doc.addPage();y=30}
   doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Received by: ______________________________',14,y);doc.text('Date: ______________',140,y);
-  const blob=doc.output('blob');
+  let blob=doc.output('blob');
+  const TC=m.tcFile&&m.tcFile.id?[m.tcFile,...(m.tcFile.more||[])].filter(x=>x&&x.id):[];
+  if(TC.length){try{const r=await pdfAppend(blob,TC);blob=r.blob;if(r.skipped.length)setSave('error','Couldn’t add '+r.skipped.join(', ')+' to the PDF')}catch(e){console.error(e);setSave('error','Couldn’t add the terms & conditions to the PDF')}}
   const name=`${(h.jobNo||'MOSD').replace(/[^\w.-]+/g,'_')} ${msName(m).replace(/[^\w.-]+/g,'_')} - MOSD ${di+1}.pdf`;
   if(!downloads){setSave('error','Downloads are not available in this view');return}
   try{await downloads.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')setSave('error','Could not save the PDF')}
@@ -5421,6 +5436,10 @@ viewEl.addEventListener('change',e=>{if(e.target.id==='apt_imp_file'&&e.target.f
     if(M.shift&&M.last!=null){const [a0,b0]=[Math.min(M.last,i),Math.max(M.last,i)];for(let j=a0;j<=b0;j++)e.target.checked?S1.add(j):S1.delete(j)}else e.target.checked?S1.add(i):S1.delete(i);
     M.last=i;M.shift=false;M.sel=[...S1];render();return}
   const k=e.target.dataset&&e.target.dataset.aptk;if(k!==undefined&&UI.aptImp&&UI.aptImp.rows){const M=UI.aptImp;const sel=M.sel||[];if(sel.includes(+k))for(const i of sel)M.rows[i].type=e.target.value;else M.rows[+k].type=e.target.value;render()}});
+viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-mstc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
+viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-mstc]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
+viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-mstc]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
+  const fl=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));if(!fl.length){setSave('error','Terms & conditions must be a PDF or a JPG / PNG photo');return}if(!assets){setSave('error','File storage is not available in this view');return}uploadItpFiles('mstc|'+t.dataset.mstc,fl)},true);
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('msq-dropping')},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('msq-dropping')},true);
 viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-poatt]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('msq-dropping');
