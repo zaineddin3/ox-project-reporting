@@ -2015,7 +2015,8 @@ function ordPoPanel(id,o){
     <div class="form" style="margin-top:8px"><label>Sub contract${sel(k+'sub',pm.sub?'1':'',[['','No'],['1','Yes']],{label:'Sub contract'})}</label>
       <label>Freight (ex GST)<div class="cur">${inp(k+'freight',pm.freight??'',{num:1,label:'Freight',ph:'0'})}</div></label>
       <label>Raised by${inp(k+'printName',raiser,{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
-      <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label></div>
+      <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label>
+      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order, e.g. delivery address, site contact, delivery times or special instructions</span><textarea class="f" rows="3" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
     <p class="hint" id="opo_tot_${id}" style="margin:8px 0">Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b></p>
     <div class="to-row"><button class="btn primary" data-act="opo-raise" data-id="${id}" ${T.L.length&&!UI.opoBusy?'':'disabled'}>${UI.opoBusy===id?'Raising…':pf?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'}</button>
       ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
@@ -2027,7 +2028,7 @@ async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMet
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   undoRecord();let no=String(o.poNo||'').trim();if(!no){no=ordNextPoNo();o.poNo=no}const date=o.date||todayISO();if(!o.date)o.date=date;
   const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';
-  const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',poNo:no,lines:T.L,freight:T.fr,raisedBy,rev};
+  const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',poNo:no,lines:T.L,freight:T.fr,raisedBy,rev,notes:String(pm.notes||'').trim()};
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
   UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
@@ -3127,7 +3128,10 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.autoTable({startY:y,body:[['Materials',m2(sub)],['Freight',m2(d.freight)],['Total (ex GST)',m2(ex)],['GST (10%)',m2(ex/10)]],foot:[['Total (inc GST)',m2(ex*1.1)]],theme:'plain',
     styles:{fontSize:9.5,cellPadding:1.6},columnStyles:{0:{fontStyle:'bold',cellWidth:45},1:{halign:'right',cellWidth:35}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},
     didParseCell:dt=>{if(dt.column.index===1)dt.cell.styles.halign='right'},margin:{left:W-14-80}});
-  y=doc.lastAutoTable.finalY+14;if(y>270){doc.addPage();y=30}
+  y=doc.lastAutoTable.finalY+10;
+  if(d.notes){const W2=W-28;doc.setFontSize(9.5);const L=doc.splitTextToSize(String(d.notes).replace(/[−–—]/g,'-'),W2-8);const h=L.length*4.4+12;if(y+h>272){doc.addPage();y=20}
+    doc.setDrawColor(200);doc.setFillColor(248,246,242);doc.roundedRect(14,y,W2,h,2,2,'FD');doc.setFont('helvetica','bold');doc.setTextColor(28,39,50);doc.text('Notes',18,y+6);doc.setFont('helvetica','normal');doc.setTextColor(30);doc.text(L,18,y+11.5);doc.setTextColor(0);y+=h+8}
+  else y+=4;if(y>270){doc.addPage();y=30}
   doc.setFontSize(9.5);doc.setFont('helvetica','bold');doc.text('Raised by:',14,y);doc.setFont('helvetica','normal');doc.text(d.raisedBy||'—',36,y);
   doc.setFont('helvetica','bold');doc.text('Date:',112,y);doc.setFont('helvetica','normal');doc.text(fmtDate(d.date)||'—',124,y);
   doc.setFontSize(8);doc.setTextColor(90);doc.text('Please quote the PO number on all delivery dockets and invoices. All prices exclude GST unless stated.',14,Math.min(y+10,287));
