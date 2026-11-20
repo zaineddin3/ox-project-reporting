@@ -635,7 +635,7 @@ tr.sel td{background:var(--accent-soft)}
 .gt-ms{fill:var(--ink);cursor:grab;touch-action:none}.gt-ms.gt-crit{fill:var(--bad)}.gt-lbl{font-size:11px;fill:var(--muted)}
 .gt-base{fill:var(--muted);opacity:.55}.gt-lk{fill:none;stroke:var(--muted);stroke-width:1.2}.gt-lkc{stroke:var(--bad)}.gt-ah{fill:var(--muted)}.gt-ahc{fill:var(--bad)}
 .gt-tip{position:fixed;z-index:999;background:var(--ink);color:var(--surface);font-size:12px;padding:4px 8px;border-radius:6px;pointer-events:none}
-.gt-empty p{margin:6px 0 12px}
+.gt-empty p{margin:6px 0 12px}.gt-build{border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 4%,var(--surface))}.gt-bopts{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end}.gt-seg{display:flex;flex-wrap:wrap;gap:4px}.gt-btbl td{padding:4px 8px}.gt-build .f{border:1px solid var(--line-2,var(--line));background:var(--surface)}.gt-off td{opacity:.5}.gt-off td:first-child{opacity:1}
 @media (max-width:760px){.gt-name .f{width:150px}}
 .gt-split{align-self:stretch;cursor:col-resize;background:var(--line);border-left:3px solid var(--surface);border-right:3px solid var(--surface);touch-action:none}.gt-split:hover,.gt-split:focus-visible,.gt-split.on{background:var(--accent)}
 </style>
@@ -5569,11 +5569,13 @@ function gtCalc(P){P=P||progDoc();const T=P.tasks;const n=T.length;const C=gtCal
       if(l.t==='SS')f=Math.min(f,LSb-l.lag+dur[i]);else if(l.t==='FF')f=Math.min(f,LF[b]-l.lag);else if(l.t==='SF')f=Math.min(f,LF[b]-l.lag+dur[i]);else f=Math.min(f,LSb-l.lag)}
     LF[i]=f}
   const slack=T.map((t,i)=>sum[i]?null:LF[i]-EF[i]);
-  const pct=T.map((t,i)=>{if(!sum[i])return Math.max(0,Math.min(100,+t.pct||0));const lv=leaves(i);const w=lv.reduce((a,x)=>a+Math.max(1,dur[x]),0);return w?lv.reduce((a,x)=>a+Math.max(1,dur[x])*Math.max(0,Math.min(100,+T[x].pct||0)),0)/w:0});
+  const pc1=x=>Math.max(0,Math.min(100,+T[x].pct||0));const wOf=lv=>{const byH=lv.length&&lv.every(x=>num(T[x].hrs)>0);return x=>byH?num(T[x].hrs):Math.max(1,dur[x])};
+  const pct=T.map((t,i)=>{if(!sum[i])return pc1(i);const lv=leaves(i);const wf=wOf(lv);const w=lv.reduce((a,x)=>a+wf(x),0);return w?lv.reduce((a,x)=>a+wf(x)*pc1(x),0)/w:0});
+  const allLv=T.map((t,i)=>i).filter(i=>!sum[i]);const wfA=wOf(allLv);const wA=allLv.reduce((a,x)=>a+wfA(x),0);const pctAll=wA?allLv.reduce((a,x)=>a+wfA(x)*pc1(x),0)/wA:0;
   const sD=i=>C.at(ES[i]);const fD=i=>EF[i]>ES[i]?C.at(EF[i]-1):C.at(ES[i]);
   const rows=T.map((t,i)=>({t,i,no:i+1,lvl:lvl[i],sum:sum[i],par:par[i],dur:sum[i]?EF[i]-ES[i]:dur[i],ms:!sum[i]&&dur[i]===0,s:sD(i),f:fD(i),es:ES[i],ef:EF[i],slack:slack[i],crit:!sum[i]&&slack[i]!==null&&slack[i]<=0&&L.length>0,pct:pct[i],loop:loop.has(t.id),bad:bad.has(t.id)}));
   const pS=n?C.at(Math.min(...ES)):C.origin;const pF=n?(end>Math.min(...ES)?C.at(end-1):pS):C.origin;
-  return {rows,C,start:pS,finish:pF,days:n?end-Math.min(...ES):0,links:L,loops:loop.size}}
+  return {rows,C,start:pS,finish:pF,days:n?end-Math.min(...ES):0,links:L,loops:loop.size,pct:pctAll}}
 function gtHidden(R){const H=UI.gtColl||new Set();const hid=R.map(()=>false);R.forEach((r,i)=>{if(r.sum&&H.has(r.t.id)){for(let j=i+1;j<R.length&&R[j].lvl>r.lvl;j++)hid[j]=true}});return hid}
 function gtSel(){UI.gtSel=UI.gtSel||new Set();const P=progDoc();const ids=new Set(P.tasks.map(t=>t.id));for(const k of [...UI.gtSel])if(!ids.has(k))UI.gtSel.delete(k);return UI.gtSel}
 const gtNew=(o={})=>({id:uid('g'),name:'',lvl:0,dur:5,pred:[],pct:0,res:'',...o});
@@ -5588,13 +5590,13 @@ function gtTemplate(){const P=progDoc();const out=[];GT_TPL.forEach(([name,lvl,d
 V.programme=()=>{const P=progDoc();const R=gtCalc(P);const SEL=gtSel();const hid=gtHidden(R.rows);const z=UI.gtZoom||'week';
   const nS=SEL.size;const anySum=R.rows.some(r=>r.sum);
   const dayN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const info=`<div class="gt-kpis"><div><span class="hint">Start</span><b>${R.rows.length?gtFmt(R.start):'—'}</b></div><div><span class="hint">Finish</span><b>${R.rows.length?gtFmt(R.finish):'—'}</b></div><div><span class="hint">Working days</span><b>${R.days}</b></div><div><span class="hint">Complete</span><b>${(()=>{const lv=R.rows.filter(r=>!r.sum);const w=lv.reduce((a,r)=>a+Math.max(1,r.dur),0);return w?Math.round(lv.reduce((a,r)=>a+Math.max(1,r.dur)*r.pct,0)/w):0})()}%</b></div>${P.base?(()=>{const bf=R.rows.filter(r=>r.t.bf).map(r=>r.t.bf).sort().pop();if(!bf)return '';const v=gtDiff(bf,R.finish);return `<div><span class="hint">Against baseline</span><b class="${v>0?'gt-late':v<0?'gt-early':''}">${v===0?'On time':(v>0?v+' days late':(-v)+' days early')}</b></div>`})():''}</div>`;
+  const info=`<div class="gt-kpis"><div><span class="hint">Start</span><b>${R.rows.length?gtFmt(R.start):'—'}</b></div><div><span class="hint">Finish</span><b>${R.rows.length?gtFmt(R.finish):'—'}</b></div><div><span class="hint">Working days</span><b>${R.days}</b></div><div><span class="hint">Complete</span><b>${Math.round(R.pct)}%</b></div>${P.base?(()=>{const bf=R.rows.filter(r=>r.t.bf).map(r=>r.t.bf).sort().pop();if(!bf)return '';const v=gtDiff(bf,R.finish);return `<div><span class="hint">Against baseline</span><b class="${v>0?'gt-late':v<0?'gt-early':''}">${v===0?'On time':(v>0?v+' days late':(-v)+' days early')}</b></div>`})():''}</div>`;
   const setup=`<details class="gt-set" ${UI.gtSetOpen?'open':''}><summary data-act="gt-set">Project start, working days &amp; holidays</summary><div class="gt-setb">
     <label class="gt-fl">Project start${inp('gtp|start',P.start||'',{type:'date',label:'Project start date'})}</label>
     <div class="gt-fl"><span>Working days</span><div class="gt-days" role="group" aria-label="Working days">${[1,2,3,4,5,6,0].map(d=>`<label class="gt-day"><input type="checkbox" data-gtday="${d}" ${P.days.includes(d)?'checked':''}> ${dayN[d]}</label>`).join('')}</div></div>
     <label class="gt-fl" style="flex:1;min-width:240px">Non-working dates (public holidays, shutdowns) — one per line or comma separated, e.g. 25/12/2026<textarea class="f" data-gthol="1" rows="2" aria-label="Non-working dates">${esc((P.hol||[]).map(gtFmtS).join(', '))}</textarea></label></div></details>`;
   const tb=`<div class="toolbar gt-tb">
-    <button class="btn primary" data-act="gt-add">+ Add task</button><button class="btn" data-act="gt-add" data-v="ms" title="A milestone has no duration">+ Milestone</button>
+    <button class="btn primary" data-act="gt-add">+ Add task</button><button class="btn" data-act="gt-add" data-v="ms" title="A milestone has no duration">+ Milestone</button><button class="btn" data-act="gt-lab" title="Make or update the programme from your Labour &amp; tasks hours">Build from Labour &amp; tasks</button>
     <span class="gt-sep"></span>
     <button class="btn" data-act="gt-out" ${nS?'':'disabled'} title="Outdent: move the ticked tasks up a level">⇤ Outdent</button><button class="btn" data-act="gt-in" ${nS?'':'disabled'} title="Indent: put the ticked tasks under the task above, making it a summary">Indent ⇥</button>
     <button class="btn" data-act="gt-mv" data-v="-1" ${nS?'':'disabled'} aria-label="Move ticked tasks up">▲</button><button class="btn" data-act="gt-mv" data-v="1" ${nS?'':'disabled'} aria-label="Move ticked tasks down">▼</button>
@@ -5613,8 +5615,8 @@ V.programme=()=>{const P=progDoc();const R=gtCalc(P);const SEL=gtSel();const hid
     <label class="btn" title="An Excel or CSV file, e.g. exported from MS Project: Task name, Duration, Start, Predecessors, Outline level, % complete, Resource">Import Excel<input type="file" id="gt_file" accept=".xlsx,.csv" hidden></label>
   </div>`;
   if(!P.tasks.length)return `<div class="stack">${head('Programme','Plan the job like MS Project, but simpler: tasks, durations in working days, links between tasks and a Gantt chart that updates itself.')}
-    ${setup}<div class="panel empty gt-empty"><b>No tasks yet</b><p>Start with a blank programme, use a typical electrical fit-out to edit, or import one from Excel (e.g. exported from MS Project).</p>
-    <div class="toolbar" style="justify-content:center"><button class="btn primary" data-act="gt-add">+ Add first task</button><button class="btn" data-act="gt-tpl">Use the electrical fit-out template</button><label class="btn">Import Excel<input type="file" id="gt_file" accept=".xlsx,.csv" hidden></label></div></div></div>`;
+    ${setup}${gtLabPanel()}<div class="panel empty gt-empty"><b>No tasks yet</b><p>Start with a blank programme, use a typical electrical fit-out to edit, or import one from Excel (e.g. exported from MS Project).</p>
+    <div class="toolbar" style="justify-content:center"><button class="btn primary" data-act="gt-add">+ Add first task</button><button class="btn" data-act="gt-lab">Build from Labour &amp; tasks</button><button class="btn" data-act="gt-tpl">Use the electrical fit-out template</button><label class="btn">Import Excel<input type="file" id="gt_file" accept=".xlsx,.csv" hidden></label></div></div></div>`;
   const allSel=R.rows.length&&R.rows.every(r=>SEL.has(r.t.id));
   const body=R.rows.map((r,i)=>{if(hid[i])return '';const t=r.t;const k='gt|'+t.id+'|';const coll=(UI.gtColl||new Set()).has(t.id);
     const warn=r.loop?'These links go round in a circle, so they’re ignored':r.bad?'A task can’t link to its own summary or sub-task':'';
@@ -5631,7 +5633,7 @@ V.programme=()=>{const P=progDoc();const R=gtCalc(P);const SEL=gtSel();const hid
       ${P.base?`<td class="gt-var n">${t.bf?(()=>{const v=gtDiff(t.bf,r.f);return `<span class="${v>0?'gt-late':v<0?'gt-early':'hint'}">${v>0?'+':''}${v}d</span>`})():'<span class="hint">—</span>'}</td>`:''}
     </tr>`}).join('');
   return `<div class="stack">${head('Programme','Plan the job like MS Project, but simpler. Durations are in working days; type predecessors (task numbers) to link tasks and the dates move themselves. Tick tasks to indent, link, move or delete them. Drag a bar to move it, or its right end to change the duration.')}
-    ${info}${setup}${tb}${UI.gtMsg?`<p class="hint gt-msg" role="status">${esc(UI.gtMsg)}</p>`:''}
+    ${info}${setup}${tb}${gtLabPanel()}${UI.gtMsg?`<p class="hint gt-msg" role="status">${esc(UI.gtMsg)}</p>`:''}
     <div class="gt-wrap" data-zoom="${z}" style="--gtl:${(()=>{let w=0;try{w=+localStorage.getItem('ox_gtl')||0}catch(e){}return w?w+'px':'560px'})()}">
       <div class="gt-left tw"><table class="gt-tbl"><thead><tr><th class="gt-ck"><input type="checkbox" data-gtselall="1" ${allSel?'checked':''} aria-label="Select all tasks"></th><th class="gt-no">#</th><th class="gt-name">Task name</th><th class="gt-dur">Duration</th><th class="gt-pc">% complete</th><th class="gt-dt">Start</th><th class="gt-dt">Finish</th><th class="gt-pr">Predecessors</th><th class="gt-res">Resource</th>${P.base?'<th class="gt-var n" title="Finish against the baseline, in calendar days">Var.</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
       <div class="gt-split" role="separator" aria-orientation="vertical" aria-label="Drag to resize the task table" title="Drag to resize · double-click to reset" tabindex="0"></div><div class="gt-right" id="gt_chart" aria-label="Gantt chart"></div>
@@ -5716,6 +5718,7 @@ function gtSelIdx(){const P=progDoc();const S2=gtSel();return P.tasks.map((t,i)=
 function gtBlockEnd(T,i){let e=i+1;while(e<T.length&&(+T[e].lvl||0)>(+T[i].lvl||0))e++;return e}
 async function gtAct(act,btn){const P=progDoc();const T=P.tasks;const SEL=gtSel();
   if(act==='gt-set'){UI.gtSetOpen=!btn.closest('details').open;return}
+  if(act==='gt-lab'){gtLabOpen();return}if(act==='gt-lab-x'){UI.gtB=null;render();return}if(act==='gt-lab-go'){gtLabBuild();return}if(act==='gt-lab-upd'){gtLabUpd();return}
   if(act==='gt-tpl'){gtTemplate();UI.gtColl=new Set();gtAfterEdit('Template added. Rename the tasks, change durations and links to suit the job.');return}
   if(act==='gt-add'){const ms=btn.dataset.v==='ms';const idx=gtSelIdx();let at=T.length,lvl=T.length?(+T[T.length-1].lvl||0):0;
     if(idx.length){const last=idx[idx.length-1];at=gtBlockEnd(T,last);lvl=+T[last].lvl||0}
@@ -5752,6 +5755,66 @@ async function gtAct(act,btn){const P=progDoc();const T=P.tasks;const SEL=gtSel(
   if(act==='gt-xlsx'){gtXlsx();return}
 }
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act^="gt-"]');if(!b||UI.view!=='programme')return;if(b.dataset.act==='gt-set'){UI.gtSetOpen=!b.closest('details').open;return}e.preventDefault();if(b.dataset.act!=='gt-del'&&b.dataset.act!=='gt-base-clr')UI.gtArm=null;gtAct(b.dataset.act,b)});
+
+/* ---- build the programme from Labour & tasks ---- */
+/* what Labour & tasks holds: each task, its sections and lines, with forecast hours and % complete */
+function gtLabSrc(){syncTasks();const out=[];
+  TASK_IDS.forEach((tid,ti)=>{const secs=taskSecs(tid);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));const items=taskDoc(tid).items||[];
+    const S2=secs.map(sc=>{const lines=items.map((it,j)=>({it,j})).filter(o=>(ids.has(o.it.sec)?o.it.sec:first)===sc.id).map(({it,j})=>{const x=itemCalc(it);return {key:'line:'+tid+':'+(it.id||j),name:nodeLabel(it),fc:x.fc,est:x.est,earned:x.earned}}).filter(l=>l.fc>0||l.est>0);
+      const fc=lines.reduce((a,l)=>a+l.fc,0),est=lines.reduce((a,l)=>a+l.est,0),earned=lines.reduce((a,l)=>a+l.earned,0);return {key:'sec:'+tid+':'+sc.id,name:(sc.name||'').trim()||'Section',lines,fc,est,earned}}).filter(s=>s.lines.length);
+    const c=taskCalc(tid);out.push({tid,key:'task:'+tid,name:TASKS[ti],secs:S2,fc:c.fc,est:c.est,earned:c.earned})});return out}
+const GT_SKIP=new Set(['t15','t16']);
+function gtLabOpen(){const P=progDoc();const src=gtLabSrc();const old=UI.gtB||{};
+  UI.gtB={level:old.level||'sec',hpd:old.hpd||'8',crew:old.crew||'4',links:old.links||'chain',mode:P.tasks.length?'replace':'replace',
+    tk:Object.fromEntries(src.map(s=>[s.tid,{on:!GT_SKIP.has(s.tid)&&s.fc>0,crew:''}]))};render();
+  setTimeout(()=>document.getElementById('gt_build')?.scrollIntoView({block:'nearest'}),40)}
+const gtDays=(h,crew,hpd)=>h>0?Math.max(1,Math.ceil(h/(Math.max(.1,num(crew)||1)*(Math.max(.5,num(hpd)||8))))):0;
+function gtLabPanel(){const B=UI.gtB;if(!B)return '';const P=progDoc();const src=gtLabSrc();
+  const rows=src.map(s=>{const k=B.tk[s.tid]||(B.tk[s.tid]={on:false,crew:''});const crew=k.crew||B.crew;const d=gtDays(s.fc,crew,B.hpd);
+    return `<tr class="${k.on?'':'gt-off'}"><td><input type="checkbox" data-gtbk="${s.tid}" ${k.on?'checked':''} aria-label="Include ${esc(s.name)}"></td><td>${esc(s.name)}${GT_SKIP.has(s.tid)?' <span class="hint">· runs all job long</span>':''}</td><td class="n">${s.secs.length}</td><td class="n">${s.secs.reduce((a,x)=>a+x.lines.length,0)}</td><td class="n money">${hrs(s.fc)}</td><td class="n">${s.est?Math.round(s.earned/s.est*100):0}%</td>
+      <td><input class="f num" data-gtbc="${s.tid}" value="${esc(k.crew)}" placeholder="${esc(B.crew)}" aria-label="Crew size for ${esc(s.name)}" style="width:62px"></td><td class="n"><b>${d}</b> <span class="hint">days</span></td></tr>`}).join('');
+  const nOn=src.filter(s=>B.tk[s.tid]?.on).length;const has=P.tasks.length;const nb=P.tasks.filter(t=>t.src).length;
+  const nRows=src.filter(s=>B.tk[s.tid]?.on).reduce((a,s)=>a+1+(B.level!=='task'?s.secs.length+(B.level==='line'?s.secs.reduce((b,x)=>b+x.lines.length,0):0):0),0);
+  return `<div class="panel gt-build" id="gt_build" role="region" aria-label="Build from Labour & tasks">
+    <div class="sec-head" style="margin:0 0 8px"><div><h3 style="margin:0">Build from Labour &amp; tasks</h3><p class="hint" style="margin:4px 0 0">Each labour task becomes a summary in the programme. Durations = forecast hours ÷ (crew × hours per day), rounded up to whole days. % complete comes across from Labour &amp; tasks.</p></div><button class="btn ghost" data-act="gt-lab-x" aria-label="Close">✕</button></div>
+    <div class="gt-bopts">
+      <div class="gt-fl"><span>Detail</span><div class="gt-seg" role="radiogroup" aria-label="Detail">${[['task','Tasks only'],['sec','Tasks + sections'],['line','Tasks, sections + lines']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbl" data-gtbo="level" value="${v}" ${B.level===v?'checked':''}> ${l}</label>`).join('')}</div></div>
+      <label class="gt-fl">Hours per day<input class="f num" data-gtbo="hpd" value="${esc(B.hpd)}" style="width:80px" aria-label="Hours per day"></label>
+      <label class="gt-fl">Crew size (default)<input class="f num" data-gtbo="crew" value="${esc(B.crew)}" style="width:80px" aria-label="Default crew size"></label>
+      <label class="gt-fl">Links<select class="f" data-gtbo="links" aria-label="How to link the tasks">${[['chain','Each task follows the one before (finish-to-start)'],['secs','Sections follow on inside each task; tasks start together'],['none','No links — I’ll link them myself']].map(([v,l])=>`<option value="${v}" ${B.links===v?'selected':''}>${l}</option>`).join('')}</select></label>
+    </div>
+    <div class="tw" style="margin-top:10px"><table class="gt-btbl"><thead><tr><th></th><th>Labour task</th><th class="n">Sections</th><th class="n">Lines</th><th class="n">Forecast hrs</th><th class="n">% done</th><th>Crew</th><th class="n">Duration</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${has?`<div class="gt-fl" style="margin-top:10px"><span>Your programme already has ${P.tasks.length} task${P.tasks.length===1?'':'s'}</span><div class="gt-seg">${[['replace','Replace it'],['append','Add these after it']].map(([v,l])=>`<label class="gt-day"><input type="radio" name="gtbm" data-gtbo="mode" value="${v}" ${B.mode===v?'checked':''}> ${l}</label>`).join('')}</div></div>`:''}
+    <div class="toolbar" style="margin-top:12px;justify-content:flex-end;align-items:center"><span class="hint" style="margin-right:auto">${nOn} task${nOn===1?'':'s'} ticked → ${nRows} programme row${nRows===1?'':'s'}${nRows>150?' — that’s a lot; try “Tasks + sections”':''}</span>
+      <button class="btn" data-act="gt-lab-x">Cancel</button><button class="btn primary" data-act="gt-lab-go" ${nOn?'':'disabled'}>${has&&B.mode==='replace'?'Replace programme':'Build programme'}</button></div>
+    ${nb?`<p class="hint" style="margin:10px 0 0">Already built: <button class="btn ghost" data-act="gt-lab-upd" style="padding:3px 10px">Update from Labour &amp; tasks</button> refreshes the % complete and durations of the ${nb} rows that came from Labour &amp; tasks, keeping your links and order.</p>`:''}
+  </div>`}
+function gtLabBuild(){const B=UI.gtB;const P=progDoc();const src=gtLabSrc().filter(s=>B.tk[s.tid]?.on);if(!src.length)return;
+  const out=[];const pc=(e,a)=>e?Math.round(a/e*100):0;
+  for(const s of src){const crew=(B.tk[s.tid].crew||B.crew);const res=`${num(crew)||1} × ${num(B.hpd)||8}h`;
+    const T=gtNew({name:s.name,lvl:0,dur:gtDays(s.fc,crew,B.hpd),pct:pc(s.est,s.earned),res,src:s.key,hrs:Math.round(s.est||s.fc)});out.push(T);T._kids=[];
+    if(B.level==='task'||!s.secs.length){T._leafs=[T];continue}
+    T._leafs=[];for(const sc of s.secs){const X=gtNew({name:sc.name,lvl:1,dur:gtDays(sc.fc,crew,B.hpd),pct:pc(sc.est,sc.earned),res,src:sc.key,hrs:Math.round(sc.est||sc.fc)});out.push(X);
+      if(B.level==='line'&&sc.lines.length){const L=sc.lines.map(l=>gtNew({name:l.name,lvl:2,dur:gtDays(l.fc,crew,B.hpd),pct:pc(l.est,l.earned),res,src:l.key,hrs:Math.round(l.est||l.fc)}));L.forEach((y,i)=>{if(i)y.pred=[{id:L[i-1].id,t:'FS',lag:0}]});out.push(...L);X._first=L[0];X._last=L[L.length-1]}
+      T._leafs.push(X)}}
+  /* links: sections in order inside each task; tasks one after another */
+  if(B.links!=='none'){for(const T of out.filter(t=>t.lvl===0&&t._leafs&&t._leafs[0]!==t)){const L=T._leafs;for(let i=1;i<L.length;i++){L[i].pred=[{id:L[i-1].id,t:'FS',lag:0}]}}
+    if(B.links==='chain'){const tops=out.filter(t=>t.lvl===0);for(let i=1;i<tops.length;i++)tops[i].pred=[{id:tops[i-1].id,t:'FS',lag:0}]}}
+  out.forEach(t=>{delete t._kids;delete t._leafs;delete t._first;delete t._last});
+  if(B.mode==='append'&&P.tasks.length){P.tasks.push(...out)}else{P.tasks=out;UI.gtColl=new Set()}
+  if(!P.start)P.start=todayISO();UI.gtB=null;gtSel().clear();
+  gtAfterEdit(`Built ${out.length} row${out.length===1?'':'s'} from Labour & tasks. Adjust the links and crews to suit how the job will run — Undo at the top puts it back.`)}
+function gtLabUpd(){const P=progDoc();const B=UI.gtB||{hpd:'8',crew:'4',tk:{}};const src=gtLabSrc();const map={};
+  for(const s of src){const crew=(B.tk&&B.tk[s.tid]&&B.tk[s.tid].crew)||B.crew;map[s.key]={h:s.fc,e:s.est,a:s.earned,crew};for(const sc of s.secs){map[sc.key]={h:sc.fc,e:sc.est,a:sc.earned,crew};for(const l of sc.lines)map[l.key]={h:l.fc,e:l.est,a:l.earned,crew}}}
+  let n=0,gone=0;for(const t of P.tasks){if(!t.src)continue;const m=map[t.src];if(!m){gone++;continue}
+    /* the crew used last time is in the resource text, e.g. "4 × 8h" */
+    const mm=String(t.res||'').match(/^(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)h/);const crew=mm?mm[1]:m.crew,hpd=mm?mm[2]:B.hpd;
+    t.pct=m.e?Math.round(m.a/m.e*100):0;t.dur=gtDays(m.h,crew,hpd);t.hrs=Math.round(m.e||m.h);n++}
+  UI.gtB=null;gtAfterEdit(`Updated ${n} row${n===1?'':'s'} from Labour & tasks.${gone?` ${gone} no longer match a task, section or line there and were left as they were.`:''}`)}
+viewEl.addEventListener('change',e=>{if(UI.view!=='programme'||!UI.gtB)return;const t=e.target;const B=UI.gtB;
+  if(t.dataset.gtbk){B.tk[t.dataset.gtbk].on=t.checked;render();return}
+  if(t.dataset.gtbc){B.tk[t.dataset.gtbc].crew=t.value.trim();render();return}
+  if(t.dataset.gtbo){B[t.dataset.gtbo]=t.value;render();return}});
 
 /* drag the divider between the task table and the chart */
 let GTS=null;const gtSetL=w=>{const wr=viewEl.querySelector('.gt-wrap');if(!wr)return;w=Math.max(160,Math.min(Math.round(w),wr.clientWidth-150));wr.style.setProperty('--gtl',w+'px');try{localStorage.setItem('ox_gtl',w)}catch(e){}return w};
