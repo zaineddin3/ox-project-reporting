@@ -869,9 +869,11 @@ function onColl(name,snap){
   if(name==='tasks'&&!onColl.tk){onColl.tk=1;setTimeout(()=>{if(UI.view==='labour'||UI.view==='progress'){collapseAllTasks(UI.view);scheduleRender(0)}},0)}
   const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs',site:'site'}[name];if(name==='estimates')CALC.loaded=true;
   const seen=new Set();
-  const next={};
+  const next={};let onlyMic=name==='project';
   for(const d of snap.docs){
-    const p=name+'/'+d.id;seen.add(p);exists.add(p);latest[p]=d.data();latestAt[p]=Date.now();
+    const p=name+'/'+d.id;seen.add(p);exists.add(p);
+    if(onlyMic&&d.id!=='invcheck'){try{if(!latest[p]||JSON.stringify(latest[p])!==JSON.stringify(d.data()))onlyMic=false}catch(e){onlyMic=false}}
+    latest[p]=d.data();latestAt[p]=Date.now();
     if(deleted.has(p))continue;
     if(mapKey){next[d.id]=isDirty(p)&&S[mapKey][d.id]?S[mapKey][d.id]:clone(d.data())}
     else if(!isDirty(p))applyDoc(p,d.data());
@@ -881,6 +883,8 @@ function onColl(name,snap){
     for(const id in S[mapKey]){const p=name+'/'+id;if(!(id in next)&&isDirty(p))next[id]=S[mapKey][id]}
     S[mapKey]=next;
   }
+  /* only the Mass Invoice Check list changed: redraw just its panel */
+  if(onlyMic&&UI.view==='orders'){micRefreshSoon(200);return}
   scheduleRender();
 }
 
@@ -1662,8 +1666,11 @@ function setItp(key,v){const parts=key.split('|');if(parts[0]==='cotc'){const T=
 function getItp(key){const [k,a,b,c]=key.split('|');if(k==='cotc')return coTcFile();if(k==='potc')return S.orders[a]?.tcFile||null;if(k==='poatt')return S.orders[a]?.attFile||null;if(k==='mstc')return S.msods[a]?.tcFile||null;if(k==='msap')return S.msods[a]?.approval||null;if(k==='msqf')return (S.msods[a]?.quotes||[])[+b]||null;if(k==='inv')return S.orders[a]?.inv?.[+b]?.invFile;if(k==='vq')return S.vars[a]?.bu?.quoteFile;if(k==='tline')return aptDoc(a).sections[+b]?.lines[+c]?.itpFile;if(k==='tsub')return aptDoc(a).sections[+b]?.lines[+c]?.subs?.[+key.split('|')[4]]?.itpFile;if(k==='isub')return subAt(taskDoc(a).items[+b],c)?.itpFile;if(k==='item')return taskDoc(a).items[+b]?.itpFile}
 let sampleFn=null;const EXT={};
 function loadScript(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('load '+src));document.head.appendChild(t)})}
-async function pdfLib(){if(window.pdfjsLib)return window.pdfjsLib;
-  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');return window.pdfjsLib}
+/* pdf.js reads PDFs in a background worker, so a heavy PDF can't freeze the page. (Loading its worker script into the page itself
+   made pdf.js do all the work on the page's own thread.) If workers aren't allowed, pdf.js falls back to the page by itself. */
+const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';let PDFJS_P=null;
+async function pdfLib(){if(window.pdfjsLib&&window.pdfjsLib.GlobalWorkerOptions.workerSrc)return window.pdfjsLib;
+  if(!PDFJS_P)PDFJS_P=(async()=>{await loadScript(PDFJS_URL+'pdf.min.js');window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_URL+'pdf.worker.min.js';return window.pdfjsLib})();PDFJS_P.catch(()=>{PDFJS_P=null});return PDFJS_P}
 /* pictures of the first pages, for text recognition */
 /* photos of invoices (JPG / PNG): kept as they are; for reading they're wrapped in a one-page PDF so the same reader (and text recognition) works */
 const isImgFile=f=>/^image\/(jpeg|png|webp)$/i.test(f.type||'')||/\.(jpe?g|png|webp)$/i.test(f.name||'');
@@ -1766,7 +1773,10 @@ const INV_UNITS=/^(ea|each|m|mtr|mtrs|metre|metres|lm|rl|roll|rolls|len|lth|lgth
 const INV_SKIP=/\b(sub-?total|total|gst|tax|balance|amount due|amount payable|payment|paid|bsb|account|abn|terms|carried forward|brought forward|rounding|credit card|surcharge)\b/i;
 function invNum(t){t=String(t).trim().replace(/^\$/,'').replace(/,/g,'');if(/^\(.*\)$/.test(t))t='-'+t.slice(1,-1);return /^-?\d+(\.\d+)?$/.test(t)?parseFloat(t):null}
 function invRowLine(tk){if(tk.length<3)return null;
-    const all=tk.map((t,i)=>({i,v:invNum(t),pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null}));const N=all.filter(n=>n.v!==null);if(N.length<2)return null;
+    if(tk.length>80)tk=tk.slice(-80);
+    const all=tk.map((t,i)=>({i,v:invNum(t),pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null}));let N=all.filter(n=>n.v!==null);if(N.length<2)return null;
+    /* a real line has a handful of numbers; rows with dozens (small print, tables of figures) would mean millions of tries */
+    if(N.length>14)N=N.slice(-14);
     /* a quantity is usually written without cents (12), a price with them (45.50) */
     const qtyish=n=>Math.abs(n.v-Math.round(n.v))<1e-9&&!/\.\d{2,}$/.test(tk[n.i]);
     let best=null;
@@ -1785,10 +1795,10 @@ function invRowLine(tk){if(tk.length<3)return null;
     const desc=tk.slice(0,first).filter(t=>!/^\$$/.test(t));if(desc.length>1&&INV_UNITS.test(desc[desc.length-1]))desc.pop();const ds=desc.join(' ');if(!/[A-Za-z]{2,}/.test(ds))return null;if(INV_SKIP.test(ds)&&ds.length<40)return null;
     const unit=tk.slice(first+1,Math.max(best.q.i,best.r.i)).concat(tk.slice(0,first)).find(t=>INV_UNITS.test(t))||'';
     return {mat:ds.replace(/\s+/g,' ').slice(0,300),qty:best.q.v,unit:unit.toLowerCase(),rate:best.rate}}
-function parseInvoiceText(text){
+function parseInvoiceText(text){if(text&&text.length>250000)text=text.slice(0,250000);
   const rows=text.split('\n').map(r=>r.trim()).filter(r=>r&&!/^--- page \d+ ---$/.test(r));const lines=[];const flat=text.replace(/\s+/g,' ');
   /* columns are split on wide gaps; scanned (OCR) text and tight layouts only have single spaces, so those rows are tried word by word */
-  for(const row of rows){const L=invRowLine(row.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean))||invRowLine(row.split(/\s+/).filter(Boolean));if(L)lines.push(L)}
+  for(const row of rows.slice(0,1500)){if(row.length>600)continue;const L=invRowLine(row.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean))||invRowLine(row.split(/\s+/).filter(Boolean));if(L)lines.push(L)}
   const pick=re=>{const m=flat.match(re);return m?m[m.length-1]:''};
   const invoiceNo=pick(/\b(?:tax\s+)?invoice\s*(?:no\.?|number|num|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binvoice\s*[:#]\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i);
   const MO={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const iso=(d,m,y)=>{y=+y;if(y<100)y+=2000;return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')};
@@ -5392,6 +5402,11 @@ async function expandInvFiles(files,entries){let all=[];if(entries&&entries.leng
 
 /* ---------- Mass Invoice Check: drop many invoices, check them for double-ups, then file each one into its PO ---------- */
 /* S.invchk = {items:[{id,name,file:{id,name,type,size},hash,ref,date,amount,lines,po,by,st:'busy'|'ok'|'err',msg,dupOk,at}]} */
+/* redraw just the Mass Invoice Check panel (the whole Orders & invoices tab can take a second or more to draw on a big job) */
+let MIC_RT=null;function micRefreshSoon(ms=250){clearTimeout(MIC_RT);MIC_RT=setTimeout(micRefresh,ms)}
+function micRefresh(){clearTimeout(MIC_RT);if(UI.view!=='orders')return;const el=document.getElementById('mic_panel');if(!el){scheduleRender();return}
+  const ae=document.activeElement;if(ae&&el.contains(ae)&&ae.matches('input:not([type=file]),select,textarea')){micRefreshSoon(900);return}
+  const t=document.createElement('div');t.innerHTML=micPanel();const n=t.firstElementChild;if(n)el.replaceWith(n)}
 function micDoc(){const d=S.invchk=S.invchk||{};if(!Array.isArray(d.items))d.items=[];return d}
 const micNref=t=>String(t||'').toLowerCase().replace(/^(inv(oice)?|tax\s*invoice)\s*(no\.?|number|#)?\s*/,'').replace(/[^a-z0-9]/g,'').replace(/^0+/,'');
 async function micHash(f){try{const b=await f.arrayBuffer();if(window.crypto&&crypto.subtle){const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -5459,9 +5474,9 @@ async function micReadFile(f){const imt=await blobImgType(f);if(imt){return '\n-
   return t}finally{try{await doc.destroy()}catch(e){}try{task.destroy&&task.destroy()}catch(e){}}}
 async function micFiles(files,entries,again){const D=micDoc();UI.micOpen=true;let items;
   if(again){items=again}else{if(!files.length&&!(entries&&entries.length))return;
-  const needOpen=(entries&&entries.some(x=>x.isDirectory))||files.some(isZipFile);if(needOpen){UI.micMsg='Opening folders and zip files…';render()}
-  const X=await expandInvFiles(files,entries);const ok=X.files;UI.micMsg=(X.zips||needOpen)?`Found ${ok.length} invoice${ok.length===1?'':'s'}${X.zips?` (including ${X.zips} zip file${X.zips===1?'':'s'})`:''}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}${X.bad?` · ${X.bad} zip${X.bad===1?'':'s'} couldn’t be opened`:''}.`:(X.skipped?`${X.skipped} file${X.skipped===1?' isn’t':'s aren’t'} a PDF or photo and ${X.skipped===1?'was':'were'} skipped.`:'');if(!ok.length){render();return}
-  const t0=Date.now();items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render()}
+  const needOpen=(entries&&entries.some(x=>x.isDirectory))||files.some(isZipFile);if(needOpen){UI.micMsg='Opening folders and zip files…';micRefresh()}
+  const X=await expandInvFiles(files,entries);const ok=X.files;UI.micMsg=(X.zips||needOpen)?`Found ${ok.length} invoice${ok.length===1?'':'s'}${X.zips?` (including ${X.zips} zip file${X.zips===1?'':'s'})`:''}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}${X.bad?` · ${X.bad} zip${X.bad===1?'':'s'} couldn’t be opened`:''}.`:(X.skipped?`${X.skipped} file${X.skipped===1?' isn’t':'s aren’t'} a PDF or photo and ${X.skipped===1?'was':'were'} skipped.`:'');if(!ok.length){micRefresh();return}
+  const t0=Date.now();items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);micRefresh()}
   const one=async it=>{const f=it._f;delete it._f;MIC_FILES.set(it.id,f);MIC_LIVE.add(it.id);it.st='busy';delete it.msg;
     try{const hashP=micHash(f);let upP=Promise.resolve(null);
       if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';upP=it.file&&it.file.id?Promise.resolve(it.file):micLimit(assets.upload(f,{type}),MIC_T.upload,'Uploading').then(r=>({id:r.id,name:it.name,type,size:f.size})).catch(e=>{console.error(e);it.upErr=true;return null})}
@@ -5472,11 +5487,11 @@ async function micFiles(files,entries,again){const D=micDoc();UI.micOpen=true;le
       it.hash=await hashP;const fl=await upP;if(fl){it.file=fl;delete it.upErr}
       it.st=slow?'err':'ok';it.msg=slow?'Took too long to read. Press Retry, or type the details in.':!t?'Couldn’t read any text: type the details in.':(!it.ref&&!it.amount)?'Couldn’t find the invoice number or total: please type them in.':it.upErr?'The file didn’t upload. Press Retry.':''}
     catch(e){console.error(e);it.st='err';it.msg='Couldn’t read this file. Type the details in, or remove it.'}
-    MIC_LIVE.delete(it.id);persist('project/invcheck');if(UI.view==='orders')scheduleRender(300)};
+    MIC_LIVE.delete(it.id);persist('project/invcheck');micRefreshSoon(300)};
   micRun(items,one)}
 /* a queue that keeps going: a slow or failed invoice never holds up the rest */
 let MIC_Q=[],MIC_LANES=0,MIC_ONE=null;
-function micRun(items,one){MIC_ONE=one;MIC_Q.push(...items);const lane=async()=>{MIC_LANES++;try{while(MIC_Q.length){const it=MIC_Q.shift();try{await MIC_ONE(it)}catch(e){console.error(e)}}}finally{MIC_LANES--;if(!MIC_LANES&&UI.view==='orders')render()}};while(MIC_LANES<Math.min(3,MIC_LANES+MIC_Q.length))lane()}
+function micRun(items,one){MIC_ONE=one;MIC_Q.push(...items);const lane=async()=>{MIC_LANES++;try{while(MIC_Q.length){const it=MIC_Q.shift();try{await MIC_ONE(it)}catch(e){console.error(e)}await new Promise(r=>setTimeout(r,30))}}finally{MIC_LANES--;if(!MIC_LANES)micRefresh()}};while(MIC_LANES<Math.min(3,MIC_LANES+MIC_Q.length))lane()}
 function micRetry(it){if(MIC_ONE)micRun([it],MIC_ONE);else micFiles([],null,[it])}
 function micUnused(){
 }
@@ -5485,20 +5500,20 @@ function micAdd(it){const o=S.orders[it.po];if(!o)return false;o.inv=o.inv||[];
   if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}if(it.dupOk)x.dupOk=true;
   o.inv.push(x);persist('orders/'+it.po);return true}
 async function micAct(act,btn){const D=micDoc();const it=D.items.find(x=>x.id===btn.dataset.v);
-  if(act==='mic-tog'){UI.micOpen=UI.micOpen===false;render();return}
+  if(act==='mic-tog'){UI.micOpen=UI.micOpen===false;micRefresh();return}
   if(act==='mic-retry'&&it){let f=MIC_FILES.get(it.id);if(!f&&it.file&&it.file.id){try{const bl=await fileBlob(it.file);f=new File([bl],it.name,{type:it.file.type||bl.type})}catch(e){console.error(e)}}if(!f){UI.micMsg=`${it.name}: the file isn’t available any more. Remove it and drop it in again.`;render();return}
-    it.st='busy';it._f=f;delete it.msg;UI.micMsg='';render();micRetry(it);return}
-  if(act==='mic-ok'&&it){it.dupOk=true;UI.micMsg=`${it.name} marked as not a duplicate.`;persist('project/invcheck');render();return}
-  if(act==='mic-x'&&it){D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} removed from the check.`;persist('project/invcheck');render();return}
+    it.st='busy';it._f=f;delete it.msg;UI.micMsg='';micRefresh();micRetry(it);return}
+  if(act==='mic-ok'&&it){it.dupOk=true;UI.micMsg=`${it.name} marked as not a duplicate.`;persist('project/invcheck');micRefresh();return}
+  if(act==='mic-x'&&it){D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} removed from the check.`;persist('project/invcheck');micRefresh();return}
   if(act==='mic-add'&&it){if(micState(it)!=='clear'||!it.po)return;undoRecord();if(micAdd(it)){const o=S.orders[it.po];D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} added to PO ${o.poNo||''}${o.supplier?' · '+o.supplier:''}.`;persist('project/invcheck');UI.open[it.po]=true;render()}return}
   if(act==='mic-addall'){undoRecord();const done=[];for(const x of [...D.items]){if(micState(x)==='clear'&&x.po&&S.orders[x.po]&&micAdd(x)){done.push(x);D.items=D.items.filter(y=>y!==x)}}UI.micMsg=`Added ${done.length} invoice${done.length===1?'':'s'} to their POs.`;persist('project/invcheck');render();return}
-  if(act==='mic-xdup'){const n0=D.items.length;D.items=D.items.filter(x=>micState(x)!=='dup');UI.micMsg=`Discarded ${n0-D.items.length} duplicate${n0-D.items.length===1?'':'s'}.`;persist('project/invcheck');render();return}
-  if(act==='mic-clear'){if(UI.micArm!=='clr'){UI.micArm='clr';UI.micMsg='Press Clear list again to empty the checking list (nothing on your POs changes).';render();setTimeout(()=>{if(UI.micArm==='clr'){UI.micArm=null;UI.micMsg='';render()}},6000);return}UI.micArm=null;D.items=[];UI.micMsg='Checking list cleared.';persist('project/invcheck');render();return}
+  if(act==='mic-xdup'){const n0=D.items.length;D.items=D.items.filter(x=>micState(x)!=='dup');UI.micMsg=`Discarded ${n0-D.items.length} duplicate${n0-D.items.length===1?'':'s'}.`;persist('project/invcheck');micRefresh();return}
+  if(act==='mic-clear'){if(UI.micArm!=='clr'){UI.micArm='clr';UI.micMsg='Press Clear list again to empty the checking list (nothing on your POs changes).';micRefresh();setTimeout(()=>{if(UI.micArm==='clr'){UI.micArm=null;UI.micMsg='';micRefresh()}},6000);return}UI.micArm=null;D.items=[];UI.micMsg='Checking list cleared.';persist('project/invcheck');micRefresh();return}
   if(act==='mic-see'){const [oid,j]=String(btn.dataset.v).split('|');UI.open[oid]=true;UI.invHit=oid+'|'+j;UI.invHitTill=Date.now()+4000;render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${oid}|${j}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},60);return}}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act^="mic-"]');if(!b||UI.view!=='orders')return;e.preventDefault();if(b.dataset.act!=='mic-clear')UI.micArm=null;micAct(b.dataset.act,b)});
 viewEl.addEventListener('change',e=>{if(UI.view!=='orders')return;const t=e.target;
   if(t.dataset.micpick){const fl=[...t.files];fl.forEach(f=>{if(f.webkitRelativePath)try{Object.defineProperty(f,'_from',{value:f.webkitRelativePath})}catch(_){}});t.value='';micFiles(fl);return}
-  if(t.dataset.micf){const [id,f]=t.dataset.micf.split('|');const it=micDoc().items.find(x=>x.id===id);if(!it)return;it[f]=f==='amount'?String(t.value).replace(/[^0-9.\-]/g,''):t.value;if(f!=='po')delete it.dupOk;persist('project/invcheck');render();return}
+  if(t.dataset.micf){const [id,f]=t.dataset.micf.split('|');const it=micDoc().items.find(x=>x.id===id);if(!it)return;it[f]=f==='amount'?String(t.value).replace(/[^0-9.\-]/g,''):t.value;if(f!=='po')delete it.dupOk;persist('project/invcheck');setTimeout(()=>{if(document.activeElement===t)t.blur();micRefresh()},0);return}
   if(t.dataset.invmove){const [oid,j]=t.dataset.invmove.split('|');const to=t.value;if(!to||to===oid)return;const o=S.orders[oid],o2=S.orders[to];if(!o||!o2||!o.inv||!o.inv[+j])return;undoRecord();const [x]=o.inv.splice(+j,1);o2.inv=o2.inv||[];o2.inv.push(x);persist('orders/'+oid);persist('orders/'+to);UI.open[to]=true;UI.invHit=to+'|'+(o2.inv.length-1);UI.invHitTill=Date.now()+4000;
     setSave('saved',`Invoice ${x.ref||''} moved to PO ${o2.poNo||''}`);render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${to}|${o2.inv.length-1}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},80)}});
 /* drop onto the Mass Invoice Check panel (caught before the tab's own drop-to-file) */
