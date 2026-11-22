@@ -638,6 +638,15 @@ tr.sel td{background:var(--accent-soft)}
 .gt-empty p{margin:6px 0 12px}.gt-build{border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 4%,var(--surface))}.gt-bopts{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end}.gt-seg{display:flex;flex-wrap:wrap;gap:4px}.gt-btbl td{padding:4px 8px}.gt-build .f{border:1px solid var(--line-2,var(--line));background:var(--surface)}.gt-off td{opacity:.5}.gt-live{border:0;background:none;padding:0 6px;font:inherit;font-size:13px;color:var(--accent);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}.gt-live:hover{text-decoration:underline}.gt-off td:first-child{opacity:1}
 @media (max-width:760px){.gt-name .f{width:150px}}
 .gt-split{align-self:stretch;cursor:col-resize;background:var(--line);border-left:3px solid var(--surface);border-right:3px solid var(--surface);touch-action:none}.gt-split:hover,.gt-split:focus-visible,.gt-split.on{background:var(--accent)}
+.mic{border:1px solid var(--accent)}.mic.mic-on{outline:3px dashed var(--accent);outline-offset:-6px;background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.mic-empty{margin-top:10px;padding:22px;border:2px dashed var(--line);border-radius:10px;text-align:center;color:var(--muted)}
+.mic-sum{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 6px}.mic-c-dup{color:var(--bad)}.mic-c-may{color:var(--warn)}.mic-c-ok{color:var(--good)}
+.mic-list{display:flex;flex-direction:column;gap:6px}.mic-row{display:grid;grid-template-columns:minmax(180px,1.4fr) 130px 140px 120px minmax(200px,1.3fr) auto;gap:8px;align-items:end;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;background:var(--surface)}
+.mic-row.mic-dup{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 5%,var(--surface))}.mic-row.mic-maybe{border-left-color:var(--warn)}.mic-row.mic-clear{border-left-color:var(--good)}.mic-row.mic-busy{opacity:.7}
+.mic-file{align-self:center;min-width:0;overflow-wrap:anywhere}.mic-f{display:flex;flex-direction:column;gap:2px}.mic-f .f{border:1px solid var(--line-2,var(--line));background:var(--surface);height:30px;padding:3px 6px}
+.mic-act{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.mic-why{grid-column:1/-1;font-size:12.5px;color:var(--bad);display:flex;flex-direction:column;gap:2px}.mic-maybe .mic-why{color:var(--warn)}
+.mic-mini{padding:1px 8px;font-size:12px}.mic-note{grid-column:1/-1;font-size:12.5px}.inv-move{width:auto;max-width:140px;height:28px;padding:2px 6px;font-size:12px;margin-left:4px;border:1px solid var(--line-2,var(--line))}
+@media (max-width:900px){.mic-row{grid-template-columns:1fr 1fr}.mic-file,.mic-po,.mic-act{grid-column:1/-1}}
 </style>
 
 <div class="app">
@@ -734,7 +743,7 @@ const inp=(b,val,o={})=>`<input class="f${o.num?' num':''}" id="${esc(b.replace(
 const sel=(b,val,opts,o={})=>`<select class="f${o.cls?' '+o.cls:''}" id="${esc(b.replace(/\|/g,'_'))}" data-b="${esc(b)}" aria-label="${esc(o.label||'')}">${opts.map(x=>{const [v,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(t)}</option>`}).join('')}</select>`;
 
 /* ---------- state ---------- */
-const S={prog:{start:'',days:[1,2,3,4,5],hol:[],base:false,tasks:[]},llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null};
+const S={invchk:{items:[]},prog:{start:'',days:[1,2,3,4,5],hol:[],base:false,tasks:[]},llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null};
 let UI_PDFLAB=false;try{UI_PDFLAB=localStorage.getItem('ox_pdfhidelab')==='1'}catch(e){}
 const UI={view:'overview',bld:'E',level:'all',q:'',task:'t01',open:{},armed:null,bulkStage:'',bulkPct:'100',setup:false,pdfHideLab:UI_PDFLAB};
 const crewRows=()=>S.crew.rows||CREW_DEFAULT;
@@ -793,7 +802,7 @@ function dataFor(p){
   const [c,id]=p.split('/');
   if(c==='projects')return PROJ[id];
   if(c==='company')return COMPANY[id];
-  if(c==='project'){if(id==='programme')return S.prog;if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
+  if(c==='project'){if(id==='invcheck')return S.invchk;if(id==='programme')return S.prog;if(id==='labourlog')return S.llog;if(id==='claim')return claimDoc();if(id==='info')return S.info;if(id==='cashflow')return S.cash;if(id==='crew')return {rows:crewRows()}}
   if(c==='variations')return S.vars[id];if(c==='orders')return S.orders[id];if(c==='procurement')return S.procs[id];if(c==='msod')return S.msods[id];if(c==='drawings')return S.dwgs[id];if(c==='estimates')return S.ests[id];if(c==='site')return S.site[id];
   if(c==='tasks')return taskDoc(id);
 }
@@ -833,7 +842,7 @@ async function removeDoc(p){
 }
 function applyDoc(p,data){
   const [c,id]=p.split('/');const d=clone(data);
-  if(c==='project'){if(id==='programme')S.prog=normProg(d);else if(id==='labourlog')S.llog={rows:Array.isArray(d.rows)?d.rows:[]};else if(id==='claim')S.claim=normClaim(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash={start:d.start||'',m:d.m||{}};else if(id==='crew')S.crew={rows:d.rows||null}}
+  if(c==='project'){if(id==='invcheck')S.invchk={items:Array.isArray(d.items)?d.items:[]};else if(id==='programme')S.prog=normProg(d);else if(id==='labourlog')S.llog={rows:Array.isArray(d.rows)?d.rows:[]};else if(id==='claim')S.claim=normClaim(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash={start:d.start||'',m:d.m||{}};else if(id==='crew')S.crew={rows:d.rows||null}}
   else if(c==='apartments'){S.apt[id]=normTrade(id,d)}
   else if(c==='tasks'){S.tasks[id]={items:d.items||[],sections:d.sections||[]}}
 }
@@ -2131,6 +2140,7 @@ V.orders=()=>{
   return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. Orders are listed by PO number, then PO date; move them with ▲ ▼ to set your own order. Use + Add section to break the orders into sections (e.g. Switchboards, Lighting, Level 1) with subtotals, and pick each order’s section under its supplier. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.',`${Object.values(S.orders).some(o=>o.pos!=null&&o.pos!=='')?'<button class="btn" data-act="ord-sort" title="Put the orders back in PO number order">Sort by PO number</button>':''}<button class="btn" data-act="ordsec-add" title="Group orders into sections such as Switchboards or Level 1">+ Add section</button><button class="btn primary" data-act="add-order">+ Add order</button>`)}${coTcTile()}
   <div class="statgrid ord-tiles"><div class="mini"><span class="l">Committed · PO amounts</span><span class="v">${money(c.poTotal)}</span><span class="d hint">Total of all PO amounts</span></div><div class="mini"><span class="l">Extra outside PO</span><span class="v">${money(c.matAnt)}</span><span class="d hint">On orders and sections, less any overspend already invoiced</span></div><div class="mini ord-tile-tot"><span class="l">Total committed + extra</span><span class="v">${money(c.poTotal+c.matAnt)}</span><span class="d hint">Committed + extra outside PO</span></div><div class="mini"><span class="l">Invoiced</span><span class="v">${money(c.matInv)}</span></div><div class="mini"><span class="l">Left on POs</span><span class="v ${c.poTotal+c.matAnt-c.matInv<0?'neg':''}">${money(c.poTotal+c.matAnt-c.matInv)}</span><span class="d hint">Committed + extra − invoiced</span></div><div class="mini"><span class="l">Retention held</span><span class="v">${money(c.ret)}</span></div></div>
   ${nDup?`<div class="banner inv-dupbar" role="alert"><b>⚠ ${nDup} invoice${nDup===1?' looks like a duplicate':'s look like duplicates'}.</b> Orders with a possible duplicate are marked <span class="tag bad">⚠ duplicate?</span>. <button class="btn" data-act="inv-duplist" aria-expanded="${!!UI.dupList}">${UI.dupList?'Hide the list':'Show them all'}</button></div>${UI.dupList?invDupList(DUP):''}`:''}
+  ${micPanel()}
   ${rows.length?scanDropPanel():''}
   ${rows.length?ordSearchBox(nHit,Object.keys(S.orders).length,OQ):''}
   ${rows.length?invSearchHtml():''}
@@ -2148,7 +2158,7 @@ V.orders=()=>{
     ${open?`<tr class="sel ord-drop" data-ord="${id}"><td></td><td colspan="11"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">${ordPoPanel(id,o)}<div class="hint" style="margin-top:4px"><b>Invoices</b></div>
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
         return `<div class="invbox inv-drop${DUP[id+'|'+j]&&!x.dupOk?' inv-isdup':''}${UI.invHit===id+'|'+j&&Date.now()<UI.invHitTill?' inv-hit':''}" data-inv="${id}|${j}">${invDupHtml(DUP,id,j)}<div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center"><div>${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.dateAsk&&!x.date?'<div class="hint inv-dateask" role="alert">⚠ Invoice date not found on the invoice: please enter it</div>':''}${x.datePdf&&x.datePdf===x.date?'<div class="hint" style="font-size:11px">date from the invoice</div>':''}</div>${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
-          <span class="to-row" style="gap:4px;flex-wrap:nowrap"><button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button>${priceTags(invPriceSum(PX,id,j,x))}</span><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}</span>${delBtn('inv',id,String(j))}</div>
+          <span class="to-row" style="gap:4px;flex-wrap:nowrap"><button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button>${priceTags(invPriceSum(PX,id,j,x))}</span><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}<select class="f inv-move" data-invmove="${id}|${j}" aria-label="Move this invoice to another PO" title="Move this invoice to another PO"><option value="">Move to…</option>${micPoOpts('').replace('<option value="">Choose the PO…</option>','').replace(`<option value="${id}" >`,`<option value="${id}" disabled>`)}</select></span>${delBtn('inv',id,String(j))}</div>
         ${(()=>{const e=EXT[id+'_'+j];return e?`<div class="extmsg ${e.err?'err':e.ok?'ok':'busy'}">${esc(e.busy||e.ok||e.err)}</div>`:''})()}
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
           ${L.map((l,li)=>{const kl='invl|'+id+'|'+j+'|'+li+'|';const ex=lineEx(l);const pc=priceCheck(PX,id,j,li,l,x.date||'');return `<tr class="${pc&&!pc.same?(pc.up?'p-up':'p-dn'):''}"><td style="width:104px;white-space:nowrap"><span class="mvbtns"><button class="mv" data-act="invl-move" data-id="${id}" data-x="${j}" data-l="${li}" data-d="-1" title="Move this line up" aria-label="Move material up" ${li===0?'disabled':''}>▲</button><button class="mv" data-act="invl-move" data-id="${id}" data-x="${j}" data-l="${li}" data-d="1" title="Move this line down" aria-label="Move material down" ${li===L.length-1?'disabled':''}>▼</button></span>${delBtn('invl',id,j+'.'+li,'Remove')}</td><td>${inp(kl+'mat',l.mat,{label:'Material',ph:'e.g. 2.5mm² TPS cable 100m'})}</td><td style="width:80px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:70px">${inp(kl+'unit',l.unit,{label:'Unit',ph:'ea'})}</td><td style="width:150px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Unit price ex GST',ph:'0'})}</div>${priceFlag(pc)}</td><td class="n money">${money2(ex)}</td><td class="n money hint">${money2(ex*GST)}</td><td class="n money"><b>${money2(ex*(1+GST))}</b></td></tr>`}).join('')||`<tr><td colspan="8" class="hint">No materials yet. Add each item on the invoice; they’ll appear in the Order Costing Summary.</td></tr>`}
@@ -5104,7 +5114,7 @@ function roGuard(p){if(RO_REST||!RO_SNAP||!roView()||Date.now()-RO_ACT>2500)retu
 /* put back what the snapshot had, in memory only: nothing is saved and nothing is deleted on the server */
 function roRestore(snap){const cur=undoSnap();const MAP={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',tasks:'tasks',apartments:'apt',drawings:'dwgs',site:'site'};
   for(const p in snap){if(cur[p]===snap[p])continue;const [c,id]=p.split('/');const d=JSON.parse(snap[p]);
-    if(c==='project'){if(id==='programme')S.prog=normProg(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash=d;else if(id==='crew')S.crew=d;else if(id==='labourlog')S.llog=d;else if(id==='claim')S.claim=d}
+    if(c==='project'){if(id==='invcheck')S.invchk={items:Array.isArray(d.items)?d.items:[]};else if(id==='programme')S.prog=normProg(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash=d;else if(id==='crew')S.crew=d;else if(id==='labourlog')S.llog=d;else if(id==='claim')S.claim=d}
     else if(c==='apartments')S.apt[id]=normTrade(id,d);else if(MAP[c])S[MAP[c]][id]=d}}
 function roDecorate(){viewEl.classList.toggle('ro-view',roView());if(!roView()){RO_SNAP=null;return}if(!RO_PEND){try{RO_SNAP=undoSnap()}catch(e){RO_SNAP=null}}
   viewEl.querySelectorAll('input[data-b],select[data-b],textarea[data-b],[contenteditable="true"]').forEach(x=>{if(x.isContentEditable)x.contentEditable='false';else x.disabled=true});
@@ -5336,6 +5346,87 @@ viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.
 /* ---------- Orders & invoices: drag invoice PDFs onto an order ---------- */
 /* ---------- Scanned documents dropped anywhere on Orders & invoices: read them, find the PO and file them ---------- */
 let SCANQ=[];
+/* ---------- Mass Invoice Check: drop many invoices, check them for double-ups, then file each one into its PO ---------- */
+/* S.invchk = {items:[{id,name,file:{id,name,type,size},hash,ref,date,amount,lines,po,by,st:'busy'|'ok'|'err',msg,dupOk,at}]} */
+function micDoc(){const d=S.invchk=S.invchk||{};if(!Array.isArray(d.items))d.items=[];return d}
+const micNref=t=>String(t||'').toLowerCase().replace(/^(inv(oice)?|tax\s*invoice)\s*(no\.?|number|#)?\s*/,'').replace(/[^a-z0-9]/g,'').replace(/^0+/,'');
+async function micHash(f){try{const b=await f.arrayBuffer();if(window.crypto&&crypto.subtle){const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+  /* no secure hashing here (e.g. plain http): two FNV-1a passes over the bytes */const u=new Uint8Array(b);let h1=0x811c9dc5,h2=0x01000193^u.length;for(let i=0;i<u.length;i++){h1=Math.imul(h1^u[i],16777619);h2=Math.imul(h2^u[u.length-1-i],16777619)}return 'f'+(h1>>>0).toString(16)+(h2>>>0).toString(16)+u.length.toString(16)}catch(e){return ''}}
+/* what a checked invoice matches: invoices already on a PO, and the other invoices in this check */
+function micDups(it){const out=[];const r=micNref(it.ref),amt=num(it.amount),fn=String(it.name||'').toLowerCase();
+  for(const [oid,o] of Object.entries(S.orders))(o.inv||[]).forEach((x,j)=>{const why=[];
+    if(it.hash&&x.hash&&it.hash===x.hash)why.push('the same file');
+    if(r&&r===micNref(x.ref))why.push('the same invoice number');
+    const xf=String(x.invFile&&x.invFile.name||'').toLowerCase();if(fn&&xf&&fn===xf&&!why.includes('the same file'))why.push('the same file name');
+    if(!why.length&&amt>0&&Math.abs(amt-invAmt(x))<0.005&&it.date&&it.date===x.date)why.push('the same amount and date');
+    if(why.length)out.push({kind:'po',oid,j,why,strong:why.some(w=>w!=='the same amount and date')})});
+  const sq=x=>num(x.seq)||num(x.at);
+  for(const y of micDoc().items){if(y===it||y.st==='busy'||sq(y)>sq(it))continue;const why=[];
+    if(it.hash&&y.hash&&it.hash===y.hash)why.push('the same file');
+    if(r&&r===micNref(y.ref))why.push('the same invoice number');
+    if(!why.length&&amt>0&&Math.abs(amt-num(y.amount))<0.005&&it.date&&it.date===y.date)why.push('the same amount and date');
+    if(why.length)out.push({kind:'chk',id:y.id,name:y.name,why,strong:why.some(w=>w!=='the same amount and date')})}
+  return out}
+function micCopies(it){const sq=x=>num(x.seq)||num(x.at);const r=micNref(it.ref);return micDoc().items.filter(y=>y!==it&&y.st!=='busy'&&sq(y)>sq(it)&&((it.hash&&y.hash===it.hash)||(r&&micNref(y.ref)===r)))}
+function micState(it){if(it.st==='busy')return 'busy';if(it.dupOk)return 'clear';const D=micDups(it);if(D.some(d=>d.strong))return 'dup';if(D.length)return 'maybe';return 'clear'}
+function micPoOpts(sel){const SECS=ordSecs();const rows=ordRows();const lab=o=>esc((o.poNo||'No PO no.')+(o.supplier?' · '+o.supplier:''));
+  const loose=rows.filter(([,o])=>!ordSecOf(o)||!SECS.some(s=>s.id===ordSecOf(o)));
+  return `<option value="">Choose the PO…</option>${loose.map(([id,o])=>`<option value="${id}" ${sel===id?'selected':''}>${lab(o)}</option>`).join('')}${SECS.map(s=>{const R=rows.filter(([,o])=>ordSecOf(o)===s.id);return R.length?`<optgroup label="${esc(s.name||'Untitled section')}">${R.map(([id,o])=>`<option value="${id}" ${sel===id?'selected':''}>${lab(o)}</option>`).join('')}</optgroup>`:''}).join('')}`}
+function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==false;const st=L.map(micState);const nDup=st.filter(x=>x==='dup').length,nMay=st.filter(x=>x==='maybe').length,nClr=st.filter(x=>x==='clear').length,nBusy=st.filter(x=>x==='busy').length;
+  const ready=L.filter((it,i)=>st[i]==='clear'&&it.po&&S.orders[it.po]).length;
+  const rows=L.map((it,i)=>{const s=st[i];const Ds=s==='busy'?[]:micDups(it);
+    const what=Ds.slice(0,3).map(d=>d.kind==='po'?(()=>{const o=S.orders[d.oid];const x=o&&o.inv[d.j];return `<div>Matches <b>PO ${esc(o&&o.poNo||'?')}</b>${o&&o.supplier?' · '+esc(o.supplier):''}: invoice ${esc(x&&x.ref||'(no number)')}${x&&x.date?' of '+fmtDate(x.date):''}${x?' for '+money2(invAmt(x)):''} — ${d.why.join(', ')}. <button class="btn ghost mic-mini" data-act="mic-see" data-v="${d.oid}|${d.j}">View it</button></div>`})():`<div>Matches <b>${esc(d.name)}</b> in this check — ${d.why.join(', ')}.</div>`).join('');
+    const badge=s==='busy'?'<span class="tag">Reading…</span>':s==='dup'?'<span class="tag bad">⚠ Duplicate</span>':s==='maybe'?'<span class="tag warn">Possible duplicate</span>':it.dupOk?'<span class="tag good">✓ Not a duplicate (checked)</span>':'<span class="tag good">✓ No duplicate</span>';
+    return `<div class="mic-row mic-${s}" data-micid="${it.id}">
+      <div class="mic-file">${it.file&&it.file.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(it.file.id)}" data-file="${esc(it.file.id)}" target="_blank" rel="noopener" title="View ${esc(it.name)}">${esc(it.name)}</a>`:`<span class="mono">${esc(it.name)}</span>`}<div>${badge}${it.by?` <span class="hint">· PO guessed from the ${esc(it.by)}</span>`:''}</div>${it.msg?`<div class="hint">${esc(it.msg)}</div>`:''}</div>
+      <label class="mic-f"><span class="hint">Invoice no.</span><input class="f" data-micf="${it.id}|ref" value="${esc(it.ref||'')}" placeholder="—" aria-label="Invoice number of ${esc(it.name)}"></label>
+      <label class="mic-f"><span class="hint">Date</span><input class="f" type="date" data-micf="${it.id}|date" value="${esc(it.date||'')}" aria-label="Invoice date of ${esc(it.name)}"></label>
+      <label class="mic-f"><span class="hint">Amount ex GST</span><input class="f num" data-micf="${it.id}|amount" value="${esc(it.amount||'')}" placeholder="0.00" inputmode="decimal" aria-label="Amount of ${esc(it.name)}"></label>
+      <label class="mic-f mic-po"><span class="hint">Add to PO</span><select class="f" data-micf="${it.id}|po" aria-label="PO for ${esc(it.name)}">${micPoOpts(it.po)}</select></label>
+      <div class="mic-act">${s==='busy'?'':`<button class="btn ${s==='clear'?'primary':''}" data-act="mic-add" data-v="${it.id}" ${s==='clear'&&it.po?'':'disabled'} title="${s!=='clear'?'Check the duplicate first: discard it, or mark it Not a duplicate':!it.po?'Choose the PO first':'Add this invoice to the PO'}">Add to PO</button>${s==='dup'||s==='maybe'?`<button class="btn" data-act="mic-ok" data-v="${it.id}" title="It isn’t a double-up: let it be added">Not a duplicate</button>`:''}<button class="btn ${s==='dup'?'danger-t':'ghost'}" data-act="mic-x" data-v="${it.id}">${s==='dup'?'Discard duplicate':'Remove'}</button>`}</div>
+      ${what?`<div class="mic-why">${what}</div>`:''}${s!=='busy'&&micCopies(it).length?`<div class="mic-note hint">A copy of this invoice is also in this check (${micCopies(it).map(y=>esc(y.name)).join(', ')}): that one is flagged, this one can be added.</div>`:''}</div>`}).join('');
+  return `<div class="panel mic" data-micdrop="1" id="mic_panel"><div class="sec-head" style="margin:0"><div><h3 style="display:flex;align-items:center;gap:8px"><button class="tog" data-act="mic-tog" aria-expanded="${open}" aria-label="${open?'Minimise':'Show'} Mass Invoice Check">${open?'▾':'▸'}</button>Mass Invoice Check${L.length?` <span class="tag">${L.length}</span>`:''}${nDup?` <span class="tag bad">${nDup} duplicate${nDup===1?'':'s'}</span>`:''}</h3>
+    ${open?`<p class="hint" style="margin:2px 0 0">Drop or choose a batch of invoices (PDFs or photos). Each one is read and checked against every invoice already on your POs, and against the others in the batch, <b>before</b> anything is added. Then choose its PO and add it, or discard the double-ups.</p>`:''}</div>
+    <label class="btn" style="cursor:pointer">Choose invoices<input type="file" data-micpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png" multiple hidden></label></div>
+    ${open?`${L.length?`<div class="mic-sum hint">${nBusy?`Reading ${nBusy}… · `:''}<b class="mic-c-dup">${nDup}</b> duplicate${nDup===1?'':'s'} · <b class="mic-c-may">${nMay}</b> possible · <b class="mic-c-ok">${nClr}</b> clear${ready?` · <button class="btn primary" data-act="mic-addall">Add all ${ready} clear invoice${ready===1?'':'s'} to their POs</button>`:''}${nDup?` <button class="btn ghost" data-act="mic-xdup">Discard all ${nDup} duplicate${nDup===1?'':'s'}</button>`:''} <button class="btn ghost" data-act="mic-clear" title="Empty the checking list">Clear list</button></div><div class="mic-list">${rows}</div>`:`<div class="mic-empty">Drop invoices here to check them</div>`}${UI.micMsg?`<p class="hint" role="status" style="margin:6px 0 0">${esc(UI.micMsg)}</p>`:''}`:''}
+  </div>`}
+async function micFiles(files){if(!files.length)return;const D=micDoc();UI.micOpen=true;
+  const ok=files.filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));if(ok.length<files.length)setSave('error','Only PDFs and JPG / PNG photos can be checked');
+  const t0=Date.now();const items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render();
+  for(const it of items){const f=it._f;delete it._f;
+    try{it.hash=await micHash(f);
+      if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';const r=await assets.upload(f,{type});it.file={id:r.id,name:it.name,type,size:f.size}}
+      let t='';try{t=await scanText(f)}catch(e){console.error(e)}
+      const P=t?parseInvoiceText(t):{};if(P.invoiceNo)it.ref=String(P.invoiceNo).slice(0,60);if(/^\d{4}-\d{2}-\d{2}$/.test(P.date||''))it.date=P.date;if(num(P.totalExGst)>0)it.amount=String(Math.round(num(P.totalExGst)*100)/100);
+      if(P.lines&&P.lines.length&&!(P.lines.length===1&&P.lines[0].lump))it.lines=P.lines.map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
+      const m=t?scanMatch(t):null;if(m){it.po=m.id;it.by=m.by.startsWith('supplier')?'supplier name':'PO number'}
+      it.st='ok';it.msg=!t?'Couldn’t read any text: type the details in.':(!it.ref&&!it.amount)?'Couldn’t find the invoice number or total: please type them in.':''}
+    catch(e){console.error(e);it.st='err';it.msg='Couldn’t read this file. Type the details in, or remove it.'}
+    persist('project/invcheck');if(UI.view==='orders')render()}}
+function micAdd(it){const o=S.orders[it.po];if(!o)return false;o.inv=o.inv||[];
+  const x={date:it.date||todayISO(),ref:it.ref||'',amount:it.amount||''};if(it.file&&it.file.id)x.invFile={...it.file,at:Date.now()};if(it.hash)x.hash=it.hash;
+  if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}if(it.dupOk)x.dupOk=true;
+  o.inv.push(x);persist('orders/'+it.po);return true}
+async function micAct(act,btn){const D=micDoc();const it=D.items.find(x=>x.id===btn.dataset.v);
+  if(act==='mic-tog'){UI.micOpen=UI.micOpen===false;render();return}
+  if(act==='mic-ok'&&it){it.dupOk=true;UI.micMsg=`${it.name} marked as not a duplicate.`;persist('project/invcheck');render();return}
+  if(act==='mic-x'&&it){D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} removed from the check.`;persist('project/invcheck');render();return}
+  if(act==='mic-add'&&it){if(micState(it)!=='clear'||!it.po)return;undoRecord();if(micAdd(it)){const o=S.orders[it.po];D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} added to PO ${o.poNo||''}${o.supplier?' · '+o.supplier:''}.`;persist('project/invcheck');UI.open[it.po]=true;render()}return}
+  if(act==='mic-addall'){undoRecord();const done=[];for(const x of [...D.items]){if(micState(x)==='clear'&&x.po&&S.orders[x.po]&&micAdd(x)){done.push(x);D.items=D.items.filter(y=>y!==x)}}UI.micMsg=`Added ${done.length} invoice${done.length===1?'':'s'} to their POs.`;persist('project/invcheck');render();return}
+  if(act==='mic-xdup'){const n0=D.items.length;D.items=D.items.filter(x=>micState(x)!=='dup');UI.micMsg=`Discarded ${n0-D.items.length} duplicate${n0-D.items.length===1?'':'s'}.`;persist('project/invcheck');render();return}
+  if(act==='mic-clear'){if(UI.micArm!=='clr'){UI.micArm='clr';UI.micMsg='Press Clear list again to empty the checking list (nothing on your POs changes).';render();setTimeout(()=>{if(UI.micArm==='clr'){UI.micArm=null;UI.micMsg='';render()}},6000);return}UI.micArm=null;D.items=[];UI.micMsg='Checking list cleared.';persist('project/invcheck');render();return}
+  if(act==='mic-see'){const [oid,j]=String(btn.dataset.v).split('|');UI.open[oid]=true;UI.invHit=oid+'|'+j;UI.invHitTill=Date.now()+4000;render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${oid}|${j}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},60);return}}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act^="mic-"]');if(!b||UI.view!=='orders')return;e.preventDefault();if(b.dataset.act!=='mic-clear')UI.micArm=null;micAct(b.dataset.act,b)});
+viewEl.addEventListener('change',e=>{if(UI.view!=='orders')return;const t=e.target;
+  if(t.dataset.micpick){const fl=[...t.files];t.value='';micFiles(fl);return}
+  if(t.dataset.micf){const [id,f]=t.dataset.micf.split('|');const it=micDoc().items.find(x=>x.id===id);if(!it)return;it[f]=f==='amount'?String(t.value).replace(/[^0-9.\-]/g,''):t.value;if(f!=='po')delete it.dupOk;persist('project/invcheck');render();return}
+  if(t.dataset.invmove){const [oid,j]=t.dataset.invmove.split('|');const to=t.value;if(!to||to===oid)return;const o=S.orders[oid],o2=S.orders[to];if(!o||!o2||!o.inv||!o.inv[+j])return;undoRecord();const [x]=o.inv.splice(+j,1);o2.inv=o2.inv||[];o2.inv.push(x);persist('orders/'+oid);persist('orders/'+to);UI.open[to]=true;UI.invHit=to+'|'+(o2.inv.length-1);UI.invHitTill=Date.now()+4000;
+    setSave('saved',`Invoice ${x.ref||''} moved to PO ${o2.poNo||''}`);render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${to}|${o2.inv.length-1}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},80)}});
+/* drop onto the Mass Invoice Check panel (caught before the tab's own drop-to-file) */
+viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('mic-on');try{e.dataTransfer.dropEffect='copy'}catch(x){}},true);
+viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('mic-on')},true);
+viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('mic-on');micFiles([...e.dataTransfer.files])},true);
+
 function scanDropPanel(){return `<div class="panel scan-drop" data-scandrop="1"><div class="sec-head" style="margin:0"><div><b>Drop scanned invoices here</b><p class="hint" style="margin:2px 0 0">Drop scans, PDFs or photos anywhere on this tab (not on an order) and they’re read automatically: the PO number or supplier on the document picks the order, then its lines, total, invoice number and date are filled in.</p></div>
   <label class="btn" style="cursor:pointer">Choose scans<input type="file" data-scanpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png" multiple hidden></label></div>
   ${SCANQ.length?`<div class="scan-q">${SCANQ.map((q,i)=>`<div class="scan-qi ${q.st}"><span class="mono">${esc(q.name)}</span> <span class="hint">${esc(q.msg)}</span>${q.st==='ask'?` <select class="f" data-scanord="${i}" style="width:auto;display:inline-block" aria-label="Which order is ${esc(q.name)} for?"><option value="">Choose the order…</option>${ordRows().map(([id,o])=>`<option value="${id}">${esc((o.poNo||'No PO no.')+(o.supplier?' · '+o.supplier:''))}</option>`).join('')}</select>`:''}${q.st!=='busy'?` <button class="btn ghost" data-scanx="${i}" style="padding:1px 6px;font-size:12px" aria-label="Clear">✕</button>`:''}</div>`).join('')}</div>`:''}</div>`}
@@ -6586,7 +6677,7 @@ function undoRestore(snap){
   for(const p of paths){if(cur[p]===snap[p])continue;const [c,id]=p.split('/');
     if(snap[p]===undefined){if(MAP[c]){delete S[MAP[c]][id];removeDoc(p)}else if(p==='project/claim'){S.claim=null}continue}
     const d=JSON.parse(snap[p]);deleted.delete(p);
-    if(c==='project'){if(id==='programme')S.prog=normProg(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash=d;else if(id==='crew')S.crew=d;else if(id==='labourlog')S.llog=d;else if(id==='claim')S.claim=d}
+    if(c==='project'){if(id==='invcheck')S.invchk={items:Array.isArray(d.items)?d.items:[]};else if(id==='programme')S.prog=normProg(d);else if(id==='info')S.info=d;else if(id==='cashflow')S.cash=d;else if(id==='crew')S.crew=d;else if(id==='labourlog')S.llog=d;else if(id==='claim')S.claim=d}
     else if(c==='apartments'){S.apt[id]=normTrade(id,d);structDirty.add(id);exists.delete(p)}
     else S[MAP[c]][id]=d;
     persist(p)}
@@ -6604,7 +6695,7 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
 
 /* ---------- projects ---------- */
 let unsubs=[];
-function blankState(){Object.assign(S,{prog:{start:'',days:[1,2,3,4,5],hol:[],base:false,tasks:[]},llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null})}
+function blankState(){Object.assign(S,{invchk:{items:[]},prog:{start:'',days:[1,2,3,4,5],hol:[],base:false,tasks:[]},llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null})}
 async function flushAll(){const keys=Object.keys(pending);await Promise.all(keys.map(k=>{clearTimeout(pending[k]);return flush(k)}))}
 function subscribe(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
