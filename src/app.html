@@ -5415,20 +5415,42 @@ function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==fal
     <span class="mic-pick"><label class="btn" style="cursor:pointer">Choose invoices<input type="file" data-micpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,.zip,application/zip" multiple hidden></label><label class="btn" style="cursor:pointer" title="Pick a whole folder: every PDF and photo inside it (and in its folders and zip files) is checked">Choose folder<input type="file" data-micpick="1" webkitdirectory directory multiple hidden></label></span></div>
     ${open?`${L.length?`<div class="mic-sum hint">${nBusy?`Reading ${nBusy}… · `:''}<b class="mic-c-dup">${nDup}</b> duplicate${nDup===1?'':'s'} · <b class="mic-c-may">${nMay}</b> possible · <b class="mic-c-ok">${nClr}</b> clear${ready?` · <button class="btn primary" data-act="mic-addall">Add all ${ready} clear invoice${ready===1?'':'s'} to their POs</button>`:''}${nDup?` <button class="btn ghost" data-act="mic-xdup">Discard all ${nDup} duplicate${nDup===1?'':'s'}</button>`:''} <button class="btn ghost" data-act="mic-clear" title="Empty the checking list">Clear list</button></div><div class="mic-list">${rows}</div>`:`<div class="mic-empty">Drop invoices, folders or zip files here to check them</div>`}${UI.micMsg?`<p class="hint" role="status" style="margin:6px 0 0">${esc(UI.micMsg)}</p>`:''}`:''}
   </div>`}
+/* fast reading for Mass Invoice Check: text PDFs straight from their text; scans page by page with two OCR workers, stopping once the invoice number, date and total are found */
+let MIC_OCR=null;
+async function micOcrPool(){if(MIC_OCR)return MIC_OCR;MIC_OCR=(async()=>{if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/tesseract.min.js');
+  const sch=Tesseract.createScheduler();const n=Math.max(1,Math.min(2,Math.floor((navigator.hardwareConcurrency||2)/2)));
+  const mk=async()=>{const w=await Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@'+OCR_V,langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int',gzip:true});await w.setParameters({preserve_interword_spaces:'1'});sch.addWorker(w)};
+  await mk();if(n>1)mk().catch(e=>console.error(e));return sch})();MIC_OCR.catch(()=>{MIC_OCR=null});return MIC_OCR}
+async function micOcr(img){const sch=await micOcrPool();const r=await sch.addJob('recognize',img);return (r&&r.data&&r.data.text)||''}
+/* very large photos are scaled down a little first: quicker, and still sharp enough to read */
+async function micShrink(blob){try{const url=URL.createObjectURL(blob);const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});URL.revokeObjectURL(url);const M=2800,k=Math.min(1,M/Math.max(im.naturalWidth,im.naturalHeight));if(k>=1)return blob;
+  const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/png'))}catch(e){return blob}}
+const micFound=t=>{const P=parseInvoiceText(t);return !!(P.invoiceNo&&num(P.totalExGst)>0&&/^\d{4}-\d{2}-\d{2}$/.test(P.date||'')&&/\bgst\b/i.test(t))};
+async function micReadFile(f){const imt=await blobImgType(f);if(imt){return '\n--- page 1 ---\n'+await micOcr(await micShrink(f))}
+  const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false}).promise;let text='';
+  for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();const rows={};for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push(it)}
+    text+=`\n--- page ${i} ---\n`+Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join('  ')).join('\n')}
+  if(text.replace(/--- page \d+ ---/g,'').trim().length>=200||micFound(text))return text;
+  /* a scan: recognise one page at a time, stop when everything needed has been found */
+  let t=text;for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;
+    const img=await new Promise(r=>c.toBlob(r,'image/png'));t+=`\n--- scan page ${i} ---\n`+await micOcr(img);if(micFound(t))break}
+  return t}
 async function micFiles(files,entries){if(!files.length&&!(entries&&entries.length))return;const D=micDoc();UI.micOpen=true;
   const needOpen=(entries&&entries.some(x=>x.isDirectory))||files.some(isZipFile);if(needOpen){UI.micMsg='Opening folders and zip files…';render()}
   const X=await expandInvFiles(files,entries);const ok=X.files;UI.micMsg=(X.zips||needOpen)?`Found ${ok.length} invoice${ok.length===1?'':'s'}${X.zips?` (including ${X.zips} zip file${X.zips===1?'':'s'})`:''}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}${X.bad?` · ${X.bad} zip${X.bad===1?'':'s'} couldn’t be opened`:''}.`:(X.skipped?`${X.skipped} file${X.skipped===1?' isn’t':'s aren’t'} a PDF or photo and ${X.skipped===1?'was':'were'} skipped.`:'');if(!ok.length){render();return}
   const t0=Date.now();const items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render();
-  for(const it of items){const f=it._f;delete it._f;
-    try{it.hash=await micHash(f);
-      if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';const r=await assets.upload(f,{type});it.file={id:r.id,name:it.name,type,size:f.size}}
-      let t='';try{t=await scanText(f)}catch(e){console.error(e)}
+  const one=async it=>{const f=it._f;delete it._f;
+    try{const hashP=micHash(f);let upP=Promise.resolve(null);
+      if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';upP=assets.upload(f,{type}).then(r=>({id:r.id,name:it.name,type,size:f.size}))}
+      let t='';try{t=await micReadFile(f)}catch(e){console.error(e);try{t=await scanText(f)}catch(e2){console.error(e2)}}
       const P=t?parseInvoiceText(t):{};if(P.invoiceNo)it.ref=String(P.invoiceNo).slice(0,60);if(/^\d{4}-\d{2}-\d{2}$/.test(P.date||''))it.date=P.date;if(num(P.totalExGst)>0)it.amount=String(Math.round(num(P.totalExGst)*100)/100);
       if(P.lines&&P.lines.length&&!(P.lines.length===1&&P.lines[0].lump))it.lines=P.lines.map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
       const m=t?scanMatch(t):null;if(m){it.po=m.id;it.by=m.by.startsWith('supplier')?'supplier name':'PO number'}
+      it.hash=await hashP;const fl=await upP;if(fl)it.file=fl;
       it.st='ok';it.msg=!t?'Couldn’t read any text: type the details in.':(!it.ref&&!it.amount)?'Couldn’t find the invoice number or total: please type them in.':''}
     catch(e){console.error(e);it.st='err';it.msg='Couldn’t read this file. Type the details in, or remove it.'}
-    persist('project/invcheck');if(UI.view==='orders')render()}}
+    persist('project/invcheck');if(UI.view==='orders')scheduleRender(300)};
+  const Q=[...items];const lanes=Array.from({length:Math.min(3,Q.length)},async()=>{while(Q.length)await one(Q.shift())});await Promise.all(lanes);if(UI.view==='orders')render()}
 function micAdd(it){const o=S.orders[it.po];if(!o)return false;o.inv=o.inv||[];
   const x={date:it.date||todayISO(),ref:it.ref||'',amount:it.amount||''};if(it.file&&it.file.id)x.invFile={...it.file,at:Date.now()};if(it.hash)x.hash=it.hash;
   if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}if(it.dupOk)x.dupOk=true;
