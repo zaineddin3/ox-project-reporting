@@ -671,7 +671,7 @@ tr.sel td{background:var(--accent-soft)}
 .mic-row.mic-dup{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 5%,var(--surface))}.mic-row.mic-maybe{border-left-color:var(--warn)}.mic-row.mic-clear{border-left-color:var(--good)}.mic-row.mic-busy{opacity:.7}
 .mic-file{align-self:center;min-width:0;overflow-wrap:anywhere}.mic-f{display:flex;flex-direction:column;gap:2px}.mic-f .f{border:1px solid var(--line-2,var(--line));background:var(--surface);height:30px;padding:3px 6px}
 .mic-act{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.mic-why{grid-column:1/-1;font-size:12.5px;color:var(--bad);display:flex;flex-direction:column;gap:2px}.mic-maybe .mic-why{color:var(--warn)}
-.mic-mini{padding:1px 8px;font-size:12px}.mic-note{grid-column:1/-1;font-size:12.5px}.inv-move{width:auto;max-width:140px;height:28px;padding:2px 6px;font-size:12px;margin-left:4px;border:1px solid var(--line-2,var(--line))}
+.mic-mini{padding:1px 8px;font-size:12px}.mic-pick{display:inline-flex;gap:6px;flex-wrap:wrap}.mic-from{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}.mic-note{grid-column:1/-1;font-size:12.5px}.inv-move{width:auto;max-width:140px;height:28px;padding:2px 6px;font-size:12px;margin-left:4px;border:1px solid var(--line-2,var(--line))}
 @media (max-width:900px){.mic-row{grid-template-columns:1fr 1fr}.mic-file,.mic-po,.mic-act{grid-column:1/-1}}
 </style>
 
@@ -5372,6 +5372,31 @@ viewEl.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('.
 /* ---------- Orders & invoices: drag invoice PDFs onto an order ---------- */
 /* ---------- Scanned documents dropped anywhere on Orders & invoices: read them, find the PO and file them ---------- */
 let SCANQ=[];
+/* ---------- folders and zip files: open them and keep the invoice PDFs and photos inside ---------- */
+const isZipFile=f=>/\.zip$/i.test(f.name||'')||/^application\/(x-)?zip(-compressed)?$/.test(f.type||'');
+const isInvFile=f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name||'')||isImgFile(f);
+const extType=n=>/\.pdf$/i.test(n)?'application/pdf':/\.png$/i.test(n)?'image/png':/\.(jpe?g)$/i.test(n)?'image/jpeg':/\.zip$/i.test(n)?'application/zip':'';
+/* folders dropped onto the page are only readable during the drop: grab their entries straight away */
+function dropEntries(dt){try{return [...(dt.items||[])].map(i=>i.kind==='file'&&i.webkitGetAsEntry?i.webkitGetAsEntry():null).filter(Boolean)}catch(e){return []}}
+const dropHasFolderOrZip=dt=>{const E=dropEntries(dt);return E.some(x=>x.isDirectory)||[...(dt.files||[])].some(isZipFile)};
+async function entryFiles(entries,path=''){const out=[];
+  for(const en of entries){if(!en)continue;if(/^(\.|__MACOSX$)/.test(en.name))continue;
+    if(en.isFile){const f=await new Promise(r=>en.file(r,()=>r(null)));if(f){try{Object.defineProperty(f,'_from',{value:path?path+'/'+f.name:f.name})}catch(_){}out.push(f)}}
+    else if(en.isDirectory){const rd=en.createReader();let batch;const kids=[];do{batch=await new Promise(r=>rd.readEntries(r,()=>r([])));kids.push(...batch)}while(batch.length);out.push(...await entryFiles(kids,path?path+'/'+en.name:en.name))}}
+  return out}
+async function unzipFiles(f,depth=0,from=''){if(!window.JSZip)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+  const z=await window.JSZip.loadAsync(await f.arrayBuffer());const out=[];const base=(from||f._from||f.name);
+  for(const [nm,en] of Object.entries(z.files)){if(en.dir)continue;const leaf=nm.split('/').pop();if(!leaf||/^\./.test(leaf)||/(^|\/)__MACOSX\//.test(nm))continue;
+    const type=extType(leaf);if(!type)continue;const blob=await en.async('blob');const g=new File([blob],leaf,{type});try{Object.defineProperty(g,'_from',{value:base+' › '+nm})}catch(_){}
+    if(type==='application/zip'){if(depth<3)out.push(...await unzipFiles(g,depth+1,base+' › '+nm))}else out.push(g)}
+  return out}
+/* everything dropped or picked → just the invoice files, with folders opened and zips unpacked */
+async function expandInvFiles(files,entries){let all=[];if(entries&&entries.length)all=await entryFiles(entries);else all=[...files];
+  const out=[];let skipped=0,zips=0,bad=0;
+  for(const f of all){if(isZipFile(f)){zips++;try{out.push(...await unzipFiles(f))}catch(e){console.error(e);bad++}}else if(isInvFile(f))out.push(f);else skipped++}
+  if(out.length>500){setSave('error',`That's ${out.length} invoices: only the first 500 were taken`);out.length=500}
+  return {files:out,skipped,zips,bad}}
+
 /* ---------- Mass Invoice Check: drop many invoices, check them for double-ups, then file each one into its PO ---------- */
 /* S.invchk = {items:[{id,name,file:{id,name,type,size},hash,ref,date,amount,lines,po,by,st:'busy'|'ok'|'err',msg,dupOk,at}]} */
 function micDoc(){const d=S.invchk=S.invchk||{};if(!Array.isArray(d.items))d.items=[];return d}
@@ -5404,7 +5429,7 @@ function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==fal
     const what=Ds.slice(0,3).map(d=>d.kind==='po'?(()=>{const o=S.orders[d.oid];const x=o&&o.inv[d.j];return `<div>Matches <b>PO ${esc(o&&o.poNo||'?')}</b>${o&&o.supplier?' · '+esc(o.supplier):''}: invoice ${esc(x&&x.ref||'(no number)')}${x&&x.date?' of '+fmtDate(x.date):''}${x?' for '+money2(invAmt(x)):''} — ${d.why.join(', ')}. <button class="btn ghost mic-mini" data-act="mic-see" data-v="${d.oid}|${d.j}">View it</button></div>`})():`<div>Matches <b>${esc(d.name)}</b> in this check — ${d.why.join(', ')}.</div>`).join('');
     const badge=s==='busy'?'<span class="tag">Reading…</span>':s==='dup'?'<span class="tag bad">⚠ Duplicate</span>':s==='maybe'?'<span class="tag warn">Possible duplicate</span>':it.dupOk?'<span class="tag good">✓ Not a duplicate (checked)</span>':'<span class="tag good">✓ No duplicate</span>';
     return `<div class="mic-row mic-${s}" data-micid="${it.id}">
-      <div class="mic-file">${it.file&&it.file.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(it.file.id)}" data-file="${esc(it.file.id)}" target="_blank" rel="noopener" title="View ${esc(it.name)}">${esc(it.name)}</a>`:`<span class="mono">${esc(it.name)}</span>`}<div>${badge}${it.by?` <span class="hint">· PO guessed from the ${esc(it.by)}</span>`:''}</div>${it.msg?`<div class="hint">${esc(it.msg)}</div>`:''}</div>
+      <div class="mic-file">${it.file&&it.file.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(it.file.id)}" data-file="${esc(it.file.id)}" target="_blank" rel="noopener" title="View ${esc(it.name)}">${esc(it.name)}</a>`:`<span class="mono">${esc(it.name)}</span>`}${it.from?`<div class="hint mic-from" title="${esc(it.from)}">from ${esc(it.from.replace(/[›\/][^›\/]*$/,'').trim()||it.from)}</div>`:''}<div>${badge}${it.by?` <span class="hint">· PO guessed from the ${esc(it.by)}</span>`:''}</div>${it.msg?`<div class="hint">${esc(it.msg)}</div>`:''}</div>
       <label class="mic-f"><span class="hint">Invoice no.</span><input class="f" data-micf="${it.id}|ref" value="${esc(it.ref||'')}" placeholder="—" aria-label="Invoice number of ${esc(it.name)}"></label>
       <label class="mic-f"><span class="hint">Date</span><input class="f" type="date" data-micf="${it.id}|date" value="${esc(it.date||'')}" aria-label="Invoice date of ${esc(it.name)}"></label>
       <label class="mic-f"><span class="hint">Amount ex GST</span><input class="f num" data-micf="${it.id}|amount" value="${esc(it.amount||'')}" placeholder="0.00" inputmode="decimal" aria-label="Amount of ${esc(it.name)}"></label>
@@ -5412,13 +5437,14 @@ function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==fal
       <div class="mic-act">${s==='busy'?'':`<button class="btn ${s==='clear'?'primary':''}" data-act="mic-add" data-v="${it.id}" ${s==='clear'&&it.po?'':'disabled'} title="${s!=='clear'?'Check the duplicate first: discard it, or mark it Not a duplicate':!it.po?'Choose the PO first':'Add this invoice to the PO'}">Add to PO</button>${s==='dup'||s==='maybe'?`<button class="btn" data-act="mic-ok" data-v="${it.id}" title="It isn’t a double-up: let it be added">Not a duplicate</button>`:''}<button class="btn ${s==='dup'?'danger-t':'ghost'}" data-act="mic-x" data-v="${it.id}">${s==='dup'?'Discard duplicate':'Remove'}</button>`}</div>
       ${what?`<div class="mic-why">${what}</div>`:''}${s!=='busy'&&micCopies(it).length?`<div class="mic-note hint">A copy of this invoice is also in this check (${micCopies(it).map(y=>esc(y.name)).join(', ')}): that one is flagged, this one can be added.</div>`:''}</div>`}).join('');
   return `<div class="panel mic" data-micdrop="1" id="mic_panel"><div class="sec-head" style="margin:0"><div><h3 style="display:flex;align-items:center;gap:8px"><button class="tog" data-act="mic-tog" aria-expanded="${open}" aria-label="${open?'Minimise':'Show'} Mass Invoice Check">${open?'▾':'▸'}</button>Mass Invoice Check${L.length?` <span class="tag">${L.length}</span>`:''}${nDup?` <span class="tag bad">${nDup} duplicate${nDup===1?'':'s'}</span>`:''}</h3>
-    ${open?`<p class="hint" style="margin:2px 0 0">Drop or choose a batch of invoices (PDFs or photos). Each one is read and checked against every invoice already on your POs, and against the others in the batch, <b>before</b> anything is added. Then choose its PO and add it, or discard the double-ups.</p>`:''}</div>
-    <label class="btn" style="cursor:pointer">Choose invoices<input type="file" data-micpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png" multiple hidden></label></div>
-    ${open?`${L.length?`<div class="mic-sum hint">${nBusy?`Reading ${nBusy}… · `:''}<b class="mic-c-dup">${nDup}</b> duplicate${nDup===1?'':'s'} · <b class="mic-c-may">${nMay}</b> possible · <b class="mic-c-ok">${nClr}</b> clear${ready?` · <button class="btn primary" data-act="mic-addall">Add all ${ready} clear invoice${ready===1?'':'s'} to their POs</button>`:''}${nDup?` <button class="btn ghost" data-act="mic-xdup">Discard all ${nDup} duplicate${nDup===1?'':'s'}</button>`:''} <button class="btn ghost" data-act="mic-clear" title="Empty the checking list">Clear list</button></div><div class="mic-list">${rows}</div>`:`<div class="mic-empty">Drop invoices here to check them</div>`}${UI.micMsg?`<p class="hint" role="status" style="margin:6px 0 0">${esc(UI.micMsg)}</p>`:''}`:''}
+    ${open?`<p class="hint" style="margin:2px 0 0">Drop or choose a batch of invoices: PDFs, photos, whole folders or zip files (they’re opened and everything inside is read). Each one is read and checked against every invoice already on your POs, and against the others in the batch, <b>before</b> anything is added. Then choose its PO and add it, or discard the double-ups.</p>`:''}</div>
+    <span class="mic-pick"><label class="btn" style="cursor:pointer">Choose invoices<input type="file" data-micpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,.zip,application/zip" multiple hidden></label><label class="btn" style="cursor:pointer" title="Pick a whole folder: every PDF and photo inside it (and in its folders and zip files) is checked">Choose folder<input type="file" data-micpick="1" webkitdirectory directory multiple hidden></label></span></div>
+    ${open?`${L.length?`<div class="mic-sum hint">${nBusy?`Reading ${nBusy}… · `:''}<b class="mic-c-dup">${nDup}</b> duplicate${nDup===1?'':'s'} · <b class="mic-c-may">${nMay}</b> possible · <b class="mic-c-ok">${nClr}</b> clear${ready?` · <button class="btn primary" data-act="mic-addall">Add all ${ready} clear invoice${ready===1?'':'s'} to their POs</button>`:''}${nDup?` <button class="btn ghost" data-act="mic-xdup">Discard all ${nDup} duplicate${nDup===1?'':'s'}</button>`:''} <button class="btn ghost" data-act="mic-clear" title="Empty the checking list">Clear list</button></div><div class="mic-list">${rows}</div>`:`<div class="mic-empty">Drop invoices, folders or zip files here to check them</div>`}${UI.micMsg?`<p class="hint" role="status" style="margin:6px 0 0">${esc(UI.micMsg)}</p>`:''}`:''}
   </div>`}
-async function micFiles(files){if(!files.length)return;const D=micDoc();UI.micOpen=true;
-  const ok=files.filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));if(ok.length<files.length)setSave('error','Only PDFs and JPG / PNG photos can be checked');
-  const t0=Date.now();const items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render();
+async function micFiles(files,entries){if(!files.length&&!(entries&&entries.length))return;const D=micDoc();UI.micOpen=true;
+  const needOpen=(entries&&entries.some(x=>x.isDirectory))||files.some(isZipFile);if(needOpen){UI.micMsg='Opening folders and zip files…';render()}
+  const X=await expandInvFiles(files,entries);const ok=X.files;UI.micMsg=(X.zips||needOpen)?`Found ${ok.length} invoice${ok.length===1?'':'s'}${X.zips?` (including ${X.zips} zip file${X.zips===1?'':'s'})`:''}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}${X.bad?` · ${X.bad} zip${X.bad===1?'':'s'} couldn’t be opened`:''}.`:(X.skipped?`${X.skipped} file${X.skipped===1?' isn’t':'s aren’t'} a PDF or photo and ${X.skipped===1?'was':'were'} skipped.`:'');if(!ok.length){render();return}
+  const t0=Date.now();const items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render();
   for(const it of items){const f=it._f;delete it._f;
     try{it.hash=await micHash(f);
       if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';const r=await assets.upload(f,{type});it.file={id:r.id,name:it.name,type,size:f.size}}
@@ -5444,17 +5470,17 @@ async function micAct(act,btn){const D=micDoc();const it=D.items.find(x=>x.id===
   if(act==='mic-see'){const [oid,j]=String(btn.dataset.v).split('|');UI.open[oid]=true;UI.invHit=oid+'|'+j;UI.invHitTill=Date.now()+4000;render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${oid}|${j}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},60);return}}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act^="mic-"]');if(!b||UI.view!=='orders')return;e.preventDefault();if(b.dataset.act!=='mic-clear')UI.micArm=null;micAct(b.dataset.act,b)});
 viewEl.addEventListener('change',e=>{if(UI.view!=='orders')return;const t=e.target;
-  if(t.dataset.micpick){const fl=[...t.files];t.value='';micFiles(fl);return}
+  if(t.dataset.micpick){const fl=[...t.files];fl.forEach(f=>{if(f.webkitRelativePath)try{Object.defineProperty(f,'_from',{value:f.webkitRelativePath})}catch(_){}});t.value='';micFiles(fl);return}
   if(t.dataset.micf){const [id,f]=t.dataset.micf.split('|');const it=micDoc().items.find(x=>x.id===id);if(!it)return;it[f]=f==='amount'?String(t.value).replace(/[^0-9.\-]/g,''):t.value;if(f!=='po')delete it.dupOk;persist('project/invcheck');render();return}
   if(t.dataset.invmove){const [oid,j]=t.dataset.invmove.split('|');const to=t.value;if(!to||to===oid)return;const o=S.orders[oid],o2=S.orders[to];if(!o||!o2||!o.inv||!o.inv[+j])return;undoRecord();const [x]=o.inv.splice(+j,1);o2.inv=o2.inv||[];o2.inv.push(x);persist('orders/'+oid);persist('orders/'+to);UI.open[to]=true;UI.invHit=to+'|'+(o2.inv.length-1);UI.invHitTill=Date.now()+4000;
     setSave('saved',`Invoice ${x.ref||''} moved to PO ${o2.poNo||''}`);render();setTimeout(()=>{const el=document.querySelector(`[data-inv="${to}|${o2.inv.length-1}"]`);if(el)el.scrollIntoView({block:'center',behavior:'smooth'})},80)}});
 /* drop onto the Mass Invoice Check panel (caught before the tab's own drop-to-file) */
 viewEl.addEventListener('dragover',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.add('mic-on');try{e.dataTransfer.dropEffect='copy'}catch(x){}},true);
 viewEl.addEventListener('dragleave',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(t&&(!e.relatedTarget||!t.contains(e.relatedTarget)))t.classList.remove('mic-on')},true);
-viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('mic-on');micFiles([...e.dataTransfer.files])},true);
+viewEl.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('[data-micdrop]');if(!t||!ordHasFiles(e))return;e.preventDefault();e.stopPropagation();t.classList.remove('mic-on');const E=dropEntries(e.dataTransfer);micFiles([...e.dataTransfer.files],E.some(x=>x.isDirectory)?E:null)},true);
 
 function scanDropPanel(){return `<div class="panel scan-drop" data-scandrop="1"><div class="sec-head" style="margin:0"><div><b>Drop scanned invoices here</b><p class="hint" style="margin:2px 0 0">Drop scans, PDFs or photos anywhere on this tab (not on an order) and they’re read automatically: the PO number or supplier on the document picks the order, then its lines, total, invoice number and date are filled in.</p></div>
-  <label class="btn" style="cursor:pointer">Choose scans<input type="file" data-scanpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png" multiple hidden></label></div>
+  <label class="btn" style="cursor:pointer">Choose scans<input type="file" data-scanpick="1" accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,.zip,application/zip" multiple hidden></label><label class="btn" style="cursor:pointer">Choose folder<input type="file" data-scanpick="1" webkitdirectory directory multiple hidden></label></div>
   ${SCANQ.length?`<div class="scan-q">${SCANQ.map((q,i)=>`<div class="scan-qi ${q.st}"><span class="mono">${esc(q.name)}</span> <span class="hint">${esc(q.msg)}</span>${q.st==='ask'?` <select class="f" data-scanord="${i}" style="width:auto;display:inline-block" aria-label="Which order is ${esc(q.name)} for?"><option value="">Choose the order…</option>${ordRows().map(([id,o])=>`<option value="${id}">${esc((o.poNo||'No PO no.')+(o.supplier?' · '+o.supplier:''))}</option>`).join('')}</select>`:''}${q.st!=='busy'?` <button class="btn ghost" data-scanx="${i}" style="padding:1px 6px;font-size:12px" aria-label="Clear">✕</button>`:''}</div>`).join('')}</div>`:''}</div>`}
 const scanNorm=t=>String(t||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 async function scanText(f){let blob=f;const imt=await blobImgType(blob);if(imt){if(!window.jspdf||!window.jspdf.jsPDF)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');blob=await imgToPdf(blob,imt)}
@@ -5471,7 +5497,7 @@ async function scanFiles(files){if(!assets){setSave('error','File storage is not
     catch(e){console.error(e);q.st='ask';q.msg='Couldn’t read it. Which order is it for?'}
     if(UI.view==='orders')render()}}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset)return;
-  if(t.dataset.scanpick){const fl=[...t.files];t.value='';if(fl.length)scanFiles(fl);return}
+  if(t.dataset.scanpick){const fl=[...t.files];t.value='';if(fl.length)expandInvFiles(fl).then(X=>{if(X.files.length)scanFiles(X.files);else setSave('error','No invoice PDFs or photos found')});return}
   if(t.dataset.scanord!==undefined&&t.value){const q=SCANQ[+t.dataset.scanord];if(q&&q.f){scanFile(t.value,q.f);const o=S.orders[t.value];q.st='ok';q.msg='Filed under '+(o.poNo||'the order')+'. Reading it now.';render()}}});
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-scanx]');if(!t)return;SCANQ.splice(+t.dataset.scanx,1);render()});
 const ordHasFiles=e=>{const t=e.dataTransfer&&e.dataTransfer.types;return !!t&&[...t].includes('Files')};
@@ -5480,14 +5506,17 @@ function ordMark(el){document.querySelectorAll('.ord-dropping').forEach(x=>{if(x
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return;e.preventDefault();const t=ordDropTarget(e);ordMark(t);try{e.dataTransfer.dropEffect='copy'}catch(x){}viewEl.querySelector('.scan-drop')?.classList.toggle('scan-on',!t)});
 viewEl.addEventListener('dragleave',e=>{if(UI.view!=='orders')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget)){ordMark(null);viewEl.querySelector('.scan-drop')?.classList.remove('scan-on')}});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='orders'||!ordHasFiles(e))return;e.preventDefault();ordMark(null);viewEl.querySelector('.scan-drop')?.classList.remove('scan-on');const t=ordDropTarget(e);
+  if(dropHasFolderOrZip(e.dataTransfer)){const E=dropEntries(e.dataTransfer);const F=[...e.dataTransfer.files];setSave('saving','Opening folders and zip files…');expandInvFiles(F,E.some(x=>x.isDirectory)?E:null).then(X=>{if(!X.files.length){setSave('error','No invoice PDFs or photos found in that folder / zip');return}ordDropFiles(t,X.files);setSave('saved',`Found ${X.files.length} invoice${X.files.length===1?'':'s'}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}`)});return}
   const xl=[...e.dataTransfer.files].find(f=>/\.(xlsx|xls|csv)$/i.test(f.name));if(xl){const oid=t&&(t.dataset.ord||(t.dataset.inv||'').split('|')[0]);if(!oid){setSave('error','Drop the Excel sheet onto the order it belongs to');return}ordPoImport(oid,xl);return}
   const fs=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));
-  if(!fs.length){setSave('error','Drop invoice PDFs or JPG / PNG photos');return}
+  if(!fs.length){setSave('error','Drop invoice PDFs, JPG / PNG photos, folders or zip files');return}
+  ordDropFiles(t,fs)});
+function ordDropFiles(t,fs){
   if(!t){scanFiles(fs);return}
   if(!assets){setSave('error','File storage is not available in this view');return}
   if(t.dataset.inv){const [id,j]=t.dataset.inv.split('|');const o=S.orders[id];if(!o)return;uploadItp('inv|'+id+'|'+j,fs[0]);fs.slice(1).forEach(f=>{o.inv.push({date:todayISO(),ref:'',amount:''});uploadItp('inv|'+id+'|'+(o.inv.length-1),f)});persist('orders/'+id);return}
   const id=t.dataset.ord;const o=S.orders[id];if(!o)return;undoRecord();o.inv=o.inv||[];UI.open[id]=true;
-  for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()});
+  for(const f of fs){o.inv.push({date:todayISO(),ref:'',amount:''});const j=o.inv.length-1;uploadItp('inv|'+id+'|'+j,f)}persist('orders/'+id);render()}
 
 /* ---------- Procurement: drop an Excel file to fill the schedule ---------- */
 viewEl.addEventListener('dragover',e=>{if(UI.view!=='procurement'||!ordHasFiles(e))return;e.preventDefault();viewEl.querySelector('.proc-drop')?.classList.add('pcxl-dropping')});
