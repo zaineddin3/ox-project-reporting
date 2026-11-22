@@ -5393,7 +5393,8 @@ function micDups(it){const out=[];const r=micNref(it.ref),amt=num(it.amount),fn=
     if(why.length)out.push({kind:'chk',id:y.id,name:y.name,why,strong:why.some(w=>w!=='the same amount and date')})}
   return out}
 function micCopies(it){const sq=x=>num(x.seq)||num(x.at);const r=micNref(it.ref);return micDoc().items.filter(y=>y!==it&&y.st!=='busy'&&sq(y)>sq(it)&&((it.hash&&y.hash===it.hash)||(r&&micNref(y.ref)===r)))}
-function micState(it){if(it.st==='busy')return 'busy';if(it.dupOk)return 'clear';const D=micDups(it);if(D.some(d=>d.strong))return 'dup';if(D.length)return 'maybe';return 'clear'}
+function micStalled(it){return it.st==='busy'&&!MIC_LIVE.has(it.id)&&!MIC_Q.includes(it)}
+function micState(it){if(it.st==='busy'&&!micStalled(it))return 'busy';if(it.dupOk)return 'clear';const D=micDups(it);if(D.some(d=>d.strong))return 'dup';if(D.length)return 'maybe';return 'clear'}
 function micPoOpts(sel){const SECS=ordSecs();const rows=ordRows();const lab=o=>esc((o.poNo||'No PO no.')+(o.supplier?' · '+o.supplier:''));
   const loose=rows.filter(([,o])=>!ordSecOf(o)||!SECS.some(s=>s.id===ordSecOf(o)));
   return `<option value="">Choose the PO…</option>${loose.map(([id,o])=>`<option value="${id}" ${sel===id?'selected':''}>${lab(o)}</option>`).join('')}${SECS.map(s=>{const R=rows.filter(([,o])=>ordSecOf(o)===s.id);return R.length?`<optgroup label="${esc(s.name||'Untitled section')}">${R.map(([id,o])=>`<option value="${id}" ${sel===id?'selected':''}>${lab(o)}</option>`).join('')}</optgroup>`:''}).join('')}`}
@@ -5401,14 +5402,14 @@ function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==fal
   const ready=L.filter((it,i)=>st[i]==='clear'&&it.po&&S.orders[it.po]).length;
   const rows=L.map((it,i)=>{const s=st[i];const Ds=s==='busy'?[]:micDups(it);
     const what=Ds.slice(0,3).map(d=>d.kind==='po'?(()=>{const o=S.orders[d.oid];const x=o&&o.inv[d.j];return `<div>Matches <b>PO ${esc(o&&o.poNo||'?')}</b>${o&&o.supplier?' · '+esc(o.supplier):''}: invoice ${esc(x&&x.ref||'(no number)')}${x&&x.date?' of '+fmtDate(x.date):''}${x?' for '+money2(invAmt(x)):''} — ${d.why.join(', ')}. <button class="btn ghost mic-mini" data-act="mic-see" data-v="${d.oid}|${d.j}">View it</button></div>`})():`<div>Matches <b>${esc(d.name)}</b> in this check — ${d.why.join(', ')}.</div>`).join('');
-    const badge=s==='busy'?'<span class="tag">Reading…</span>':s==='dup'?'<span class="tag bad">⚠ Duplicate</span>':s==='maybe'?'<span class="tag warn">Possible duplicate</span>':it.dupOk?'<span class="tag good">✓ Not a duplicate (checked)</span>':'<span class="tag good">✓ No duplicate</span>';
+    const badge=s==='busy'?(MIC_Q.includes(it)?'<span class="tag">Waiting…</span>':'<span class="tag">Reading…</span>'):micStalled(it)?'<span class="tag warn">Stopped</span>':it.st==='err'?'<span class="tag warn">Not read</span>':s==='dup'?'<span class="tag bad">⚠ Duplicate</span>':s==='maybe'?'<span class="tag warn">Possible duplicate</span>':it.dupOk?'<span class="tag good">✓ Not a duplicate (checked)</span>':'<span class="tag good">✓ No duplicate</span>';
     return `<div class="mic-row mic-${s}" data-micid="${it.id}">
       <div class="mic-file">${it.file&&it.file.id?`<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(it.file.id)}" data-file="${esc(it.file.id)}" target="_blank" rel="noopener" title="View ${esc(it.name)}">${esc(it.name)}</a>`:`<span class="mono">${esc(it.name)}</span>`}${it.from?`<div class="hint mic-from" title="${esc(it.from)}">from ${esc(it.from.replace(/[›\/][^›\/]*$/,'').trim()||it.from)}</div>`:''}<div>${badge}${it.by?` <span class="hint">· PO guessed from the ${esc(it.by)}</span>`:''}</div>${it.msg?`<div class="hint">${esc(it.msg)}</div>`:''}</div>
       <label class="mic-f"><span class="hint">Invoice no.</span><input class="f" data-micf="${it.id}|ref" value="${esc(it.ref||'')}" placeholder="—" aria-label="Invoice number of ${esc(it.name)}"></label>
       <label class="mic-f"><span class="hint">Date</span><input class="f" type="date" data-micf="${it.id}|date" value="${esc(it.date||'')}" aria-label="Invoice date of ${esc(it.name)}"></label>
       <label class="mic-f"><span class="hint">Amount ex GST</span><input class="f num" data-micf="${it.id}|amount" value="${esc(it.amount||'')}" placeholder="0.00" inputmode="decimal" aria-label="Amount of ${esc(it.name)}"></label>
       <label class="mic-f mic-po"><span class="hint">Add to PO</span><select class="f" data-micf="${it.id}|po" aria-label="PO for ${esc(it.name)}">${micPoOpts(it.po)}</select></label>
-      <div class="mic-act">${s==='busy'?'':`<button class="btn ${s==='clear'?'primary':''}" data-act="mic-add" data-v="${it.id}" ${s==='clear'&&it.po?'':'disabled'} title="${s!=='clear'?'Check the duplicate first: discard it, or mark it Not a duplicate':!it.po?'Choose the PO first':'Add this invoice to the PO'}">Add to PO</button>${s==='dup'||s==='maybe'?`<button class="btn" data-act="mic-ok" data-v="${it.id}" title="It isn’t a double-up: let it be added">Not a duplicate</button>`:''}<button class="btn ${s==='dup'?'danger-t':'ghost'}" data-act="mic-x" data-v="${it.id}">${s==='dup'?'Discard duplicate':'Remove'}</button>`}</div>
+      <div class="mic-act">${s==='busy'?'':`${it.st==='err'||micStalled(it)||it.upErr?`<button class="btn" data-act="mic-retry" data-v="${it.id}" title="Read this invoice again">Retry</button>`:''}<button class="btn ${s==='clear'?'primary':''}" data-act="mic-add" data-v="${it.id}" ${s==='clear'&&it.po?'':'disabled'} title="${s!=='clear'?'Check the duplicate first: discard it, or mark it Not a duplicate':!it.po?'Choose the PO first':'Add this invoice to the PO'}">Add to PO</button>${s==='dup'||s==='maybe'?`<button class="btn" data-act="mic-ok" data-v="${it.id}" title="It isn’t a double-up: let it be added">Not a duplicate</button>`:''}<button class="btn ${s==='dup'?'danger-t':'ghost'}" data-act="mic-x" data-v="${it.id}">${s==='dup'?'Discard duplicate':'Remove'}</button>`}</div>
       ${what?`<div class="mic-why">${what}</div>`:''}${s!=='busy'&&micCopies(it).length?`<div class="mic-note hint">A copy of this invoice is also in this check (${micCopies(it).map(y=>esc(y.name)).join(', ')}): that one is flagged, this one can be added.</div>`:''}</div>`}).join('');
   return `<div class="panel mic" data-micdrop="1" id="mic_panel"><div class="sec-head" style="margin:0"><div><h3 style="display:flex;align-items:center;gap:8px"><button class="tog" data-act="mic-tog" aria-expanded="${open}" aria-label="${open?'Minimise':'Show'} Mass Invoice Check">${open?'▾':'▸'}</button>Mass Invoice Check${L.length?` <span class="tag">${L.length}</span>`:''}${nDup?` <span class="tag bad">${nDup} duplicate${nDup===1?'':'s'}</span>`:''}</h3>
     ${open?`<p class="hint" style="margin:2px 0 0">Drop or choose a batch of invoices: PDFs, photos, whole folders or zip files (they’re opened and everything inside is read). Each one is read and checked against every invoice already on your POs, and against the others in the batch, <b>before</b> anything is added. Then choose its PO and add it, or discard the double-ups.</p>`:''}</div>
@@ -5416,47 +5417,58 @@ function micPanel(){const D=micDoc();const L=D.items;const open=UI.micOpen!==fal
     ${open?`${L.length?`<div class="mic-sum hint">${nBusy?`Reading ${nBusy}… · `:''}<b class="mic-c-dup">${nDup}</b> duplicate${nDup===1?'':'s'} · <b class="mic-c-may">${nMay}</b> possible · <b class="mic-c-ok">${nClr}</b> clear${ready?` · <button class="btn primary" data-act="mic-addall">Add all ${ready} clear invoice${ready===1?'':'s'} to their POs</button>`:''}${nDup?` <button class="btn ghost" data-act="mic-xdup">Discard all ${nDup} duplicate${nDup===1?'':'s'}</button>`:''} <button class="btn ghost" data-act="mic-clear" title="Empty the checking list">Clear list</button></div><div class="mic-list">${rows}</div>`:`<div class="mic-empty">Drop invoices, folders or zip files here to check them</div>`}${UI.micMsg?`<p class="hint" role="status" style="margin:6px 0 0">${esc(UI.micMsg)}</p>`:''}`:''}
   </div>`}
 /* fast reading for Mass Invoice Check: text PDFs straight from their text; scans page by page with two OCR workers, stopping once the invoice number, date and total are found */
-let MIC_OCR=null;
+let MIC_OCR=null;const MIC_T={read:120000,upload:120000,ocr:75000};const MIC_LIVE=new Set();const MIC_FILES=new Map();
+function micLimit(p,ms,what){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>{const e=new Error(what+' took too long');e.code='timeout';rej(e)},ms)})]).finally(()=>clearTimeout(t))}
+async function micOcrReset(){const m=MIC_OCR;MIC_OCR=null;try{const sch=await m;sch&&sch.terminate&&await sch.terminate()}catch(e){}}
 async function micOcrPool(){if(MIC_OCR)return MIC_OCR;MIC_OCR=(async()=>{if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/tesseract.min.js');
   const sch=Tesseract.createScheduler();const n=Math.max(1,Math.min(2,Math.floor((navigator.hardwareConcurrency||2)/2)));
   const mk=async()=>{const w=await Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@'+OCR_V,langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int',gzip:true});await w.setParameters({preserve_interword_spaces:'1'});sch.addWorker(w)};
   await mk();if(n>1)mk().catch(e=>console.error(e));return sch})();MIC_OCR.catch(()=>{MIC_OCR=null});return MIC_OCR}
-async function micOcr(img){const sch=await micOcrPool();const r=await sch.addJob('recognize',img);return (r&&r.data&&r.data.text)||''}
+async function micOcr(img){const sch=await micLimit(micOcrPool(),MIC_T.ocr,'Starting the scan reader');try{const r=await micLimit(sch.addJob('recognize',img),MIC_T.ocr,'Reading a scanned page');return (r&&r.data&&r.data.text)||''}catch(e){if(e.code==='timeout')micOcrReset();throw e}}
 /* very large photos are scaled down a little first: quicker, and still sharp enough to read */
 async function micShrink(blob){try{const url=URL.createObjectURL(blob);const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});URL.revokeObjectURL(url);const M=2800,k=Math.min(1,M/Math.max(im.naturalWidth,im.naturalHeight));if(k>=1)return blob;
   const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/png'))}catch(e){return blob}}
 const micFound=t=>{const P=parseInvoiceText(t);return !!(P.invoiceNo&&num(P.totalExGst)>0&&/^\d{4}-\d{2}-\d{2}$/.test(P.date||'')&&/\bgst\b/i.test(t))};
 async function micReadFile(f){const imt=await blobImgType(f);if(imt){return '\n--- page 1 ---\n'+await micOcr(await micShrink(f))}
-  const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false}).promise;let text='';
-  for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();const rows={};for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push(it)}
-    text+=`\n--- page ${i} ---\n`+Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join('  ')).join('\n')}
+  const lib=await pdfLib();const task=lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false});const doc=await task.promise;let text='';
+  try{for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();const rows={};for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push(it)}
+    text+=`\n--- page ${i} ---\n`+Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join('  ')).join('\n');pg.cleanup&&pg.cleanup()}
   if(text.replace(/--- page \d+ ---/g,'').trim().length>=200||micFound(text))return text;
   /* a scan: recognise one page at a time, stop when everything needed has been found */
   let t=text;for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;
-    const img=await new Promise(r=>c.toBlob(r,'image/png'));t+=`\n--- scan page ${i} ---\n`+await micOcr(img);if(micFound(t))break}
-  return t}
-async function micFiles(files,entries){if(!files.length&&!(entries&&entries.length))return;const D=micDoc();UI.micOpen=true;
+    const img=await new Promise(r=>c.toBlob(r,'image/png'));c.width=c.height=0;pg.cleanup&&pg.cleanup();t+=`\n--- scan page ${i} ---\n`+await micOcr(img);if(micFound(t))break}
+  return t}finally{try{await doc.destroy()}catch(e){}try{task.destroy&&task.destroy()}catch(e){}}}
+async function micFiles(files,entries,again){const D=micDoc();UI.micOpen=true;let items;
+  if(again){items=again}else{if(!files.length&&!(entries&&entries.length))return;
   const needOpen=(entries&&entries.some(x=>x.isDirectory))||files.some(isZipFile);if(needOpen){UI.micMsg='Opening folders and zip files…';render()}
   const X=await expandInvFiles(files,entries);const ok=X.files;UI.micMsg=(X.zips||needOpen)?`Found ${ok.length} invoice${ok.length===1?'':'s'}${X.zips?` (including ${X.zips} zip file${X.zips===1?'':'s'})`:''}${X.skipped?` · ${X.skipped} other file${X.skipped===1?'':'s'} skipped`:''}${X.bad?` · ${X.bad} zip${X.bad===1?'':'s'} couldn’t be opened`:''}.`:(X.skipped?`${X.skipped} file${X.skipped===1?' isn’t':'s aren’t'} a PDF or photo and ${X.skipped===1?'was':'were'} skipped.`:'');if(!ok.length){render();return}
-  const t0=Date.now();const items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render();
-  const one=async it=>{const f=it._f;delete it._f;
+  const t0=Date.now();items=ok.map((f,k)=>({id:uid('mic'),name:f.name||'invoice.pdf',from:f._from&&f._from!==f.name?String(f._from).slice(0,200):'',st:'busy',at:t0,seq:t0+k/1000,_f:f}));D.items.unshift(...items);render()}
+  const one=async it=>{const f=it._f;delete it._f;MIC_FILES.set(it.id,f);MIC_LIVE.add(it.id);it.st='busy';delete it.msg;
     try{const hashP=micHash(f);let upP=Promise.resolve(null);
-      if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';upP=assets.upload(f,{type}).then(r=>({id:r.id,name:it.name,type,size:f.size}))}
-      let t='';try{t=await micReadFile(f)}catch(e){console.error(e);try{t=await scanText(f)}catch(e2){console.error(e2)}}
+      if(assets){const img=isImgFile(f)&&!/\.pdf$/i.test(f.name);const type=img?(f.type||(/\.png$/i.test(f.name)?'image/png':'image/jpeg')):'application/pdf';upP=it.file&&it.file.id?Promise.resolve(it.file):micLimit(assets.upload(f,{type}),MIC_T.upload,'Uploading').then(r=>({id:r.id,name:it.name,type,size:f.size})).catch(e=>{console.error(e);it.upErr=true;return null})}
+      let t='',slow=false;try{t=await micLimit(micReadFile(f),MIC_T.read,'Reading')}catch(e){console.error(e);if(e.code==='timeout')slow=true;else{try{t=await micLimit(scanText(f),MIC_T.read,'Reading')}catch(e2){console.error(e2);if(e2.code==='timeout')slow=true}}}
       const P=t?parseInvoiceText(t):{};if(P.invoiceNo)it.ref=String(P.invoiceNo).slice(0,60);if(/^\d{4}-\d{2}-\d{2}$/.test(P.date||''))it.date=P.date;if(num(P.totalExGst)>0)it.amount=String(Math.round(num(P.totalExGst)*100)/100);
       if(P.lines&&P.lines.length&&!(P.lines.length===1&&P.lines[0].lump))it.lines=P.lines.map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
       const m=t?scanMatch(t):null;if(m){it.po=m.id;it.by=m.by.startsWith('supplier')?'supplier name':'PO number'}
-      it.hash=await hashP;const fl=await upP;if(fl)it.file=fl;
-      it.st='ok';it.msg=!t?'Couldn’t read any text: type the details in.':(!it.ref&&!it.amount)?'Couldn’t find the invoice number or total: please type them in.':''}
+      it.hash=await hashP;const fl=await upP;if(fl){it.file=fl;delete it.upErr}
+      it.st=slow?'err':'ok';it.msg=slow?'Took too long to read. Press Retry, or type the details in.':!t?'Couldn’t read any text: type the details in.':(!it.ref&&!it.amount)?'Couldn’t find the invoice number or total: please type them in.':it.upErr?'The file didn’t upload. Press Retry.':''}
     catch(e){console.error(e);it.st='err';it.msg='Couldn’t read this file. Type the details in, or remove it.'}
-    persist('project/invcheck');if(UI.view==='orders')scheduleRender(300)};
-  const Q=[...items];const lanes=Array.from({length:Math.min(3,Q.length)},async()=>{while(Q.length)await one(Q.shift())});await Promise.all(lanes);if(UI.view==='orders')render()}
+    MIC_LIVE.delete(it.id);persist('project/invcheck');if(UI.view==='orders')scheduleRender(300)};
+  micRun(items,one)}
+/* a queue that keeps going: a slow or failed invoice never holds up the rest */
+let MIC_Q=[],MIC_LANES=0,MIC_ONE=null;
+function micRun(items,one){MIC_ONE=one;MIC_Q.push(...items);const lane=async()=>{MIC_LANES++;try{while(MIC_Q.length){const it=MIC_Q.shift();try{await MIC_ONE(it)}catch(e){console.error(e)}}}finally{MIC_LANES--;if(!MIC_LANES&&UI.view==='orders')render()}};while(MIC_LANES<Math.min(3,MIC_LANES+MIC_Q.length))lane()}
+function micRetry(it){if(MIC_ONE)micRun([it],MIC_ONE);else micFiles([],null,[it])}
+function micUnused(){
+}
 function micAdd(it){const o=S.orders[it.po];if(!o)return false;o.inv=o.inv||[];
   const x={date:it.date||todayISO(),ref:it.ref||'',amount:it.amount||''};if(it.file&&it.file.id)x.invFile={...it.file,at:Date.now()};if(it.hash)x.hash=it.hash;
   if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}if(it.dupOk)x.dupOk=true;
   o.inv.push(x);persist('orders/'+it.po);return true}
 async function micAct(act,btn){const D=micDoc();const it=D.items.find(x=>x.id===btn.dataset.v);
   if(act==='mic-tog'){UI.micOpen=UI.micOpen===false;render();return}
+  if(act==='mic-retry'&&it){let f=MIC_FILES.get(it.id);if(!f&&it.file&&it.file.id){try{const bl=await fileBlob(it.file);f=new File([bl],it.name,{type:it.file.type||bl.type})}catch(e){console.error(e)}}if(!f){UI.micMsg=`${it.name}: the file isn’t available any more. Remove it and drop it in again.`;render();return}
+    it.st='busy';it._f=f;delete it.msg;UI.micMsg='';render();micRetry(it);return}
   if(act==='mic-ok'&&it){it.dupOk=true;UI.micMsg=`${it.name} marked as not a duplicate.`;persist('project/invcheck');render();return}
   if(act==='mic-x'&&it){D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} removed from the check.`;persist('project/invcheck');render();return}
   if(act==='mic-add'&&it){if(micState(it)!=='clear'||!it.po)return;undoRecord();if(micAdd(it)){const o=S.orders[it.po];D.items=D.items.filter(x=>x!==it);UI.micMsg=`${it.name} added to PO ${o.poNo||''}${o.supplier?' · '+o.supplier:''}.`;persist('project/invcheck');UI.open[it.po]=true;render()}return}
