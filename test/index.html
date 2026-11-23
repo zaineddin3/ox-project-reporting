@@ -435,7 +435,7 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 @media(max-width:640px){.lcc-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.lcc-row .s{grid-column:1/-1;grid-row:2}}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
 .opo{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}.opo.ord-dropping{outline:2px dashed var(--accent);outline-offset:2px}.opo-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-.po-stale{margin:6px 0 8px}.opo-t td{vertical-align:middle;background:var(--surface)!important}
+.po-stale{margin:6px 0 8px}.po-notesupd{margin:4px 0 6px}.opo-t td{vertical-align:middle;background:var(--surface)!important}
 .pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
 .pdfv{position:fixed;inset:0;z-index:120;background:rgba(20,28,36,.72);display:flex;flex-direction:column}
 .pdfv-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line)}
@@ -2038,7 +2038,42 @@ function ordPoPrinted(o){const pm=o.poMeta||{};const T=ordPoSum(o);
     supplier:String(pm.supplier||o.supplier||'').trim()||'Supplier',sub:pm.sub?'1':'',no:String(o.poNo||'').trim(),date:o.date||'',job:String(S.info.job||'')};
   const out={};for(const k in v)out[k]=msKH(v[k]);return out}
 function ordPoStale(o){const pf=o&&o.poFile;if(!pf||!pf.id||!pf.printed)return [];const now=ordPoPrinted(o);return Object.keys(PO_PARTS).filter(k=>k in pf.printed&&pf.printed[k]!==now[k])}
-function ordPoStaleHtml(id,o){const st=ordPoStale(o);if(!st.length)return '';const pf=o.poFile;const L=st.map(k=>PO_PARTS[k]);const list=L.length>1?L.slice(0,-1).join(', ')+' and '+L[L.length-1]:L[0];
+/* Notes are printed on the PO but don't change the order, so changing them updates the current revision's PDF by itself
+   (no new revision): when you stop typing or leave the box. Only when the notes are the only change since the PDF was made;
+   if lines, prices or other details changed too, it still needs Amend PO. */
+const OPO_NT={};
+const opoNotesCan=o=>{const pf=o&&o.poFile;if(!pf||!pf.id||!pf.printed)return false;const st=ordPoStale(o);return st.length===1&&st[0]==='notes'};
+function opoNotesShow(id){const o=S.orders[id];const el=document.getElementById('opo_stale_'+id);if(o&&el)el.innerHTML=ordPoStaleHtml(id,o)}
+function opoNotesSoon(id,ms){const o=S.orders[id];if(!o||!o.poFile||!o.poFile.printed)return;const s=OPO_NT[id]=OPO_NT[id]||{};clearTimeout(s.t);
+  if(!opoNotesCan(o)){if(s.st!=='busy')s.st='';opoNotesShow(id);return}if(s.st!=='busy')s.st='wait';s.t=setTimeout(()=>opoNotesUpdate(id),ms==null?2500:ms);opoNotesShow(id)}
+async function opoNotesUpdate(id){const s=OPO_NT[id]=OPO_NT[id]||{};clearTimeout(s.t);if(s.busy){s.again=true;return}
+  const o=S.orders[id];if(UI.opoBusy===id||!opoNotesCan(o)){s.st='';opoNotesShow(id);return}s.cancel=false;
+  if(!assets||!window.jspdf||!window.jspdf.jsPDF||(HOSTED&&navigator.onLine===false)){s.st='fail';opoNotesShow(id);return}
+  s.busy=true;s.st='busy';opoNotesShow(id);
+  try{const pm=o.poMeta||{};const pf=o.poFile;const T=ordPoSum(o);const printed=ordPoPrinted(o);
+    const d={supplier:String(pm.supplier||o.supplier||'').trim()||'Supplier',date:pf.date||o.date||todayISO(),sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',siteAddr:poAddr(pm),
+      poNo:String(o.poNo||'').trim(),lines:T.L,freight:T.fr,raisedBy:pf.by||o.raisedBy||'',rev:num(pf.rev),notes:String(pm.notes||'').trim()};
+    const base0=o.poBase&&(pf.tc||pf.att)?o.poBase:pf;
+    const r=await assets.upload(new File([poPdf(d)],base0.name||pf.name||'PO.pdf',{type:'application/pdf'}),{type:'application/pdf'});
+    /* the order may have changed while the PDF was being made: only swap it in if it's still the same revision with the same details */
+    const o2=S.orders[id];const ok=!s.cancel&&UI.opoBusy!==id&&o2&&o2.poFile&&o2.poFile.id===pf.id&&o2.poFile.rev===pf.rev&&opoNotesCan(o2)&&JSON.stringify(ordPoPrinted(o2))===JSON.stringify(printed);
+    if(!ok){assets.delete(r.id).catch(()=>{});s.busy=false;s.st='';if(!s.cancel&&opoNotesCan(o2))opoNotesSoon(id,300);else opoNotesShow(id);return}
+    const merged=!!(o2.poBase&&(o2.poFile.tc||o2.poFile.att));const keep={...(merged?o2.poBase:o2.poFile)};delete keep.tc;delete keep.att;
+    const gone=[o2.poFile.id,merged&&o2.poBase.id].filter(x=>x&&x!==r.id);
+    o2.poFile={...keep,id:r.id,printed,notesAt:Date.now(),notesBy:(window.__me&&(window.__me.name||window.__me.email))||''};delete o2.poBase;
+    persist('orders/'+id);for(const g of gone)assets.delete(g).catch(()=>{});
+    /* T&Cs and attachments go back on */
+    if(poTcs(o2).length||poAtts(o2).length){MERGE_TRIED.delete(id);setTimeout(()=>poMergeTc(id),0)}
+    s.st='done'}
+  catch(e){console.error(e);s.st='fail'}
+  s.busy=false;if(s.again){s.again=false;opoNotesSoon(id,300)}else opoNotesShow(id);if(UI.view==='orders')scheduleRender()}
+function ordPoStaleHtml(id,o){const st=ordPoStale(o);const ns=OPO_NT[id]&&OPO_NT[id].st;const pf=o.poFile;
+  if(st.length===1&&st[0]==='notes'){const R='Rev '+num(pf.rev);
+    /* changed on another device, or before the app was reopened: put them on now */
+    if(!ns||ns==='done')setTimeout(()=>{const z=OPO_NT[id];if(!z||!z.st||z.st==='done')opoNotesSoon(id)},0);
+    return `<div class="hint po-notesupd" role="status">${ns==='busy'?`Updating the PO PDF (${R}) with your notes…`:ns==='fail'?`Couldn’t update the PO PDF (${R}) with your notes${HOSTED&&navigator.onLine===false?' (no signal)':''}. <button class="rowlink" data-act="opo-notes-upd" data-id="${id}" style="color:var(--accent)">Try again</button>`:`Your notes go on the PO PDF (${R}) when you stop typing.`}</div>`}
+  if(!st.length)return ns==='done'&&pf&&pf.notesAt?`<div class="hint po-notesupd" role="status">✓ The PO PDF (Rev ${num(pf.rev)}) has your latest notes.</div>`:'';
+  const L=st.map(k=>PO_PARTS[k]);const list=L.length>1?L.slice(0,-1).join(', ')+' and '+L[L.length-1]:L[0];
   return `<div class="banner po-stale" role="status">You’ve changed ${esc(list)} since Rev ${num(pf.rev)} was raised, so the PO PDF doesn’t show ${st.length===1?'that':'those changes'} yet. Click <b>Amend PO</b> to raise Rev ${num(pf.rev)+1} with ${st.length===1?'it':'them'}.</div>`}
 function ordPoTotals(id){const o=S.orders[id];const sb=document.getElementById('opo_stale_'+id);if(o&&sb)sb.innerHTML=ordPoStaleHtml(id,o);const el=document.getElementById('opo_tot_'+id);if(!o||!el)return;const T=ordPoSum(o);
   el.innerHTML=`Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b>`;
@@ -2073,7 +2108,7 @@ async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.
   UI.tcBusy=oid;render();
   try{if(!window.PDFLib)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');const {PDFDocument}=window.PDFLib;
     const parts=[base,...ATT,...TCS];const BL=await Promise.all(parts.map(f=>fileBlob(f).catch(()=>null)));const out=await PDFDocument.create();const skipped=[];
-    for(let i=0;i<parts.length;i++){const f=parts[i],bl=BL[i];if(!bl){if(i)skipped.push(f.name||'a file');continue}
+    for(let i=0;i<parts.length;i++){const f=parts[i],bl=BL[i];if(!bl){if(!i)throw new Error('The PO PDF itself could not be opened');skipped.push(f.name||'a file');continue}
       const isImg=/^image\//.test(f.type||bl.type||'')||/\.(jpe?g|png|webp|gif)$/i.test(f.name||'');
       try{if(isImg){const jpg=/jpe?g/i.test(f.type||bl.type||'')||/\.jpe?g$/i.test(f.name||'');const png=/png/i.test(f.type||bl.type||'')||/\.png$/i.test(f.name||'');
           const im=jpg?await out.embedJpg(await bl.arrayBuffer()):png?await out.embedPng(await bl.arrayBuffer()):await out.embedPng(await (await poImgPng(bl)).arrayBuffer());
@@ -2085,7 +2120,7 @@ async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.
     /* the order may have been reloaded while the PDF was being built (saving, or a change from another device): write to the current copy,
        and only if it is still the same PO */
     const o2=S.orders[oid];if(!o2||!o2.poFile)throw new Error('order gone');const base2=o2.poBase&&(o2.poFile.tc||o2.poFile.att)?o2.poBase:o2.poFile;
-    if(base2.id!==base.id){UI.tcBusy=null;MERGE_TRIED.delete(oid);setTimeout(()=>poMergeTc(oid),0);return}
+    if(base2.id!==base.id){assets.delete(r.id).catch(()=>{});UI.tcBusy=null;MERGE_TRIED.delete(oid);setTimeout(()=>poMergeTc(oid),0);return}
     o2.poBase={...base};o2.poFile={...base,id:r.id,tc:sig,att:asig};persist('orders/'+oid);setSave(skipped.length?'error':'saved',skipped.length?'Couldn’t add '+skipped.join(', ')+' to the PO PDF':undefined)}
   catch(e){console.error(e);setSave('error','Couldn’t add the attachments and terms & conditions to the PO PDF')}
   UI.tcBusy=null;render();if(UI.view==='orders')setTimeout(poMergeCheck,300)}
@@ -2113,17 +2148,18 @@ function ordPoPanel(id,o){
       <label>Raised by${inp(k+'printName',raiser,{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
       <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label>
       ${poAddrField(k,pm,'opo-addr-reset',id)}
-      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order when you raise or amend it, e.g. site contact, delivery times or special instructions</span><textarea class="f" rows="${taRows(pm.notes)}" data-grow="1" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
+      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order, e.g. site contact, delivery times or special instructions. Once it’s raised, changing them updates the PDF by itself</span><textarea class="f" rows="${taRows(pm.notes)}" data-grow="1" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
     <p class="hint" id="opo_tot_${id}" style="margin:8px 0">Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b></p>
     <div id="opo_stale_${id}">${ordPoStaleHtml(id,o)}</div>
     <div class="to-row"><button class="btn primary" data-act="opo-raise" data-id="${id}" ${T.L.length&&!UI.opoBusy?'':'disabled'}>${UI.opoBusy===id?'Raising…':pf?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'}</button>
-      ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
+      ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${pf.notesAt?` · notes updated ${esc(new Date(pf.notesAt).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}))}`:''}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
 }
 async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMeta=o.poMeta||{};
   const say=(t,err)=>{UI.opoMsg={id,t,err};render()};
   const raisedBy=String(pm.printName??(window.__me?(window.__me.name||window.__me.email):'')).trim();if(!raisedBy)return say('Enter who is raising this order under “Raised by”.',1);
   const T=ordPoSum(o);if(!T.L.length)return say('Add at least one line first.',1);
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
+  {const ns=OPO_NT[id];if(ns){clearTimeout(ns.t);ns.again=false;ns.st='';if(ns.busy)ns.cancel=true}}/* amending: any notes-only update of the old revision is dropped */
   undoRecord();let no=String(o.poNo||'').trim();if(!no){no=ordNextPoNo();o.poNo=no}const date=o.date||todayISO();if(!o.date)o.date=date;
   const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';const printed=ordPoPrinted(o);
   const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',siteAddr:poAddr(pm),poNo:no,lines:T.L,freight:T.fr,raisedBy,rev,notes:String(pm.notes||'').trim()};
@@ -3388,6 +3424,8 @@ function msGroupSet(id,k,f,v){const m=S.msods[id];if(!m)return;v=String(v??'').t
     if(f===BF&&kh0!==kh1&&aid.startsWith('msgx_'+id+'_')&&aid.endsWith('_'+kh0)){const el=document.getElementById(aid.slice(0,-kh0.length)+kh1);if(el&&(!document.activeElement||document.activeElement===document.body))el.focus({preventScroll:true})}};
   if(MS_PD)MS_PDF=go;else setTimeout(go,TOUCH()?300:0)}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.msgx===undefined||!UI.ms||UI.view!=='msod')return;msGroupSet(UI.ms,t.dataset.msgk,t.dataset.msgx,t.value)});
+/* leaving a raised PO's notes box puts the notes on its PDF straight away */
+document.addEventListener('change',e=>{const t=e.target;if(t&&t.id&&t.id.startsWith('opo_notes_')){const id=t.id.slice(10);const s=OPO_NT[id];if(s&&s.st==='wait')opoNotesSoon(id,0)}});
 function msFltBar(id,m){const GF=msGrpF(m),TF=msTxtF(m);const cols=MS_COLS[m.type]||MS_COLS.general;const FL=msFlt(id);const lab=f=>(cols.find(c=>c[0]===f)||[0,f])[1];
   const gVals=[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[GF]??'').trim()))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
   const VIS=msVisible(id,m);const nL=m.items.filter(x=>!x.head).length,nS=m.items.filter((x,i)=>!x.head&&VIS[i]).length;const on=msFltOn(id);
@@ -6308,7 +6346,7 @@ function apply(parts,v){
     persist('orders/'+a);scheduleRender(0);return}
   if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a);if(b==='poNo'||b==='date'||b==='supplier')ordPoTotals(a);if(b==='sec'||b==='parent'){if(b==='parent'&&!v)delete S.orders[a].parent;scheduleRender(0)}}return}
   if(kind==='opl'){const o=S.orders[a];const l=o&&o.lines&&o.lines[+b];if(l){l[c]=v;persist('orders/'+a);ordPoTotals(a)}return}
-  if(kind==='opm'){const o=S.orders[a];if(o){o.poMeta=o.poMeta||{};o.poMeta[b]=v;persist('orders/'+a);ordPoTotals(a)}return}
+  if(kind==='opm'){const o=S.orders[a];if(o){o.poMeta=o.poMeta||{};o.poMeta[b]=v;persist('orders/'+a);if(b==='notes')opoNotesSoon(a);ordPoTotals(a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
   if(kind==='inv'){const iv=S.orders[a]?.inv?.[+b];if(iv&&((c==='amount'&&iv.amountFromPdf)||(c==='ref'&&iv.refFromPdf)))return;const o=S.orders[a];if(o&&o.inv[+b]){o.inv[+b][c]=v;persist('orders/'+a)}return}
   if(kind.startsWith('ms')){const m=S.msods[a];if(!m)return;
@@ -6660,6 +6698,7 @@ if(act==='inv-duplist'){UI.dupList=!UI.dupList;render();return}
 if(act==='inv-dupok'){const x=S.orders[btn.dataset.id]?.inv?.[+btn.dataset.x];if(x){x.dupOk=true;persist('orders/'+btn.dataset.id);render()}return}
 if(act==='ordsec-add'){const L=S.info.ordSecs=ordSecs().slice();const x={id:uid('os'),name:''};L.push(x);persist('project/info');COLL.delete('ordsec:'+x.id);saveColl();render();setTimeout(()=>{const el=document.getElementById('ordsec_'+x.id);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='ordsec-move'){const L=S.info.ordSecs=ordSecs().slice();const i=+btn.dataset.v,j=i+(+btn.dataset.d);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];persist('project/info');render();return}
+if(act==='opo-notes-upd'){opoNotesSoon(btn.dataset.id,0);return}
 if(act==='opo-addr-reset'){const o=S.orders[btn.dataset.id];if(o&&o.poMeta){delete o.poMeta.siteAddr;persist('orders/'+btn.dataset.id);render()}return}
 if(act==='mspo-addr-reset'){const m=S.msods[btn.dataset.id];if(m&&m.po){delete m.po.siteAddr;persist('msod/'+btn.dataset.id);render()}return}
 if(act==='ord-addkid'){const pid=btn.dataset.id;const P=S.orders[pid];if(!P||ordIsKid(P))return;const id=uid('o');const sec=ordSecOf(P);
