@@ -1267,6 +1267,7 @@ V.details=()=>{
   <div class="panel"><h3>Project</h3><div class="form">
     <label>Project name${inp('info|name',PROJ[PID]?.name||S.info.name||'',{ph:'e.g. Sanctuary Stage 4'})}</label>${f('job','Job number',{ph:'OX-'})}${f('period','Period ending',{type:'date'})}${f('startDate','Project start date',{type:'date'})}${f('endDate','Project finish date',{type:'date'})}
     ${f('pm','Project manager')}${f('report','Direct report')}${f('sites','Site managers')}
+    <label class="wide">Site address <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— printed on every purchase order, with the job number</span>${inp('info|siteAddr',i.siteAddr||'',{label:'Site address',ph:'e.g. 12 Smith St, Parramatta NSW 2150'})}</label>
     ${f('desc','Project description',{area:1,wide:1})}${f('comments','Comments and key risk areas',{area:1,wide:1,ph:'1. Labour / access / incentives …'})}
   </div></div>
   <div class="panel"><h3>Contract figures</h3><p class="hint" style="margin:-6px 0 12px">Ex-GST. Variations come from the variation register; costs from orders and labour.</p><div class="form">
@@ -2066,6 +2067,12 @@ async function poMergeTc(oid){const o=S.orders[oid];if(!o||!o.poFile||!o.poFile.
 /* attachments tile: drawings, quotes, photos… kept on the order and added to the PO PDF after its own pages */
 function poAttTile(oid){const o=S.orders[oid];if(!o)return '';const A=poAtts(o);const raised=!!(o.poFile&&o.poFile.id);const on=raised&&A.length&&(o.poFile.att||'')===A.map(x=>x.id).join('+');
   return `<div class="ms-appr-tile po-att" data-poatt="${oid}" title="Drop attachments here"><div><b>Attachments${A.length?` (${A.length})`:''}</b><div class="hint">${UI.tcBusy===oid?'Adding to the PO…':A.length?(on?`In the PO PDF after its own pages${o.tcFile&&o.tcFile.id?', before the terms & conditions':''}.`:raised?'Attached.':'Attached. Added to the PO PDF when you raise it.'):'Attach or drop PDFs or photos (JPG / PNG), e.g. drawings, the quote or a spec. They’re added to the PO PDF after its own pages.'}</div></div>${itpCell('poatt|'+oid,o.attFile,'Attachment')}</div>`}
+/* the site address on a PO: the project's (Project details) unless it was changed for that PO */
+const poAddr=pm=>String((pm&&pm.siteAddr!=null?pm.siteAddr:S.info.siteAddr)||'').trim();
+const poAddrOwn=pm=>!!pm&&pm.siteAddr!=null&&String(pm.siteAddr).trim()!==String(S.info.siteAddr||'').trim();
+function poAddrField(k,pm,act,id){const own=poAddrOwn(pm);const proj=String(S.info.siteAddr||'').trim();
+  return `<label>Job no.<input class="f" id="${esc(k.replace(/\|/g,'_'))}jobno" value="${esc(S.info.job||'')}" disabled placeholder="Not set yet" aria-label="Job number, from Project details"><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">From <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent)">Project details</button></span></label>
+    <label class="wide">Site address${inp(k+'siteAddr',poAddr(pm),{label:'Site address on this PO',ph:'e.g. 12 Smith St, Parramatta NSW 2150'})}<span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Printed on the PO. ${own?`Changed for this PO only${proj?` · <button class="rowlink" data-act="${act}" data-id="${id}" style="color:var(--accent)">Use the project address</button>`:''}`:proj?'From Project details; change it here for this PO only.':`Not set in <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent)">Project details</button> yet: add it there for every PO, or type it here for this PO.`}</span></label>`}
 function ordPoPanel(id,o){
   const ms=o.fromMsod&&S.msods[o.fromMsod];const pf=o.poFile&&o.poFile.id?o.poFile:null;
   if(ms)return `<div class="opo"><div class="opo-h"><b>Purchase order</b><span class="hint">This PO is raised from the MOSD <b>${esc(msName(ms))}</b>. Change its lines there and use <b>Amend PO</b> to raise the next revision.</span><button class="btn" data-act="opo-msod" data-id="${id}">Open MOSD</button></div></div>${pf?`<div class="po-tiles">${poTcTile(id)}${poAttTile(id)}</div>`:''}`;
@@ -2080,7 +2087,8 @@ function ordPoPanel(id,o){
       <label>Freight (ex GST)<div class="cur">${inp(k+'freight',pm.freight??'',{num:1,label:'Freight',ph:'0'})}</div></label>
       <label>Raised by${inp(k+'printName',raiser,{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
       <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label>
-      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order, e.g. delivery address, site contact, delivery times or special instructions</span><textarea class="f" rows="3" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
+      ${poAddrField(k,pm,'opo-addr-reset',id)}
+      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order, e.g. site contact, delivery times or special instructions</span><textarea class="f" rows="3" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
     <p class="hint" id="opo_tot_${id}" style="margin:8px 0">Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b></p>
     <div class="to-row"><button class="btn primary" data-act="opo-raise" data-id="${id}" ${T.L.length&&!UI.opoBusy?'':'disabled'}>${UI.opoBusy===id?'Raising…':pf?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'}</button>
       ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
@@ -2092,7 +2100,7 @@ async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMet
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   undoRecord();let no=String(o.poNo||'').trim();if(!no){no=ordNextPoNo();o.poNo=no}const date=o.date||todayISO();if(!o.date)o.date=date;
   const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';
-  const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',poNo:no,lines:T.L,freight:T.fr,raisedBy,rev,notes:String(pm.notes||'').trim()};
+  const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',siteAddr:poAddr(pm),poNo:no,lines:T.L,freight:T.fr,raisedBy,rev,notes:String(pm.notes||'').trim()};
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
   UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
@@ -3174,7 +3182,8 @@ function msPoPanel(id,m,C){
       <label>Sub contract${sel(k+'sub',po.sub?'1':'',[['','No'],['1','Yes']],{label:'Sub contract'})}</label>
       <label>Freight (ex GST)<div class="cur">${inp(k+'freight',po.freight??'',{num:1,label:'Freight',ph:'0'})}</div></label>
       <label>Raised by${inp(k+'printName',po.printName??(window.__me?(window.__me.name||window.__me.email):''),{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
-      <label>Supplier on PO${inp(k+'supplier',po.supplier??'',{label:'Supplier on PO',ph:m.hdr?.supplier||msSupName(m,ch)})}</label></div>
+      <label>Supplier on PO${inp(k+'supplier',po.supplier??'',{label:'Supplier on PO',ph:m.hdr?.supplier||msSupName(m,ch)})}</label>
+      ${poAddrField(k,po,'mspo-addr-reset',id)}</div>
     <table class="kv" style="margin-top:12px;max-width:420px"><tbody>
       <tr><td>Lines</td><td class="n money">${L.length}${noRate?` <span class="neg">(${noRate} with no rate)</span>`:''}</td></tr>
       <tr><td>Materials</td><td class="n money">${money2(sub)}</td></tr><tr><td>Freight</td><td class="n money">${money2(fr)}</td></tr>
@@ -3195,6 +3204,7 @@ function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',form
   doc.setFontSize(11);doc.text('PO # '+(d.poNo||'—')+'   Rev '+num(d.rev),W-14,47,{align:'right'});
   doc.setFontSize(9.5);const meta=[['Supplier',d.supplier||'—'],['Date',fmtDate(d.date)||'—'],['Job no.',d.jobNo||'—'],['Project',d.project||'—'],['Order type',d.sub?'Sub contract':'Materials'],['Raised by',d.raisedBy||'—'],['Revision','Rev '+num(d.rev)+(num(d.rev)?'':' (original)')],['Revision date',fmtDate(d.date)||'—']];
   let y=55;meta.forEach(([k,v],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(k+':',x,y);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(String(v),64)[0],x+28,y)});
+  if(d.siteAddr){const A=doc.splitTextToSize(String(d.siteAddr).replace(/\s*\n\s*/g,', ').replace(/[−–—]/g,'-'),W-14-42).slice(0,3);y+=6;doc.setFont('helvetica','bold');doc.text('Site address:',14,y);doc.setFont('helvetica','normal');doc.text(A,42,y);y+=(A.length-1)*4.2}
   y+=9;const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
   const hu=d.lines.some(L=>L.unit);const body=d.lines.map((L,i)=>{const r=[String(i+1),L.desc||'',Number(L.qty).toLocaleString('en-AU',{maximumFractionDigits:2})];if(hu)r.push(L.unit||'');r.push(L.rate?m2(L.rate):'—',m2(L.qty*L.rate));return r});
   const hd=hu?['#','Description','Qty','Unit','Rate (ex GST)','Total (ex GST)']:['#','Description','Qty','Rate (ex GST)','Total (ex GST)'];
@@ -3229,7 +3239,7 @@ async function msPo(id){
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   const L=poLines(m);const no=String(po.no??(m.hdr?.orderNo||'')).trim();const date=po.date||todayISO();
   let oid=msPoOrderId(m,no);{const B=msBudgetOrder(m);if(!oid&&B&&B.o.budgetPo)oid=B.oid}const prev=oid&&S.orders[oid].poFile;const rev=prev&&prev.id?(num(prev.rev)+1):0;
-  const d={supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),date,sub:!!po.sub,jobNo:m.hdr?.jobNo||S.info.job||'',project:m.hdr?.jobName||PROJ[PID]?.name||S.info.name||'',poNo:no,lines:L,freight:num(po.freight),raisedBy,rev};
+  const d={supplier:(po.supplier||m.hdr?.supplier||msSupName(m,ch)),date,sub:!!po.sub,jobNo:m.hdr?.jobNo||S.info.job||'',project:m.hdr?.jobName||PROJ[PID]?.name||S.info.name||'',siteAddr:poAddr(po),poNo:no,lines:L,freight:num(po.freight),raisedBy,rev};
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${(no||'PO').replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${d.supplier.replace(/[^\w.-]+/g,'_')}.pdf`;
   UI.msPoMsg='';UI.msPoBusy=true;render();undoRecord();
@@ -6623,6 +6633,8 @@ if(act==='inv-duplist'){UI.dupList=!UI.dupList;render();return}
 if(act==='inv-dupok'){const x=S.orders[btn.dataset.id]?.inv?.[+btn.dataset.x];if(x){x.dupOk=true;persist('orders/'+btn.dataset.id);render()}return}
 if(act==='ordsec-add'){const L=S.info.ordSecs=ordSecs().slice();const x={id:uid('os'),name:''};L.push(x);persist('project/info');COLL.delete('ordsec:'+x.id);saveColl();render();setTimeout(()=>{const el=document.getElementById('ordsec_'+x.id);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='ordsec-move'){const L=S.info.ordSecs=ordSecs().slice();const i=+btn.dataset.v,j=i+(+btn.dataset.d);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];persist('project/info');render();return}
+if(act==='opo-addr-reset'){const o=S.orders[btn.dataset.id];if(o&&o.poMeta){delete o.poMeta.siteAddr;persist('orders/'+btn.dataset.id);render()}return}
+if(act==='mspo-addr-reset'){const m=S.msods[btn.dataset.id];if(m&&m.po){delete m.po.siteAddr;persist('msod/'+btn.dataset.id);render()}return}
 if(act==='ord-addkid'){const pid=btn.dataset.id;const P=S.orders[pid];if(!P||ordIsKid(P))return;const id=uid('o');const sec=ordSecOf(P);
     S.orders[id]={created:Date.now(),inv:[],retention:false,date:todayISO(),parent:pid,...(sec?{sec}:{}),...(P.supplier?{supplier:P.supplier}:{})};
     if(sec){COLL.delete('ordsec:'+sec);saveColl()}UI.open[id]=false;persist('orders/'+id);render();
