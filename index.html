@@ -514,7 +514,7 @@ input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-
 /* claim % boxes show a % sign after the number */
 .pctw{position:relative;display:block}.pctw input.f{padding-right:20px;text-align:right}.pctw::after{content:'%';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12.5px;pointer-events:none}
 .inv-dateask{color:var(--bad);font-weight:600;font-size:11.5px;margin-top:2px}
-.pg-itp{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}.pg-ph{display:inline-flex;flex-wrap:wrap;gap:4px 8px;align-items:center}.ph-add{white-space:nowrap}.ph-pick{padding:3px 8px;font-size:12px}
+.pg-itp{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}.pg-ph{display:inline-flex;flex-wrap:wrap;gap:4px 8px;align-items:center}.ph-link.ph-wait{color:#a0620a}.ph-waitnote{flex-basis:100%;font-size:11.5px}.ph-add{white-space:nowrap}.ph-pick{padding:3px 8px;font-size:12px}
 .to-lyrlist{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:2px}.to-lyri{display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer}
 .to-evt{width:100%;border-collapse:collapse;font-size:12.5px}.to-evt td,.to-evt th{padding:3px 4px;border-bottom:1px solid var(--line)}.to-every{border-color:var(--accent)}
 .act-low input.f{border-color:var(--bad)!important;background:color-mix(in srgb,var(--bad) 8%,var(--panel,#fff))}.act-warn{color:var(--bad);font-size:11.5px;font-weight:600;margin-top:3px;line-height:1.35}.act-ok{padding:1px 8px;font-size:11.5px;margin-left:4px}
@@ -1654,16 +1654,21 @@ const NO_ITP=new Set(['t15','t16']);
 const phTarget=key=>{const [k,t,j,...p]=key.split('|');const d=ensureTask(t);const it=d.items[+j];return k==='pph'?(p.length?subAt(it,p.join('|')):it):null};
 function photoCell(key,arr){const P=(arr||[]).filter(x=>x&&x.id);const eid='ph_'+key.replace(/[^A-Za-z0-9_-]/g,'_');
   if(UP['ph:'+key])return `<span class="hint">Uploading photos…</span>`;
-  return `<div class="pg-ph">${P.map((x,i)=>{const ak='php'+key+i;const am=UI.armed===ak;return `<span class="itp-one"><a class="itp-file ph-link" href="${HOSTED?'#':'/_blob/'+esc(x.id)}" data-file="${esc(x.id)}" target="_blank" rel="noopener" title="${esc(x.name||'Photo')}">Photo ${i+1}</a>${assets?`<button class="btn ${am?'armed':'ghost'} itp-act" data-act="del" data-kind="php" data-id="${esc(key)}" data-x="${i}" aria-label="Remove photo ${i+1}">${am?'Confirm':'✕'}</button>`:''}</span>`}).join('')}
-    ${assets?`<label class="btn itp-up ph-add" for="${eid}" title="Take a photo with the camera, or choose photos (several at once)">📷 ${P.length?'+ Photo':'Photos'}</label><input type="file" accept="image/*" capture="environment" id="${eid}" data-phkey="${esc(key)}" multiple hidden><label class="btn ghost ph-pick" for="${eid}_g" title="Choose photos from the gallery or a folder">Choose</label><input type="file" accept="image/*" id="${eid}_g" data-phkey="${esc(key)}" multiple hidden>`:(P.length?'':'<span class="hint">—</span>')}</div>`}
+  const nw=P.filter(x=>String(x.id).startsWith('pend-')).length;
+  return `<div class="pg-ph">${P.map((x,i)=>{const ak='php'+key+i;const am=UI.armed===ak;const w=String(x.id).startsWith('pend-');return `<span class="itp-one"><a class="itp-file ph-link${w?' ph-wait':''}" href="${HOSTED||w?'#':'/_blob/'+esc(x.id)}" data-file="${esc(x.id)}" target="_blank" rel="noopener" title="${w?'Waiting to upload: kept on the phone or computer it was taken on, and uploads when that’s back online':esc(x.name||'Photo')}">Photo ${i+1}${w?' ⏳':''}</a>${assets?`<button class="btn ${am?'armed':'ghost'} itp-act" data-act="del" data-kind="php" data-id="${esc(key)}" data-x="${i}" aria-label="Remove photo ${i+1}">${am?'Confirm':'✕'}</button>`:''}</span>`}).join('')}
+    ${assets?`<label class="btn itp-up ph-add" for="${eid}" title="Take a photo with the camera, or choose photos (several at once)">📷 ${P.length?'+ Photo':'Photos'}</label><input type="file" accept="image/*" capture="environment" id="${eid}" data-phkey="${esc(key)}" multiple hidden><label class="btn ghost ph-pick" for="${eid}_g" title="Choose photos from the gallery or a folder">Choose</label><input type="file" accept="image/*" id="${eid}_g" data-phkey="${esc(key)}" multiple hidden>`:(P.length?'':'<span class="hint">—</span>')}${nw?`<span class="hint ph-waitnote">⏳ ${nw===1?'1 photo uploads':nw+' photos upload'} when back online</span>`:''}</div>`}
 async function uploadPhotos(key,files){if(!assets)return;const ok=[...files].filter(f=>/^image\//.test(f.type||'')||/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name||''));if(!ok.length){setSave('error','Choose photos (JPG, PNG or HEIC)');return}
-  UP['ph:'+key]=true;render();const added=[];
-  for(const f of ok){try{let blob=f,type=f.type||'image/jpeg';
-      /* phone photos are large: shrink to 2000px on the long side before storing */
-      try{const bmp=await createImageBitmap(f);const sc=Math.min(1,2000/Math.max(bmp.width,bmp.height));if(sc<1||!/jpe?g|png|webp/i.test(type)){const c=document.createElement('canvas');c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));type='image/jpeg'}}catch(e){}
-      const r=await assets.upload(blob,{type});added.push({id:r.id,name:f.name||'photo.jpg',type,at:Date.now()})}
-    catch(e){console.error(e);setSave('error',e&&e.code==='quota_or_state'?'File storage is full':'Could not upload '+(f.name||'a photo'))}}
+  UP['ph:'+key]=true;render();const added=[];let kept=0,lost=0;
+  for(const f of ok){let blob=f,type=f.type||'image/jpeg';const name=f.name||'photo.jpg';
+    /* phone photos are large: shrink to 2000px on the long side before storing */
+    try{const bmp=await createImageBitmap(f);const sc=Math.min(1,2000/Math.max(bmp.width,bmp.height));if(sc<1||!/jpe?g|png|webp/i.test(type)){const c=document.createElement('canvas');c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);const b2=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));if(b2){blob=b2;type='image/jpeg'}}}catch(e){}
+    try{if(HOSTED&&navigator.onLine===false)throw new TypeError('Failed to fetch');const r=await assets.upload(blob,{type});added.push({id:r.id,name,type,at:Date.now()})}
+    catch(e){
+      /* no signal (or it dropped mid-upload): keep the photo on this device; it uploads by itself when the signal is back */
+      if(HOSTED&&offIsNet(e)){const pid='pend-'+uid('p');await offBlobPut(pid,new Blob([blob],{type}));if(await offBlobGet(pid)){added.push({id:pid,name,type,at:Date.now(),pending:1});kept++}else lost++}
+      else{console.error(e);setSave('error',e&&e.code==='quota_or_state'?'File storage is full':'Could not upload '+name)}}}
   const tg=phTarget(key);if(tg&&added.length){tg.photos=[...(tg.photos||[]),...added];persist('tasks/'+key.split('|')[1])}
+  if(lost)setSave('error','No signal, and '+(lost===1?'the photo':lost+' photos')+' couldn’t be kept on this device (its storage may be full)');
   delete UP['ph:'+key];render()}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.phkey||!t.files||!t.files.length)return;const fl=[...t.files];t.value='';uploadPhotos(t.dataset.phkey,fl)});
 function itpCell(key,f,L='ITP'){
@@ -1770,6 +1775,7 @@ async function fcPut(id,b){if(!b||!b.size||b.size>FCACHE_MAX/4)return;await offP
   let tot=Object.values(I).reduce((a,x)=>a+(x.s||0),0);for(const [k] of Object.entries(I).sort((a,b)=>a[1].t-b[1].t)){if(tot<=FCACHE_MAX)break;if(k===id)continue;tot-=I[k].s||0;delete I[k];offDel('blobs','f:'+k)}
   try{localStorage.setItem('ox_fcache',JSON.stringify(I))}catch(e){}}
 async function fetchFile(id){
+  if(String(id).startsWith('pend-')){const b=await offBlobGet(id);if(b)return b;throw new Error('This photo hasn’t uploaded yet. It’s still on the phone or computer it was taken on, and uploads when that device is back online.')}
   const c=await fcGet(id).catch(()=>null);if(c)return c;
   if(window.__mcpMode&&window.__mcpBlobs){const b=await window.__mcpBlobs.read(id);fcPut(id,b);return b}
   if(HOSTED&&window.__sb){const {data,error}=await window.__sb.storage.from('files').download(id);
@@ -6449,7 +6455,7 @@ document.addEventListener('click',async e=>{
   if(act==='site-add-time'){const date=UI.siteDate||todayISO();const id=uid('t');const me=siteMe();S.site[id]={kind:'time',date,who:'',cat:'ox',hrs:'',task:'',note:'',by:me.email,created:Date.now()};persist('site/'+id);render();setTimeout(()=>{const el=document.getElementById('sitet_'+id+'_who');if(el){el.focus();el.scrollIntoView({block:'center'})}},50);return}
   if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',tid:siteTid(t),line:t.line||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
   if(act==='site-ph'){sitePhotoView(btn.dataset.v);return}
-  if(act==='site-phdel'){const date=UI.siteDate||todayISO();const id=siteDiaryId(date);const d=S.site[id];const i=+btn.dataset.v;if(d&&d.photos&&d.photos[i]){const key='siteph'+id+i;if(UI.armed!==key){UI.armed=key;btn.textContent='Remove?';btn.classList.add('armed');setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},3000);return}UI.armed=null;d.photos.splice(i,1);persist('site/'+id);render()}return}
+  if(act==='site-phdel'){const date=UI.siteDate||todayISO();const id=siteDiaryId(date);const d=S.site[id];const i=+btn.dataset.v;if(d&&d.photos&&d.photos[i]){const key='siteph'+id+i;if(UI.armed!==key){UI.armed=key;btn.textContent='Remove?';btn.classList.add('armed');setTimeout(()=>{if(UI.armed===key){UI.armed=null;render()}},3000);return}UI.armed=null;const [gone]=d.photos.splice(i,1);if(gone&&String(gone.id||'').startsWith('pend-'))offDel('blobs',gone.id);persist('site/'+id);render()}return}
   if(act==='ms-move'){const L=msIds();const i=L.indexOf(UI.ms),j=i+(+btn.dataset.d);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];msReorder(L);return}
   if(act==='ms-tab'){UI.mst=btn.dataset.v;render();return}
   if(act==='ms-dk'){UI.msd=+btn.dataset.v;render();return}
@@ -6847,7 +6853,7 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
     else if(kind==='pcl'){const d=claimDoc();const [a,si]=id.split('.');const L=a==='c'?d.secs[+si]?.lines:a==='a'?d.av:d.pv;const xs=String(x).split('.');
       if(L&&xs.length>1){const p=L[+xs[0]];if(p&&p.subs){const gone=p.subs.splice(+xs[1],1)[0];/* last sub-line removed: the line keeps its figures */if(!p.subs.length){delete p.subs;if(gone){p.sum=gone.sum;p.pct=gone.pct;p.prev=gone.prev;p.apct=gone.apct}}}}else if(L)L.splice(+x,1);if(a==='c')pcRenumberAll();persist('project/claim')}
     else if(kind==='itpf'){const f=getItp(id);let more=f&&Array.isArray(f.more)?f.more.filter(x=>x&&x.id):[];{const pi=more.findIndex(x=>!/^image\//.test(x.type||''));if(pi>0)more=[more[pi],...more.filter((_,i)=>i!==pi)]}setItp(id,more.length?{...more[0],...(more.length>1?{more:more.slice(1)}:{})}:null);if(f&&f.id&&assets)assets.delete(f.id).catch(()=>{})}
-    else if(kind==='php'){const tg=phTarget(id);if(tg&&Array.isArray(tg.photos)){const gone=tg.photos[+x];tg.photos=tg.photos.filter((_,i)=>i!==+x);if(!tg.photos.length)delete tg.photos;persist('tasks/'+id.split('|')[1]);if(gone&&gone.id&&assets)assets.delete(gone.id).catch(()=>{})}}
+    else if(kind==='php'){const tg=phTarget(id);if(tg&&Array.isArray(tg.photos)){const gone=tg.photos[+x];tg.photos=tg.photos.filter((_,i)=>i!==+x);if(!tg.photos.length)delete tg.photos;persist('tasks/'+id.split('|')[1]);if(gone&&gone.id&&String(gone.id).startsWith('pend-'))offDel('blobs',gone.id);else if(gone&&gone.id&&assets)assets.delete(gone.id).catch(()=>{})}}
     else if(kind==='itpm'){const f=getItp(id);if(f&&Array.isArray(f.more)){const gone=f.more[+x];const more=f.more.filter((_,i)=>i!==+x);const nf={...f};if(more.length)nf.more=more;else delete nf.more;setItp(id,nf);if(gone&&gone.id&&assets)assets.delete(gone.id).catch(()=>{})}}
     else if(kind==='opl'){const o=S.orders[id];if(o&&o.lines){o.lines.splice(+x,1);persist('orders/'+id)}}
     else if(kind==='pkg'){window.__sb.from('packages').delete().eq('id',id).then(({error})=>{TEAMMSG=error?'Could not delete the package: '+error.message:'Deleted the package. Its projects are now visible to everyone with “All projects” access.';loadTeam()});return}
@@ -6974,7 +6980,7 @@ function makeSbDb(sb){
     try{for(const x of await offOutbox()){try{if(x.del){const {error}=await sb.from(T).delete().eq('path',x.p);if(error)throw error}else{const {error}=await sb.from(T).upsert({path:x.p,coll:x.coll,data:x.data,updated_at:new Date().toISOString()});if(error)throw error}
         await cacheRow(x.p,x.data,x.del);await offDel('outbox',U()+x.p);sent++;colls.add(x.coll)}catch(e){if(offIsNet(e))break;console.error('offline change not saved',x.p,e);await offDel('outbox',U()+x.p)}}}
     finally{OFF.busy=false}await offCount();for(const c of colls)bump(c);if(sent)offPhotoDrain()}
-  addEventListener('online',()=>{drain();offPhotoDrain()});addEventListener('offline',()=>offCount());setInterval(()=>{if(OFF.n)drain()},30000);setTimeout(()=>{offCount();drain();offPhotoDrain()},1500);
+  addEventListener('online',()=>{drain();offPhotoDrain()});addEventListener('offline',()=>offCount());setInterval(()=>{if(OFF.n)drain()},30000);setInterval(()=>{if(navigator.onLine!==false)offPhotoDrain()},20000);setTimeout(()=>{offCount();drain();offPhotoDrain()},1500);
   async function emit(c){const L=listeners[c];if(!L||!L.size)return;try{const rows=await fetchColl(c);const snap={docs:rows.map(r=>({id:r.path.split('/').pop(),exists:true,data:()=>r.data})),metadata:{fromCache:false,hasPendingWrites:false}};snap.size=snap.docs.length;snap.empty=!snap.size;for(const f of L)f.next(snap)}catch(e){for(const f of L)f.err&&f.err(e)}}
   const timers={};const bump=c=>{clearTimeout(timers[c]);timers[c]=setTimeout(()=>emit(c),120)};
   sb.channel('docs-all').on('postgres_changes',{event:'*',schema:'public',table:T},pl=>{const p=(pl.new&&pl.new.path)||(pl.old&&pl.old.path);if(p)bump(parent(p))}).subscribe();
@@ -6992,12 +6998,23 @@ function makeSbDb(sb){
     collection(c){return {onSnapshot(next,err){const f={next,err};(listeners[c]=listeners[c]||new Set()).add(f);emit(c);return ()=>listeners[c].delete(f)}}}
   };
 }
-async function offPhotoDrain(){if(!assets||navigator.onLine===false||offPhotoDrain.busy)return;offPhotoDrain.busy=true;try{
-    for(const [sid,d] of Object.entries(S.site)){if(!d||!Array.isArray(d.photos))continue;let ch=false;
-      for(const ph of d.photos){if(!ph.pending||!String(ph.id).startsWith('pend-'))continue;const b=await offBlobGet(ph.id);if(!b){ph.pending=0;ch=true;continue}
-        try{const r=await assets.upload(new File([b],ph.name||'photo.jpg',{type:'image/jpeg'}),{type:'image/jpeg'});if(PHURL[ph.id])PHURL[r.id]=PHURL[ph.id];await offDel('blobs',ph.id);ph.id=r.id;delete ph.pending;ch=true}catch(e){if(offIsNet(e))return;console.error(e)}}
-      if(ch)persist('site/'+sid)}
-  }finally{offPhotoDrain.busy=false}scheduleRender()}
+/* photos taken without signal (site diary and Progress) upload by themselves once the signal is back.
+   Only this device's own waiting photos are touched: one taken on another phone is left for that phone to upload. */
+const phWaitLists=doc=>{const out=[];const walk=(x,d)=>{if(!x||typeof x!=='object'||d>10)return;if(Array.isArray(x)){for(const y of x)walk(y,d+1);return}
+  for(const k in x){const v=x[k];if(k==='photos'&&Array.isArray(v)){if(v.some(p=>p&&String(p.id||'').startsWith('pend-')))out.push(v)}else if(v&&typeof v==='object')walk(v,d+1)}};walk(doc,0);return out};
+const phWaitFind=(doc,pid)=>{for(const L of phWaitLists(doc)){const ph=L.find(p=>p&&p.id===pid);if(ph)return ph}return null};
+async function offPhotoDrain(){if(!assets||navigator.onLine===false||offPhotoDrain.busy)return;
+  let keys=[];try{keys=await offTx('blobs','readonly',o=>o.getAllKeys())}catch(e){}if(!keys||!keys.length)return;const mine=new Set(keys.map(String));
+  offPhotoDrain.busy=true;let up=0;
+  try{outer:for(const [coll,M] of [['site',S.site],['tasks',S.tasks]]){for(const id of Object.keys(M||{})){
+      const want=[];for(const L of phWaitLists(M[id]))for(const ph of L)if(ph&&mine.has(String(ph.id)))want.push(String(ph.id));
+      for(const pid of want){const b=await offBlobGet(pid);if(!b)continue;const ph0=phWaitFind(M[id],pid);if(!ph0)continue;
+        let r;try{const ty=ph0.type||b.type||'image/jpeg';r=await assets.upload(new File([b],ph0.name||'photo.jpg',{type:ty}),{type:ty})}catch(e){if(offIsNet(e))break outer;console.error(e);continue}
+        /* the list may have been redrawn from the server while uploading: find the photo again */
+        const ph=phWaitFind(M[id],pid);
+        if(!ph){assets.delete(r.id).catch(()=>{});await offDel('blobs',pid);continue}
+        if(PHURL[pid])PHURL[r.id]=PHURL[pid];ph.id=r.id;delete ph.pending;await offDel('blobs',pid);persist(coll+'/'+id);up++}}}
+  }finally{offPhotoDrain.busy=false}if(up)scheduleRender()}
 function makeSbAssets(sb){return {
   async upload(file,opts){const ty=(opts&&opts.type)||file.type||'application/pdf';const ext=/png/.test(ty)?'.png':/jpe?g/.test(ty)?'.jpg':/webp/.test(ty)?'.webp':'.pdf';const id=(crypto.randomUUID?crypto.randomUUID():uid('f'))+ext;
     /* tie the file to its project first, so only people who can see the project can open it (needed for package users) */
