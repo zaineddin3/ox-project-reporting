@@ -427,7 +427,8 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .lcc-note{margin:10px 0 0}
 @media(max-width:640px){.lcc-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.lcc-row .s{grid-column:1/-1;grid-row:2}}
 @media (max-width:640px){.hcmp{grid-template-columns:minmax(0,1fr) 90px}.hcmp-t{grid-column:1/-1;grid-row:2}}
-.opo{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}.opo.ord-dropping{outline:2px dashed var(--accent);outline-offset:2px}.opo-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.opo-t td{vertical-align:middle;background:var(--surface)!important}
+.opo{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}.opo.ord-dropping{outline:2px dashed var(--accent);outline-offset:2px}.opo-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.po-stale{margin:6px 0 8px}.opo-t td{vertical-align:middle;background:var(--surface)!important}
 .pofile{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}.pofile .itp-file{font-size:12px}.pofile .hint{width:100%;font-size:11.5px}.pohist{width:100%;border-left:2px solid var(--line);padding-left:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
 .pdfv{position:fixed;inset:0;z-index:120;background:rgba(20,28,36,.72);display:flex;flex-direction:column}
 .pdfv-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line)}
@@ -2015,7 +2016,18 @@ function ordNextPoNo(){const job=(S.info.job||'').trim();const pre=(job?job+'-':
   return pre+String(n+1).padStart(3,'0')}
 const ordPoLines=o=>(o.lines||[]).filter(l=>String(l.desc||'').trim()||num(l.qty)).map(l=>({desc:String(l.desc||'').trim(),unit:String(l.unit||'').trim(),qty:num(l.qty),rate:num(l.rate)}));
 function ordPoSum(o){const L=ordPoLines(o);const sub=L.reduce((a,x)=>a+x.qty*x.rate,0);const fr=num(o.poMeta&&o.poMeta.freight);return {L,sub,fr,ex:sub+fr}}
-function ordPoTotals(id){const o=S.orders[id];const el=document.getElementById('opo_tot_'+id);if(!o||!el)return;const T=ordPoSum(o);
+/* a notes box shows all its lines (3 to 14) */
+const taRows=t=>Math.min(14,Math.max(3,String(t||'').split('\n').length+1));
+/* what a raised PO prints, by part (short fingerprints), so the PO can say what has changed since its PDF was made */
+const PO_PARTS={lines:'the lines',freight:'the freight',notes:'the notes',addr:'the site address',supplier:'the supplier',sub:'sub contract',no:'the PO number',date:'the PO date',job:'the job number'};
+function ordPoPrinted(o){const pm=o.poMeta||{};const T=ordPoSum(o);
+  const v={lines:T.L.map(L=>[L.desc,L.qty,L.unit,L.rate].join('|')).join('\n'),freight:String(T.fr),notes:String(pm.notes||'').trim(),addr:poAddr(pm),
+    supplier:String(pm.supplier||o.supplier||'').trim()||'Supplier',sub:pm.sub?'1':'',no:String(o.poNo||'').trim(),date:o.date||'',job:String(S.info.job||'')};
+  const out={};for(const k in v)out[k]=msKH(v[k]);return out}
+function ordPoStale(o){const pf=o&&o.poFile;if(!pf||!pf.id||!pf.printed)return [];const now=ordPoPrinted(o);return Object.keys(PO_PARTS).filter(k=>k in pf.printed&&pf.printed[k]!==now[k])}
+function ordPoStaleHtml(id,o){const st=ordPoStale(o);if(!st.length)return '';const pf=o.poFile;const L=st.map(k=>PO_PARTS[k]);const list=L.length>1?L.slice(0,-1).join(', ')+' and '+L[L.length-1]:L[0];
+  return `<div class="banner po-stale" role="status">You’ve changed ${esc(list)} since Rev ${num(pf.rev)} was raised, so the PO PDF doesn’t show ${st.length===1?'that':'those changes'} yet. Click <b>Amend PO</b> to raise Rev ${num(pf.rev)+1} with ${st.length===1?'it':'them'}.</div>`}
+function ordPoTotals(id){const o=S.orders[id];const sb=document.getElementById('opo_stale_'+id);if(o&&sb)sb.innerHTML=ordPoStaleHtml(id,o);const el=document.getElementById('opo_tot_'+id);if(!o||!el)return;const T=ordPoSum(o);
   el.innerHTML=`Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b>`;
   (o.lines||[]).forEach((l,i)=>{const c=document.getElementById('opo_lt_'+id+'_'+i);if(c)c.textContent=num(l.qty)*num(l.rate)?money2(num(l.qty)*num(l.rate)):''})}
 /* terms & conditions: a PDF kept on the order; its pages are added to the end of the raised PO's PDF, so they're seen wherever the PO is opened */
@@ -2088,8 +2100,9 @@ function ordPoPanel(id,o){
       <label>Raised by${inp(k+'printName',raiser,{label:'Raised by',ph:'Name of who is raising the PO'})}</label>
       <label>Supplier on PO${inp(k+'supplier',pm.supplier??'',{label:'Supplier on PO',ph:o.supplier||'Supplier name'})}</label>
       ${poAddrField(k,pm,'opo-addr-reset',id)}
-      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order, e.g. site contact, delivery times or special instructions</span><textarea class="f" rows="3" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
+      <label class="po-notes" style="grid-column:1/-1">Notes on the PO <span class="hint" style="font-weight:400">— printed on the purchase order when you raise or amend it, e.g. site contact, delivery times or special instructions</span><textarea class="f" rows="${taRows(pm.notes)}" data-grow="1" id="opo_notes_${id}" data-b="${k}notes" aria-label="Notes on the PO" placeholder="e.g. Deliver to Gate 2, 7am–2pm. Call site manager on arrival.">${esc(pm.notes||'')}</textarea></label></div>
     <p class="hint" id="opo_tot_${id}" style="margin:8px 0">Materials <b class="money">${money2(T.sub)}</b> · Freight <b class="money">${money2(T.fr)}</b> · Total ex GST <b class="money">${money2(T.ex)}</b> · inc GST <b class="money">${money2(T.ex*1.1)}</b></p>
+    <div id="opo_stale_${id}">${ordPoStaleHtml(id,o)}</div>
     <div class="to-row"><button class="btn primary" data-act="opo-raise" data-id="${id}" ${T.L.length&&!UI.opoBusy?'':'disabled'}>${UI.opoBusy===id?'Raising…':pf?'Amend PO · raise Rev '+(num(pf.rev)+1)+' (PDF)':'Raise purchase order (PDF)'}</button>
       ${pf?`<span class="hint">Current: Rev ${num(pf.rev)} · ${poFileLinks(pf)}${(o.poHist||[]).length?' · '+o.poHist.length+' earlier revision'+(o.poHist.length===1?'':'s')+' kept in History':''}</span>`:'<span class="hint">Raising sets the PO amount to the total above and saves the PDF on this order.</span>'}</div></div>`;
 }
@@ -2099,12 +2112,12 @@ async function ordPoRaise(id){const o=S.orders[id];if(!o)return;const pm=o.poMet
   const T=ordPoSum(o);if(!T.L.length)return say('Add at least one line first.',1);
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   undoRecord();let no=String(o.poNo||'').trim();if(!no){no=ordNextPoNo();o.poNo=no}const date=o.date||todayISO();if(!o.date)o.date=date;
-  const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';
+  const prev=o.poFile&&o.poFile.id?o.poFile:null;const rev=prev?num(prev.rev)+1:0;const supplier=String(pm.supplier||o.supplier||'').trim()||'Supplier';const printed=ordPoPrinted(o);
   const d={supplier,date,sub:!!pm.sub,jobNo:S.info.job||'',project:PROJ[PID]?.name||S.info.name||'',siteAddr:poAddr(pm),poNo:no,lines:T.L,freight:T.fr,raisedBy,rev,notes:String(pm.notes||'').trim()};
   let blob;try{blob=poPdf(d)}catch(e){console.error(e);setSave('error','Could not build the purchase order');return}
   const fname=`${no.replace(/[^\w.-]+/g,'_')} Rev ${rev} - ${supplier.replace(/[^\w.-]+/g,'_')}.pdf`;const amt=Math.round(T.ex*100)/100;
   UI.opoBusy=id;UI.opoMsg=null;render();o.po=String(amt);o.raisedBy=raisedBy;let saved=false;
-  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date};delete o.poBase;saved=true;if(poTcs(o).length||poAtts(o).length)setTimeout(()=>poMergeTc(id),0)}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
+  if(assets){try{const r=await assets.upload(new File([blob],fname,{type:'application/pdf'}),{type:'application/pdf'});if(prev&&prev.id!==r.id)o.poHist=[...(o.poHist||[]),prev];o.poFile={id:r.id,name:fname,by:raisedBy,at:Date.now(),rev,total:amt,date,printed};delete o.poBase;saved=true;if(poTcs(o).length||poAtts(o).length)setTimeout(()=>poMergeTc(id),0)}catch(e){console.error(e);setSave('error','The PDF could not be saved with the order')}}
   persist('orders/'+id);UI.opoBusy=null;UI.opoMsg={id,t:saved?`Raised PO ${no} Rev ${rev} for ${money2(amt)} ex GST.`:'PDF downloaded, but it could not be saved on the order here.'};render();
   if(!saved&&downloads){try{await downloads.save({filename:fname,data:blob})}catch(e){}}}
 function poParseRows(rows){const clean=v=>v==null?'':String(v).trim();const isNum=v=>v!==''&&!isNaN(num(String(v).replace(/[$,\s]/g,'')));const n=v=>num(String(v).replace(/[$,\s]/g,''));
@@ -3480,7 +3493,7 @@ async function pdfAppend(blob,files){if(!files.length)return {blob,skipped:[]};i
       else{const src=await PDFDocument.load(await bl.arrayBuffer(),{ignoreEncryption:true});(await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p))}}catch(e){console.error(e);skipped.push(f.name||'a file')}}
   return {blob:new Blob([await out.save()],{type:'application/pdf'}),skipped}}
 function msGenNotes(id,m){const L=m.dnotes||[];return `<div class="panel"><div class="sec-head"><div><h3>Notes for all deliveries</h3><p class="hint">Standing instructions for this MOSD: site access, delivery hours, unloading, who to call. They print on every delivery request.</p></div><button class="btn" data-act="ms-add-gnote">+ Add note</button></div>
-  ${L.length?`<div class="msnotes">${L.map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msgn|'+id+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msgn',id,String(ni),'Remove note')}</div><textarea class="f" id="msgn_${id}_${ni}_text" data-b="msgn|${id}|${ni}|text" rows="3" aria-label="Note ${ni+1} for all deliveries" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>`}
+  ${L.length?`<div class="msnotes">${L.map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msgn|'+id+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msgn',id,String(ni),'Remove note')}</div><textarea class="f" id="msgn_${id}_${ni}_text" data-b="msgn|${id}|${ni}|text" rows="${taRows(n.text)}" data-grow="1" aria-label="Note ${ni+1} for all deliveries" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>`}
 function msDeliveries(id,m,C){
   const n=m.dockets.length;if(UI.msd==null||UI.msd>=n)UI.msd=n-1;const di=UI.msd;
   const chips=`<div class="chips" role="group" aria-label="Delivery request">${m.dockets.map((d,k)=>`<button class="chip" data-act="ms-dk" data-v="${k}" aria-pressed="${k===di}">MOSD ${k+1}${d.delivery?' · '+fmtDate(d.delivery):''}</button>`).join('')}<button class="chip add" data-act="ms-add-dk">+ New delivery request</button></div>`;
@@ -3495,7 +3508,7 @@ function msDeliveries(id,m,C){
   return `${chips}<div class="panel"><div class="sec-head"><div><h3>MOSD ${di+1} · Request no. ${di+1}</h3><p class="hint">Supplier, order and site details come from the Details tab.</p></div><div class="toolbar"><button class="btn" data-act="ms-fill">Fill all outstanding</button><button class="btn primary" data-act="ms-pdf">Download PDF</button><button class="btn ${UI.armed==='msdk'+id+di?'armed':''}" data-act="del" data-kind="msdk" data-id="${id}" data-x="${di}" style="white-space:nowrap">${UI.armed==='msdk'+id+di?'Confirm: remove MOSD '+(di+1):'Remove MOSD '+(di+1)}</button></div></div>
     <div class="form"><label>Date${inp(k+'date',d.date||'',{type:'date',label:'Request date'})}</label><label>Delivery date${inp(k+'delivery',d.delivery||'',{type:'date',label:'Delivery date'})}</label></div></div>
   <div class="panel"><div class="sec-head"><div><h3>Notes for MOSD ${di+1}</h3><p class="hint">Delivery instructions, access, missing or damaged items for this request. Notes print on the delivery request PDF.</p></div><button class="btn" data-act="ms-add-note">+ Add note</button></div>
-  ${msNotes(d).length?`<div class="msnotes">${msNotes(d).map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msnt|'+id+'|'+di+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msnt',id,di+'.'+ni,'Remove note')}</div><textarea class="f" id="msnt_${id}_${di}_${ni}_text" data-b="msnt|${id}|${di}|${ni}|text" rows="3" aria-label="Note ${ni+1}" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>
+  ${msNotes(d).length?`<div class="msnotes">${msNotes(d).map((n,ni)=>`<div class="msnote"><div class="msnote-h">${inp('msnt|'+id+'|'+di+'|'+ni+'|date',n.date||'',{type:'date',label:'Note '+(ni+1)+' date',style:'width:auto'})}<span style="flex:1"></span>${delBtn('msnt',id,di+'.'+ni,'Remove note')}</div><textarea class="f" id="msnt_${id}_${di}_${ni}_text" data-b="msnt|${id}|${di}|${ni}|text" rows="${taRows(n.text)}" data-grow="1" aria-label="Note ${ni+1}" placeholder="Write a note">${esc(n.text||'')}</textarea></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No notes yet.</p>'}</div>
   <div class="panel" style="padding:10px 14px"><label class="toolbar hint"><input type="checkbox" data-ui-check="msOut" ${out?'checked':''}> Only show lines with a balance outstanding</label></div>
   <div class="tw tall"><table><thead><tr><th>#</th>${cols.map(([f,l,w,isN])=>`<th class="${isN?'n':''}">${esc(l)}</th>`).join('')}<th class="n">Original order</th><th class="n">Delivered to date</th><th class="n">This delivery</th><th class="n">Balance outstanding</th></tr></thead>
   <tbody>${rows||`<tr><td colspan="${NC+5}" class="hint">Nothing outstanding.</td></tr>`}</tbody><tfoot><tr><td colspan="${NC+3}">This delivery</td><td class="n money">${tq.toLocaleString('en-AU',{maximumFractionDigits:2})}</td><td></td></tr></tfoot></table></div>
@@ -6280,7 +6293,7 @@ function apply(parts,v){
     /* it stays in its PO's section, and keeps that section if it's taken out from under it */
     if(v){o.sec=ordSecOf(P);o.parent=v;if(o.sec){COLL.delete('ordsec:'+o.sec);saveColl()}}else{const ps=was&&S.orders[was]?ordSecOf(S.orders[was]):'';delete o.parent;if(ps)o.sec=ps}
     persist('orders/'+a);scheduleRender(0);return}
-  if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a);if(b==='sec'||b==='parent'){if(b==='parent'&&!v)delete S.orders[a].parent;scheduleRender(0)}}return}
+  if(kind==='ord'){if(S.orders[a]){S.orders[a][b]=v;persist('orders/'+a);if(b==='poNo'||b==='date'||b==='supplier')ordPoTotals(a);if(b==='sec'||b==='parent'){if(b==='parent'&&!v)delete S.orders[a].parent;scheduleRender(0)}}return}
   if(kind==='opl'){const o=S.orders[a];const l=o&&o.lines&&o.lines[+b];if(l){l[c]=v;persist('orders/'+a);ordPoTotals(a)}return}
   if(kind==='opm'){const o=S.orders[a];if(o){o.poMeta=o.poMeta||{};o.poMeta[b]=v;persist('orders/'+a);ordPoTotals(a)}return}
   if(kind==='invl'){const o=S.orders[a];const l=o&&o.inv[+b]&&invLines(o.inv[+b])[+c];if(l){l[parts[4]]=v;persist('orders/'+a)}return}
@@ -6347,6 +6360,7 @@ async function uploadMarkups(id,files){
 }
 viewEl.addEventListener('input',e=>{
   const t=e.target;
+  if(t.dataset&&t.dataset.grow&&t.tagName==='TEXTAREA'){const r=taRows(t.value);if(t.rows!==r)t.rows=r}
   if(t.dataset.uiCheck){UI[t.dataset.uiCheck]=t.checked;if(t.dataset.uiCheck==='pdfHideLab'){try{localStorage.setItem('ox_pdfhidelab',t.checked?'1':'0')}catch(e){}}scheduleRender(0);return}
   if(t.dataset.ui==='tmvTo'&&UI.tmv){UI.tmv.to=t.value;return}
   if(t.dataset.xtask!==undefined&&!isXTask(t.dataset.xtask)){const id=t.dataset.xtask,i=TASK_IDS.indexOf(id);S.info.taskNames=(S.info.taskNames&&typeof S.info.taskNames==='object')?S.info.taskNames:{};
