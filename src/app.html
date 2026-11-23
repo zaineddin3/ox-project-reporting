@@ -507,6 +507,8 @@ tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!im
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
 .ms-fltbar{padding:10px 14px}.ms-fltbar .toolbar{gap:12px}.ms-fltbar label{display:inline-flex;align-items:center;gap:6px}.ms-fltbar .f{width:auto}
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.ms-tfill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.ms-tfill .f{width:auto}
 .ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
 .msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
 .ms-appr-tile{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent)}.ms-appr-tile .hint{font-size:12px;max-width:420px}
@@ -3310,7 +3312,15 @@ function msFltBar(id,m){const GF=msGrpF(m),TF=msTxtF(m);const cols=MS_COLS[m.typ
   return `<div class="panel ms-fltbar"><div class="toolbar"><b>Filter</b>
     <label class="hint">${esc(lab(GF))} <select class="f" id="msfb_${id}_${GF}" data-msflt="${GF}" aria-label="Filter by ${esc(lab(GF).toLowerCase())}"><option value="">All</option>${gVals.map(v=>`<option value="=${esc(v)}" ${String(FL[GF]||'').toLowerCase()==='='+v.toLowerCase()?'selected':''}>${v?esc(v):'(blank)'}</option>`).join('')}</select></label>
     <label class="hint">${esc(lab(TF))} <input class="f" id="msfb_${id}_${TF}" data-msflt="${TF}" list="msfbl_${id}" value="${esc(FL[TF]||'')}" placeholder="Type to search, e.g. GPO" aria-label="Filter by ${esc(lab(TF).toLowerCase())}" style="min-width:240px"><datalist id="msfbl_${id}">${[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[TF]??'').trim()).filter(Boolean))].sort().slice(0,300).map(v=>`<option value="${esc(v)}">`).join('')}</datalist></label>
-    <span style="flex:1"></span>${on?`<span class="hint">Showing <b>${nS}</b> of ${nL} lines</span><button class="btn ghost" data-act="ms-flt-clr">Clear filters</button>`:`<span class="hint">${nL} lines</span>`}</div></div>`}
+    <span style="flex:1"></span>${on?`<span class="hint">Showing <b>${nS}</b> of ${nL} lines</span><button class="btn ghost" data-act="ms-flt-clr">Clear filters</button>`:`<span class="hint">${nL} lines</span>`}</div>${on?msTFillRow(id,m,nS):''}</div>`}
+/* while filtering: type what the lines shown should say (type, description, details, cat number) and fill every one of them */
+function msTFillRow(id,m,nS){const cols=MS_COLS[m.type]||MS_COLS.general;const T=UI.msTF||{};const any=cols.some(c=>String(T[c[0]]??'').trim()!=='');
+  const dl=f=>[...new Set(m.items.filter(x=>!x.head).map(x=>String(x[f]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).slice(0,300).map(v=>`<option value="${esc(v)}">`).join('');
+  return `<div class="toolbar ms-tfill"><b>Fill</b><span class="hint">the ${nS} line${nS===1?'':'s'} shown with</span>
+    ${cols.map(([f,l,w,n])=>`<label class="hint">${esc(l)} <input class="f" id="mstf_${id}_${f}" data-mstf="${f}" list="mstfl_${id}_${f}" value="${esc(T[f]??'')}" placeholder="New ${esc(l.toLowerCase())}" aria-label="New ${esc(l.toLowerCase())} for the lines shown"${n?' inputmode="decimal"':''} style="width:${n?90:Math.max(130,Math.min(220,w))}px"><datalist id="mstfl_${id}_${f}">${dl(f)}</datalist></label>`).join('')}
+    <label class="hint"><input type="checkbox" data-ui-check="msTFE" ${UI.msTFE?'checked':''}> only empty cells</label>
+    <button class="btn primary" data-act="ms-tfill" data-n="${nS}" title="Every line shown by the filter gets what you typed. Boxes left empty don’t change anything." ${any&&nS?'':'disabled'}>Fill ${nS} line${nS===1?'':'s'}</button>
+    ${UI.msTFMsg?`<span class="hint ms-tfmsg" role="status"><b>${esc(UI.msTFMsg)}</b></span>`:''}</div>`}
 function msItems(id,m,C){
   const cols=MS_COLS[m.type]||MS_COLS.general;const ns=m.suppliers.length;const ch=C.ch;
   const supOpts=[['','Choose a supplier'],...m.suppliers.map((s,i)=>[String(i),msSupName(m,i)])];
@@ -6278,7 +6288,9 @@ viewEl.addEventListener('input',e=>{
   if(t.dataset.cpk!==undefined&&UI.cpto){const s2=new Set(UI.cpto.sel||[]);if(t.checked)s2.add(t.dataset.cpk);else s2.delete(t.dataset.cpk);UI.cpto.sel=[...s2];cptoCounts();return}
   if(t.dataset.cpclr!==undefined&&UI.cpto){const M=UI.cpto;if(M.hrs===false){M.clrHrs=true;M.clrQty=true;M.hrs=true}M[t.dataset.cpclr]=t.checked;return}
   if(t.dataset.mstr!==undefined){UI.msTR=UI.msTR||{};UI.msTR[t.dataset.mstr]=t.value;return}
-  if(t.dataset.msflt!==undefined&&UI.ms){msFlt(UI.ms)[t.dataset.msflt]=t.value;UI.msFillMsg='';UI.msTRMsg='';scheduleRender(t.tagName==='SELECT'?0:250);return}
+  if(t.dataset.mstf!==undefined){(UI.msTF=UI.msTF||{})[t.dataset.mstf]=t.value;UI.msTFMsg='';/* no redraw while typing (keeps the suggestions list open): just switch the Fill button on or off */
+    const row=t.closest('.ms-tfill');if(row){const b=row.querySelector('[data-act="ms-tfill"]');if(b)b.disabled=!(+b.dataset.n>0&&Object.values(UI.msTF).some(v=>String(v??'').trim()!==''));row.querySelector('.ms-tfmsg')?.remove()}return}
+  if(t.dataset.msflt!==undefined&&UI.ms){msFlt(UI.ms)[t.dataset.msflt]=t.value;UI.msFillMsg='';UI.msTRMsg='';UI.msTFMsg='';scheduleRender(t.tagName==='SELECT'?0:250);return}
   if(t.dataset.ui==='msFillV'||t.dataset.ui==='msFillS')UI.msFillMsg='';
   if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
@@ -6377,7 +6389,20 @@ document.addEventListener('click',async e=>{
       const G=new Set();m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;const k=String(it[GF]??'').trim();if(!(k in R))return;it.r=it.r||[];G.add(k);if(UI.msFillE&&String(it.r[si]??'').trim()!=='')return;it.r[si]=R[k];n++});
       t=G.size;UI.msTRMsg=!Object.keys(R).length?'Type a rate against at least one row first.':!t?'None of the lines shown match those rows.':n?`Filled ${n} line${n===1?'':'s'} across ${t} group${t===1?'':'s'} for ${msSupName(m,si)}.`:'No lines to fill (they all have a rate).';
       if(n){persist('msod/'+id);UI.msByType=false;UI.msTR={};UI.msFillMsg=UI.msTRMsg;UI.msTRMsg=''}/* applied: hide the table until Rates by type is pressed again */render();return}
-    if(act==='ms-flt-clr'){if(UI.msFlt)delete UI.msFlt[id];render();return}
+    if(act==='ms-flt-clr'){if(UI.msFlt)delete UI.msFlt[id];UI.msTFMsg='';render();return}
+    if(act==='ms-tfill'){const cols=MS_COLS[m.type]||MS_COLS.general;const T=UI.msTF||{};
+      const set=cols.map(c=>[c[0],String(T[c[0]]??'').trim(),c[1]]).filter(x=>x[1]!=='');if(!set.length||!msFltOn(id))return;
+      const VIS=msVisible(id,m);let n=0,kept=0;try{undoRecord()}catch(e){}
+      m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;let ch=false;
+        for(const [f,v] of set){const cur=String(it[f]??'').trim();if(cur===v)continue;if(UI.msTFE&&cur!==''){kept++;continue}it[f]=v;ch=true}
+        if(ch)n++});
+      /* keep the filled lines in view: a filter on a column that was just filled follows the new value */
+      const FL=msFlt(id);const moved=[];
+      if(n)for(const [f,v,l] of set){const q=String(FL[f]??'').trim().toLowerCase();if(!q)continue;const vl=v.toLowerCase();
+        if(q.startsWith('=')?vl!==q.slice(1).trim():!vl.includes(q)){FL[f]=q.startsWith('=')?'='+v:v;moved.push(l)}}
+      UI.msTFMsg=n?`Filled ${n} line${n===1?'':'s'} (${set.map(x=>x[2]).join(', ')}).${kept?` ${kept} cell${kept===1?' that already had something was':'s that already had something were'} left as ${kept===1?'it was':'they were'}.`:''}${moved.length?` The ${moved.join(' and ')} filter now shows the new value so you still see them.`:''} Undo at the top changes them back.`
+        :kept?'Nothing filled: those cells already have something (untick “only empty cells” to overwrite them).':'Nothing to change: the lines shown already say that.';
+      if(n){persist('msod/'+id);UI.msTF={}}render();return}
     if(act==='ms-fillrate'){const v=String(UI.msFillV||'').replace(/[$,\s]/g,'');if(v===''||isNaN(+v))return;const si=UI.msFillS!=null&&UI.msFillS!==''&&+UI.msFillS<m.suppliers.length?+UI.msFillS:Math.max(msChosen(m),0);
       const VIS=msVisible(id,m);let n=0;try{undoRecord()}catch(e){}
       m.items.forEach((it,i)=>{if(it.head||!VIS[i])return;it.r=it.r||[];if(UI.msFillE&&String(it.r[si]??'').trim()!=='')return;it.r[si]=v;n++});
@@ -6549,7 +6574,13 @@ if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],
   if(act==='proc-msg-x'){UI.procMsg=null;render();return}
 if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
-  if(act==='llog-add'){const t=todayISO();const dw=(new Date(t+'T00:00:00Z').getUTCDay()+6)%7;const ws=isoAddDays(t,-dw);S.llog.rows.push({date:ws,wend:isoAddDays(ws,6),hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
+  if(act==='llog-add'){const R=S.llog.rows;let ws='',we='';
+    /* the period after the line above: the day after its week ending, the same length (a week; a fortnight stays a fortnight) */
+    for(let i=R.length-1;i>=0&&!ws;i--){const s0=llogStart(R[i]);if(!/^\d{4}-\d{2}-\d{2}$/.test(s0))continue;const e0=/^\d{4}-\d{2}-\d{2}$/.test(R[i].wend||'')&&R[i].wend>=s0?R[i].wend:isoAddDays(s0,6);
+      const len=Math.round((Date.parse(e0)-Date.parse(s0))/864e5)+1;if(len>=1&&len<=31){ws=isoAddDays(e0,1);we=isoAddDays(ws,len-1)}else{ws=isoAddDays(s0,7);we=isoAddDays(ws,6)}}
+    /* no dated lines yet: this week, Monday to Sunday */
+    if(!ws){const t=todayISO();const dw=(new Date(t+'T00:00:00Z').getUTCDay()+6)%7;ws=isoAddDays(t,-dw);we=isoAddDays(ws,6)}
+    R.push({date:ws,wend:we,hire:'',ox:'',cost:''});persist('project/labourlog');render();return}
   if(act==='pc-xlmsg-x'){UI.pcXlMsg=null;render();return}
 if(act==='pc-addsec'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();d.secs.push({id:uid('C'),name:'',lines:[newPcLine()]});persist('project/claim');render();setTimeout(()=>{const el=document.getElementById('pcsec_'+(d.secs.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='pc-addq'){if(pcLocked()){setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return}const d=claimDoc();const L=d.secs[+btn.dataset.s]?.lines;const l=L&&L[+btn.dataset.v];if(!l)return;
