@@ -1706,14 +1706,28 @@ async function imgToPdf(blob,type){const url=URL.createObjectURL(blob);try{const
     /* draw onto a canvas first (fixes phone photo rotation and turns webp/png into jpeg) */const c=document.createElement('canvas');const sc=Math.min(1,2600/Math.max(im.naturalWidth,im.naturalHeight));c.width=Math.round(im.naturalWidth*sc);c.height=Math.round(im.naturalHeight*sc);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
     const W=c.width*0.75,H=c.height*0.75;const doc=new window.jspdf.jsPDF({unit:'pt',format:[W,H],orientation:W>H?'landscape':'portrait'});doc.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',0,0,W,H);return doc.output('blob')}
   finally{URL.revokeObjectURL(url)}}
+/* page pictures for text recognition: 3× (about 216 dpi on an A4 page; small print keeps its decimal points), no more than 2600 px
+   on the long side (a photo is kept near its own size) */
+const ocrScale=pg=>{const v=pg.getViewport({scale:1});return Math.max(1,Math.min(3,2600/Math.max(v.width,v.height)))};
 async function pdfPageImages(blob,scale){const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;const out=[];
-  for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:scale||2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;out.push(await new Promise(r=>c.toBlob(r,'image/png')))}return out}
+  for(let i=1;i<=Math.min(doc.numPages,6);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:scale||ocrScale(pg)});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;out.push(await new Promise(r=>c.toBlob(r,'image/png')))}return out}
+/* a PDF page's words as rows, as the page shows them: pieces whose heights overlap are on one row (a bold or bigger figure sits a
+   little higher or lower than the words beside it); within a row one space between words, two at a column gap */
+function pdfTextRows(items,vp,lib){const it=[];
+  for(const t of items){const s=(t.str||'').trim();if(!s)continue;const m=lib.Util.transform(vp.transform,t.transform);const h=Math.hypot(m[2],m[3])||Math.abs(t.height)||8;
+    const w=Math.abs(t.width||0)*(Math.hypot(m[0],m[1])/(Math.hypot(t.transform[0],t.transform[1])||1))||s.length*h*0.5;
+    /* text running down the page (a rotated scan's text layer) keeps its own order */
+    if(Math.abs(m[1])>Math.abs(m[0]))it.push({s,x:m[5],w,y:-m[4],h});else it.push({s,x:m[4],w,y:m[5],h})}
+  it.sort((a,b)=>a.y-b.y||a.x-b.x);const rows=[];
+  for(const t of it){const top=t.y-t.h*0.85,bot=t.y+t.h*0.15;let best=null,bo=0;
+    for(let k=rows.length-1;k>=0&&k>=rows.length-8;k--){const r=rows[k];const ov=Math.min(r.bot,bot)-Math.max(r.top,top);if(ov>=0.5*Math.min(r.bot-r.top,bot-top)&&ov>bo){best=r;bo=ov}}
+    if(best)best.items.push(t);else rows.push({items:[t],top,bot})}
+  return rows.map(r=>{r.items.sort((a,b)=>a.x-b.x);let out='',p=null;for(const t of r.items){if(p){const gap=t.x-(p.x+p.w),em=Math.max(p.h,t.h);out+=gap>em*1.1?'  ':gap>em*0.1?' ':''}out+=t.s;p=t}return out})}
 async function readPdf(blob){
   const lib=await pdfLib();const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;
   const pages=[];let text='';
   for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();
-    const rows={};for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push(it)}
-    text+=`\n--- page ${i} ---\n`+Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join('  ')).join('\n');
+    text+=`\n--- page ${i} ---\n`+pdfTextRows(tc.items,pg.getViewport({scale:1}),lib).join('\n');
     if(i<=3)pages.push(pg)}
   let images=[];
   if(text.replace(/--- page \d+ ---/g,'').trim().length<80){for(const pg of pages){const vp=pg.getViewport({scale:1.6});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;images.push(await new Promise(r=>c.toBlob(r,'image/png')))}}
@@ -1794,103 +1808,305 @@ const OCR_V='5.1.1';let OCRW=null;
 async function ocrImages(images,onPage){if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/tesseract.min.js');
   if(!OCRW)OCRW=await Tesseract.createWorker('eng',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@'+OCR_V+'/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@'+OCR_V,langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int',gzip:true});
   await OCRW.setParameters({preserve_interword_spaces:'1'});let text='';let i=0;
-  for(const im of images){i++;onPage&&onPage(i,images.length);const r=await OCRW.recognize(im);text+=`\n--- page ${i} ---\n`+(r.data.text||'')}return text}
-/* built-in invoice reader (no Claude needed): finds rows where quantity × unit price ≈ line total, plus the invoice number, date and ex-GST total */
-const INV_UNITS=/^(ea|each|m|mtr|mtrs|metre|metres|lm|rl|roll|rolls|len|lth|lgth|length|bx|box|pk|pkt|pack|set|pr|pair|kg|l|ltr|hr|hrs|drum)$/i;
+  for(const im of images){i++;onPage&&onPage(i,images.length);const r=await OCRW.recognize(im);text+=`\n--- page ${i} (scan) ---\n`+(r.data.text||'')}return text}
+/* built-in invoice reader (no Claude needed). Each row is read for an item line: quantity × unit price ≈ line total (the price can be
+   per 10/100/1000, after a discount, or the total can include GST), or a row whose GST column is a tenth (or an eleventh) of its
+   total. A description runs on into the rows under it. The ex-GST total comes from its label (Total ex GST, Subtotal, …), checked
+   against GST and the total including GST; the lines are then checked against it, adding freight or other charges when that's what
+   makes them add up. Scans are read with text recognition first: their numbers can lose a decimal point (4004 for 40.04). */
+const INV_UNITS=/^(ea|each|m|mtr|mtrs|metre|metres|meter|meters|lm|rl|roll|rolls|ro|ln|len|lth|lgth|length|lengths|bx|box|boxes|pk|pkt|pkts|pack|packs|set|sets|pr|pair|pairs|kg|l|ltr|litre|litres|hr|hrs|hour|hours|drum|kt|kit|kits|pce|pcs|pc|unit|units|lot|ctn|carton|cartons|bag|bags|tube|tubes|can|cans|jar|jars|coil|coils|sht|sheet|sheets)$/i;
+const INV_TAX=/^(gst|fre|n-t|gst-free|exempt|inc|incl|excl)$/i;
 const INV_SKIP=/\b(sub-?total|total|gst|tax|balance|amount due|amount payable|payment|paid|bsb|account|abn|terms|carried forward|brought forward|rounding|credit card|surcharge)\b/i;
-function invNum(t){t=String(t).trim().replace(/^\$/,'').replace(/,/g,'');if(/^\(.*\)$/.test(t))t='-'+t.slice(1,-1);return /^-?\d+(\.\d+)?$/.test(t)?parseFloat(t):null}
-function invRowLine(tk){if(tk.length<3)return null;
-    if(tk.length>80)tk=tk.slice(-80);
-    const all=tk.map((t,i)=>({i,v:invNum(t),pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null}));let N=all.filter(n=>n.v!==null);if(N.length<2)return null;
-    /* a real line has a handful of numbers; rows with dozens (small print, tables of figures) would mean millions of tries */
-    if(N.length>14)N=N.slice(-14);
+/* rows that end a description running on below an item */
+const INV_STOP=/\b(note|notes|bank|banking|bsb|account|payment|payments|remit|remittance|thank|terms|conditions|page|freight|delivery|total|totals|gst|sub-?total|signature|signed|received|please|email|phone|tel|fax|www|abn|acn|comment|comments|ship\s+via|reason|e&o\.?e)\b/i;
+/* a number as printed: 1,234.56  $45.50  (12.00)  301.40-  12.00CR  A$99.00. In a scan "4004" can be 40.04 (the point lost) */
+function invNumT(t,ocr){let s=String(t).trim().replace(/[−–—]/g,'-');if(!s)return null;
+  s=s.replace(/^(?:A|AU|AUD)?\$/i,'').replace(/[,;:]$/,'');let neg=false;
+  if(/^\(.*\)$/.test(s)){if(!/[.$]/.test(s))return null;/* (100) is a pack size; (90.00) is a credit */neg=true;s=s.slice(1,-1).replace(/^\$/,'')}
+  if(/^-/.test(s)){neg=true;s=s.slice(1).replace(/^\$/,'')}
+  if(/CR$/i.test(s)&&/^\d/.test(s)){neg=true;s=s.slice(0,-2)}
+  if(/-$/.test(s)&&s.length>1){neg=true;s=s.slice(0,-1)}
+  if(ocr)s=s.replace(/[oO](?=[\d.])|(?<=[\d.])[oO]/g,'0').replace(/(?<=\d)[lI](?=\d)/g,'1');
+  if(!/^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$/.test(s))return null;
+  const dec=(s.split('.')[1]||'').length;let v=parseFloat(s.replace(/,/g,''));if(neg)v=-v;return {v,dec}}
+function invNum(t){const n=invNumT(t);return n?n.v:null}
+const INV_DATE=/^\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}$/;
+/* the words of a row that describe the item: not numbers, units, tax codes or dates */
+function invDescOf(tk,skip){const d=tk.filter((t,i)=>!(skip&&skip.has(i))&&invNumT(t)===null&&!/^-?\d+(\.\d+)?%$/.test(t)&&!INV_UNITS.test(t.replace(/[.,:]$/,''))&&!INV_TAX.test(t)&&!INV_DATE.test(t)&&!/^[\$|#*\-–—.,:;"'©®]+$/.test(t));return d.join(' ').replace(/\s+/g,' ').trim()}
+function invRowLine(tk,ocr){
+    if(tk.length<2)return null;if(tk.length>90)tk=tk.slice(-90);
+    const all=tk.map((t,i)=>{const n=invNumT(t,ocr);const o={i,v:n?Math.abs(n.v):null,neg:!!(n&&n.v<0),dec:n?n.dec:0,raw:t,pct:/^-?\d+(\.\d+)?%$/.test(t)?Math.abs(parseFloat(t)):null,unit:INV_UNITS.test(String(t).replace(/[.,:]$/,''))};
+      /* a quantity written with its unit (100M, 10EA): only tried when nothing else fits, and only as the quantity */
+      const gm=!n&&String(t).match(/^(\d+(?:\.\d+)?)([A-Za-z]{1,7})$/);if(gm&&INV_UNITS.test(gm[2])){o.gv=+gm[1];o.gu=gm[2]}return o});
+    let N0=all.filter(n=>n.v!==null);const NG=all.filter(n=>n.v!==null||n.gv!=null).map(n=>n.v!==null?n:{...n,v:n.gv,dec:0,glued:1});
+    if(N0.length<2&&NG.length<3)return null;if(N0.length>16)N0=N0.slice(-16);
     /* a quantity is usually written without cents (12), a price with them (45.50) */
-    const qtyish=n=>Math.abs(n.v-Math.round(n.v))<1e-9&&!/\.\d{2,}$/.test(tk[n.i]);
-    let best=null;
-    for(let a=0;a<N.length;a++)for(let b=a+1;b<N.length;b++)for(let c=b+1;c<N.length;c++){let Q=N[a],R=N[b];const t=N[c].v;
-      /* quantity can come before or after the unit price: the whole-number one is the quantity */
-      if(!qtyish(Q)&&qtyish(R))[Q,R]=[R,Q];const q=Q.v,r=R.v;if(!(q>0)||!(r>0)||!(t>0)||q>100000)continue;
-      const disc=all.slice(N[b].i+1,N[c].i).map(n=>n.pct).find(x=>x!=null);
-      /* a printed net price between unit price and total also counts */
-      const mids=N.filter(n=>n.i>N[b].i&&n.i<N[c].i).map(n=>n.v);
-      const tol=Math.max(0.02,t*0.015);const fits=x=>Math.abs(x-t)<=tol;
-      let rate=null;
-      if(fits(q*r)||(disc!=null&&fits(q*r*(1-disc/100)))||mids.some(m=>fits(q*m)))rate=t/q;
-      else if(fits(q*r*1.1)||(disc!=null&&fits(q*r*(1-disc/100)*1.1)))rate=t/1.1/q;/* line total printed including GST */
-      if(rate!=null&&(!best||N[c].i>best.c.i||(N[c].i===best.c.i&&Math.min(Q.i,R.i)>Math.min(best.q.i,best.r.i))))best={q:Q,r:R,c:N[c],rate}}
-    if(!best)return null;const first=Math.min(best.q.i,best.r.i);
-    const desc=tk.slice(0,first).filter(t=>!/^\$$/.test(t));if(desc.length>1&&INV_UNITS.test(desc[desc.length-1]))desc.pop();const ds=desc.join(' ');if(!/[A-Za-z]{2,}/.test(ds))return null;if(INV_SKIP.test(ds)&&ds.length<40)return null;
-    const unit=tk.slice(first+1,Math.max(best.q.i,best.r.i)).concat(tk.slice(0,first)).find(t=>INV_UNITS.test(t))||'';
-    return {mat:ds.replace(/\s+/g,' ').slice(0,300),qty:best.q.v,unit:unit.toLowerCase(),rate:best.rate}}
+    const qtyish=n=>Math.abs(n.v-Math.round(n.v))<1e-9&&n.dec<2;
+    /* a line total is printed as money: with cents or a $ sign */
+    const money=n=>n.dec===2||/^\(?-?(?:A|AU|AUD)?\$/i.test(n.raw);
+    const tryRow=N=>{
+      /* a GST column a tenth of the line total (ex GST), or an eleventh of it (including GST), just before it at the end of the row */
+      const L=N.length;let g=null,T=null,ex=null,inclT=false;
+      if(L>=3){const g1=N[L-2],T1=N[L-1];
+        if(T1.v>0&&g1.v>0&&money(T1)&&money(g1)&&(T1.i===g1.i+1||T1.i===g1.i+2)){const near=(a,b)=>Math.abs(a-b)<=Math.max(0.02,b*0.004);
+          if(near(g1.v,T1.v/10))ex=T1.v;else if(near(g1.v,T1.v/11)){ex=Math.round((T1.v-g1.v)*100)/100;inclT=true}
+          if(ex!=null){g=g1;T=T1}}}
+      let best=null;
+      /* 1. quantity × price = total (price per 10/100/1000, a discount, a net price, or a total including GST).
+            With a GST column the total is the last figure, and it's ex GST unless the GST is an eleventh of it */
+      for(let a=0;a<N.length;a++)for(let b=a+1;b<N.length;b++)for(let c=b+1;c<N.length;c++){let Q=N[a],R=N[b];const t=N[c].v;
+        if(!money(N[c])||N[c].glued)continue;if(ex!=null&&N[c]!==T)continue;if(!qtyish(Q)&&qtyish(R)||R.glued)[Q,R]=[R,Q];if(R.glued)continue;const q=Q.v,r=R.v;if(!(q>0)||!(r>0)||!(t>0)||q>100000)continue;
+        const disc=all.slice(N[b].i+1,N[c].i).map(n=>n.pct).find(x=>x!=null);
+        const mids=N.filter(n=>n.i>N[b].i&&n.i<N[c].i&&n!==g);
+        /* how far the printed total can be from quantity × price: the price's rounding (half its last printed place, to the cent at
+           least) on every unit, plus a cent */
+        const tl=(P,k)=>0.011+q*k*0.5*Math.pow(10,-Math.max(2,P.dec||0))*1.1;
+        const pers=mids.filter(n=>n.v===10||n.v===100||n.v===1000).map(n=>n.v);
+        const exO=[[q*r,tl(R,1)],...(disc!=null?[[q*r*(1-disc/100),tl({dec:2},1)]]:[]),...mids.map(m=>[q*m.v,tl(m,1)]),...pers.map(p=>[q*r/p,tl(R,1/p)]),
+          ...mids.filter(m=>m.v>0&&m.v<100&&m.dec<=2).map(m=>[q*r*(1-m.v/100),tl({dec:2},1)])];/* a discount column without its % sign */
+        /* the "GST column" is really the price when the pair uses it (10 × 5.00 = 50.00) */
+        const gst=ex!=null&&Q!==g&&R!==g;
+        const inO=gst&&!inclT?[]:[[q*r*1.1,tl(R,1.1)],...(disc!=null?[[q*r*(1-disc/100)*1.1,tl({dec:2},1.1)]]:[]),...pers.map(p=>[q*r/p*1.1,tl(R,1.1/p)])];
+        const err=o=>Math.abs(o[0]-t);const fits=o=>err(o)<=o[1];
+        let rate=null,incl=false,e=Infinity;
+        if(exO.some(fits)){rate=t/q;e=Math.min(...exO.map(err));if(gst&&inclT){rate=t/1.1/q;incl=true}}/* price and total both including GST */
+        else if(inO.some(fits)){rate=t/1.1/q;incl=true;e=Math.min(...inO.map(err))}/* line total printed including GST */
+        if(rate==null)continue;const exact=e<=Math.max(0.011,t*0.0005);
+        if(!best||N[c].i>best.c.i||(N[c].i===best.c.i&&(exact&&!best.exact||exact===best.exact&&Math.min(Q.i,R.i)>Math.min(best.q.i,best.r.i))))best={q:Q,r:R,c:N[c],rate,incl,exact,how:'qr'}}
+      if(best)return best;
+      /* 2. with a GST column: the quantity is the whole number before the unit (EA, M, LN…), or the one the printed price agrees with */
+      if(ex==null)return null;const incl=inclT;
+      const before=N.filter(n=>n.i<g.i);const u=all.filter(n=>n.unit&&n.i<g.i).pop();
+      const ints=before.filter(n=>qtyish(n)&&n.v>0&&(!u||n.i<u.i));
+      const prices=before.filter(n=>(!u||n.i>u.i)&&!n.glued);
+      let q=null;
+      for(const n of ints.slice().reverse()){if(prices.some(p=>Math.abs(n.v*p.v-ex)<=Math.max(0.02,ex*0.01)||[10,100,1000].some(k=>Math.abs(n.v*p.v/k-ex)<=Math.max(0.02,ex*0.01)))){q=n;break}}
+      if(!q&&u){let n=ints.filter(n=>n.i<u.i).pop();
+        /* ordered − back-ordered = shipped: a scan can drop a digit of the shipped quantity (50 0 5) */
+        if(n){const a=all[n.i-2],b=all[n.i-1];if(a&&b&&a.v!=null&&b.v!=null&&qtyish(a)&&qtyish(b)){const d=a.v-b.v;if(d>0&&d!==n.v&&String(d).includes(String(n.v)))n={...n,v:d}}}
+        if(n){q=n;/* a scan can drop a digit of the quantity: the price can tell (1 → 11) */
+        for(const p of prices){const Q=ex/p.v;if(Q>=1&&Math.abs(Q-Math.round(Q))<0.02&&Math.round(Q)!==n.v&&String(Math.round(Q)).includes(String(n.v))){q={...n,v:Math.round(Q)};break}}}}
+      if(!q&&ints.length===1)q=ints[0];
+      if(!q||!(q.v>0))return null;
+      return {q,r:q,c:T,rate:ex/q.v,incl,how:'gst'}};
+    let best=N0.length>=2?tryRow(N0):null;
+    if(!best&&NG.length>N0.length&&NG.length>=3)best=tryRow(NG.slice(-16));
+    /* a scan: numbers whose decimal point was lost (4004 → 40.04, 028 → 0.28) */
+    if(!best&&ocr){const N1=N0.map(n=>n.dec===0&&/^\$?0?\d{3,6}$/.test(n.raw)&&n.v>=10?{...n,v:n.v/100,dec:2,alt:1}:n);if(N1.some(n=>n.alt))best=tryRow(N1)}
+    if(!best)return null;
+    const used=new Set([best.q.i,best.r.i,best.c.i]);
+    /* a unit word belongs to the figures after a whole number (10 EA) or before the quantity (EA 10); "per metre" or "100M Roll"
+       in a description stays */
+    const wholeAt=j=>{if(j<0||j>=tk.length)return false;if(j===best.q.i)return true;const n=invNumT(tk[j],ocr);return !!n&&n.dec===0};
+    const fillerK=k=>{const t=tk[k];return invNumT(t,ocr)!==null||/^-?\d+(\.\d+)?%$/.test(t)||INV_UNITS.test(String(t).replace(/[.,:]$/,''))&&(wholeAt(k-1)||k+1===best.q.i)||INV_TAX.test(t)||INV_DATE.test(t)||/^[\$|#*\-–—.,:;"'©®]+$/.test(t)};
+    const filler=t=>invNumT(t,ocr)!==null||/^-?\d+(\.\d+)?%$/.test(t)||INV_UNITS.test(String(t).replace(/[.,:]$/,''))||INV_TAX.test(t)||INV_DATE.test(t)||/^[\$|#*\-–—.,:;"'©®]+$/.test(t);
+    let a0=0,a1=tk.length;while(a0<a1&&fillerK(a0))a0++;
+    /* a scan can garble a figure between the quantity and the total (a ticked price: 4s, A03371): it's not part of the description */
+    const junk=k=>{const t=String(tk[k]);return ocr&&k>best.q.i&&k<best.c.i&&k+1<tk.length&&filler(tk[k+1])&&k-1>=a0&&filler(tk[k-1])&&(t.length<=4||(t.match(/\d/g)||[]).length*2>=t.length)};
+    while(a1>a0&&(fillerK(a1-1)||junk(a1-1)))a1--;
+    const ds=tk.slice(a0,a1).filter((t,k)=>{const i=k+a0;if(used.has(i))return false;const n=invNumT(t,ocr);return !(n&&n.dec>=2)&&!INV_TAX.test(t)&&!/^[\$|]+$/.test(t)}).join(' ').replace(/\s+/g,' ').trim();if(!/[A-Za-z]{2,}/.test(ds))return null;if(INV_SKIP.test(ds)&&ds.length<40&&!/[A-Z]{2,}\d|\d[A-Z]{2,}/i.test(ds.split(' ')[0]))return null;
+    /* the unit sits next to the quantity (10 EA, 5 MTR) */
+    const isU=t=>t!=null&&INV_UNITS.test(String(t).replace(/[.,:]$/,''));const qi=best.q.i;
+    const unit=best.q.glued?best.q.gu:[tk[qi+1],tk[qi-1],tk[qi+2]].find(isU)||'';
+    const neg=best.c.neg;
+    return {mat:ds.slice(0,300),qty:best.q.v,unit:unit.toLowerCase().replace(/[.,:]$/,''),rate:Math.round(best.rate*10000)/10000*(neg?-1:1),...(best.incl?{incl:true}:{})}}
+/* the ex-GST total of a piece of text: "Total ex GST" / "Sub total" / "Nett total", checked against GST + total when they're shown.
+   Without one, total less GST, or the total including GST ÷ 1.1 */
+function invTotals(flat){
+  const AMT='\\$?\\s*(\\(?-?\\$?[\\d,]+\\.\\d{2}\\)?(?:\\s?-(?![\\d$])|\\s?CR\\b)?)';
+  const amts=re=>{const out=[];const g=new RegExp(re.source.replace('$AMT',AMT),'gi');let m;while((m=g.exec(flat))){const v=invNum(m[1].replace(/\s+/g,''));if(v!=null)out.push(v)}return out};
+  const exA=amts(/(?:total\s+ex(?:cl(?:uding|\.)?)?\.?\s*(?:of\s+)?gst|sub-?\s*total(?:\s+ex(?:cl)?\.?\s*gst)?|nett?\s+(?:total|amount)|amount\s+ex(?:cl)?\.?\s*gst|total\s+before\s+gst|total\s*\(?\s*ex(?:cl)?\.?\s*gst\s*\)?|sale\s+amount)[^0-9$\-(]{0,30}$AMT/);
+  const gstA=amts(/\bgst(?:\s+(?:amount|total|10%|@\s*10%))?(?!\s*(?:no|reg|inc|incl))[^0-9$\-(a-z]{0,20}$AMT/);
+  /* GST shown as included in a total (retail): "GST included in total $11.08", "Total includes GST of $11.08" */
+  const gstIn=amts(/(?:gst\s+included(?:\s+in\s+(?:the\s+)?(?:total|price|amount))?|includes\s+gst(?:\s+of)?)[^0-9$\-(]{0,12}$AMT/);
+  const G=gstA.concat(gstIn);
+  const incA=amts(/(?:total\s+inc(?:l(?:uding|\.)?)?\.?\s*gst|total\s*\(\s*(?:inc(?:l(?:uding|\.)?)?\.?\s*gst|aud|a\$)\s*\)|invoice\s+total|total\s+amount|amount\s+due|total\s+due|balance\s+due|total\s+payable|(?<![a-z]\s)total)(?!\s*ex)(?!\s*includes)[^0-9$\-(]{0,30}$AMT/);
+  const close=(a,b)=>Math.abs(a-b)<=Math.max(0.05,Math.abs(b)*0.002);let ex=null,ok=false;
+  for(const e of exA){if(G.some(g=>incA.some(t=>close(e+g,t)))||gstA.some(g=>close(g,e*0.1))){ex=e;ok=true;break}}
+  /* the GST is an eleventh of the total including GST: the ex-GST total is the difference (a "subtotal" can leave out freight) */
+  if(ex==null&&incA.length&&G.length){for(const t of incA.slice().sort((a,b)=>Math.abs(b)-Math.abs(a))){const g=G.find(g=>Math.abs(g)>0&&close(Math.abs(g),Math.abs(t)/11));if(g!=null){ex=Math.round((t-(t<0?-Math.abs(g):Math.abs(g)))*100)/100;ok=true;break}}}
+  if(ex==null&&exA.length){const top=incA.length?Math.max(...incA.map(Math.abs)):Infinity;const c=exA.filter(v=>Math.abs(v)<top+0.01);ex=c.length?c.reduce((a,b)=>Math.abs(b)>Math.abs(a)?b:a):exA[0]}
+  if(ex==null&&incA.length){const t=incA.reduce((a,b)=>Math.abs(b)>Math.abs(a)?b:a);const g=G.find(g=>close(Math.abs(g),Math.abs(t)/11));ex=Math.round((g!=null?t-(t<0?-Math.abs(g):Math.abs(g)):t/1.1)*100)/100;ok=g!=null}
+  return {ex,ok}}
+/* a scanned row tidied: rules and specks dropped (| ~ “ ” ©), quote marks and stray dots or colons trimmed off figures ($17.10" → $17.10),
+   a decimal point split from its figure joined back (7 .3800 → 7.3800); the gaps between columns are kept */
+function invOcrRow(r){return r.replace(/[|¦]/g,' ').replace(/\s+([.,])\s*(?=\d)/g,'$1').split(/(\s+)/).map(t=>/^\s+$/.test(t)?t:
+  /^[\[\](){}<>«»|\\\/+*=~^°©®™•·:;,.!¡_"'“”‘’`´]+$/.test(t)?'':
+  t.replace(/^[“”„"‘’‚'`´~^°©®™•·:;,!¡_=+*]+/,'').replace(/[“”„"‘’‚'`´~^°©®™•·:;,!_=+*.]+$/,'')).join('').replace(/^\s+|\s+$/g,'')}
 function parseInvoiceText(text){if(text&&text.length>250000)text=text.slice(0,250000);
-  const rows=text.split('\n').map(r=>r.trim()).filter(r=>r&&!/^--- page \d+ ---$/.test(r));const lines=[];const flat=text.replace(/\s+/g,' ');
-  /* columns are split on wide gaps; scanned (OCR) text and tight layouts only have single spaces, so those rows are tried word by word */
-  for(const row of rows.slice(0,1500)){if(row.length>600)continue;const L=invRowLine(row.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean))||invRowLine(row.split(/\s+/).filter(Boolean));if(L)lines.push(L)}
-  const pick=re=>{const m=flat.match(re);return m?m[m.length-1]:''};
-  const invoiceNo=pick(/\b(?:tax\s+)?invoice\s*(?:no\.?|number|num|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binvoice\s*[:#]\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i);
+  text=String(text||'').replace(/[−–—]/g,'-').replace(/ /g,' ');
+  /* rows, remembering which came from a scan (text recognition) */
+  const rows=[];let ocr=false,page=0;for(const raw of text.split('\n')){const r=raw.trim();const pm=r.match(/^--- page (\d+)( \(scan\))? ---$/);if(pm){ocr=!!pm[2];page=+pm[1];continue}if(r)rows.push({t:ocr?invOcrRow(r):r,ocr,page})}
+  const flat=rows.map(r=>r.t).join('\n').replace(/[ \t]+/g,' ').replace(/\n/g,' ');
+  const words=r=>r.t.split(/\s+/).filter(Boolean);
+  const parse=r=>invRowLine(r.t.split(/\s{2,}/).map(t=>t.trim()).filter(Boolean).flatMap(t=>t.split(/\s+/)),r.ocr);
+  const lines=[];let last=null,cont=0;
+  for(let k=0;k<Math.min(rows.length,1500);k++){const r=rows[k];if(r.t.length>600){last=null;continue}
+    let L=parse(r);
+    /* an item whose numbers sit a little above or below its words (a bold or bigger figure): try it with the next row or two */
+    if(!L&&/\d/.test(r.t)&&/[A-Za-z]{2,}/.test(r.t)&&!INV_STOP.test(r.t)){for(const m of [1,2]){if(k+m>=rows.length)break;const nx=rows.slice(k+1,k+m+1);if(nx.some(x=>INV_STOP.test(x.t)||parse(x)))break;const M=parse({t:[r,...nx].map(x=>x.t).join('  '),ocr:r.ocr});if(M){L=M;nx.forEach(x=>x.used=1);k+=m;break}}}
+    if(L){r.used=1;lines.push(L);last=L;cont=0;continue}
+    /* the description running on under an item (no prices on the row) */
+    const w=words(r);const hasMoney=w.some(t=>{const n=invNumT(t,r.ocr);return n&&n.dec===2});
+    if(last&&cont<3&&!hasMoney&&/[A-Za-z]{3,}/.test(r.t)&&r.t.length<140&&!INV_STOP.test(r.t)&&!INV_SKIP.test(r.t)&&!/:\s*$/.test(r.t)){const d=r.t.replace(/\s+/g,' ').trim();if(d&&last.mat.length<260){last.mat=(last.mat+' '+d).slice(0,300);r.used=1;cont++;continue}}
+    last=null}
+  const pick=re=>{const g=new RegExp(re.source,re.flags.includes('g')?re.flags:re.flags+'g');let m;while((m=g.exec(flat))){const v=m[m.length-1];if(v&&/\d/.test(v)){const mm=/^\d{1,4}$/.test(v)&&flat.slice(m.index+m[0].length).match(/^ (\d[\d\-\/]{2,})\b/);return mm&&!/^\d{1,2}[\/.\-]\d{1,2}([\/.\-]|$)/.test(mm[1])?v+mm[1]:v}g.lastIndex=m.index+1}return ''};
+  const invoiceNo=(pick(/\b(?:tax\s+)?invoice\s*(?:no\.?|number|num|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\b(?:credit|adjustment)\s+note\s*(?:no\.?|number|num|#)?\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binvoice\s*[:#]\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binv\.?\s*(?:no\.?|#|:)\s*:?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||pick(/\binvoice\s+(\d{4,}[A-Z0-9\-\/]*)\b/i)).replace(/[.,;:]+$/,'');
   const MO={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};const iso=(d,m,y)=>{y=+y;if(y<100)y+=2000;return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')};
   /* the invoice date: "Invoice date" / "Tax invoice date" first, then a plain "Date" (not due, order or delivery dates), then the first date on the page */
   let date='';{const D='(\\d{1,2})[\\/.\\-](\\d{1,2})[\\/.\\-](\\d{2,4})',W='(\\d{1,2})[\\s\\-]+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?,?[\\s\\-]+(\\d{2,4})';
-    const tries=[new RegExp('invoice\\s*date\\s*[:#]?\\s*'+D,'i'),new RegExp('invoice\\s*date\\s*[:#]?\\s*'+W,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch)\\s*)\\bdate\\s*[:#]?\\s*'+D,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch)\\s*)\\bdate\\s*[:#]?\\s*'+W,'i'),new RegExp('\\b'+D+'\\b'),new RegExp('\\b'+W,'i')];
+    const tries=[new RegExp('invoice\\s*date\\s*[:#]?\\s*'+D,'i'),new RegExp('invoice\\s*date\\s*[:#]?\\s*'+W,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch|credit)\\s*)\\bdate\\s*[:#]?\\s*'+D,'i'),new RegExp('(?<!(?:due|order|delivery|delivered|ship|dispatch|credit)\\s*)\\bdate\\s*[:#]?\\s*'+W,'i'),new RegExp('\\b'+D+'\\b'),new RegExp('\\b'+W,'i')];
     const NOT=/(due|payment|pay\s*by|order|delivery|delivered|deliver|ship|dispatch|despatch|expiry|expires|valid|statement|terms)[^0-9]{0,22}$/i;
     for(const re of tries){const g=new RegExp(re.source,re.flags.includes('g')?re.flags:re.flags+'g');let m,hit=false;
       while((m=g.exec(flat))){const before=flat.slice(Math.max(0,m.index-30),m.index);const lab=/^invoice\s*date/i.test(m[0]);
         if(!lab&&NOT.test(before+m[0].replace(/[\d\/.\-\s]+$/,'')))continue;
         const mo=isNaN(+m[2])?MO[m[2].slice(0,3).toLowerCase()]:+m[2];if(mo>=1&&mo<=12&&+m[1]>=1&&+m[1]<=31){date=iso(m[1],mo,m[3]);hit=true;break}}
       if(hit)break}}
-  /* the subtotal excluding GST: "Total ex GST" / "Sub total" / "Nett total"; checked against GST + total when they're shown.
-     Without one, total less GST, or total including GST ÷ 1.1 */
-  const amts=re=>{const out=[];const g=new RegExp(re.source,'gi');let m;while((m=g.exec(flat))){const v=invNum(m[1]);if(v!=null)out.push(v)}return out};
-  const exA=amts(/(?:total\s+ex(?:cl(?:uding|\.)?)?\.?\s*(?:of\s+)?gst|sub-?\s*total(?:\s+ex(?:cl)?\.?\s*gst)?|nett?\s+(?:total|amount)|amount\s+ex(?:cl)?\.?\s*gst|total\s+before\s+gst)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
-  const gstA=amts(/\bgst(?:\s+(?:amount|total|10%|@\s*10%))?(?!\s*(?:no|reg|inc|incl))[^0-9$\-a-z]{0,20}\$?\s*([\d,]+\.\d{2})/i);
-  const incA=amts(/(?:total\s+inc(?:l(?:uding|\.)?)?\.?\s*gst|invoice\s+total|total\s+amount|amount\s+due|total\s+due|balance\s+due|total\s+payable|(?<![a-z]\s)total)(?!\s*ex)[^0-9$\-]{0,30}\$?\s*([\d,]+\.\d{2})/i);
-  const close=(a,b)=>Math.abs(a-b)<=Math.max(0.05,b*0.002);let totalExGst=null;
-  for(const ex of exA){if(gstA.some(g=>incA.some(t=>close(ex+g,t)))||gstA.some(g=>close(g,ex*0.1))){totalExGst=ex;break}}
-  if(totalExGst==null&&exA.length)totalExGst=Math.max(...exA.filter(v=>!incA.length||v<Math.max(...incA)+0.01).concat([0]))||exA[0];
-  if(totalExGst==null&&incA.length){const t=Math.max(...incA);const g=gstA.find(g=>close(g,t/11));totalExGst=Math.round((g!=null?t-g:t/1.1)*100)/100}
-  /* a lump-sum or progress-claim invoice has no quantity × price lines: use one line for the ex-GST total, described by the line that carries that amount */
-  if(!lines.length&&totalExGst>0){const near=v=>x=>Math.abs(x-v)<=Math.max(0.02,v*0.002);let ds='';
-    for(const row of rows){const ws=row.split(/\s+/);const nums=ws.map(invNum).filter(v=>v!=null);if(!nums.some(near(totalExGst))&&!nums.some(near(totalExGst*1.1)))continue;const words=row.split(/\s{2,}|\s(?=\$?[\d,]+\.\d{2}\b)/).filter(t=>/[A-Za-z]{3,}/.test(t)&&!INV_SKIP.test(t));if(words.length){ds=words.join(' ');break}}
-    if(!ds){const r=rows.find(r=>/(progress\s+claim|claim\s*(no\.?|#)?\s*\d|deposit|down\s+payment|retention|supply|install|works|stage)/i.test(r)&&!INV_SKIP.test(r));if(r)ds=r}
+  /* the ex-GST total; a PDF holding several invoices or credit notes (each page its own, with its own total) adds them up */
+  let {ex:totalExGst}=invTotals(flat);
+  {const P={};rows.forEach(r=>{(P[r.page]=P[r.page]||[]).push(r.t)});const pk=Object.keys(P);
+    if(pk.length>1){const per=pk.map(k=>{const f=P[k].join(' ').replace(/\s+/g,' ');const T=invTotals(f);const no=(f.match(/\b(?:tax\s+invoice|invoice|adjustment\s+note|credit\s+note)\s*(?:no\.?|number|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i)||[])[1]||'';return {...T,no}});
+      const ok=per.filter(p=>p.ok&&p.no);if(ok.length>1&&new Set(ok.map(p=>p.no)).size===ok.length&&ok.length===per.filter(p=>p.ex!=null).length)totalExGst=Math.round(ok.reduce((a,p)=>a+p.ex,0)*100)/100}}
+  /* a credit or adjustment note: its amounts come off */
+  const credit=/\b(credit\s+note|adjustment\s+note|credit\s+adjustment|credit\s+invoice)\b/i.test(flat)||(totalExGst!=null&&totalExGst<0);
+  if(credit){if(totalExGst!=null)totalExGst=-Math.abs(totalExGst);for(const l of lines)l.rate=-Math.abs(l.rate)}
+  /* the same item read twice (a scanned credit's tear-off slip repeats its lines): the repeat goes when that's what makes them add up */
+  if(totalExGst!=null&&lines.length>1){const tol=Math.max(0.05,Math.abs(totalExGst)*0.003);const over=lines.reduce((a,l)=>a+l.qty*l.rate,0)-totalExGst;
+    if(Math.abs(over)>tol)for(let k=lines.length-1;k>0;k--){const l=lines[k];if(Math.abs(l.qty*l.rate-over)<=tol&&lines.slice(0,k).some(p=>p.qty===l.qty&&Math.abs(p.rate-l.rate)<1e-6)){lines.splice(k,1);break}}}
+  /* lines against the total: freight or other charges shown apart from the items, or lines priced including GST */
+  if(totalExGst!=null&&lines.length){const sum=()=>lines.reduce((a,l)=>a+l.qty*l.rate,0);const tol=Math.max(0.05,Math.abs(totalExGst)*0.003);
+    if(Math.abs(sum()-totalExGst)>tol){
+      /* freight and other charges priced on their own row: by name first, then any other row with words and an amount (a hire
+         damage waiver, a cutting charge) that isn't a total, GST or payment row */
+      const fees=[];for(const r of rows){if(r.used)continue;const m=r.t.match(/\b(freight(?:\s*(?:&|and)\s*handling)?|delivery(?:\s+(?:fee|charge))?|cartage|courier|postage|handling(?:\s+(?:fee|charge))?|small\s+order(?:\s+(?:fee|charge))?|min(?:imum)?\.?\s+order(?:\s+(?:fee|charge))?|fuel\s+levy|admin(?:istration)?\s+fee|pallet(?:\s+(?:fee|charge))?)\b/i);
+        const tk=r.t.split(/\s+/);const ns=tk.map(t=>invNumT(t,r.ocr)).filter(n=>n&&n.dec===2&&n.v>0);if(!ns.length)continue;const v=ns[ns.length-1].v;
+        if(m){if(!fees.some(f=>f.v===v&&f.kw))fees.push({mat:m[1].replace(/\s+/g,' ').replace(/^./,c=>c.toUpperCase()),v,kw:1});continue}
+        if(INV_SKIP.test(r.t)||INV_STOP.test(r.t)||ns.length>2)continue;
+        let ds=tk.filter(t=>{const n=invNumT(t,r.ocr);return !(n&&n.dec>=2)&&!/^[\$|]+$/.test(t)}).join(' ').replace(/\s+/g,' ').trim();
+        /* an item row whose prices didn't read (a smudged price): the whole number before its unit is the quantity */
+        let qty=1,unit='';const whole=t=>{const n=invNumT(t,r.ocr);return n&&n.dec===0&&n.v>0?n.v:null};
+        const u=tk.findIndex((t,k)=>k>0&&INV_UNITS.test(t.replace(/[.,:]$/,''))&&whole(tk[k-1])!=null);
+        if(u>0){qty=whole(tk[u-1]);unit=tk[u].toLowerCase().replace(/[.,:]$/,'');let a=0;while(a<u&&invNumT(tk[a],r.ocr))a++;let b=u-1;while(b>a&&whole(tk[b-1])!=null)b--;
+          const d2=tk.slice(a,b).join(' ').trim();if(/[A-Za-z]{3,}/.test(d2))ds=d2;else{qty=1;unit=''}}
+        if(/[A-Za-z]{3,}/.test(ds)&&ds.length<=80&&!fees.some(f=>f.v===v&&f.mat===ds))fees.push({mat:ds,v,qty,unit})}
+      fees.sort((a,b)=>(b.kw||0)-(a.kw||0));if(fees.length>14)fees.length=14;
+      const gap=totalExGst-sum();let add=null;
+      for(let a=0;a<fees.length&&!add;a++){if(Math.abs(fees[a].v-gap)<=tol)add=[fees[a]];for(let b=a+1;b<fees.length&&!add;b++)if(Math.abs(fees[a].v+fees[b].v-gap)<=tol)add=[fees[a],fees[b]]}
+      if(add)for(const f of add){const q=f.qty||1;lines.push({mat:f.mat,qty:q,unit:f.unit||'',rate:Math.round((credit?-f.v:f.v)/q*10000)/10000,fee:true})}
+      else if(Math.abs(sum()/1.1-totalExGst)<=tol)for(const l of lines)l.rate=Math.round(l.rate/1.1*10000)/10000}}
+  /* a lump-sum or progress-claim invoice has no quantity × price lines: use one line for the ex-GST total, described by what it is */
+  if(!lines.length&&totalExGst){const near=v=>x=>Math.abs(Math.abs(x)-Math.abs(v))<=Math.max(0.02,Math.abs(v)*0.002);let ds='';
+    const kw=flat.match(/\b(down\s+payment|deposit|progress\s+claim(?:\s+(?:no\.?|#)?\s*\d+)?|claim\s*(?:no\.?|#)\s*\d+|retention(?:\s+release)?|variation(?:\s+(?:no\.?|#)?\s*\d+)?)\b/i);
+    if(kw){ds=kw[1].replace(/\s+/g,' ');ds=ds[0].toUpperCase()+ds.slice(1).toLowerCase();const pc=flat.match(/(\d{1,3}(?:\.\d+)?)\s*%\s*(?:of\s+(?:the\s+)?(?:total|contract|order|value))?/i)||flat.match(/percentage[^0-9]{0,40}(\d{1,3}(?:\.\d+)?)\s*%/i);const of=flat.match(/total\s+doc(?:ument)?\s+excl?\.?\s*gst[^0-9]{0,30}([\d,]+\.\d{2})/i)||flat.match(/([\d,]+\.\d{2})[^0-9]{0,30}total\s+doc(?:ument)?\s+excl?\.?\s*gst/i);
+      if(pc&&+pc[1]>0&&+pc[1]<100)ds+=' '+(+pc[1])+'%'+(of?' of $'+of[1]:'')}
+    if(!ds)for(const r of rows){const ws=r.t.split(/\s+/);const nums=ws.map(invNum).filter(v=>v!=null);if(!nums.some(near(totalExGst))&&!nums.some(near(totalExGst*1.1)))continue;const words=r.t.split(/\s{2,}|\s(?=\$?[\d,]+\.\d{2}\b)/).filter(t=>/[A-Za-z]{3,}/.test(t)&&!INV_SKIP.test(t)&&!INV_STOP.test(t));if(words.length){ds=words.join(' ');break}}
+    if(!ds){const r=rows.find(r=>/(supply|install|works|stage)/i.test(r.t)&&!INV_SKIP.test(r.t)&&!INV_STOP.test(r.t));if(r)ds=r.t}
     lines.push({mat:(ds||('Invoice '+(invoiceNo||''))).replace(/\s+/g,' ').trim().slice(0,300),qty:1,unit:'',rate:totalExGst,lump:true})}
-  return {invoiceNo,date,totalExGst,lines}}
+  for(const l of lines)l.mat=l.mat.replace(/\s+/g,' ').trim();
+  return {invoiceNo,date,totalExGst,lines,credit}}
+/* how well a reading hangs together: a total, lines that add up to it, an invoice number and a date */
+function invReadScore(P){if(!P)return -1;let s=0;const L=(P.lines||[]).filter(l=>!l.lump);if(P.totalExGst)s+=1;if(P.invoiceNo)s+=0.4;if(P.date)s+=0.3;
+  if(L.length){const sum=L.reduce((a,l)=>a+l.qty*l.rate,0);if(P.totalExGst&&Math.abs(sum-P.totalExGst)<=Math.max(0.05,Math.abs(P.totalExGst)*0.003))s+=3;else s+=1-Math.min(1,P.totalExGst?Math.abs(sum-P.totalExGst)/Math.abs(P.totalExGst):0.5)}
+  return s}
+/* an invoice file read with the built-in reader. A photo is made into a PDF first. The PDF's own text is read; the page pictures
+   are read with text recognition when it's a scan or a photo, or when its text doesn't make a sensible invoice (no lines, or lines
+   that don't add up to the total) and is short enough to be a scan's. The reading that hangs together best wins.
+   Returns {P (the reading, or null), how ('local' or 'ocr'), text (what was read), images (page pictures of a scan), photo} */
+const OCR_DONE=new WeakMap();/* a file's text recognition, kept while the file is in use (dropping a scan reads it to find its order) */
+async function invOcrText(file,blob,onPage){let t=OCR_DONE.get(file);if(t==null){t=await ocrImages(await pdfPageImages(blob),onPage);try{OCR_DONE.set(file,t)}catch(e){}}return t}
+async function invReadFile(file,onPage){let blob=file;const imt=await blobImgType(file);
+  if(imt){if(!window.jspdf||!window.jspdf.jsPDF)await loadScript('lib/jspdf.umd.min.js');blob=await imgToPdf(file,imt)}
+  const {text,images}=await readPdf(blob);const body=text.replace(/--- page \d+ ---/g,'').trim();
+  const tries=[];const add=(P,how,src)=>{if(P)tries.push({P,how,src,s:invReadScore(P)})};
+  if(body){try{add(parseInvoiceText(text),'local',text)}catch(e){console.error(e)}}
+  const best=()=>tries.reduce((a,b)=>b.s>a.s?b:a,{P:null,how:'',src:text,s:-1});
+  /* a scanner's own text layer can lose decimal points like a scan does: read it that way too */
+  if(best().s<4&&body.length>=20){try{add(parseInvoiceText(text.replace(/--- page (\d+) ---/g,'--- page $1 (scan) ---')),'local',text)}catch(e){console.error(e)}}
+  const words=/\b(total|invoice|gst|tax|amount|qty|quantity|price|description)\b/i.test(body);
+  if(best().s<4&&(imt||images.length||body.length<3000||!words)){
+    try{const t=await invOcrText(file,blob,onPage);add(parseInvoiceText(t),'ocr',t);
+      /* a typed header over a scanned body: the typed text can give the invoice number, date or total */
+      if(body.length>=20)add(parseInvoiceText(t+'\n'+text),'ocr',t)}
+    catch(e){console.error(e)}}
+  const B=best();return {P:B.P,how:B.P?B.how:'',text:B.src,images,photo:!!imt}}
 /* invoices that already have a PDF but no materials (attached before automatic reading) are read when their order is opened */
-const AUTOREAD=new Set();const READER_V=2;/* bump when the reader improves: invoices it couldn't read are tried again */
+const AUTOREAD=new Set();const READER_V=3;/* bump when the reader improves: invoices it couldn't read are tried again */
 function invAutoRead(){if(UI.view!=='orders'||roView())return;for(const [oid,o] of Object.entries(S.orders)){if(!UI.open[oid])continue;(o.inv||[]).forEach((x,j)=>{const k=oid+'_'+j;
   if(!x.invFile||!x.invFile.id||invLines(x).length||num(x.readTried)>=READER_V||AUTOREAD.has(k)||EXT[k])return;AUTOREAD.add(k);x.readTried=READER_V;
   fileBlob(x.invFile).then(b=>extractInvoice(oid,j,b,true,{auto:1})).catch(e=>{console.error(e);EXT[k]={err:'Couldn’t open this invoice PDF to read it.'};render()})})}}
+/* a reading put on an invoice: its materials replace the ones read before (materials you added on top of the total stay, still on
+   top of the PDF's total), and its total, invoice number and date are filled in. A bulk re-read (keep) leaves an invoice number or a
+   date you typed yourself */
+function invApplyReading(x,out,replace,keep){
+  const lines=(Array.isArray(out&&out.lines)?out.lines:[]).filter(l=>l&&(l.mat||l.rate)).map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
+  if(!lines.length)return null;
+  const top=invLines(x).filter(invAddOn),had=invLines(x).filter(l=>!invAddOn(l));const ks=top.reduce((a,l)=>a+lineEx(l),0);
+  x.lines=(replace||!had.length?lines:had.concat(lines)).concat(top);
+  const tx=num(out.totalExGst);x.amount=String(Math.round(((tx||(linesSum(x)-ks))+ks)*100)/100);x.amountFromPdf=true;x.reread=READER_V;
+  if(out.invoiceNo&&(!keep||x.refFromPdf||!String(x.ref||'').trim())){x.ref=String(out.invoiceNo).slice(0,60);x.refFromPdf=true}
+  const gotDate=/^\d{4}-\d{2}-\d{2}$/.test(out.date||'');
+  if(keep){if(gotDate&&(!x.date||x.date===x.datePdf)){x.date=out.date;x.datePdf=out.date;delete x.dateAsk}}
+  else if(gotDate){x.date=out.date;x.datePdf=out.date;delete x.dateAsk}else if(!x.datePdf){x.date='';x.dateAsk=true}/* no invoice date found: leave it blank and ask, never use a due date */
+  return {lines,gotDate,ks}}
+/* invoices read from their PDF before the reader was improved whose materials don't add up to the total (or that have no materials):
+   re-read them all in one go. Only a reading that adds up to the PDF's total is used; a total typed by hand, or materials you broke a
+   total into yourself, leave the invoice alone. Undo puts everything back */
+function invRereadList(){const out=[];for(const [oid,o] of Object.entries(S.orders||{}))(o.inv||[]).forEach(x=>{if(!x||!x.invFile||!x.invFile.id||Math.max(num(x.reread),num(x.readTried))>=READER_V)return;
+  const L=invLines(x),amtSet=x.amount!==''&&x.amount!=null;if(amtSet&&!x.amountFromPdf)return;if(L.some(l=>l.add!=null&&!invAddOn(l)))return;
+  if(L.length?amtSet&&Math.abs(num(x.amount)-linesSum(x))>0.5:true)out.push({oid,fid:x.invFile.id})});return out}
+let REREAD_T=0;
+async function invRereadAll(){if(UI.reread&&UI.reread.busy)return;const list=invRereadList();if(!list.length)return;undoRecord();
+  const R=UI.reread={busy:true,n:list.length,done:0,fixed:0,left:0,stop:false};render();
+  for(const it of list){if(R.stop)break;
+    const find=()=>{const o=S.orders[it.oid];const j=o&&o.inv?o.inv.findIndex(x=>x&&x.invFile&&x.invFile.id===it.fid):-1;return j<0?null:{o,j,x:o.inv[j]}};
+    try{let f=find();if(f){const F=await invReadFile(await fileBlob(f.x.invFile));f=find();/* the order may have changed while reading */
+        if(f){const P=F.P;const had=invLines(f.x).length>0;f.x.reread=READER_V;
+          /* used only when it adds up to the PDF's total (or, for an invoice with nothing read yet, a lump-sum invoice's total) */
+          const ok=P&&P.lines.length&&(invReadScore(P)>=4||!had&&P.lines.length===1&&P.lines[0].lump&&num(P.totalExGst)!==0);
+          if(ok&&invApplyReading(f.x,P,true,true)){R.fixed++;delete EXT[it.oid+'_'+f.j]}else R.left++;persist('orders/'+it.oid)}}}
+    catch(e){console.error(e);R.left++}
+    R.done++;if(Date.now()-REREAD_T>800){REREAD_T=Date.now();if(UI.view==='orders')render()}}
+  R.busy=false;render()}
+function invRereadBar(){if(roView('orders'))return '';const R=UI.reread;
+  if(R&&R.busy)return `<div class="banner inv-rereadbar" role="status"><b>Re-reading invoices… ${R.done} of ${R.n}</b> · ${R.fixed} now add up to their totals <button class="btn ghost" data-act="inv-reread-stop">Stop</button></div>`;
+  const n=invRereadList().length;
+  if(R&&!R.busy&&R.stop&&n)return `<div class="banner inv-rereadbar" role="status"><b>Stopped after ${R.done} of ${R.n} invoices:</b> ${R.fixed} now add${R.fixed===1?'s':''} up to ${R.fixed===1?'its total':'their totals'}. <button class="btn" data-act="inv-reread">Re-read the other ${n}</button></div>`;
+  if(R&&!R.busy&&!n)return `<div class="banner inv-rereadbar" role="status"><b>Re-read ${R.done} invoice${R.done===1?'':'s'}:</b> ${R.fixed} now add${R.fixed===1?'s':''} up to ${R.fixed===1?'its total':'their totals'}.${R.left?` ${R.left} still ${R.left===1?'doesn’t':'don’t'}: ${R.left===1?'it shows':'they show'} “Materials add to …” under the total. Open ${R.left===1?'it':'them'} to add the missing lines by hand${sampleFn?', or press Read PDF to have Claude read it':''}.`:''} <button class="btn ghost" data-act="inv-reread-x" aria-label="Close this message">✕</button></div>`;
+  if(!n)return '';
+  return `<div class="banner inv-rereadbar" role="status"><b>${n} invoice${n===1?' has':'s have'} materials that don’t add up to the invoice total</b> (read before the invoice reader was improved). <button class="btn" data-act="inv-reread">Re-read ${n===1?'it':'them'} from the PDF${n===1?'':'s'}</button><div class="hint" style="margin-top:4px">Only invoices whose new reading adds up to the total on the PDF are changed. Materials you added on top of a total stay, an invoice number or date you typed stays, and Undo puts everything back.</div></div>`}
 async function extractInvoice(oid,j,blob,replace,opt){
-  const key=oid+'_'+j;const o=S.orders[oid];const x=o&&o.inv[j];if(!x)return;
+  let key=oid+'_'+j;const o=S.orders[oid];const x0=o&&o.inv[j];if(!x0)return;const fid=x0.invFile&&x0.invFile.id;const asked=!(opt&&opt.auto);
+  /* the invoice as it is when the reading is done: the orders can be reloaded while a scan is read (or Claude reads it), so it's
+     looked up again, by its PDF, before the reading goes on */
+  const cur=()=>{const o=S.orders[oid];if(!o||!o.inv)return null;let k=j;if(fid&&!(o.inv[k]&&o.inv[k].invFile&&o.inv[k].invFile.id===fid))k=o.inv.findIndex(v=>v&&v.invFile&&v.invFile.id===fid);return k>=0&&o.inv[k]?{x:o.inv[k],k}:null};
   EXT[key]={busy:'Reading the invoice…'};render();
   try{
-    const imt=await blobImgType(blob);if(imt){if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('PDF tool did not load');blob=await imgToPdf(blob,imt);opt={...(opt||{}),auto:true}}/* a photo: read it with text recognition here */
-    const {text,images}=await readPdf(blob);
-    EXT[key]={busy:'Extracting materials…'};render();
-    /* the built-in reader runs first; Claude reads it when that finds nothing (scanned invoices, unusual layouts) and Claude is available */
-    let out=null,how='';if(!images.length){try{const L=parseInvoiceText(text);if(L.lines.length){out=L;how='local'}}catch(e){console.error(e)}}
-    /* a scan: read it with text recognition here, unless Claude is about to read it (Claude reads scans better) */
-    /* little text and nothing found (a scan with a typed header, say): try the page pictures too */
-    if(!out&&(!sampleFn||(opt&&opt.auto))&&!images.length&&text.replace(/--- page \d+ ---/g,'').trim().length<1500){try{const t=await ocrImages(await pdfPageImages(blob),(i,n)=>{EXT[key]={busy:`Reading the invoice picture… (page ${i} of ${n})`};render()});const L=parseInvoiceText(t+'\n'+text);if(L.lines.length&&!L.lines[0].lump||L.lines.length&&!parseInvoiceText(text).lines.length){out=L;how='ocr'}}catch(e){console.error(e)}}
-    else if(!out&&images.length&&(!sampleFn||(opt&&opt.auto))){try{const t=await ocrImages(await pdfPageImages(blob),(i,n)=>{EXT[key]={busy:`Reading the scanned invoice… (page ${i} of ${n})`};render()});const L=parseInvoiceText(t);if(L.lines.length){out=L;how='ocr'}}catch(e){console.error(e)}}
-    if(!out&&opt&&opt.auto){EXT[key]={err:'Couldn’t read the materials on this invoice automatically. '+(sampleFn?'Click “Read PDF” to have Claude read it, or add':'Add')+' them by hand.'};render();return}
-    if(!out&&!sampleFn){EXT[key]={err:images.length?'Couldn’t read this scanned invoice. Add the materials by hand, or open the app in Claude to read it.':'Couldn’t find material lines or a total on this invoice. Add them by hand.'};render();return}
-    if(!out){
-    const prompt=`You are reading a supplier invoice for an Australian electrical contractor. Extract every material or item line.
+    const imt=await blobImgType(blob);if(imt)opt={...(opt||{}),auto:true};/* a photo: read it with text recognition here */
+    const R=await invReadFile(blob,(i,n)=>{EXT[key]={busy:`Reading the ${imt?'photo':'scanned invoice'}… (page ${i} of ${n})`};render()});
+    const {text,images}=R;EXT[key]={busy:'Extracting materials…'};render();
+    /* the built-in reader first (the PDF's text, or text recognition on a scan or photo); Claude reads it when that doesn't add up
+       (an unusual layout) and Claude is available */
+    let out=R.P&&R.P.lines.length?R.P:null,how=out?R.how:'';
+    if(invReadScore(R.P)<4&&sampleFn&&!(opt&&opt.auto)){
+      EXT[key]={busy:'Reading the invoice with Claude…'};render();
+      const prompt=`You are reading a supplier invoice for an Australian electrical contractor. Extract every material or item line.
 Reply with only JSON in exactly this shape:
 {"invoiceNo":"string or empty","date":"the INVOICE date as YYYY-MM-DD (never the due, payment, order or delivery date), or empty if there is no invoice date","supplier":"string or empty","totalExGst":number or null,"lines":[{"mat":"item description incl. size/spec","qty":number,"unit":"ea|m|roll|len|box|etc","rate":number}]}
 Rules: "rate" is the UNIT price EXCLUDING GST after any line discount (if the invoice shows only a line total, set rate = line total ÷ qty). Do not include GST, freight-only subtotal rows, totals, or payment lines as items; include freight or delivery as its own line only if it is charged. Use numbers without $ or commas.
-${images.length?'The invoice is attached as page images (it has no readable text).':'Invoice text (columns separated by spaces):\n'+text}`;
-    out=await sampleFn.json(prompt,images.length?{images,modelTier:'default'}:{modelTier:'default'});how='claude'}
-    const lines=(Array.isArray(out&&out.lines)?out.lines:[]).filter(l=>l&&(l.mat||l.rate)).map(l=>({id:uid('m'),mat:String(l.mat||'').slice(0,300),qty:String(num(l.qty)||1),unit:String(l.unit||'').slice(0,20),rate:String(Math.round(num(l.rate)*10000)/10000)}));
-    if(!lines.length){EXT[key]={err:'No material lines were found on this invoice. Add them by hand.'};render();return}
-    /* materials you added on top of the total stay, still on top of the PDF's total */
-    const keep=invLines(x).filter(invAddOn),had=invLines(x).filter(l=>!invAddOn(l));const ks=keep.reduce((a,l)=>a+lineEx(l),0);
-    x.lines=(replace||!had.length?lines:had.concat(lines)).concat(keep);
-    const tx=num(out.totalExGst);x.amount=String(Math.round(((tx||(linesSum(x)-ks))+ks)*100)/100);x.amountFromPdf=true;
-    if(out.invoiceNo){x.ref=String(out.invoiceNo).slice(0,60);x.refFromPdf=true}
-    const gotDate=/^\d{4}-\d{2}-\d{2}$/.test(out.date||'');if(gotDate){x.date=out.date;x.datePdf=out.date;delete x.dateAsk}else if(!x.datePdf){x.date='';x.dateAsk=true}/* no invoice date found: leave it blank and ask, never use a due date */
+${images.length?'The invoice is attached as page images (it has no readable text).':'Invoice text (columns separated by spaces):\n'+text.slice(0,60000)}`;
+      try{const C=await sampleFn.json(prompt,images.length?{images,modelTier:'default'}:{modelTier:'default'});
+        const cn=C&&Array.isArray(C.lines)?{...C,totalExGst:num(C.totalExGst)||null,lines:C.lines.filter(l=>l).map(l=>({qty:num(l.qty)||1,rate:num(l.rate)}))}:null;
+        if(cn&&cn.lines.length&&(!out||invReadScore(cn)>=invReadScore(out))){out=C;how='claude'}}
+      catch(e){if(!out)throw e;console.error(e)}}
+    if(!out){EXT[key]={err:opt&&opt.auto?'Couldn’t read the materials on this invoice automatically. '+(sampleFn?'Click “Read PDF” to have Claude read it, or add':'Add')+' them by hand.':images.length?'Couldn’t read this scanned invoice. Add the materials by hand'+(sampleFn?'.':', or open the app in Claude to read it.'):'Couldn’t find material lines or a total on this invoice. Add them by hand.'};render();return}
+    const at=cur();if(!at){delete EXT[key];render();return}/* removed while it was being read */
+    if(at.k!==j){delete EXT[key];j=at.k;key=oid+'_'+j}
+    const x=at.x;if(asked)undoRecord();/* Undo puts the materials back as they were */
+    const A=invApplyReading(x,out,replace);
+    if(!A){EXT[key]={err:'No material lines were found on this invoice. Add them by hand.'};render();return}
+    const {lines,gotDate,ks}=A;
     persist('orders/'+oid);UI.open['invm'+oid+'_'+j]=true;
-    const sum=linesSum(x),tot=num(out.totalExGst);
+    const sum=linesSum(x)-ks,tot=num(out.totalExGst);
     EXT[key]={ok:`Read ${out.lines&&out.lines.length===1&&out.lines[0].lump?'a lump-sum invoice':lines.length+' material line'+(lines.length===1?'':'s')}${how==='claude'?' (with Claude)':imt?' from the photo':how==='ocr'?' from the scan':''} and a total of ${money2(invAmt(x))} ex GST from the ${imt?'photo':'PDF'}, added to the invoiced total. Please check them.`+(gotDate?'':' ⚠ Couldn’t read the invoice date (due dates aren’t used): please type it in.')+(tot&&Math.abs(tot-sum)>Math.max(1,tot*0.01)?` The invoice says ${money2(tot)} ex GST but the lines add to ${money2(sum)}.`:'')};
   }catch(e){console.error(e);EXT[key]={err:e&&e.code==='not_granted'?'Reading needs your permission to use Claude. Click “Read PDF” to try again and allow it.':e&&e.code==='rate_limited'?'Too many requests just now. Try again in a minute.':e&&e.code==='invalid_json'?'Couldn’t make sense of this invoice. Try again, or add the materials by hand.':'Couldn’t read this PDF. Add the materials by hand.'}}
   render();
@@ -2278,6 +2494,7 @@ V.orders=()=>{
   return `<div class="stack">${head('Orders & invoices','Major purchase orders and subcontracts, with each invoice logged against its PO. Tick retention to hold it on a subcontract, then set the % of the PO value (5% unless you change it); the retention value shows against each order. Orders are listed by PO number, then PO date; move them with ▲ ▼ to set your own order. Use + Add section to break the orders into sections (e.g. Switchboards, Lighting, Level 1) with subtotals, and pick each order’s section under its supplier. Open an order (▸) and use + Add a PO under this to put POs under it (e.g. each TLE day-to-day PO under TLE Day to Day); each keeps its own PO number, amount and invoices. When invoices go over a PO, the overspend comes off its extra outside PO. Upload an invoice PDF, or drag invoice PDFs straight onto an order, and its materials are read automatically.',`${Object.values(S.orders).some(o=>o.pos!=null&&o.pos!=='')?'<button class="btn" data-act="ord-sort" title="Put the orders back in PO number order">Sort by PO number</button>':''}<button class="btn" data-act="ordsec-add" title="Group orders into sections such as Switchboards or Level 1">+ Add section</button><button class="btn primary" data-act="add-order">+ Add order</button>`)}${coTcTile()}
   <div class="statgrid ord-tiles"><div class="mini"><span class="l">Committed · PO amounts</span><span class="v">${money(c.poTotal)}</span><span class="d hint">Total of all PO amounts</span></div><div class="mini"><span class="l">Extra outside PO</span><span class="v">${money(c.matAnt)}</span><span class="d hint">On orders and sections, less any overspend already invoiced</span></div><div class="mini ord-tile-tot"><span class="l">Total committed + extra</span><span class="v">${money(c.poTotal+c.matAnt)}</span><span class="d hint">Committed + extra outside PO</span></div><div class="mini"><span class="l">Invoiced</span><span class="v">${money(c.matInv)}</span></div><div class="mini"><span class="l">Left on POs</span><span class="v ${c.poTotal+c.matAnt-c.matInv<0?'neg':''}">${money(c.poTotal+c.matAnt-c.matInv)}</span><span class="d hint">Committed + extra − invoiced</span></div><div class="mini"><span class="l">Retention held</span><span class="v">${money(c.ret)}</span></div></div>
   ${nDup?`<div class="banner inv-dupbar" role="alert"><b>⚠ ${nDup} invoice${nDup===1?' looks like a duplicate':'s look like duplicates'}.</b> Orders with a possible duplicate are marked <span class="tag bad">⚠ duplicate?</span>. <button class="btn" data-act="inv-duplist" aria-expanded="${!!UI.dupList}">${UI.dupList?'Hide the list':'Show them all'}</button></div>${UI.dupList?invDupList(DUP):''}`:''}
+  ${invRereadBar()}
   ${micPanel()}
   ${rows.length?scanDropPanel():''}
   ${rows.length?ordSearchBox(nHit,Object.keys(S.orders).length,OQ):''}
@@ -5612,14 +5829,14 @@ async function micOcr(img){const sch=await micLimit(micOcrPool(),MIC_T.ocr,'Star
 async function micShrink(blob){try{const url=URL.createObjectURL(blob);const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});URL.revokeObjectURL(url);const M=2800,k=Math.min(1,M/Math.max(im.naturalWidth,im.naturalHeight));if(k>=1)return blob;
   const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/png'))}catch(e){return blob}}
 const micFound=t=>{const P=parseInvoiceText(t);return !!(P.invoiceNo&&num(P.totalExGst)>0&&/^\d{4}-\d{2}-\d{2}$/.test(P.date||'')&&/\bgst\b/i.test(t))};
-async function micReadFile(f){const imt=await blobImgType(f);if(imt){return '\n--- page 1 ---\n'+await micOcr(await micShrink(f))}
+async function micReadFile(f){const imt=await blobImgType(f);if(imt){return '\n--- page 1 (scan) ---\n'+await micOcr(await micShrink(f))}
   const lib=await pdfLib();const task=lib.getDocument({data:new Uint8Array(await f.arrayBuffer()),isEvalSupported:false});const doc=await task.promise;let text='';
-  try{for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();const rows={};for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push(it)}
-    text+=`\n--- page ${i} ---\n`+Object.keys(rows).map(Number).sort((a,b)=>b-a).map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join('  ')).join('\n');pg.cleanup&&pg.cleanup()}
+  try{for(let i=1;i<=Math.min(doc.numPages,8);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();
+    text+=`\n--- page ${i} ---\n`+pdfTextRows(tc.items,pg.getViewport({scale:1}),lib).join('\n');pg.cleanup&&pg.cleanup()}
   if(text.replace(/--- page \d+ ---/g,'').trim().length>=200||micFound(text))return text;
   /* a scan: recognise one page at a time, stop when everything needed has been found */
-  let t=text;for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:2.2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;
-    const img=await new Promise(r=>c.toBlob(r,'image/png'));c.width=c.height=0;pg.cleanup&&pg.cleanup();t+=`\n--- scan page ${i} ---\n`+await micOcr(img);if(micFound(t))break}
+  let t=text;for(let i=1;i<=Math.min(doc.numPages,3);i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:ocrScale(pg)});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;
+    const img=await new Promise(r=>c.toBlob(r,'image/png'));c.width=c.height=0;pg.cleanup&&pg.cleanup();t+=`\n--- page ${i} (scan) ---\n`+await micOcr(img);if(micFound(t))break}
   return t}finally{try{await doc.destroy()}catch(e){}try{task.destroy&&task.destroy()}catch(e){}}}
 async function micFiles(files,entries,again){const D=micDoc();UI.micOpen=true;let items;
   if(again){items=again}else{if(!files.length&&!(entries&&entries.length))return;
@@ -5675,7 +5892,7 @@ function scanDropPanel(){return `<div class="panel scan-drop" data-scandrop="1">
   ${SCANQ.length?`<div class="scan-q">${SCANQ.map((q,i)=>`<div class="scan-qi ${q.st}"><span class="mono">${esc(q.name)}</span> <span class="hint">${esc(q.msg)}</span>${q.st==='ask'?` <select class="f" data-scanord="${i}" style="width:auto;display:inline-block" aria-label="Which order is ${esc(q.name)} for?"><option value="">Choose the order…</option>${ordTreeRows().map(([id,o])=>`<option value="${id}">${esc(ordOptLab(o))}</option>`).join('')}</select>`:''}${q.st!=='busy'?` <button class="btn ghost" data-scanx="${i}" style="padding:1px 6px;font-size:12px" aria-label="Clear">✕</button>`:''}</div>`).join('')}</div>`:''}</div>`}
 const scanNorm=t=>String(t||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 async function scanText(f){let blob=f;const imt=await blobImgType(blob);if(imt){if(!window.jspdf||!window.jspdf.jsPDF)await loadScript('lib/jspdf.umd.min.js');blob=await imgToPdf(blob,imt)}
-  const {text}=await readPdf(blob);let t=text||'';if(t.replace(/--- page \d+ ---/g,'').trim().length<200){try{t+='\n'+await ocrImages(await pdfPageImages(blob))}catch(e){console.error(e)}}return t}
+  const {text}=await readPdf(blob);let t=text||'';if(t.replace(/--- page \d+ ---/g,'').trim().length<200){try{t+='\n'+await invOcrText(f,blob)}catch(e){console.error(e)}}return t}
 function scanMatch(text){const T=scanNorm(text),R=ordRows();
   const po=R.filter(([,o])=>scanNorm(o.poNo).length>=3&&T.includes(scanNorm(o.poNo))).sort((a,b)=>scanNorm(b[1].poNo).length-scanNorm(a[1].poNo).length);if(po.length)return {id:po[0][0],by:(/^po/i.test(po[0][1].poNo)?'':'PO ')+po[0][1].poNo};
   const words=x=>String(x||'').toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>=4&&!/^(electrical|electric|group|limited|services|supplies|australia)$/.test(w));
@@ -6804,6 +7021,9 @@ if(act==='add-var'){const id=uid('v');const n=Object.keys(S.vars).length+1;S.var
   S.orders[id]={created:Date.now(),inv:[],retention:false,date:todayISO(),parent:pid,poNo:P.poNo?String(P.poNo).trim()+'-'+n:'',supplier:''};UI.open[id]=false;persist('orders/'+id);
   const sg=ordSecOf(P);if(sg){COLL.delete('ordsec:'+sg);saveColl()}render();setTimeout(()=>{const el=document.getElementById('ord_'+id+'_supplier');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='inv-duplist'){UI.dupList=!UI.dupList;render();return}
+if(act==='inv-reread'){invRereadAll();return}
+if(act==='inv-reread-stop'){if(UI.reread)UI.reread.stop=true;return}
+if(act==='inv-reread-x'){UI.reread=null;render();return}
 if(act==='inv-dupok'){const x=S.orders[btn.dataset.id]?.inv?.[+btn.dataset.x];if(x){x.dupOk=true;persist('orders/'+btn.dataset.id);render()}return}
 if(act==='ordsec-add'){const L=S.info.ordSecs=ordSecs().slice();const x={id:uid('os'),name:''};L.push(x);persist('project/info');COLL.delete('ordsec:'+x.id);saveColl();render();setTimeout(()=>{const el=document.getElementById('ordsec_'+x.id);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='ordsec-move'){const L=S.info.ordSecs=ordSecs().slice();const i=+btn.dataset.v,j=i+(+btn.dataset.d);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];persist('project/info');render();return}
@@ -7048,7 +7268,7 @@ function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=un
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
-const UNDO_SKIP=new Set(['aptimp-x','ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
+const UNDO_SKIP=new Set(['inv-reread','inv-reread-stop','inv-reread-x','aptimp-x','ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
