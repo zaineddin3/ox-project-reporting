@@ -1,0 +1,57 @@
+name: Build Sign In and Out Android app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'sign-in-out-android/**'
+      - '.github/workflows/sign-in-out-android.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sign-in-out-android
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        working-directory: sign-in-out-android
+        run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-log.txt; exit ${PIPESTATUS[0]}
+
+      - name: Put the APK in downloads/
+        run: |
+          cp sign-in-out-android/app/build/outputs/apk/debug/app-debug.apk downloads/Sign-In-and-Out.apk
+          rm -f sign-in-out-android/last-build-error.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A downloads/Sign-In-and-Out.apk sign-in-out-android
+          git commit -m "Sign In and Out Android app: new build" || exit 0
+          git pull --rebase origin main
+          git push
+
+      - name: Save the error log if the build failed
+        if: failure()
+        run: |
+          tail -n 200 sign-in-out-android/build-log.txt > sign-in-out-android/last-build-error.txt || echo "no log" > sign-in-out-android/last-build-error.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sign-in-out-android/last-build-error.txt
+          git commit -m "Sign In and Out Android app: build failed (log saved)" || exit 0
+          git pull --rebase origin main
+          git push

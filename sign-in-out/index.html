@@ -1104,12 +1104,13 @@
     const recent = log.filter(seesEntry).slice(-10).reverse();
     $('#recentList').innerHTML = recent.length ? recent.map(e => { const p = people.find(x => x.id === e.personId) || e; return personRow(p, `<span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span><span class="sub">${e.siteName ? esc(e.siteName) + ' · ' : ''}${fmtTime(e.ts)}</span>`); }).join('') : '<li class="empty">No activity yet</li>';
     const hint = $('#installHint');
-    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone || !!window.AndroidApp;
     if (!standalone) {
       const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       hint.hidden = false;
       hint.innerHTML = ios ? '<b>Install as an app:</b> tap the Share button in Safari, then <b>Add to Home Screen</b>.'
-        : '<b>Install as an app:</b> open the browser menu (⋮) and tap <b>Install app</b> or <b>Add to Home screen</b>.' + (deferredInstall ? ' <button class="btn small primary" id="installNow">Install now</button>' : '');
+        : (/android/i.test(navigator.userAgent) ? '<b>Android app:</b> <a href="../downloads/Sign-In-and-Out.apk">download Sign In and Out for Android</a>, or ' : '<b>Install as an app:</b> ')
+          + 'open the browser menu (⋮) and tap <b>Install app</b> or <b>Add to Home screen</b>.' + (deferredInstall ? ' <button class="btn small primary" id="installNow">Install now</button>' : '');
       $('#installNow')?.addEventListener('click', async () => { deferredInstall.prompt(); deferredInstall = null; renderDash(); });
     } else hint.hidden = true;
   }
@@ -1165,6 +1166,10 @@
     return lines.join('\n');
   }
   async function saveFile(name, text, type) {
+    if (window.AndroidApp?.saveFile) { // inside the Android app: save straight to Downloads
+      const b64 = btoa(unescape(encodeURIComponent(text)));
+      window.AndroidApp.saveFile(name, type, b64); return;
+    }
     const blob = new Blob([text], { type });
     try { // phones: share sheet lets you save to Files / email it
       const file = new File([blob], name, { type });
