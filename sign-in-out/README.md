@@ -8,7 +8,7 @@ Face-recognition sign in / sign out kiosk with GPS location. Installs on iPhone,
 - **Admin** (🔒 button): each admin user has their own PIN, a role (Owner, Manager, Supervisor, Registration only, Viewer or Custom) and a list of sites they can see.
 - **Sites**: add as many sites as you like by address search, current location or coordinates. A kiosk is fixed to one site or detects the nearest site by GPS. Every sign in / out records its site.
 
-Faces and attendance are stored on each device only (nothing is uploaded). Use Admin → Settings → Download backup to keep a copy.
+Works offline: everything is saved on the device first. A device connected in Admin → Settings → Sync (with an Oxford Project Reporting team email) uploads its changes and downloads everyone else's whenever it has internet. Synced data lives in the Supabase table `sio_records` (see `supabase-sign-in-out.sql`); only signed-in team members can read or write it, and uploaded sign-ins can't be edited or deleted.
 
 | File | What it is |
 |---|---|

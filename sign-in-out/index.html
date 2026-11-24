@@ -13,6 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
   :root{
     --bg:#f4f5f7; --card:#fff; --ink:#1b1f24; --muted:#6b7280; --line:#e5e7eb;
@@ -159,6 +160,7 @@
   <div class="kTop">
     <div class="kBrand">Sign In <span>and</span> Out</div>
     <div class="kClock" id="clock"></div>
+    <div id="syncChip" class="chip none" hidden></div>
     <div id="locChip" class="chip none">Location: off</div>
     <button class="adminBtn" id="indBtn" aria-label="Inductions">📋 Inductions</button>
     <button class="adminBtn" id="adminBtn" aria-label="Admin">🔒 Admin</button>
@@ -411,15 +413,40 @@
           <input type="number" id="lockInput" min="1" max="60">
           <p class="note">Admin users, their PINs and what they can access are managed in the <b>Users &amp; access</b> tab.</p>
         </div>
+        <div class="card" style="grid-column:1/-1" id="syncCard">
+          <h2>Sync between devices</h2>
+          <div id="syncState" class="note" style="font-size:14px"></div>
+          <div id="syncOutBox">
+            <p class="note">Connect this device once with an email on your Oxford Project Reporting team. After that it keeps working with or without internet, and sends and receives changes (people, faces, sign-ins, sites, users and settings) whenever it's online.</p>
+            <div class="grid2" style="gap:10px">
+              <div><label for="syncEmail">Team email</label><input type="text" id="syncEmail" inputmode="email" autocomplete="username" autocapitalize="off"></div>
+              <div><label for="syncPass">Password <span class="sub">(leave blank to get an email code)</span></label><input type="password" id="syncPass" autocomplete="current-password"></div>
+            </div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="syncConnect">Connect this device</button></div>
+            <div id="syncCodeRow" hidden style="margin-top:10px">
+              <label for="syncCode">Code from the email</label>
+              <div class="row" style="flex-wrap:nowrap"><input type="text" id="syncCode" inputmode="numeric" autocomplete="one-time-code"><button class="btn primary" id="syncVerify">Verify</button></div>
+            </div>
+          </div>
+          <div id="syncInBox" hidden>
+            <label for="deviceName">This device's name</label>
+            <input type="text" id="deviceName" placeholder="e.g. Gate 1 iPad">
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="syncNowBtn">Sync now</button>
+              <button class="btn" id="syncOffBtn">Disconnect this device</button>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <h2>Data</h2>
-          <p class="note">Faces and attendance are stored on this device only. Download a backup regularly; you can restore it on another device.</p>
+          <p class="note">Everything is kept on this device so it works offline. When the device is connected (above), it is also synced online. You can still download a backup.</p>
           <div class="row">
             <button class="btn" id="backupBtn">Download backup</button>
             <button class="btn" id="restoreBtn">Restore backup</button>
             <input type="file" id="restoreInput" accept="application/json,.json" hidden>
-            <button class="btn" id="clearLogBtn">Clear attendance log</button>
+            <button class="btn" id="clearLogBtn">Clear attendance on this device</button>
           </div>
+          <p class="note">Clearing only removes the copy on this device; the online record is kept.</p>
         </div>
       </div>
     </section>
@@ -445,7 +472,18 @@
     locRecord: true, locRequire: false, fence: false, sites: null, kioskSite: 'auto', camera: 'user', wake: true, lockMinutes: 3 }, store.get('fc_settings', {}));
   const savePeople = () => store.set('fc_people', people);
   const saveLog = () => store.set('fc_log', log);
-  const saveSettings = () => store.set('fc_settings', settings);
+  let applyingRemote = false, snapShared = null, snapSites = null;
+  const SHARED_KEYS = ['threshold', 'stableFrames', 'cooldown', 'requireBlink', 'midnightReset', 'sound', 'locRecord', 'locRequire', 'fence', 'timeZone', 'lockMinutes'];
+  const sharedSettings = () => { const o = {}; SHARED_KEYS.forEach(k => { if (settings[k] !== undefined) o[k] = settings[k]; }); return o; };
+  function snapSettings() { snapShared = JSON.stringify(sharedSettings()); snapSites = {}; (settings.sites || []).forEach(x => snapSites[x.id] = JSON.stringify(x)); }
+  const saveSettings = () => {
+    store.set('fc_settings', settings);
+    if (applyingRemote || snapShared === null || typeof dirty !== 'function') { snapSettings(); return; }
+    const sh = JSON.stringify(sharedSettings()); if (sh !== snapShared) dirty('settings', 'shared');
+    const now = {}; (settings.sites || []).forEach(x => { now[x.id] = JSON.stringify(x); if (snapSites[x.id] !== now[x.id]) dirty('site', x.id); });
+    Object.keys(snapSites).forEach(id => { if (!(id in now)) dirty('site', id); });
+    snapSettings();
+  };
   if (!Array.isArray(settings.sites)) { // migrate the single site from the earlier version
     settings.sites = settings.site ? [{ id: 's' + Date.now().toString(36), name: settings.site.name || 'Site', lat: settings.site.lat, lng: settings.site.lng, radius: settings.radius || 200 }] : [];
     delete settings.site; delete settings.radius; saveSettings();
@@ -651,12 +689,13 @@
     // moving straight from one site to another: sign out of the old site first
     const prev = lastEntry(person.id);
     if (action === 'in' && siteOverride === undefined && isIn(person.id) && prev.siteId && site && prev.siteId !== site.id) {
-      log.push({ id: uid(), ts: nowTs() - 1, deviceTs: Date.now() - 1, timeSource: timeTrusted() ? 'server' : 'device', personId: person.id, name: person.name, empId: person.empId || '', action: 'out', confidence: null,
+      const trId = uid(); dirty('log', trId);
+      log.push({ id: trId, ts: nowTs() - 1, deviceTs: Date.now() - 1, timeSource: timeTrusted() ? 'server' : 'device', personId: person.id, name: person.name, empId: person.empId || '', action: 'out', confidence: null,
         method: 'auto (moved site)', loc: lc.loc, siteId: prev.siteId, siteName: prev.siteName });
     }
     const entry = { id: uid(), ts: nowTs(), deviceTs: Date.now(), timeSource: timeTrusted() ? 'server' : 'device', personId: person.id, name: person.name, empId: person.empId || '', action, confidence, method, loc: lc.loc,
       siteId: site?.id || null, siteName: site?.name || '' };
-    log.push(entry); saveLog();
+    log.push(entry); saveLog(); dirty('log', entry.id);
     lastAction[person.id] = Date.now(); // cooldown uses the device's own running clock
     if (view === 'kiosk') {
       beep(action);
@@ -885,12 +924,12 @@
       const clash = await findUserByPin(s.value);
       if (clash && clash.id !== s.forUser) { s.step = 'new'; s.value = ''; s.first = ''; $('#pinErr').textContent = 'That PIN is already used — choose another'; renderPin(); return; }
       const salt = uid(), hash = await hashPin(s.value, salt);
-      if (s.forUser) { const u = users.find(x => x.id === s.forUser); if (u) { u.salt = salt; u.hash = hash; } }
-      else { const u = { id: uid(), name: 'Owner', salt, hash, role: 'owner', perms: ALL.slice(), createdAt: Date.now(), lastLogin: Date.now() }; users.push(u); currentUser = u; }
+      if (s.forUser) { const u = users.find(x => x.id === s.forUser); if (u) { u.salt = salt; u.hash = hash; dirty('user', u.id); } }
+      else { const u = { id: uid(), name: 'Owner', salt, hash, role: 'owner', perms: ALL.slice(), createdAt: Date.now(), lastLogin: Date.now() }; users.push(u); currentUser = u; dirty('user', u.id); }
       saveUsers(); closePin(); toast(s.forUser ? 'PIN changed' : 'Owner PIN saved — rename yourself in Users & access'); s.onOk(); return;
     }
     const who = await findUserByPin(s.value);
-    if (who) { pinFails = 0; currentUser = who; who.lastLogin = Date.now(); saveUsers(); closePin(); s.onOk(); }
+    if (who) { pinFails = 0; currentUser = who; who.lastLogin = Date.now(); saveUsers(); dirty('user', who.id); closePin(); s.onOk(); }
     else {
       pinFails++; s.value = ''; renderPin();
       if (pinFails >= 5) { pinLockedUntil = Date.now() + 30000; pinFails = 0; $('#pinErr').textContent = 'Too many attempts — locked for 30s'; }
@@ -951,7 +990,7 @@
   async function pwSubmit() {
     if (Date.now() < pwLockedUntil) { $('#pwErr').textContent = `Too many attempts — wait ${Math.ceil((pwLockedUntil - Date.now()) / 1000)}s`; return; }
     const who = await findInductionUser($('#pwInput').value);
-    if (who) { pwFails = 0; $('#pwModal').hidden = true; currentUser = who; who.lastLogin = Date.now(); saveUsers(); tab = 'register'; showAdmin(); return; }
+    if (who) { pwFails = 0; $('#pwModal').hidden = true; currentUser = who; who.lastLogin = Date.now(); saveUsers(); dirty('user', who.id); tab = 'register'; showAdmin(); return; }
     $('#pwInput').value = ''; pwFails++;
     if (pwFails >= 5) { pwLockedUntil = Date.now() + 30000; pwFails = 0; $('#pwErr').textContent = 'Too many attempts — locked for 30s'; }
     else $('#pwErr').textContent = 'Wrong password';
@@ -1031,6 +1070,7 @@
         inductedAt: now, inductedBy: currentUser?.name || '' });
       toast(`${name} registered — inducted ${fmtStamp(now)}`);
     }
+    dirty('person', editingId || people[people.length - 1].id);
     savePeople(); rebuildMatcher(); resetRegistration();
   }
 
@@ -1093,7 +1133,7 @@
     const isToday = $('#logDate').value === dayKey(nowTs());
     return Object.values(by).map(es => {
       const ins = es.filter(e => e.action === 'in'), outs = es.filter(e => e.action === 'out'), last = es[es.length - 1];
-      return { name: es[0].name, empId: es[0].empId, site: es[0].siteName || '—', firstIn: ins[0] ? fmtTime(ins[0].ts) : '—', lastOut: outs.length ? fmtTime(outs[outs.length - 1].ts) : '—',
+      return { name: es[0].name, empId: es[0].empId, site: siteById(es[0].siteId)?.name || es[0].siteName || '—', firstIn: ins[0] ? fmtTime(ins[0].ts) : '—', lastOut: outs.length ? fmtTime(outs[outs.length - 1].ts) : '—',
         total: fmtDur(totalTime(es)), status: last.action === 'in' ? (isToday ? 'On site' : 'No sign-out') : 'Signed out' };
     }).sort((a, b) => a.name.localeCompare(b.name) || a.site.localeCompare(b.site));
   }
@@ -1113,7 +1153,7 @@
     const sum = summaryRows();
     $('#summaryBody').innerHTML = sum.length ? sum.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.empId)}</td><td>${esc(r.site)}</td><td>${r.firstIn}</td><td>${r.lastOut}</td><td>${r.total}</td><td><span class="pill ${r.status === 'On site' ? 'in' : r.status === 'Signed out' ? 'none' : 'out'}">${r.status}</span></td></tr>`).join('') : '<tr><td colspan="7" class="empty">No attendance for this day</td></tr>';
     const rows = logRows().slice().reverse();
-    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${fmtStampSec(e.ts)}${timeFlag(e)}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td>${esc(e.siteName || '—')}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No events</td></tr>';
+    $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr><td>${fmtStampSec(e.ts)}${timeFlag(e)}</td><td>${esc(e.name)}</td><td>${esc(e.empId)}</td><td>${esc(siteById(e.siteId)?.name || e.siteName || '—')}</td><td><span class="pill ${e.action}">${e.action === 'in' ? 'IN' : 'OUT'}</span></td><td>${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td><td>${esc(e.method || 'face')}</td><td>${locCell(e.loc)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No events</td></tr>';
   }
   function buildCsv() {
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -1134,6 +1174,7 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   }
   function renderSettings() {
+    renderSyncStatus(); $('#syncCard').hidden = !can('settings');
     $('#thrInput').value = settings.threshold; $('#thrVal').textContent = settings.threshold.toFixed(2);
     $('#stableInput').value = settings.stableFrames; $('#cooldownInput').value = settings.cooldown;
     $('#camSelect').value = settings.camera; $('#tzSelect').value = TZ(); $('#lockInput').value = settings.lockMinutes;
@@ -1231,12 +1272,12 @@
       if (!isInd(u) && u.perms.includes('users') && (ind || !perms.includes('users')) && managers().length === 1) { toast('At least one user must keep "Manage users & access"'); return; }
       u.name = name; u.perms = perms; u.role = ind ? 'induction' : roleFor(perms); u.sites = siteList; u.kind = ind ? 'induction' : 'admin';
       if (pin) { u.salt = uid(); u.hash = await hashPin(pin, u.salt); }
-      saveUsers(); toast(`${name} updated`);
+      saveUsers(); dirty('user', u.id); toast(`${name} updated`);
       if (u.id === currentUser.id) { resetUserForm(); showAdmin(); return; }
     } else {
       const salt = uid();
       users.push({ id: uid(), name, salt, hash: await hashPin(pin, salt), kind: ind ? 'induction' : 'admin', role: ind ? 'induction' : roleFor(perms), perms, sites: siteList, createdAt: Date.now() });
-      saveUsers(); toast(ind ? `${name} added — they can now open 📋 Inductions with their password` : `${name} added — they can now open Admin with their PIN`);
+      saveUsers(); dirty('user', users[users.length - 1].id); toast(ind ? `${name} added — they can now open 📋 Inductions with their password` : `${name} added — they can now open Admin with their PIN`);
     }
     resetUserForm(); renderUsers();
   });
@@ -1247,7 +1288,7 @@
     if (b.dataset.uact === 'delete') {
       if (!isInd(u) && u.perms.includes('users') && managers().length === 1) { toast('You can\'t delete the last user who can manage users'); return; }
       armConfirm(b, () => {
-        users = users.filter(x => x.id !== u.id); saveUsers(); toast(`${u.name} deleted`);
+        users = users.filter(x => x.id !== u.id); saveUsers(); dirty('user', u.id); toast(`${u.name} deleted`);
         if (u.id === currentUser.id) { showKiosk(); return; }
         if (editingUser === u.id) resetUserForm();
         renderUsers();
@@ -1274,7 +1315,7 @@
     const p = people.find(x => x.id === b.dataset.id); if (!p) return;
     const need = { delete: 'people', manual: 'people', samples: 'register' }[b.dataset.act];
     if (need && !can(need)) { toast('You don\'t have access to do that'); return; }
-    if (b.dataset.act === 'delete') armConfirm(b, () => { people = people.filter(x => x.id !== p.id); savePeople(); rebuildMatcher(); renderPeople(); toast(`${p.name} deleted`); });
+    if (b.dataset.act === 'delete') armConfirm(b, () => { people = people.filter(x => x.id !== p.id); savePeople(); dirty('person', p.id); rebuildMatcher(); renderPeople(); toast(`${p.name} deleted`); });
     if (b.dataset.act === 'samples') { resetRegistration(); editingId = p.id; $('#regName').value = p.name; $('#regName').disabled = true; $('#regEmp').value = p.empId || ''; $('#regTitle').textContent = `Add samples for ${p.name}`; $('#saveBtn').textContent = 'Save samples'; renderSamples(); showTab('register'); }
     if (b.dataset.act === 'manual') { const act = isIn(p.id) ? 'out' : 'in'; if (record(p, act, null, `manual (${currentUser.name})`)) toast(`${p.name} signed ${act} manually`); renderPeople(); }
   });
@@ -1377,7 +1418,7 @@
     if (b.dataset.sact === 'delete') armConfirm(b, () => {
       settings.sites = settings.sites.filter(y => y.id !== x.id);
       if (settings.kioskSite === x.id) settings.kioskSite = 'auto';
-      users.forEach(u => { if (u.sites?.length) u.sites = u.sites.filter(id => id !== x.id); }); saveUsers();
+      users.forEach(u => { if (u.sites?.length) { u.sites = u.sites.filter(id => id !== x.id); dirty('user', u.id); } }); saveUsers();
       saveSettings(); renderSites(); renderLocChip(); toast(`${x.name} deleted (its attendance history is kept)`);
     });
   });
@@ -1390,18 +1431,189 @@
       if (!Array.isArray(data.people) || !Array.isArray(data.log)) throw new Error('Not a Sign In and Out backup');
       people = data.people; log = data.log; settings = Object.assign(settings, data.settings || {});
       if (Array.isArray(data.users) && data.users.length) { users = data.users; saveUsers(); }
-      savePeople(); saveLog(); saveSettings(); rebuildMatcher();
+      savePeople(); saveLog(); saveSettings(); rebuildMatcher(); markAll();
       if (!users.some(u => u.id === currentUser?.id)) { toast('Restored — please sign in again with a PIN from the backup'); showKiosk(); return; }
       currentUser = users.find(u => u.id === currentUser.id); renderAdmin();
       toast(`Restored ${people.length} people and ${log.length} events`);
     } catch (err) { toast('Restore failed: ' + err.message); }
   });
-  $('#clearLogBtn').addEventListener('click', e => armConfirm(e.currentTarget, () => { log = []; saveLog(); renderAdmin(); toast('Attendance log cleared'); }));
+  $('#clearLogBtn').addEventListener('click', e => {
+    if (Object.keys(outbox).some(k => k.startsWith('log|'))) { toast('Some sign-ins haven\'t been uploaded yet — connect to the internet and sync first'); return; }
+    armConfirm(e.currentTarget, () => { log = []; saveLog(); renderAdmin(); toast('Attendance cleared from this device'); });
+  });
 
   // ---------- install (PWA) ----------
   let deferredInstall = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; if (view === 'admin' && tab === 'dash') renderDash(); });
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  // ---------- cloud sync (Supabase) ----------
+  // Every change is saved on the device first (so it works offline) and queued in an "outbox".
+  // When online and connected, the outbox is uploaded, then changes from other devices are downloaded.
+  const SB_URL = 'https://pcwhvtpfaszllauhbchp.supabase.co', SB_KEY = 'sb_publishable_SFzyuMEhTpfPynAxt_Jtgw_tOezgQlz';
+  let sb = null, sbUser = null, syncing = false, syncErr = '', lastSyncAt = store.get('sio_lastSync', 0), syncTimer = null;
+  let outbox = store.get('sio_outbox', {});               // "kind|id" -> change stamp
+  let cursor = store.get('sio_cursor', '1970-01-01T00:00:00Z');
+  let deviceId = store.get('sio_device', null); if (!deviceId) { deviceId = 'dev-' + uid(); store.set('sio_device', deviceId); }
+  const seen = {};
+  const pendingCount = () => Object.keys(outbox).length;
+  function dirty(kind, id, quiet) {
+    outbox[kind + '|' + id] = Date.now() + Math.random();
+    if (!quiet) { store.set('sio_outbox', outbox); renderSyncStatus(); scheduleSync(1500); }
+  }
+  function markAll() {
+    people.forEach(x => dirty('person', x.id, true)); log.forEach(x => dirty('log', x.id, true));
+    users.forEach(x => dirty('user', x.id, true)); (settings.sites || []).forEach(x => dirty('site', x.id, true));
+    dirty('settings', 'shared');
+  }
+  function scheduleSync(ms) { clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); }
+  async function syncNow() {
+    if (!sb || !sbUser || syncing) { renderSyncStatus(); return; }
+    if (!navigator.onLine) { renderSyncStatus(); return; }
+    syncing = true; renderSyncStatus();
+    try { await pushOutbox(); await pullChanges(); lastSyncAt = Date.now(); store.set('sio_lastSync', lastSyncAt); syncErr = ''; }
+    catch (e) { console.warn('sync', e); syncErr = (e && e.message) || String(e); }
+    syncing = false; renderSyncStatus();
+    if (pendingCount() && !syncErr) scheduleSync(2000); // more changes arrived while syncing
+  }
+  async function pushOutbox() {
+    const keys = Object.keys(outbox); if (!keys.length) return;
+    const byId = { person: new Map(people.map(x => [x.id, x])), log: new Map(log.map(x => [x.id, x])), user: new Map(users.map(x => [x.id, x])), site: new Map((settings.sites || []).map(x => [x.id, x])) };
+    const dev = settings.deviceName || deviceId, logs = [], others = [], sent = {};
+    for (const k of keys) {
+      const i = k.indexOf('|'), kind = k.slice(0, i), id = k.slice(i + 1); sent[k] = outbox[k];
+      const rec = kind === 'settings' ? sharedSettings() : byId[kind]?.get(id);
+      if (kind === 'log' && !rec) { delete outbox[k]; continue; } // a sign-in never becomes a deletion
+      (kind === 'log' ? logs : others).push({ kind, id, data: rec || {}, deleted: !rec, device: dev });
+    }
+    const send = async (rows, ignoreDuplicates) => {
+      for (let i = 0; i < rows.length; i += 40) {
+        const { error } = await sb.from('sio_records').upsert(rows.slice(i, i + 40), { onConflict: 'kind,id', ignoreDuplicates });
+        if (error) throw new Error(error.message);
+      }
+    };
+    await send(logs, true);   // sign-ins: insert once, never overwrite
+    await send(others, false);
+    for (const k in sent) if (outbox[k] === sent[k]) delete outbox[k];
+    store.set('sio_outbox', outbox);
+  }
+  async function pullChanges() {
+    let since = new Date(new Date(cursor).getTime() - 120000).toISOString(); // 2-min overlap catches late commits
+    let newest = cursor; const changed = {};
+    const logIds = new Set(log.map(x => x.id));
+    for (let page = 0; page < 100; page++) {
+      const { data, error } = await sb.from('sio_records').select('kind,id,data,deleted,updated_at')
+        .gt('updated_at', since).order('updated_at', { ascending: true }).limit(500);
+      if (error) throw new Error(error.message);
+      if (!data || !data.length) break;
+      for (const r of data) if (applyRemote(r, logIds)) changed[r.kind] = true;
+      since = data[data.length - 1].updated_at; if (since > newest) newest = since;
+      if (data.length < 500) break;
+    }
+    if (newest !== cursor) { cursor = newest; store.set('sio_cursor', cursor); }
+    if (Object.keys(changed).length) afterRemote(changed);
+  }
+  function upsertInto(arr, rec, deleted) {
+    const i = arr.findIndex(x => x.id === rec.id);
+    if (deleted) { if (i >= 0) arr.splice(i, 1); } else if (i >= 0) arr[i] = rec; else arr.push(rec);
+  }
+  function applyRemote(r, logIds) {
+    const k = r.kind + '|' + r.id;
+    if (outbox[k]) return false;                 // our own unsent change wins; it uploads next
+    if (seen[k] === r.updated_at) return false;
+    seen[k] = r.updated_at;
+    const rec = { ...(r.data || {}), id: r.id };
+    if (r.kind === 'person') upsertInto(people, rec, r.deleted);
+    else if (r.kind === 'user') upsertInto(users, rec, r.deleted);
+    else if (r.kind === 'site') { settings.sites = settings.sites || []; upsertInto(settings.sites, rec, r.deleted); }
+    else if (r.kind === 'settings') { SHARED_KEYS.forEach(key => { if (r.data && key in r.data) settings[key] = r.data[key]; }); }
+    else if (r.kind === 'log') { if (r.deleted || logIds.has(r.id)) return false; logIds.add(r.id); log.push(rec); }
+    return true;
+  }
+  function afterRemote(changed) {
+    applyingRemote = true;
+    try {
+      if (changed.log) { log.sort((a, b) => a.ts - b.ts); saveLog(); }
+      if (changed.person) { savePeople(); rebuildMatcher(); }
+      if (changed.user) {
+        saveUsers();
+        if (currentUser) { const me = users.find(u => u.id === currentUser.id); if (!me) { toast('Your user was removed on another device'); showKiosk(); } else currentUser = me; }
+      }
+      if (changed.site || changed.settings) { saveSettings(); renderLocChip(); }
+    } finally { applyingRemote = false; }
+    if (view === 'admin' && currentUser) { // refresh in place, without jumping tabs or scrolling
+      $$('#nav button').forEach(b => b.hidden = !TAB_ALLOWED[b.dataset.tab]());
+      if (!TAB_ALLOWED[tab]()) showAdmin(); else renderAdmin();
+    }
+  }
+  function renderSyncStatus() {
+    const chip = $('#syncChip'), n = pendingCount(), online = navigator.onLine;
+    let cls = 'ok', txt = 'Synced';
+    if (!sb || !sbUser) { chip.hidden = true; }
+    else {
+      chip.hidden = false;
+      if (!online) { cls = 'bad'; txt = n ? `Offline · ${n} to sync` : 'Offline'; }
+      else if (syncing) { cls = 'none'; txt = 'Syncing…'; }
+      else if (syncErr) { cls = 'weak'; txt = 'Sync problem'; }
+      else if (n) { cls = 'weak'; txt = `${n} to sync`; }
+      chip.className = 'chip ' + cls; chip.textContent = txt;
+    }
+    const st = $('#syncState'); if (!st) return;
+    $('#syncOutBox').hidden = !!sbUser; $('#syncInBox').hidden = !sbUser;
+    if (!window.supabase) { st.innerHTML = '<b>Sync isn\'t available yet</b> — open the app once with internet so it can download what it needs.'; return; }
+    if (!sbUser) { st.innerHTML = '<b>Not connected.</b> This device keeps everything to itself until it is connected.'; return; }
+    const when = lastSyncAt ? fmtStamp(lastSyncAt) : 'not yet';
+    st.innerHTML = `<b>Connected</b> as ${esc(sbUser.email || '')} · last synced ${esc(when)}` +
+      `<br>${n ? `<b>${n}</b> change${n === 1 ? '' : 's'} waiting to upload` : 'Nothing waiting to upload'}${online ? '' : ' · <b>offline</b> — changes are saved and will sync when the internet is back'}` +
+      (syncErr ? `<br><span style="color:#b91c1c">Last sync failed: ${esc(syncErr)}</span>` : '');
+  }
+  async function afterConnect() {
+    const { data: ok, error } = await sb.rpc('is_team');
+    if (error || ok !== true) { await sb.auth.signOut({ scope: 'local' }); sbUser = null; renderSyncStatus(); toast("That email isn't on your Oxford Project Reporting team list"); return; }
+    if (!store.get('sio_uploaded_' + deviceId, false)) { markAll(); store.set('sio_uploaded_' + deviceId, true); } // first connect: upload what this device already has
+    toast('Device connected — syncing'); scheduleSync(100);
+  }
+  function initSync() {
+    snapSettings();
+    $('#deviceName').value = settings.deviceName || '';
+    if (!window.supabase?.createClient) { renderSyncStatus(); return; }
+    sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'sio-auth' } });
+    sb.auth.onAuthStateChange((ev, session) => { sbUser = session?.user || null; renderSyncStatus(); });
+    sb.auth.getSession().then(({ data }) => { sbUser = data?.session?.user || null; renderSyncStatus(); if (sbUser) scheduleSync(800); });
+    setInterval(() => { if (sbUser && !syncing) syncNow(); }, 30000);
+    window.addEventListener('online', () => { renderSyncStatus(); syncTime(); scheduleSync(500); });
+    window.addEventListener('offline', renderSyncStatus);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleSync(500); });
+  }
+  $('#syncConnect').addEventListener('click', async () => {
+    if (!sb) { toast('Sync needs internet the first time the app opens'); return; }
+    const email = $('#syncEmail').value.trim().toLowerCase(), pass = $('#syncPass').value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) { toast('Enter your team email'); return; }
+    $('#syncConnect').disabled = true;
+    try {
+      if (pass) {
+        const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+        if (error) throw error; $('#syncPass').value = ''; await afterConnect();
+      } else {
+        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        if (error) throw error; $('#syncCodeRow').hidden = false; $('#syncCode').focus(); toast('Check your email for the code');
+      }
+    } catch (e) { toast(e.message || 'Could not connect'); }
+    $('#syncConnect').disabled = false;
+  });
+  $('#syncVerify').addEventListener('click', async () => {
+    const email = $('#syncEmail').value.trim().toLowerCase(), token = $('#syncCode').value.trim();
+    try {
+      const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) throw error; $('#syncCodeRow').hidden = true; $('#syncCode').value = ''; await afterConnect();
+    } catch (e) { toast(e.message || 'That code didn\'t work'); }
+  });
+  $('#syncNowBtn').addEventListener('click', () => { if (!navigator.onLine) { toast('No internet — changes will sync when it is back'); return; } syncNow(); });
+  $('#syncOffBtn').addEventListener('click', e => armConfirm(e.currentTarget, async () => {
+    if (pendingCount()) { toast(`${pendingCount()} changes haven't uploaded yet — sync first`); return; }
+    await sb.auth.signOut({ scope: 'local' }); sbUser = null; renderSyncStatus(); toast('Device disconnected — its data stays on the device');
+  }));
+  $('#deviceName').addEventListener('change', e => { settings.deviceName = e.target.value.trim(); saveSettings(); });
 
   // ---------- init ----------
   const tickClock = () => {
@@ -1415,6 +1627,7 @@
   $('#logDate').value = dayKey(nowTs());
   renderSamples(); renderLocChip();
   loadModels();
+  initSync();
   try { navigator.permissions.query({ name: 'camera' }).then(r => { if (r.state === 'granted') startCamera(); }).catch(() => {}); } catch {}
   if (locationWanted()) { try { navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') startLocation(); }).catch(() => {}); } catch {} }
 })();
