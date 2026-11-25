@@ -274,7 +274,7 @@ tr.p-up td{background:color-mix(in srgb,var(--bad) 7%,transparent)}tr.p-dn td{ba
 .ac-pulse{fill:none;stroke:#f59f00;animation:acp .5s ease-out forwards}@keyframes acp{from{opacity:1}to{opacity:0}}
 .to-page svg[data-tool="acount"]{cursor:crosshair}
 tr.vdropping td{background:color-mix(in srgb,var(--accent) 10%,var(--surface))!important}.vatt-drop.vdropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:6px}.vatt-cell .itp-file{margin:1px 0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.form .vatt-panel{grid-column:1/-1}.vatt-panel{display:flex;flex-direction:column;gap:6px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 0}
+.vq-drop.vdropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:6px;background:color-mix(in srgb,var(--accent) 6%,transparent)}.vq-hint{margin-top:4px;font-size:11.5px}.form .vatt-panel{grid-column:1/-1}.vatt-panel{display:flex;flex-direction:column;gap:6px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 0}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .kpi .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -1310,6 +1310,15 @@ async function uploadVarAtt(id,files){const v=S.vars[id];if(!v)return;if(!assets
   for(const f of L){if(f.size>50*1024*1024){setSave('error',f.name+' is over 50 MB');continue}
     try{const r=await assets.upload(f,{type:'application/pdf'});v.att=v.att||[];v.att.push({id:r.id,name:f.name,size:f.size,at:Date.now()});n++}catch(e){console.error(e);setSave('error',e&&e.code==='quota_or_state'?'File storage is full':'Could not upload '+f.name)}}
   delete UP['vatt'+id];if(n)persist('variations/'+id);render()}
+/* quotes dropped on the Quotes field: the first PDF is the quote, more are added after it (PDFs, or photos of a quote) */
+async function uploadVarQuotes(id,files){const v=S.vars[id];if(!v)return;if(!assets){setSave('error','File storage is not available in this view');return}
+  const L=[...(files||[])];const ok=L.filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name)||isImgFile(f));
+  if(!ok.length){setSave('error','Drop quotes as PDF files');return}
+  if(!(v.bu&&v.bu.quoteFile&&v.bu.quoteFile.id)&&!ok.some(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name))){setSave('error','Drop the quote as a PDF (photos can be added after it)');return}
+  if(!v.bu){v.bu=VBU_DEF();persist('variations/'+id)}
+  const skipped=L.length-ok.length;await uploadItpFiles('vq|'+id,ok);
+  /* said once the quote has saved (the save would cover it straight away) */
+  if(skipped)setTimeout(()=>setSave('error',`Skipped ${skipped} file${skipped===1?'':'s'}: quotes must be a PDF or a photo`),1500)}
 function varAttLink(a){return `<a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(a.id)}" data-file="${esc(a.id)}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc((a.name||'PDF').replace(/\.pdf$/i,'').slice(0,28))}</a>`}
 function varAttCell(id,v){const A=v.att||[];const up=UP['vatt'+id];
   return `<td style="min-width:170px" class="vatt-cell">${A.slice(0,2).map((a,i)=>`<span class="vatt-one">${varAttLink(a)}${assets?delBtn('vatt',id,String(i),'✕'):''}</span>`).join(' ')}${A.length>2?` <button class="btn ghost" style="padding:1px 6px;font-size:12px" data-act="vopen" data-v="${id}" title="Open the build-up to see all attachments">+${A.length-2} more</button>`:''}
@@ -1499,7 +1508,7 @@ function buPanel(id,v,ri){
     <div class="sec-head"><div><h3>Variation build-up · ${esc(v.ref||'')} Rev ${num(v.rev)}${v.desc?' · '+esc(v.desc):''}</h3><p class="hint">Price it like the variation sheet: quantity × material and quantity × labour hours. Labour, supervision and project management each have their own cost and sell rates.</p></div>
       <div class="toolbar"><label class="toolbar hint" style="gap:6px;cursor:pointer"><input type="checkbox" data-ui-check="pdfHideLab" ${UI.pdfHideLab?'checked':''}> Hide labour hrs column on PDF</label>${ro?`<button class="btn primary" data-act="vpdf" data-v="${id}" data-r="${ri}">Download Rev ${num(v.rev)} PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" data-r="${ri}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button><button class="btn" data-act="vpdf-sum" data-v="${id}" data-r="${ri}" title="Description, totals and exclusions only — no line items">Summary PDF</button><button class="btn" data-act="vrevview" data-v="${id}" data-r="">Back to current</button>`:`${(v.status||'Draft')==='Draft'?`<button class="btn" data-act="vsubmit" data-v="${id}">Submit</button>`:''}<button class="btn primary" data-act="vpdf" data-v="${id}">Download sell PDF</button><button class="btn" data-act="vpdf-scope" data-v="${id}" title="Items, quantities and notes only — no hours or prices">Scope PDF (no prices)</button><button class="btn" data-act="vpdf-sum" data-v="${id}" title="Description, totals and exclusions only — no line items">Summary PDF</button>`}<button class="btn" data-act="vopen" data-v="${id}">Close</button></div></div>
     <div class="form">
-      <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}</div></label>
+      <label>HCV #${inp(k+'hcv',bu.hcv,{label:'HCV number'})}</label><label>Ref${inp(k+'refTxt',bu.refTxt,{label:'Reference'})}</label><label class="vq-drop" ${ro?'':`data-vqdrop="${id}" title="Drag quote PDFs here"`}>Quotes (PDF)<div style="padding-top:4px;text-transform:none;letter-spacing:0;font-weight:400">${itpCell('vq|'+id,bu.quoteFile,'Quotes')}${ro||UP['vq|'+id]?'':`<div class="hint vq-hint">${bu.quoteFile&&bu.quoteFile.id?'Drag more quotes here to add them':'or drag quote PDFs here'}</div>`}</div></label>
       ${varAttPanel(id,S.vars[id],ro)}
       <div class="wide markups"><div class="mk-h">Mark-ups <span class="hint">· marked-up drawings, sketches or photos (PDF, PNG or JPG)</span></div>
         <div class="mk-list">${(bu.markups||[]).map((m,mi)=>`<span class="mk-item"><a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(m.id)}" data-file="${esc(m.id)}" target="_blank" rel="noopener" title="${esc(m.name)}">${esc((m.name||'Mark-up').slice(0,40))}</a>${ro||!assets?'':delBtn('vmk',id,String(mi),'✕')}</span>`).join('')||'<span class="hint">None attached yet.</span>'}
@@ -6129,9 +6138,10 @@ viewEl.addEventListener('drop',e=>{if(UI.view!=='msod'||!ordHasFiles(e))return;c
   if(!assets){setSave('error','File storage is not available in this view');return}uploadItpFiles('msqf|'+id+'|'+si,fl)});
 
 /* ---------- Variations: drag PDFs onto a variation ---------- */
-viewEl.addEventListener('dragover',e=>{if(UI.view!=='variations'||!ordHasFiles(e))return;e.preventDefault();const t=e.target.closest&&e.target.closest('[data-vdrop]');document.querySelectorAll('.vdropping').forEach(x=>{if(x!==t)x.classList.remove('vdropping')});if(t)t.classList.add('vdropping');try{e.dataTransfer.dropEffect=t?'copy':'none'}catch(x){}});
+viewEl.addEventListener('dragover',e=>{if(UI.view!=='variations'||!ordHasFiles(e))return;e.preventDefault();const t=e.target.closest&&(e.target.closest('[data-vqdrop]')||e.target.closest('[data-vdrop]'));document.querySelectorAll('.vdropping').forEach(x=>{if(x!==t)x.classList.remove('vdropping')});if(t)t.classList.add('vdropping');try{e.dataTransfer.dropEffect=t?'copy':'none'}catch(x){}});
 viewEl.addEventListener('dragleave',e=>{if(UI.view!=='variations')return;if(!e.relatedTarget||!viewEl.contains(e.relatedTarget))document.querySelectorAll('.vdropping').forEach(x=>x.classList.remove('vdropping'))});
 viewEl.addEventListener('drop',e=>{if(UI.view!=='variations'||!ordHasFiles(e))return;e.preventDefault();document.querySelectorAll('.vdropping').forEach(x=>x.classList.remove('vdropping'));
+  const q=e.target.closest&&e.target.closest('[data-vqdrop]');if(q){uploadVarQuotes(q.dataset.vqdrop,e.dataTransfer.files);return}
   const t=e.target.closest&&e.target.closest('[data-vdrop]');const id=t?t.dataset.vdrop:(UI.vopen&&e.target.closest&&e.target.closest('#bupanel')?UI.vopen:null);
   if(!id){setSave('error','Drop the PDF onto the variation it belongs to');return}uploadVarAtt(id,e.dataTransfer.files)});
 viewEl.addEventListener('change',e=>{if(e.target.id==='to_file'&&e.target.files&&e.target.files.length){toUpload(e.target.files);e.target.value=''}});
