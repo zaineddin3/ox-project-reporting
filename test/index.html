@@ -285,7 +285,7 @@ tr.to-hl td{background:color-mix(in srgb,var(--good) 12%,transparent);font-weigh
 .to-ro [data-ta="iadd"],.to-ro [data-ta="idel"],.to-ro [data-ta="selmore"],.to-ro [data-ta="selitemdel"],.to-ro [data-ta="seldel"],.to-ro [data-ta="selcont"],.to-ro [data-ta="zdel"],.to-ro [data-ta="clrto"],.to-ro [data-ta="areafind"],.to-ro .to-bar [data-ta="tool"]:not([data-v="pan"]),.to-ro .to-bar .to-seg:has([data-ta="snap"]),.to-ro .to-row:has(>[data-ta="tool"][data-v="zone"]) [data-ta="tool"],.to-ro label[for="to_file2"]{display:none!important}
 .to-ro .to-it input,.to-ro .to-colimg{pointer-events:none}
 .to-ro .to-it{grid-template-columns:22px minmax(0,1fr) auto auto}
-.pc-banner{border-radius:10px;padding:10px 14px;font-size:13.5px;border:1px solid var(--line)}.pc-banner.lock{background:var(--soft)}.pc-banner.amend{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}.pc-banner .rowlink{color:var(--accent);text-decoration:underline}
+.pc-banner{border-radius:10px;padding:10px 14px;font-size:13.5px;border:1px solid var(--line)}.pc-banner.submit,.pc-banner.approve{background:var(--soft);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}.pc-banner.submit .hint,.pc-banner.approve .hint{flex-basis:100%}.pc-apv{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px}.pc-apv .f{width:150px}.pc-apv input[type=date].f{width:150px}.pc-banner.lock{background:var(--soft)}.pc-banner.amend{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}.pc-banner .rowlink{color:var(--accent);text-decoration:underline}
 .pc-locked .tw input.f,.pc-locked .tw select.f{pointer-events:none;background:color-mix(in srgb,var(--soft) 60%,transparent);color:var(--muted)}.pc-locked .tw .btn,.pc-locked .sec-head .btn{opacity:.4;pointer-events:none}
 .pc-cash td:first-child{font-weight:600;white-space:nowrap}.pc-cash th{white-space:nowrap}
 .pc-chip{display:inline-block;padding:1px 7px;border-radius:999px;background:var(--soft);font-size:11.5px;font-family:var(--f-mono);white-space:nowrap}.pc-chip.ok{background:var(--good-soft);color:var(--good)}.pc-chip.amend{background:var(--warn-soft);color:var(--warn)}
@@ -869,10 +869,10 @@ async function flush(p){
     setSave('error',e&&e.code==='quota_exceeded'?'Storage full':e&&e.code==='invalid_argument'?'You can view but not edit':'Save failed — retrying on next edit');
     inflight[p]--;return;
   }
-  inflight[p]--;
-  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/')&&!p.startsWith('msod/')&&!p.startsWith('estimates/')&&!p.startsWith('site/'))applyDoc(p,latest[p]);
+  inflight[p]--;let got=false;
+  if(!isDirty(p)&&latest[p]&&latestAt[p]>flushAt[p]&&!p.startsWith('variations/')&&!p.startsWith('orders/')&&!p.startsWith('procurement/')&&!p.startsWith('msod/')&&!p.startsWith('estimates/')&&!p.startsWith('site/')&&!localSame(p,latest[p])){applyDoc(p,latest[p]);got=true}
   if(!Object.keys(pending).length&&!Object.values(inflight).some(Boolean))setSave('saved');
-  scheduleRender();
+  if(got||!(p==='project/claim'&&UI.view==='claim'))scheduleRender();
 }
 async function removeDoc(p){
   deleted.add(p);clearTimeout(pending[p]);delete pending[p];
@@ -889,25 +889,32 @@ function onColl(name,snap){
   if(name==='tasks'&&!onColl.tk){onColl.tk=1;setTimeout(()=>{if(UI.view==='labour'||UI.view==='progress'){collapseAllTasks(UI.view);scheduleRender(0)}},0)}
   const mapKey={variations:'vars',orders:'orders',procurement:'procs',msod:'msods',estimates:'ests',drawings:'dwgs',site:'site'}[name];if(name==='estimates')CALC.loaded=true;
   const seen=new Set();
-  const next={};let onlyMic=name==='project';
+  const next={};let onlyMic=name==='project';let changed=false;
   for(const d of snap.docs){
-    const p=name+'/'+d.id;seen.add(p);exists.add(p);
-    if(onlyMic&&d.id!=='invcheck'){try{if(!latest[p]||JSON.stringify(latest[p])!==JSON.stringify(d.data()))onlyMic=false}catch(e){onlyMic=false}}
-    latest[p]=d.data();latestAt[p]=Date.now();
+    const p=name+'/'+d.id;seen.add(p);exists.add(p);const data=d.data();
+    /* the same as last time (the refresh every minute, or nothing new): nothing to redraw */
+    let same=false;try{same=latest[p]!==undefined&&JSON.stringify(latest[p])===JSON.stringify(data)}catch(e){}
+    if(onlyMic&&d.id!=='invcheck'&&!same)onlyMic=false;
+    latest[p]=data;latestAt[p]=Date.now();
     if(deleted.has(p))continue;
-    if(mapKey){next[d.id]=isDirty(p)&&S[mapKey][d.id]?S[mapKey][d.id]:clone(d.data())}
-    else if(!isDirty(p))applyDoc(p,d.data());
+    if(mapKey){const cur=S[mapKey][d.id];if(cur&&(isDirty(p)||same))next[d.id]=cur;else{next[d.id]=clone(data);changed=true}}
+    /* a save of yours coming back is already what you have */
+    else if(!isDirty(p)&&!same&&!localSame(p,data)){applyDoc(p,data);changed=true}
   }
   for(const p of [...deleted])if(p.startsWith(name+'/')&&!seen.has(p))deleted.delete(p);
   if(mapKey){
-    for(const id in S[mapKey]){const p=name+'/'+id;if(!(id in next)&&isDirty(p))next[id]=S[mapKey][id]}
+    for(const id in S[mapKey]){const p=name+'/'+id;if(!(id in next)){if(isDirty(p))next[id]=S[mapKey][id];else changed=true}}
     S[mapKey]=next;
   }
   if(name==='orders')setTimeout(invAddFixAll,0);
   /* only the Mass Invoice Check list changed: redraw just its panel */
   if(onlyMic&&UI.view==='orders'){micRefreshSoon(200);return}
+  if(!changed)return;
   scheduleRender();
 }
+/* a document as you have it, compared with one that came in (key order aside) */
+const canonJSON=o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.keys(v).sort().reduce((a,x)=>(a[x]=v[x],a),{}):v);
+function localSame(p,data){try{const cur=dataFor(p);return cur!=null&&canonJSON(cur)===canonJSON(data)}catch(e){return false}}
 
 /* ---------- calculations ---------- */
 function crewRate(){
@@ -990,7 +997,7 @@ function calc(){syncTasks();
   const other=num(S.info.otherCost);
   const fcCost=matFc+labFc+other;
   const CT=claimTotals();const LT=(S.llog&&S.llog.rows)?logTotals():{total:0};const labLog=LT.total;const labCostToDate=labLog||labAct;const otherToDate=num(S.info.otherCostToDate);const costToDate=labCostToDate+matInv+otherToDate;
-  const invoiced=CT.ha,retention=CT.ret;
+  const invoiced=CT.amt,retention=CT.ret;/* claims at their approved amount, or submitted until approved */
   const gp=revised-fcCost;const TR=tradeIds().map(aptCalc);const subTotal=TR.reduce((a,x)=>a+x.total,0),subClaimed=TR.reduce((a,x)=>a+x.claimed,0);
   return {contract,pcSum,vApp,vUn,vRej,vProfit,vCount,revised,poTotal,matInv,matAnt,matFc,ret,rate,lEst,lSpent,lFc,lEarned,labAct,labFc,other,fcCost,costToDate,labLog,labCostToDate,otherToDate,
     invoiced,retention,gp,gpPct:revised?gp/revised:0,leftInvoice:revised-invoiced,leftSpend:Math.max(lFc-lSpent,0)*rate+leftPO+matAnt,labHrsToGo:Math.max(lFc-lSpent,0),leftPO,marginToDate:invoiced-costToDate,pctInv:revised?invoiced/revised:0,
@@ -1761,6 +1768,8 @@ async function pdfView(id,name){pdfViewClose();
       await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
   catch(err){console.error(err);if(window.__mcpMode&&err&&err.code==='not_found'){msg('This file hasn’t been copied for Claude yet. Open it once on the website or desktop app, then try again here.');return}msg(/not.?found|404|missing/i.test(String(err&&(err.message||err.statusCode||err)))?'This file couldn’t be found. It may have been removed, or was uploaded in another version of the app.':'Couldn’t open this PDF. Check your connection and try again.')}}
 addEventListener('keydown',e=>{if(e.key==='Escape'&&PDFV)pdfViewClose()});
+/* the approved amount: Enter confirms, Escape cancels */
+document.addEventListener('keydown',e=>{const t=e.target;if(!t||t.id!=='pc_apprv')return;if(e.key==='Enter'){e.preventDefault();UI.pcApprV=t.value;document.querySelector(`[data-act="pc-approk"][data-i="${t.dataset.pcapv}"]`)?.click()}else if(e.key==='Escape'){UI.pcAppr=null;UI.pcApprV=null;render()}});
 async function fileBlob(f){if(!f||!f.id)return null;return fetchFile(f.id)}
 /* ---------- stored files: file storage on the website, plus base64 copies in the database (public.blobs) so the Claude page can open and add files ---------- */
 const BLOB_CH=180000;
@@ -2590,26 +2599,28 @@ V.procurement=()=>{
 };
 
 /* the month's progress claims: approved amount, or the submitted amount while it waits */
-function pcMonthAmt(k){const H=claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k);return H.length?H.reduce((t,h)=>t+num(h.status==='Approved'?h.approved:h.submitted),0):null}
+function pcMonthAmt(k){const H=claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k);return H.length?H.reduce((t,h)=>t+pcAmt(h),0):null}
 /* retention held on the progress claims dated in month k: each claim's amount (approved once approved, otherwise submitted) × its retention % */
-function pcMonthRet(k){return claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k).reduce((t,h)=>t+num(h.status==='Approved'?h.approved:h.submitted)*num(h.ret)/100,0)}
-function pcMonth(k){const H=claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k);if(!H.length)return '';return H.map(h=>`<span class="pc-chip ${h.status==='Approved'?'ok':h.status==='Amending'?'amend':''}" title="${esc(h.status||'')}">${esc(h.wf?pcLabel(h):'PC'+(h.no||''))} ${money(num(h.status==='Approved'?h.approved:h.submitted))}</span>`).join(' ')}
+function pcMonthRet(k){return claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k).reduce((t,h)=>t+pcRet(h),0)}
+function pcMonth(k){const H=claimDoc().hist.filter(h=>(h.date||'').slice(0,7)===k);if(!H.length)return '';return H.map(h=>`<span class="pc-chip ${pcApproved(h)?'ok':h.status==='Amending'?'amend':''}" title="${esc((pcApproved(h)?'Approved':h.status||'Submitted')+(pcApproved(h)?'':' · counted at the submitted amount until it’s approved'))}">${esc(pcName(h))} ${money(pcAmt(h))}</span>`).join(' ')}
 function pcCashPanel(){const d=claimDoc();const H=d.hist;
-  const head=`<div class="sec-head" style="margin-bottom:8px"><div><h3>Progress claims</h3><p class="hint" style="margin:4px 0 0">Each claim you submit lands here. <b>Approved</b> locks it and lets you start the next claim; <b>Amend</b> opens it in Progress claim to change and re-submit as the next version (PC1-V2 and so on). <b>Delete</b> removes the latest claim and puts the percentages back as they were before it was submitted.</p></div><button class="btn" data-act="nav" data-v="claim">Progress claim →</button></div>`;
+  const head=`<div class="sec-head" style="margin-bottom:8px"><div><h3>Progress claims</h3><p class="hint" style="margin:4px 0 0">Each claim you submit lands here at its submitted amount. <b>Approved…</b> asks for the amount the client approved, which is used from then on, locks it and lets you start the next claim; <b>Amend</b> opens it in Progress claim to change and re-submit as the next version (PC1-V2 and so on). <b>Delete</b> removes the latest claim and puts the percentages back as they were before it was submitted.</p></div><button class="btn" data-act="nav" data-v="claim">Progress claim →</button></div>`;
   if(!H.length)return `<div class="panel">${head}<p class="hint" style="margin:0">No claims yet. Submit your first claim from the Progress claim tab and it will appear here as PC1.</p></div>`;
   const last=H.length-1;const cols=H.map((h,i)=>({h,i}));
   const cell=(f)=>cols.map(f).join('');
   const del=i=>{const h=H[i];if(h.wf&&i!==last)return '';const a=UI.armed==='pcdel'+i;return `<button class="btn ${a?'armed':'ghost'}" style="padding:2px 8px;font-size:12px" data-act="pc-del" data-i="${i}" title="${h.wf?'Delete this claim and unlock the percentages as they were before it was submitted':'Delete this claim record'}">${a?'Confirm delete':'Delete'}</button>`};
-  return `<div class="panel">${head}<div class="tw"><table class="pc-cash"><thead><tr><th>Progress claim</th>${cell(({h})=>`<th class="n">${esc(h.wf?pcLabel(h):'PC'+(h.no||''))}</th>`)}<th class="n">Total</th></tr></thead><tbody>
+  const ap=h=>pcApproved(h);
+  return `<div class="panel">${head}${UI.pcAppr!=null&&H[UI.pcAppr]&&UI.view==='cashflow'?`<div style="margin-bottom:10px">${pcApproveForm(UI.pcAppr)}</div>`:''}<div class="tw"><table class="pc-cash"><thead><tr><th>Progress claim</th>${cell(({h})=>`<th class="n">${esc(pcName(h))}</th>`)}<th class="n">Total</th></tr></thead><tbody>
     <tr><td>Date</td>${cell(({h})=>`<td class="n">${esc(fmtDate(h.date))}</td>`)}<td></td></tr>
-    <tr><td>Claimed (ex GST)</td>${cell(({h})=>`<td class="n money">${money(num(h.submitted))}</td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+num(h.submitted),0))}</b></td></tr>
-    <tr><td>Approved (ex GST)</td>${cell(({h})=>`<td class="n money">${h.status==='Approved'?money(num(h.approved)):'<span class="hint">—</span>'}</td>`)}<td class="n money"><b>${money(H.filter(h=>h.status==='Approved').reduce((a,h)=>a+num(h.approved),0))}</b></td></tr>
-    <tr class="pc-ret"><td>Retention held</td>${cell(({h})=>{const r=num(h.approved)*num(h.ret)/100;return `<td class="n money">${h.status==='Approved'?money(r)+(num(h.ret)?`<div class="hint" style="font-size:11px">${pct(num(h.ret)/100,2)} of approved</div>`:''):'<span class="hint">—</span>'}</td>`})}<td class="n money"><b>${money(H.filter(h=>h.status==='Approved').reduce((a,h)=>a+num(h.approved)*num(h.ret)/100,0))}</b></td></tr>
+    <tr><td>Submitted (ex GST)</td>${cell(({h})=>`<td class="n money">${money(num(h.submitted))}</td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+num(h.submitted),0))}</b></td></tr>
+    <tr><td>Approved (ex GST)</td>${cell(({h})=>`<td class="n money">${ap(h)?money(num(h.approved)):'<span class="hint">awaiting</span>'}</td>`)}<td class="n money"><b>${money(H.filter(ap).reduce((a,h)=>a+num(h.approved),0))}</b></td></tr>
+    <tr><td title="What each claim counts as in the cash flow below: the approved amount once approved, otherwise the submitted amount">In the cash flow</td>${cell(({h})=>`<td class="n money">${money(pcAmt(h))}<div class="hint" style="font-size:11px">${ap(h)?'approved':'submitted'}</div></td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+pcAmt(h),0))}</b></td></tr>
+    <tr class="pc-ret"><td>Retention held</td>${cell(({h})=>`<td class="n money">${money(pcRet(h))}${num(h.ret)?`<div class="hint" style="font-size:11px">${pct(num(h.ret)/100,2)} of ${ap(h)?'approved':'submitted'}</div>`:''}</td>`)}<td class="n money"><b>${money(H.reduce((a,h)=>a+pcRet(h),0))}</b></td></tr>
     <tr><td>Versions</td>${cell(({h})=>`<td class="n hint" title="${esc((h.vers||[]).map(v=>'V'+v.v+' '+fmtDate(v.date)+' '+money(num(v.submitted))).join('\n'))}">${h.wf?(h.vers||[]).map(v=>'V'+v.v).join(', '):'—'}</td>`)}<td></td></tr>
-    <tr><td>Status</td>${cell(({h,i})=>{const ap=h.status==='Approved';const busy=h.status==='Amending';
-      if(ap)return `<td class="n"><span class="tag good">🔒 Approved${h.approvedAt?' '+esc(fmtDate(h.approvedAt)):''}</span></td>`;
-      if(!h.wf)return `<td class="n"><span class="tag">${esc(h.status||'Submitted')}</span><button class="btn" style="margin-left:6px;padding:3px 8px;font-size:12px" data-act="pc-approve" data-i="${i}">${UI.armed==='pcap'+i?'Confirm':'Approved'}</button></td>`;
-      return `<td class="n" style="white-space:nowrap">${busy?'<span class="tag warn">Amending</span> ':''}<button class="btn ${UI.armed==='pcap'+i?'armed':'primary'}" style="padding:3px 10px;font-size:12px" data-act="pc-approve" data-i="${i}" ${busy?'disabled title="Re-submit the amended claim first"':''}>${UI.armed==='pcap'+i?'Confirm approved':'Approved'}</button> ${i===last?`<button class="btn" style="padding:3px 10px;font-size:12px" data-act="pc-amend" data-i="${i}" ${busy?'disabled':''}>Amend</button>`:''}</td>`})}<td></td></tr>
+    <tr><td>Status</td>${cell(({h,i})=>{const busy=h.status==='Amending';
+      if(h.status==='Approved'||ap(h))return `<td class="n"><span class="tag good">🔒 ${esc(h.status==='Approved'?'Approved':h.status)}${h.approvedAt?' '+esc(fmtDate(h.approvedAt)):''}</span></td>`;
+      if(!h.wf)return `<td class="n"><span class="tag">${esc(h.status||'Submitted')}</span><button class="btn" style="margin-left:6px;padding:3px 8px;font-size:12px" data-act="pc-approve" data-i="${i}">Approved…</button></td>`;
+      return `<td class="n" style="white-space:nowrap">${busy?'<span class="tag warn">Amending</span> ':''}<button class="btn primary" style="padding:3px 10px;font-size:12px" data-act="pc-approve" data-i="${i}" ${busy?'disabled title="Re-submit the amended claim first"':''}>Approved…</button> ${i===last?`<button class="btn" style="padding:3px 10px;font-size:12px" data-act="pc-amend" data-i="${i}" ${busy?'disabled':''}>Amend</button>`:''}</td>`})}<td></td></tr>
     <tr><td></td>${cell(({i})=>`<td class="n">${del(i)}</td>`)}<td></td></tr>
   </tbody></table></div></div>`}
 V.cashflow=()=>{
@@ -2619,14 +2630,14 @@ V.cashflow=()=>{
   const actCell=(k,r)=>{const man=r.act!==undefined&&String(r.act).trim()!=='';const f=FC[k]?Math.round(FC[k].total*100)/100:0;
     const low=man&&f>0&&num(r.act)<f-0.005;const ok=low&&r.actOk!==undefined&&num(r.actOk)===num(r.act);
     return `<div class="cur ${low&&!ok?'act-low':''}">${inp('cash|'+k+'|act',r.act??'',{num:1,label:'Actual costs '+k+(man?'':' (using forecast)'),ph:f?f.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}):'0'})}</div>${low&&!ok?`<div class="act-warn" role="alert">⚠ ${money(f-num(r.act))} less than the forecast ${money(f)}. Check it <button class="btn act-ok" data-act="cash-actok" data-v="${k}">Accept</button></div>`:`<div class="hint" style="font-size:11px">${man?(ok?'actual · accepted below forecast':'actual'):'using forecast'}</div>`}`};
-  return `<div class="stack">${head('Project cash flow','Monthly progress claims and costs, ex-GST. Type your Progress claim (forecast) for each month: it is used for Cumulative claims and the margin until you submit a progress claim for that month, which then replaces it (the approved amount once it’s approved). Thirty months from the start month. Forecast cost is each month’s own cost, from after the 25th of the month before up to the 25th: labour from the labour cost log in Labour & tasks (November is the weeks starting 26 Oct to 25 Nov; the week the 25th falls in stays in its month), plus invoices from Orders & invoices by invoice date (November is invoices dated 26 Oct to 25 Nov). It isn’t added up; Cumulative costs is the running total. The months start from the project start date in Project details. Type each month’s actual cost in Actual costs: a month with no actual uses its forecast cost, and Cumulative costs runs through every month. An actual below the forecast is flagged for you to check and accept. Cumulative claims show for months with a submitted claim. Cumulative claims ex retention takes off the retention held on each progress claim (its amount × its retention %) in the claim’s month, and Margin after retention is that minus Cumulative costs.',`<div class="toolbar">${projStartMonth()?`<span class="hint">Starts ${monthLabel(ms[0])}, the project start date <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Change in Project details</button></span>`:`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label><span class="hint">Set the project start date in <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Project details</button> to start from it.</span>`}</div>`)}
+  return `<div class="stack">${head('Project cash flow','Monthly progress claims and costs, ex-GST. Type your Progress claim (forecast) for each month: it is used for Cumulative claims and the margin until you submit a progress claim for that month, which then replaces it (the approved amount once it’s approved). Thirty months from the start month. Forecast cost is each month’s own cost, from after the 25th of the month before up to the 25th: labour from the labour cost log in Labour & tasks (November is the weeks starting 26 Oct to 25 Nov; the week the 25th falls in stays in its month), plus invoices from Orders & invoices by invoice date (November is invoices dated 26 Oct to 25 Nov). It isn’t added up; Cumulative costs is the running total. The months start from the project start date in Project details. Type each month’s actual cost in Actual costs: a month with no actual uses its forecast cost, and Cumulative costs runs through every month. An actual below the forecast is flagged for you to check and accept. Cumulative claims show for months with a submitted claim. Retention held is the retention to date on the progress claims (each claim’s amount × its retention %, the approved amount once it’s approved, otherwise the submitted amount); Cumulative claims ex retention takes it off, and Margin after retention is that minus Cumulative costs.',`<div class="toolbar">${projStartMonth()?`<span class="hint">Starts ${monthLabel(ms[0])}, the project start date <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Change in Project details</button></span>`:`<label class="toolbar"><span class="hint">Start month</span><input class="f" style="border-color:var(--line);width:auto" type="month" id="cash_start" data-b="cashstart" value="${esc(S.cash.start||ms[0])}"></label><span class="hint">Set the project start date in <button class="rowlink" data-act="nav" data-v="details" style="color:var(--accent);font-weight:600">Project details</button> to start from it.</span>`}</div>`)}
   ${pcCashPanel()}
   <div class="panel chart">${cashChart()}</div>
-  <div class="tw tall"><table style="min-width:1480px"><thead><tr><th>Month</th><th class="n" title="Your forecast of what you’ll claim each month. Used until a progress claim is submitted for that month">Progress claim (forecast)</th><th title="Each progress claim you submit lands in its month: the approved amount once approved, otherwise the submitted amount. Once there is one, it replaces the forecast for that month">Progress claims</th><th class="n" title="From after the 25th of the month before up to the 25th of this month: labour for the weeks starting then (labour cost log in Labour & tasks), plus invoices dated then (Orders & invoices)">Forecast cost</th><th class="n" title="Type the month’s actual cost; cumulative costs then use it instead of the forecast">Actual costs</th><th class="n">Cumulative claims</th><th class="n" title="Cumulative claims less the retention held on them: each progress claim’s retention (its amount × its retention % in Progress claims) comes off in the claim’s month. Forecast claims have no retention taken off until they’re claimed">Cumulative claims ex retention</th><th class="n">Cumulative costs</th><th class="n" title="This month’s progress claim (or the forecast claim if no claim is logged that month) minus this month’s actual cost, or the forecast cost if no actual is typed in">Margin this month</th><th class="n">Cumulative net</th><th class="n" title="Cumulative claims ex retention minus cumulative costs">Margin after retention</th></tr></thead><tbody>
+  <div class="tw tall"><table style="min-width:1600px"><thead><tr><th>Month</th><th class="n" title="Your forecast of what you’ll claim each month. Used until a progress claim is submitted for that month">Progress claim (forecast)</th><th title="Each progress claim you submit lands in its month: the approved amount once approved, otherwise the submitted amount. Once there is one, it replaces the forecast for that month">Progress claims</th><th class="n" title="From after the 25th of the month before up to the 25th of this month: labour for the weeks starting then (labour cost log in Labour & tasks), plus invoices dated then (Orders & invoices)">Forecast cost</th><th class="n" title="Type the month’s actual cost; cumulative costs then use it instead of the forecast">Actual costs</th><th class="n">Cumulative claims</th><th class="n" title="Cumulative claims less the retention held on them: each progress claim’s retention (its amount × its retention % in Progress claims) comes off in the claim’s month. Forecast claims have no retention taken off until they’re claimed">Cumulative claims ex retention</th><th class="n" title="Retention held to date on the progress claims: each claim’s retention % (Progress claims) of its amount, the approved amount once it’s approved, otherwise the submitted amount. Forecast claims have none until they’re claimed">Retention held</th><th class="n">Cumulative costs</th><th class="n" title="This month’s progress claim (or the forecast claim if no claim is logged that month) minus this month’s actual cost, or the forecast cost if no actual is typed in">Margin this month</th><th class="n" title="Cumulative claims ex retention minus cumulative costs">Margin after retention</th></tr></thead><tbody>
   ${ms.map(k=>{const r=S.cash.m[k]||{};const PA=pcMonthAmt(k);const CL=PA!=null?PA:num(r.sales);cs+=CL;if(CL)STC=true;const RT=PA!=null?pcMonthRet(k):0;cr+=RT;/* a submitted claim replaces that month's forecast */const used=cashCostUsed(k,r,A,FC);const man=r.act!==undefined&&String(r.act).trim()!=='';cc+=used;const src=man?'actual':'forecast';if(used||man)ST=true;/* cumulative columns start at the first month with a forecast or actual cost */
     /* cumulative claims build only from submitted claims, cumulative costs only from actual costs typed in */
-    return `<tr><td>${monthLabel(k)}${k===tm?' <span class="tag">this month</span>':''}</td><td style="width:150px"><div class="cur ${PA!=null?'pcfc-done':''}">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Progress claim forecast '+k,ph:'0'})}</div>${PA!=null&&num(r.sales)?'<div class="hint" style="font-size:11px">replaced by the submitted claim</div>':''}</td><td>${pcMonth(k)}</td><td class="n money">${fcCell(k)}</td><td style="width:160px">${actCell(k,r)}</td><td class="n money">${STC?money(cs)+(CL?`<div class="hint" style="font-size:11px">+${kmoney(CL)} ${PA!=null?'claim':'forecast'}</div>`:''):'<span class="hint">—</span>'}</td><td class="n money" title="${STC?`${money(cs)} cumulative claims − ${money(cr)} retention held`:''}">${STC?money(cs-cr)+(RT?`<div class="hint" style="font-size:11px">−${kmoney(RT)} retention${CL?' ('+pct(RT/CL,0)+')':''}</div>`:CL?`<div class="hint" style="font-size:11px">+${kmoney(CL)} ${PA!=null?'claim':'forecast'}</div>`:''):'<span class="hint">—</span>'}</td>${ST?`<td class="n money" title="${money(used)} this month, from the ${src}">${money(cc)}${used?`<div class="hint" style="font-size:11px">+${kmoney(used)} ${src}</div>`:''}</td>`:'<td class="n hint">—</td>'}${(()=>{const pa=pcMonthAmt(k);const cl=CL;const mg=cl-used;MGT+=mg;return cl||used?`<td class="n money ${mg<0?'neg':''}" title="${money(cl)} ${pa!=null?'progress claim':'forecast claim'} − ${money(used)} ${man?'actual cost':'forecast cost'}">${money(mg)}<div class="hint" style="font-size:11px">${cl?pct(mg/cl,0)+' · ':''}${pa!=null?'claim':'fc claim'} − ${man?'actual':'forecast'}</div></td>`:'<td class="n hint">—</td>'})()}${ST?`<td class="n money ${cs-cc<0?'neg':''}">${money(cs-cc)}</td>`:'<td class="n hint">—</td>'}${ST?`<td class="n money ${cs-cr-cc<0?'neg':''}" title="${money(cs-cr)} cumulative claims ex retention − ${money(cc)} cumulative costs">${money(cs-cr-cc)}</td>`:'<td class="n hint">—</td>'}</tr>`}).join('')}
-  </tbody><tfoot><tr><td>Total</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).sales),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+(pcMonthAmt(k)||0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+(FC[k]?FC[k].total:0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).act),0))}</td><td></td><td class="n money">${cr?`<span class="hint" title="Retention held on the progress claims">−${money(cr)} retention</span>`:''}</td><td></td><td class="n money ${MGT<0?'neg':''}">${money(MGT)}</td><td></td><td></td></tr></tfoot></table></div>
+    return `<tr><td>${monthLabel(k)}${k===tm?' <span class="tag">this month</span>':''}</td><td style="width:150px"><div class="cur ${PA!=null?'pcfc-done':''}">${inp('cash|'+k+'|sales',r.sales||'',{num:1,label:'Progress claim forecast '+k,ph:'0'})}</div>${PA!=null&&num(r.sales)?'<div class="hint" style="font-size:11px">replaced by the submitted claim</div>':''}</td><td>${pcMonth(k)}</td><td class="n money">${fcCell(k)}</td><td style="width:160px">${actCell(k,r)}</td><td class="n money">${STC?money(cs)+(CL?`<div class="hint" style="font-size:11px">+${kmoney(CL)} ${PA!=null?'claim':'forecast'}</div>`:''):'<span class="hint">—</span>'}</td><td class="n money" title="${STC?`${money(cs)} cumulative claims − ${money(cr)} retention held`:''}">${STC?money(cs-cr)+(RT?`<div class="hint" style="font-size:11px">−${kmoney(RT)} retention${CL?' ('+pct(RT/CL,0)+')':''}</div>`:CL?`<div class="hint" style="font-size:11px">+${kmoney(CL)} ${PA!=null?'claim':'forecast'}</div>`:''):'<span class="hint">—</span>'}</td><td class="n money" title="${STC&&RT?`${money(RT)} this month on ${money(CL)} claimed`:''}">${STC?(cr?money(cr):'<span class="hint">—</span>')+(RT?`<div class="hint" style="font-size:11px">+${kmoney(RT)} this month${CL?' ('+pct(RT/CL,0)+')':''}</div>`:''):'<span class="hint">—</span>'}</td>${ST?`<td class="n money" title="${money(used)} this month, from the ${src}">${money(cc)}${used?`<div class="hint" style="font-size:11px">+${kmoney(used)} ${src}</div>`:''}</td>`:'<td class="n hint">—</td>'}${(()=>{const pa=pcMonthAmt(k);const cl=CL;const mg=cl-used;MGT+=mg;return cl||used?`<td class="n money ${mg<0?'neg':''}" title="${money(cl)} ${pa!=null?'progress claim':'forecast claim'} − ${money(used)} ${man?'actual cost':'forecast cost'}">${money(mg)}<div class="hint" style="font-size:11px">${cl?pct(mg/cl,0)+' · ':''}${pa!=null?'claim':'fc claim'} − ${man?'actual':'forecast'}</div></td>`:'<td class="n hint">—</td>'})()}${ST?`<td class="n money ${cs-cr-cc<0?'neg':''}" title="${money(cs-cr)} cumulative claims ex retention − ${money(cc)} cumulative costs">${money(cs-cr-cc)}</td>`:'<td class="n hint">—</td>'}</tr>`}).join('')}
+  </tbody><tfoot><tr><td>Total</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).sales),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+(pcMonthAmt(k)||0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+(FC[k]?FC[k].total:0),0))}</td><td class="n money">${money(ms.reduce((t,k)=>t+num((S.cash.m[k]||{}).act),0))}</td><td></td><td class="n money">${cr?`<span class="hint" title="Retention held on the progress claims">−${money(cr)} retention</span>`:''}</td><td class="n money" title="Retention held on the progress claims">${money(cr)}</td><td></td><td class="n money ${MGT<0?'neg':''}">${money(MGT)}</td><td></td></tr></tfoot></table></div>
   ${(()=>{const out=Object.entries(A).filter(([k])=>!ms.includes(k));return out.length?`<p class="hint" style="margin:0">${money(out.reduce((t,[,a])=>t+a.lab+a.inv,0))} of costs are dated outside these 30 months (${out.map(([k])=>monthLabel(k)).join(', ')}). Change the start month to include them.</p>`:''})()}</div>`;
 };
 
@@ -2970,6 +2981,30 @@ const claimDoc=()=>S.claim||(S.claim=normClaim(null));
 const pcState=()=>{const d=claimDoc();return d.state||'open'};
 const pcLocked=()=>pcState()==='submitted';
 const pcLabel=h=>'PC'+(h.no||'?')+((h.v||1)>1?'-V'+h.v:'');
+const pcName=h=>h.wf?pcLabel(h):(/^pc/i.test(String(h.no||'').trim())?String(h.no).trim().toUpperCase():'PC'+(h.no||''));
+/* a claim counts at its approved amount once it's approved (or reassessed or paid with an approved amount), and at its submitted
+   amount until then: in the claim history, its retention, the payment summary and the cash flow */
+const pcApproved=h=>!!h&&['Approved','Paid','Reassessed'].includes(h.status||'')&&String(h.approved??'').trim()!=='';
+const pcAmt=h=>pcApproved(h)?num(h.approved):String(h.submitted??'').trim()!==''?num(h.submitted):num(h.approved);
+const pcRet=h=>pcAmt(h)*num(h.ret)/100;
+const pcNoKey=n=>String(n??'').trim().replace(/^pc\s*/i,'').replace(/-v\d+$/i,'').replace(/^0+(?=\d)/,'').toLowerCase();
+/* marking a claim approved: the amount the client approved (the submitted amount unless they approved a different figure) */
+function pcApproveForm(i){const d=claimDoc();const h=d.hist[i];if(!h)return '';const v=UI.pcApprV!=null?UI.pcApprV:String(h.submitted??h.approved??'');
+  const nxt=h.wf&&i===d.hist.length-1&&pcState()!=='open';
+  return `<div class="pc-banner approve" role="group" aria-label="Approve ${esc(pcName(h))}"><b>${esc(pcName(h))} approved</b><span>submitted ${money(num(h.submitted))}</span>
+    <label class="pc-apv">Approved amount (ex GST) <span class="cur"><input class="f num" id="pc_apprv" data-pcapv="${i}" inputmode="decimal" value="${esc(v)}" aria-label="Approved amount ex GST"></span></label>
+    <button class="btn primary" data-act="pc-approk" data-i="${i}">Confirm approved</button><button class="btn ghost" data-act="pc-apprx">Cancel</button>
+    <div class="hint">Change it if the client approved a different amount. From now on the claim history, the retention and the cash flow use the approved amount${nxt?'. Each line’s share of it goes into Previously approved and next month’s claim opens (anything not approved is claimed again in it)':''}.</div></div>`}
+/* an approved claim's lines carry into Previously approved. Approved at a different amount from what the lines add up to: each line's
+   share of this claim is scaled to it, to the cent, and the % complete stays as claimed so the rest is claimed again next time */
+function pcCarryApproved(A){const d=claimDoc();const L=[...d.secs.flatMap(x=>pcFlat(x.lines)),...pcFlat(d.av),...pcFlat(d.pv)];
+  const P=claimTotals().all.pay;const same=Math.abs(A-P)<0.005||Math.abs(P)<0.005;
+  if(same){for(const l of L){const x=pcLine(l);const pv=Math.round(x.assessed*100)/100,sm=num(l.sum);l.prev=String(pv);l.pct=String(sm&&!pcHasSubs(l)?Math.round(pv/sm*1e8)/1e6:Math.round(x.ap*1e6)/1e6);l.apct=''}return}
+  const f=A/P;const X=L.map(l=>({l,x:pcLine(l),leaf:!pcHasSubs(l)}));const want=X.filter(o=>o.leaf).reduce((a,o)=>a+o.x.prev,0)+A;let got=0,big=null;
+  for(const o of X){const {l,x}=o;const np=Math.round((x.prev+(x.assessed-x.prev)*f)*100)/100;l.prev=String(np);
+    if(o.leaf){got+=np;const pay=Math.abs(x.assessed-x.prev);if(!big||pay>big.pay)big={l,pay}}}
+  const res=Math.round((want-got)*100)/100;if(big&&res)big.l.prev=String(Math.round((num(big.l.prev)+res)*100)/100);
+  for(const {l} of X){const sm=num(l.sum);if(sm&&num(l.prev)>sm*num(l.pct)/100+0.01)l.pct=String(Math.round(num(l.prev)/sm*1e8)/1e6);l.apct=''}}
 function pcDelete(i){const d=claimDoc();const h=d.hist[i];if(!h)return false;
   if(h.wf&&i!==d.hist.length-1){setSave('error','Delete the later claims first: only the latest claim can be deleted.');return false}
   if(h.wf&&h.snap){/* put the lines back the way they were when this claim was submitted */for(const l of [...d.secs.flatMap(x=>pcFlat(x.lines)),...pcFlat(d.av),...pcFlat(d.pv)]){const o=h.snap.lines[l.id];if(o){l.prev=o.prev;l.apct=o.apct;if(o.pct!==undefined)l.pct=o.pct}}
@@ -2986,8 +3021,9 @@ function pcLine(l){if(pcHasSubs(l)){const t={sum:0,claimed:0,prev:0,assessed:0};
 function pcSum(lines){const t={sum:0,claimed:0,prev:0,this:0,assessed:0,pay:0,diff:0};for(const l of lines){const x=pcLine(l);for(const k in t)t[k]+=x[k]}return t}
 function claimTotals(){
   const d=claimDoc();const c=pcSum(d.secs.flatMap(x=>x.lines)),a=pcSum(d.av),p=pcSum(d.pv);const all={};for(const k in c)all[k]=c[k]+a[k]+p[k];
-  let hs=0,ha=0,hr=0,hp=0,hc=0;for(const h of d.hist){const ap=num(h.approved);hs+=num(h.submitted);ha+=ap;const r=ap*num(h.ret)/100;hr+=r;hp+=ap-r;hc+=num(h.cost)}
-  return {c,a,p,all,hs,ha,ret:hr,paid:hp,cost:hc}}
+  /* claim history: submitted, approved (approved claims only), and what each counts at (approved, or submitted until approved) */
+  let hs=0,ha=0,hd=0,hm=0,hr=0,hc=0;for(const h of d.hist){hs+=num(h.submitted);if(pcApproved(h)){ha+=num(h.approved);hd+=num(h.approved)-num(h.submitted)}hm+=pcAmt(h);hr+=pcRet(h);hc+=num(h.cost)}
+  return {c,a,p,all,hs,ha,hd,amt:hm,ret:hr,paid:hm-hr,cost:hc}}
 const r2s=v=>(v===''||v==null)?'':(Math.round(num(v)*100)/100).toFixed(2);
 function pcBar(c,a){c=Math.min(Math.max(c,0),1);a=Math.min(Math.max(a,0),1);
   return `<div class="pcbar" title="${pct(c,2)} claimed · ${pct(a,2)} approved"><div class="bar"><i style="width:${(c*100).toFixed(1)}%"></i></div><div class="bar b2 thin"><i style="width:${(a*100).toFixed(1)}%"></i></div></div><div class="pcbar-l"><span>${pct(c,2)}</span><span class="hint">${pct(a,2)} appr.</span></div>`}
@@ -3162,16 +3198,22 @@ V.claim=()=>{try{pcVarSyncAll()}catch(e){console.error(e)}if(!PC_ENTERED){PC_ENT
   const hf=(k,l,o={})=>`<label>${l}${inp('pc|'+k,h[k]||'',o)}</label>`;
   const r=(l,v,cls='')=>`<tr class="${cls}"><td>${l}</td><td class="money ${v<0?'neg':''}">${money(v)}</td></tr>`;
   const NC=14;
-  const armed=UI.armed==='roll';
   const gst=T.all.pay*0.1;
   const maxRet=(T.c.sum+T.a.sum)*num(d.retMax)/100;
-  const st=pcState(),ch=pcCurH();const nextNo=esc(d.hdr.claimNo||String(d.hist.length+1));
-  const subBtn=st==='submitted'?`<button class="btn" data-act="nav" data-v="cashflow">🔒 ${esc(ch?pcLabel(ch):'Claim')} submitted · open Cash flow</button>`:st==='amending'&&ch?`<button class="btn ${armed?'armed':'primary'}" data-act="roll">${armed?`Confirm: re-submit as PC${esc(ch.no)}-V${(ch.v||1)+1} and download PDF`:`Re-submit PC${esc(ch.no)} as V${(ch.v||1)+1}`}</button>`:`<button class="btn ${armed?'armed':''}" data-act="roll">${armed?'Confirm: submit PC'+nextNo+' and download PDF':'Submit claim PC'+nextNo}</button>`;
+  const st=pcState(),ch=pcCurH();const nextRaw=String(d.hdr.claimNo||d.hist.length+1);const nextNo=esc(nextRaw);
+  const subBtn=st==='submitted'?`<button class="btn" data-act="nav" data-v="cashflow">🔒 ${esc(ch?pcLabel(ch):'Claim')} submitted · open Cash flow</button>`:st==='amending'&&ch?`<button class="btn primary" data-act="pc-subask">Re-submit PC${esc(ch.no)} as V${(ch.v||1)+1}…</button>`:`<button class="btn primary" data-act="pc-subask">Submit claim PC${nextNo}…</button>`;
+  /* submitting: what goes in, then one press (it stays until you submit or cancel) */
+  const subPanel=UI.pcSubmit&&st!=='submitted'?(()=>{const amend=st==='amending'&&ch;const lbl=amend?`PC${ch.no}-V${(ch.v||1)+1}`:'PC'+nextRaw;
+    const dup=amend?null:d.hist.find(x=>!x.wf&&pcNoKey(x.no)===pcNoKey(nextRaw));
+    return `<div class="pc-banner submit" role="group" aria-label="${amend?'Re-submit':'Submit'} ${esc(lbl)}"><b>${amend?'Re-submit':'Submit'} ${esc(lbl)}:</b><span>this claim <b class="money">${money(T.all.this)}</b> ex GST (${money(T.all.this*1.1)} incl. GST) · claimed to date ${money(T.all.claimed)}${T.all.sum?' of '+money(T.all.sum):''}</span>
+      <label class="pc-apv">Claim date <input class="f" type="date" id="pc_subdate" data-b="pc|claimDate" value="${esc(d.hdr.claimDate||todayISO())}" aria-label="Claim date"></label>
+      <button class="btn primary" data-act="roll">${amend?'Re-submit':'Submit'} ${esc(lbl)} and download PDF</button><button class="btn ghost" data-act="pc-subx">Cancel</button>
+      <div class="hint">It goes into the claim history and the cash flow at the submitted amount, ${money(T.all.this)}, until you mark it approved; the percentages lock until it’s approved or amended.${dup?` It replaces the ${esc(pcName(dup))} row added by hand in the claim history.`:''}</div></div>`})():'';
   const banner=st==='submitted'&&ch?`<div class="pc-banner lock"><b>🔒 ${esc(pcLabel(ch))} submitted${ch.date?' '+esc(fmtDate(ch.date)):''}.</b> The percentages are locked. In <button class="rowlink" data-act="nav" data-v="cashflow">Cash flow</button>, choose <b>Approved</b> to start the next claim, or <b>Amend</b> to change this one and re-submit it.
-      <div class="toolbar" style="margin-top:8px;gap:8px"><button class="btn ${UI.armed==='pcap'+(d.hist.length-1)?'armed':'primary'}" data-act="pc-approve" data-i="${d.hist.length-1}" title="Marks ${esc(pcLabel(ch))} approved and opens next month’s claim, carrying each line’s approved amount into Previously approved">${UI.armed==='pcap'+(d.hist.length-1)?'Confirm: approved, start next claim':'Approved · start next month’s claim'}</button><button class="btn" data-act="pc-amend" data-i="${d.hist.length-1}">Amend ${esc(pcLabel(ch))}</button></div></div>`
+      ${UI.pcAppr===d.hist.length-1?`<div style="margin-top:8px">${pcApproveForm(d.hist.length-1)}</div>`:`<div class="toolbar" style="margin-top:8px;gap:8px"><button class="btn primary" data-act="pc-approve" data-i="${d.hist.length-1}" title="Enter the amount the client approved; it opens next month’s claim, carrying each line’s approved amount into Previously approved">Approved · start next month’s claim…</button><button class="btn" data-act="pc-amend" data-i="${d.hist.length-1}">Amend ${esc(pcLabel(ch))}</button></div>`}</div>`
     :st==='amending'&&ch?`<div class="pc-banner amend"><b>✎ Amending PC${esc(ch.no)}</b> (last sent as ${esc(pcLabel(ch))}). Change the percentages below, then press <b>Re-submit PC${esc(ch.no)} as V${(ch.v||1)+1}</b>.</div>`:'';
   const banner2=UI.pcMsg?`<div class="pc-banner lock" role="alert"><b>${esc(UI.pcMsg)}</b></div>`:'';
-  return `<div class="stack">${head('Progress claim','Contract works by section, approved and pending variations, the payment summary and claim history, as in the workbook. All amounts ex GST unless shown. Submit claim sends it to the Cash flow tab as PC1, PC2 and so on and downloads it as a PDF; the percentages then stay locked until it is approved or amended there.',subBtn)}${banner}${banner2}
+  return `<div class="stack">${head('Progress claim','Contract works by section, approved and pending variations, the payment summary and claim history, as in the workbook. All amounts ex GST unless shown. Submit claim sends it to the claim history and the Cash flow tab as PC1, PC2 and so on at the submitted amount and downloads it as a PDF; the percentages then stay locked until it is approved or amended. Once you mark it approved, with the amount the client approved, that amount is used instead.',subBtn)}${subPanel}${banner}${banner2}
   <div class="panel"><h3>Claim details</h3><div class="form">
     <label>Project<input class="f" value="${esc(PROJ[PID]?.name||S.info.name||'')}" disabled placeholder="Set in Project details"></label>
     ${hf('poNo','PO number')}${hf('claimNo','Progress claim no.',{num:1})}${hf('claimDate','Claim date',{type:'date'})}
@@ -3180,7 +3222,7 @@ V.claim=()=>{try{pcVarSyncAll()}catch(e){console.error(e)}if(!PC_ENTERED){PC_ENT
   <div class="grid3">
     <div class="panel"><h3>Contract value</h3><table class="ledger"><tbody>${r('Original contract value',T.c.sum)}${r('Approved variations',T.a.sum)}${r('Revised contract value',T.c.sum+T.a.sum,'total')}</tbody></table></div>
     <div class="panel"><h3>Claimed amount</h3><table class="ledger"><tbody>${r('Contract work completed to date',T.c.claimed)}${r('Agreed variation work to date',T.a.claimed)}${r('Pending variation work to date',T.p.claimed)}${r('Total claimed to date',T.all.claimed,'total')}<tr class="sub"><td>Percent complete</td><td class="money">${T.all.sum?pct(T.all.claimed/T.all.sum):'—'}</td></tr></tbody></table></div>
-    <div class="panel"><h3>Payment summary</h3><table class="ledger"><tbody>${r('Contract work approved to date',T.c.assessed)}${r('Variation work approved to date',T.a.assessed+T.p.assessed)}${r('Total approved to date',T.all.assessed,'total')}${r('Less previously approved',-T.all.prev)}${r('This claim',T.all.pay,'total')}${r('Add GST (10%)',gst)}${r('Payment amount incl. GST',T.all.pay+gst,'total')}<tr class="sub"><td colspan="2" style="padding-top:12px;text-align:left">From claim history</td></tr>${r('Total approved to date',T.ha)}${r('Retention held to date',T.ret)}${r('Approved less retention',T.ha-T.ret,'total')}</tbody></table></div>
+    <div class="panel"><h3>Payment summary</h3><table class="ledger"><tbody>${r('Contract work approved to date',T.c.assessed)}${r('Variation work approved to date',T.a.assessed+T.p.assessed)}${r('Total approved to date',T.all.assessed,'total')}${r('Less previously approved',-T.all.prev)}${r('This claim',T.all.pay,'total')}${r('Add GST (10%)',gst)}${r('Payment amount incl. GST',T.all.pay+gst,'total')}<tr class="sub"><td colspan="2" style="padding-top:12px;text-align:left">From claim history <span class="hint" style="font-weight:400">(approved amounts, or submitted until approved)</span></td></tr>${r('Claimed to date',T.amt)}${r('Retention held to date',T.ret)}${r('Claims less retention',T.amt-T.ret,'total')}</tbody></table></div>
   </div>
   ${contractWarn('claim')}
   <div class="${pcLocked()?'pc-locked':''}"><div><div class="sec-head pcxl-t" data-pcxl="n|0"><div><h3>Contract works</h3><p class="hint">Contract sums must add up to the original tendered amount. Leave % approved blank until ${esc(A)} assesses the claim; until then it follows your % complete. Percentages and amounts are linked: type either and the other updates. Changing the approved % also sets % complete to match. The top bar is claimed, the thin bar approved. <b>Drop an Excel file</b> on a section row to add its lines there, or here to make sections from it (rows with a name and no amount become sections).</p></div><div class="toolbar"><label class="btn" for="pcxlf_n" title="Make sections and lines from an Excel or CSV file">Import Excel</label><input type="file" hidden id="pcxlf_n" data-pcxlf="n|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn primary" data-act="pc-addsec">+ Add section</button></div></div>
@@ -3194,10 +3236,19 @@ V.claim=()=>{try{pcVarSyncAll()}catch(e){console.error(e)}if(!PC_ENTERED){PC_ENT
   <div class="tw"><table style="min-width:1500px">${pcHead({var:1,area:'a'})}<tbody>${pcRows('a',d.av,0,{var:1})||`<tr><td colspan="14" class="empty">No approved variations on this claim.</td></tr>`}${pcFoot(T.a,'Approved variations total (ex GST)',3,1)}</tbody></table></div></div>
   <div><div class="sec-head pcxl-t" data-pcxl="p|0"><div><h3>Pending variations</h3><p class="hint">Variations submitted but not yet agreed. Drop an Excel file here to add them.</p></div><div class="toolbar"><label class="btn" for="pcxlf_p">Import Excel</label><input type="file" hidden id="pcxlf_p" data-pcxlf="p|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn" data-act="pc-import" data-a="p">Bring in from variation register</button><button class="btn primary" data-act="pc-addline" data-a="p" data-s="0">+ Add variation</button></div></div>
   <div class="tw"><table style="min-width:1500px">${pcHead({var:1,area:'p'})}<tbody>${pcRows('p',d.pv,0,{var:1})||`<tr><td colspan="14" class="empty">No pending variations on this claim.</td></tr>`}${pcFoot(T.p,'Pending variations total (ex GST)',3,1)}</tbody></table></div></div>
-  </div><div class="panel"><div class="sec-head"><div><h3>Claim history</h3><p class="hint">Submitted, approved and retention for each claim. Edit any figure after submission to record the client’s reassessment, or reopen the latest claim to change line percentages and resubmit.</p></div><div class="toolbar"><label>Max retention<span style="width:70px">${inp('pcret',d.retMax,{num:1,label:'Max retention %'})}</span>%</label><button class="btn" data-act="pc-addhist">+ Add claim</button></div></div>
-  <div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>Claim no.</th><th>Status</th><th>Date</th><th class="n">Submitted</th><th class="n">Approved</th><th class="n">Difference</th><th class="n">Retention %</th><th class="n">Retention held</th><th class="n">Paid ex retention</th></tr></thead><tbody>
-  ${d.hist.map((x,i)=>{const k='pch|'+i+'|';const ap=num(x.approved),rt=ap*num(x.ret)/100;return `<tr><td style="width:86px">${delBtn('pch','x',String(i),'Remove')}</td><td style="width:80px">${x.wf?`<b class="mono">${esc(pcLabel(x))}</b>`:inp(k+'no',x.no,{label:'Claim no.'})}</td><td style="min-width:170px">${sel(k+'status',x.status||'Submitted',['Submitted','Reassessed','Approved','Paid'],{label:'Status'})}${i===d.hist.length-1&&x.snap&&!x.wf?`<button class="btn ghost" style="display:block;padding:2px 4px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="pc-reopen">${UI.armed==='reopen'?'Confirm reopen':'Reopen to reassess'}</button>`:''}</td><td style="width:140px">${inp(k+'date',x.date,{type:'date',label:'Date'})}</td><td style="min-width:140px"><div class="cur">${inp(k+'submitted',x.submitted,{num:1,label:'Submitted'})}</div></td><td style="min-width:140px"><div class="cur">${inp(k+'approved',x.approved,{num:1,label:'Approved'})}</div></td><td class="n money ${ap-num(x.submitted)<0?'neg':''}">${money(ap-num(x.submitted))}</td><td style="width:80px">${inp(k+'ret',x.ret,{num:1,label:'Retention %',ph:'0'})}</td><td class="n money">${money(rt)}</td><td class="n money">${money(ap-rt)}</td></tr>`}).join('')||'<tr><td colspan="12" class="empty">No claims logged yet.</td></tr>'}
-  </tbody><tfoot><tr><td colspan="4">Totals</td><td class="n money">${money(T.hs)}</td><td class="n money">${money(T.ha)}</td><td class="n money">${money(T.ha-T.hs)}</td><td></td><td class="n money">${money(T.ret)}</td><td class="n money">${money(T.paid)}</td></tr></tfoot></table></div>
+  </div><div class="panel">${UI.pcAppr!=null&&d.hist[UI.pcAppr]&&!(st==='submitted'&&UI.pcAppr===d.hist.length-1)?`<div style="margin-bottom:10px">${pcApproveForm(UI.pcAppr)}</div>`:''}<div class="sec-head"><div><h3>Claim history</h3><p class="hint">Submitted, approved and retention for each claim. Edit any figure after submission to record the client’s reassessment, or reopen the latest claim to change line percentages and resubmit.</p></div><div class="toolbar"><label>Max retention<span style="width:70px">${inp('pcret',d.retMax,{num:1,label:'Max retention %'})}</span>%</label><button class="btn" data-act="pc-addhist">+ Add claim</button></div></div>
+  <div class="tw"><table style="min-width:1050px"><thead><tr><th></th><th>Claim no.</th><th>Status</th><th>Date</th><th class="n">Submitted</th><th class="n">Approved</th><th class="n">Difference</th><th class="n">Retention %</th><th class="n" title="Retention % of the approved amount, or of the submitted amount until the claim is approved">Retention held</th><th class="n" title="The approved amount (or the submitted amount until approved) less retention">Ex retention</th></tr></thead><tbody>
+  ${d.hist.map((x,i)=>{const k='pch|'+i+'|';const ok=pcApproved(x),amt=pcAmt(x),rt=pcRet(x);const fix=x.wf;/* a submitted claim's number, date and amounts come from the claim itself */const lockAll=fix&&x.status==='Approved';
+    const stCell=fix?`<span class="tag ${ok?'good':x.status==='Amending'?'warn':''}">${ok?'Approved'+(x.approvedAt?' '+esc(fmtDate(x.approvedAt)):''):esc(x.status||'Submitted')}</span>${!ok&&x.status!=='Amending'?` <button class="btn ghost" style="padding:2px 6px;font-size:12px;color:var(--accent)" data-act="pc-approve" data-i="${i}">Approved…</button>`:''}`
+      :sel(k+'status',x.status||'Submitted',['Submitted','Reassessed','Approved','Paid'],{label:'Status'})+(i===d.hist.length-1&&x.snap?`<button class="btn ghost" style="display:block;padding:2px 4px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="pc-reopen">${UI.armed==='reopen'?'Confirm reopen':'Reopen to reassess'}</button>`:'');
+    return `<tr><td style="width:86px">${delBtn('pch','x',String(i),'Remove')}</td><td style="width:80px">${fix?`<b class="mono">${esc(pcLabel(x))}</b>`:inp(k+'no',x.no,{label:'Claim no.'})}</td><td style="min-width:170px">${stCell}</td>
+      <td style="width:140px${fix?';white-space:nowrap':''}">${fix?esc(fmtDate(x.date)):inp(k+'date',x.date,{type:'date',label:'Date'})}</td>
+      <td style="min-width:140px" class="${fix?'n money':''}">${fix?money(num(x.submitted)):`<div class="cur">${inp(k+'submitted',x.submitted,{num:1,label:'Submitted'})}</div>`}</td>
+      <td style="min-width:140px" class="${fix?'n money':''}">${fix?(ok?money(num(x.approved)):'<span class="hint">awaiting approval</span>'):`<div class="cur">${inp(k+'approved',x.approved,{num:1,label:'Approved'})}</div>`}</td>
+      <td class="n money ${ok&&num(x.approved)-num(x.submitted)<0?'neg':''}">${ok?money(num(x.approved)-num(x.submitted)):'<span class="hint">—</span>'}</td>
+      <td style="width:80px">${lockAll?`<span class="mono">${esc(x.ret||'0')}%</span>`:inp(k+'ret',x.ret,{num:1,label:'Retention %',ph:'0'})}</td>
+      <td class="n money">${money(rt)}${num(x.ret)?`<div class="hint" style="font-size:11px">of ${ok?'approved':'submitted'}</div>`:''}</td><td class="n money">${money(amt-rt)}</td></tr>`}).join('')||'<tr><td colspan="12" class="empty">No claims logged yet.</td></tr>'}
+  </tbody><tfoot><tr><td colspan="4">Totals</td><td class="n money">${money(T.hs)}</td><td class="n money">${money(T.ha)}</td><td class="n money ${T.hd<0?'neg':''}">${money(T.hd)}</td><td></td><td class="n money">${money(T.ret)}</td><td class="n money">${money(T.paid)}</td></tr></tfoot></table></div>
   <div class="statgrid" style="margin-top:14px"><div class="mini"><span class="l">Max retention</span><span class="v">${money(maxRet)}</span></div><div class="mini"><span class="l">Retention remaining</span><span class="v">${money(maxRet-T.ret)}</span></div></div>
   </div></div>`;
 };
@@ -5604,6 +5655,28 @@ let TYPE_HOLD=false;const TOUCH=()=>{try{return matchMedia('(pointer: coarse)').
 const isTypeBox=el=>!!el&&viewEl&&viewEl.contains(el)&&el.dataset&&el.dataset.b!==undefined&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&/^(text|search|email|tel|url|number|password|)$/.test(el.type||'')))&&TOUCH();
 /* wait a moment after leaving the box so a button tapped to leave it gets its click before the page is redrawn */
 document.addEventListener('focusout',e=>{if(TYPE_HOLD&&isTypeBox(e.target)){setTimeout(()=>{if(TYPE_HOLD&&!isTypeBox(document.activeElement))render()},250)}},true);
+/* updates a part of the page to new HTML by changing only what differs: the same elements stay (and keep focus and scroll), changed
+   attributes, text and box values are set, and anything else is replaced. A box being typed in keeps what's typed when only its
+   formatting would change */
+let MORPH_VIEW=null,MORPH_HTML='';
+function morphInto(root,html){const t=document.createElement('template');t.innerHTML=html;const act=document.activeElement;
+  const same=(a,b)=>a.nodeType===b.nodeType&&a.nodeName===b.nodeName&&(a.nodeType!==1||(a.id||'')===(b.id||''));
+  const kids=(a,b)=>{let x=a.firstChild,y=b.firstChild;
+    while(y){const ny=y.nextSibling;
+      if(!x)a.appendChild(y);else if(same(x,y)){node(x,y);x=x.nextSibling}else{const nx=x.nextSibling;a.replaceChild(y,x);x=nx}
+      y=ny}
+    while(x){const nx=x.nextSibling;a.removeChild(x);x=nx}};
+  const node=(x,y)=>{if(x.nodeType!==1){if(x.nodeValue!==y.nodeValue)x.nodeValue=y.nodeValue;return}
+    const xa=x.attributes,ya=y.attributes;
+    for(let i=xa.length-1;i>=0;i--){const n=xa[i].name;if(!y.hasAttribute(n))x.removeAttribute(n)}
+    for(let i=0;i<ya.length;i++){const n=ya[i].name,v=ya[i].value;if(x.getAttribute(n)!==v)x.setAttribute(n,v)}
+    const tg=x.nodeName;
+    if(tg==='INPUT'){if(x.type==='file')return;if(x.type==='checkbox'||x.type==='radio'){x.checked=y.hasAttribute('checked');return}
+      const v=y.getAttribute('value')||'';if(x.value!==v){const keep=x===act&&x.value.trim()!==''&&String(num(x.value))===String(num(v))&&/^[\d\s$,.%-]*$/.test(x.value)&&/^[\d\s$,.%-]*$/.test(v);if(!keep)x.value=v}return}
+    if(tg==='TEXTAREA'){const v=y.value;if(x.value!==v&&x!==act)x.value=v;return}
+    kids(x,y);
+    if(tg==='SELECT'){const o=[...y.options].findIndex(o=>o.hasAttribute('selected'));const want=o<0?0:o;if(x.selectedIndex!==want)x.selectedIndex=want}};
+  kids(root,t.content)}
 function render(){
   if(isDateBox(document.activeElement)){DATE_HOLD=true;return}
   if(isTypeBox(document.activeElement)){TYPE_HOLD=true;return}
@@ -5611,13 +5684,15 @@ function render(){
   syncTasks();
   if(UI.view==='labour'||UI.view==='progress')try{syncNodeColl()}catch(e){console.error(e)}
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
-  if(!firstView()){renderChrome();viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
+  if(!firstView()){renderChrome();MORPH_VIEW=null;MORPH_HTML='';viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
   const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
   const keepSc={};viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{keepSc[el.id||('vp'+i)]=el.scrollTop});
-  viewEl.innerHTML=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+cptoHtml()+tmvHtml();
+  const html=(V[UI.view]||V.overview)()+vpickHtml()+mvtoHtml()+cptoHtml()+tmvHtml();
+  /* the progress claim can run to thousands of boxes: it's updated in place rather than rebuilt */
+  if(UI.view==='claim'&&MORPH_VIEW==='claim'&&viewEl.firstChild){if(html!==MORPH_HTML)morphInto(viewEl,html)}else viewEl.innerHTML=html;MORPH_VIEW=UI.view;MORPH_HTML=UI.view==='claim'?html:'';
   viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{if(UI.view==='programme')gtDraw()}catch(e){console.error(e)}try{setTimeout(invAutoRead,0)}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
@@ -6764,6 +6839,7 @@ viewEl.addEventListener('input',e=>{
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoPar'&&UI.mvto){UI.mvto.par=t.value;scheduleRender(0);return}
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
+  if(t.dataset.pcapv!==undefined){UI.pcApprV=t.value;return}
   const b=t.dataset.b;if(!b)return;
   if(UNDO.burstKey!==b||Date.now()-UNDO.burstAt>2000||t.type==='checkbox'||t.tagName==='SELECT')undoRecord();UNDO.burstKey=b;UNDO.burstAt=Date.now();
   apply(b.split('|'),t.type==='checkbox'?t.checked:t.value);
@@ -7086,25 +7162,33 @@ if(act==='pc-addline'){if(pcLocked()){setSave('error','This claim is submitted. 
       const base={...newPcLine(),vid:id,ref:v.ref||'',desc:v.desc||'',sum:String(Math.round(vNums(v).sell*100)/100)};
       if(st==='Approved'){if(btn.dataset.a!=='p')d.av.push({...base,aref:v.approvalRef||''})}else if(btn.dataset.a!=='a')d.pv.push({...base,status:st==='Draft'?'Draft':'Submitted',sub:v.date||''})}
     persist('project/claim');render();return}
+  if(act==='pc-subask'){if(pcLocked())return;UI.pcSubmit=true;render();setTimeout(()=>{const e=document.querySelector('.pc-banner.submit');if(e)e.scrollIntoView({block:'nearest',behavior:'smooth'})},0);return}
+  if(act==='pc-subx'){UI.pcSubmit=false;render();return}
   if(act==='roll'){
     const d=claimDoc();if(pcLocked())return;const amending=pcState()==='amending'&&pcCurH();
-    if(UI.armed!=='roll'){UI.armed='roll';render();setTimeout(()=>{if(UI.armed==='roll'){UI.armed=null;render()}},5000);return}
-    UI.armed=null;const T=claimTotals();
+    UI.armed=null;UI.pcSubmit=false;const T=claimTotals();
     const allL=[...d.secs.flatMap(x=>pcFlat(x.lines)),...pcFlat(d.av),...pcFlat(d.pv)];allL.forEach(l=>{if(!l.id)l.id=uid('c')});
     const snap={hdr:clone(d.hdr),lines:Object.fromEntries(allL.map(l=>[l.id,{prev:l.prev??'',apct:l.apct??'',pct:l.pct??''}]))};
-    const sub=String(Math.round(T.all.this*100)/100),appr=String(Math.round(T.all.pay*100)/100),date=d.hdr.claimDate||todayISO();
-    let h;if(amending){h=amending;h.v=(h.v||1)+1;h.vers=h.vers||[];h.vers.push({v:h.v,date,submitted:sub,approved:appr,at:Date.now()});Object.assign(h,{date,submitted:sub,approved:appr,snap,status:'Submitted'})}
-    else{const cur=String(d.hdr.claimNo||d.hist.length+1);const mc=cashMonthCost(String(date||todayISO()).slice(0,7));h={wf:1,no:cur,v:1,vers:[{v:1,date,submitted:sub,approved:appr,at:Date.now()}],snap,status:'Submitted',date,submitted:sub,approved:appr,ret:d.retMax||'',cost:mc?String(Math.round(mc*100)/100):''};d.hist.push(h)}
+    /* submitted: the claim's amount goes in as submitted; the approved amount is filled in when it's approved */
+    const sub=String(Math.round(T.all.this*100)/100),date=d.hdr.claimDate||todayISO();
+    let h;if(amending){h=amending;h.v=(h.v||1)+1;h.vers=h.vers||[];h.vers.push({v:h.v,date,submitted:sub,approved:'',at:Date.now()});Object.assign(h,{date,submitted:sub,approved:'',snap,status:'Submitted'})}
+    else{const cur=String(d.hdr.claimNo||d.hist.length+1);const mc=cashMonthCost(String(date||todayISO()).slice(0,7));
+      /* the same claim already typed into the claim history by hand: this replaces it (its retention % and cost stay) */
+      const k=d.hist.findIndex(x=>!x.wf&&pcNoKey(x.no)===pcNoKey(cur));const old=k>=0?d.hist.splice(k,1)[0]:null;
+      h={wf:1,no:cur,v:1,vers:[{v:1,date,submitted:sub,approved:'',at:Date.now()}],snap,status:'Submitted',date,submitted:sub,approved:'',ret:old&&String(old.ret??'').trim()!==''?old.ret:(d.retMax||''),cost:old&&String(old.cost??'').trim()!==''?old.cost:(mc?String(Math.round(mc*100)/100):'')};d.hist.push(h)}
     d.state='submitted';persist('project/claim');render();
     try{await claimPdf(pcLabel(h))}catch(e){console.error(e);setSave('error','Claim PDF failed; the claim was still submitted')}
     return}
   if(act==='pc-approve'){const d=claimDoc();const i=+btn.dataset.i;const h=d.hist[i];if(!h||h.status==='Approved')return;
-    if(UI.armed!=='pcap'+i){UI.armed='pcap'+i;render();setTimeout(()=>{if(UI.armed==='pcap'+i){UI.armed=null;render()}},5000);return}
-    UI.armed=null;h.status='Approved';h.approvedAt=todayISO();
-    if(h.wf&&i===d.hist.length-1&&pcState()!=='open'){
-      for(const l of [...d.secs.flatMap(x=>pcFlat(x.lines)),...pcFlat(d.av),...pcFlat(d.pv)]){const x=pcLine(l);l.prev=String(Math.round(x.assessed*100)/100);l.pct=String(Math.round(x.ap*1e6)/1e6);l.apct=''}
+    UI.pcAppr=i;UI.pcApprV=null;render();setTimeout(()=>{const e=document.getElementById('pc_apprv');if(e){e.focus();e.select&&e.select()}},0);return}
+  if(act==='pc-apprx'){UI.pcAppr=null;UI.pcApprV=null;render();return}
+  if(act==='pc-approk'){const d=claimDoc();const i=+btn.dataset.i;const h=d.hist[i];if(!h||h.status==='Approved'){UI.pcAppr=null;render();return}
+    const raw=String(UI.pcApprV!=null?UI.pcApprV:(h.submitted??h.approved??'')).replace(/[$,\s]/g,'');
+    if(raw===''||!isFinite(+raw)){setSave('error','Type the approved amount (ex GST)');return}
+    const A=Math.round(+raw*100)/100;h.approved=String(A);h.status='Approved';h.approvedAt=todayISO();
+    if(h.wf&&i===d.hist.length-1&&pcState()!=='open'){pcCarryApproved(A);
       d.hdr.claimNo=String(num(h.no)+1);d.hdr.claimDate='';d.hdr.invoiceNo='';d.hdr.invoiceDate='';d.state='open'}
-    persist('project/claim');render();return}
+    UI.pcAppr=null;UI.pcApprV=null;persist('project/claim');render();return}
   if(act==='pc-del'){const i=+btn.dataset.i;if(UI.armed!=='pcdel'+i){UI.armed='pcdel'+i;render();setTimeout(()=>{if(UI.armed==='pcdel'+i){UI.armed=null;render()}},5000);return}
     UI.armed=null;undoRecord();pcDelete(i);render();return}
   if(act==='pc-amend'){const d=claimDoc();const i=+btn.dataset.i;const h=d.hist[i];if(!h||!h.wf||h.status==='Approved'||i!==d.hist.length-1)return;
