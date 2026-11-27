@@ -581,7 +581,12 @@ td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
 .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .apt td{padding:3px 6px}
 .apt select.f{padding:3px 4px;font-family:var(--f-mono);font-size:12px;min-width:58px}
-.apt select.f.p100{background:var(--good-soft);color:var(--good)}.pctbox{display:inline-flex;align-items:center;gap:3px;min-width:72px}.pctbox input.f{width:62px;text-align:right}.pctbox>span{color:var(--muted);font-size:12px}.apt .pctbox.p100 input.f{background:var(--good-soft);color:var(--good);font-weight:600}.apt .pctbox.ppart input.f{background:var(--warn-soft);color:var(--warn);font-weight:600}
+.apt select.f.p100{background:var(--good-soft);color:var(--good)}.apt-po{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 10px}.apt-po label{display:inline-flex;align-items:center;gap:6px}.apt-po select.f{max-width:360px}.apt-po .cur{min-width:120px}
+.apt-chk{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px;border-radius:8px;margin:0 0 10px;font-size:13px;border:1px solid var(--line)}
+.apt-chk.over{background:var(--bad-soft);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent);font-weight:500}.apt-chk.under{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}.apt-chk.ok{background:var(--good-soft);color:var(--good);border-color:color-mix(in srgb,var(--good) 35%,transparent)}
+.apt-msg{color:var(--ink);font-weight:400}.kpi.apt-kover{border-color:var(--bad);background:var(--bad-soft)}.kpi.apt-kover .v,.kpi.apt-kover .d b{color:var(--bad)}
+.apt-deprow td{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}.apt-depp{display:flex;align-items:center;gap:8px}.apt-depp .bar{flex:1}
+.pctbox{display:inline-flex;align-items:center;gap:3px;min-width:72px}.pctbox input.f{width:62px;text-align:right}.pctbox>span{color:var(--muted);font-size:12px}.apt .pctbox.p100 input.f{background:var(--good-soft);color:var(--good);font-weight:600}.apt .pctbox.ppart input.f{background:var(--warn-soft);color:var(--warn);font-weight:600}
 .apt select.f.ppart{background:var(--warn-soft);color:var(--warn)}
 .apt input[type=checkbox]{width:16px;height:16px;accent-color:var(--good)}
 .apt th{white-space:normal;min-width:70px;line-height:1.2}
@@ -786,7 +791,9 @@ function normTrade(id,d){
     if(Array.isArray(v.s)){const s={},it={};v.s.forEach((x,i)=>s['s'+i]=x);(v.itp||[]).forEach((x,i)=>it['i'+i]=x);units[u]={s,itp:it}}
     else units[u]={s:v.s||{},itp:v.itp||{}};
   }
-  return {name:d.name??(def?def.name:'New trade'),created:d.created||(def?def.created:Date.now()),...(d.order!=null?{order:d.order}:{}),removed:!!d.removed,stages,itps,sections,units};
+  /* orderId: the trade's PO in Orders & invoices; cv: a contract value typed in when there's no PO; dep / depClaim: the deposit (paid up front, not per line) and how much of it is claimed */
+  const X={};for(const k of ['orderId','cv','dep','depClaim'])if(d[k]!=null&&d[k]!=='')X[k]=d[k];
+  return {name:d.name??(def?def.name:'New trade'),created:d.created||(def?def.created:Date.now()),...(d.order!=null?{order:d.order}:{}),removed:!!d.removed,stages,itps,sections,units,...X};
 }
 const aptDoc=t=>S.apt[t]||(S.apt[t]=normTrade(t,null));
 const tradeIds=()=>[...new Set([...(PID==='main'?['E','F']:[]),...Object.keys(S.apt)])].filter(id=>!aptDoc(id).removed).sort((a,b)=>{const A=aptDoc(a),B=aptDoc(b);const oa=A.order??1e9,ob=B.order??1e9;return oa-ob||A.created-B.created});
@@ -841,7 +848,7 @@ async function flush(p){
     if(p.startsWith('apartments/')){
       const t=p.split('/')[1];const d=aptDoc(t);const Q=aptQueue[t]||new Set();const units={};
       for(const u of Q)units[u]=unitState(t,u);Q.clear();
-      const body={name:d.name,created:d.created,removed:d.removed,stages:d.stages,itps:d.itps,units};if(structDirty.has(t)){body.sections=d.sections;structDirty.delete(t)}
+      const body={name:d.name,created:d.created,removed:d.removed,stages:d.stages,itps:d.itps,units,orderId:d.orderId??'',cv:d.cv??'',dep:d.dep??'',depClaim:d.depClaim??''};if(structDirty.has(t)){body.sections=d.sections;structDirty.delete(t)}
       if(exists.has(p))await db.doc(phys(p)).update(body);else{await db.doc(phys(p)).set(clone(d));exists.add(p)}
     }else{
       const data=dataFor(p);if(data)await db.doc(phys(p)).set(clone(data));exists.add(p);
@@ -954,8 +961,34 @@ function aptCalc(t){
       else{v=(num(l.rate)||per)*lineQty(l);total+=v;sc.total+=v;all=n>0;
       stage.forEach((s,i)=>{const p=num(st.s?.[s.id]);const sv=v*share(i);s.total+=sv;s.claimed+=sv*p/100;uc+=sv*p/100;if(p>=100)s.done++;else all=false})}
       claimed+=uc;sc.claimed+=uc;if(all)full++;for(const k in itp)if(st.itp?.[k])itp[k]++}}
-  return {id:t,name:d.name,count,per,total,claimed,stage,itp,full,secs,pct:total?claimed/total:0};
+  /* the deposit: a lump sum paid up front (Stage 1), not part of any line */
+  const dv=Math.max(0,num(d.dep)),dp=Math.min(Math.max(num(d.depClaim),0),100)/100;const dep={total:dv,claimed:dv*dp,p:dp};
+  const lines=total;total+=dv;claimed+=dep.claimed;
+  return {id:t,name:d.name,count,per,total,claimed,stage,itp,full,secs,pct:total?claimed/total:0,dep,lines};
 }
+/* a trade's PO in Orders & invoices (with any POs under it) */
+function aptPo(d){const o=d&&d.orderId&&S.orders[d.orderId];if(!o)return null;const K=ordKids(d.orderId);return {o,v:num(o.po)+K.reduce((a,[,k])=>a+num(k.po),0),kids:K.length}}
+/* the value the break-up has to come to: the PO's amount, or the contract value typed in when there's no PO */
+function aptCv(d){const P=aptPo(d);if(P)return P.v;return String(d&&d.cv!=null?d.cv:'').trim()!==''?num(d.cv):null}
+/* a PO whose supplier matches the trade's name, to offer when the trade has none (only when there's exactly one) */
+function aptPoGuess(t,d){const nm=x=>String(x||'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim();const n=nm(d.name);if(n.length<3||/^new trade$/.test(n))return null;
+  const used=new Set(tradeIds().filter(x=>x!==t).map(x=>aptDoc(x).orderId).filter(Boolean));
+  const hits=ordRows().filter(([id,o])=>!o.budgetPo&&!used.has(id)&&num(o.po)>0).filter(([,o])=>{const full=(o.poMeta&&o.poMeta.supplier)||o.supplier||'';const sp=nm(full);const main=nm(String(full).split(/\s[-–]\s/)[0]);return sp&&(sp.includes(n)||(main.length>=3&&new RegExp('\\b'+main.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(n)))});
+  return hits.length===1?hits[0]:null}
+/* share what's left of the contract value (after the deposit and any lines with their own rate) across the stages, by their split.
+   Each stage's rate per line is rounded down to the cent, so the break-up never goes over; what rounding leaves is shown. */
+function aptDistPlan(d){const cv=aptCv(d);if(cv==null)return {err:'Link the PO (or type a contract value) first.'};const dep=Math.max(0,num(d.dep));const n=d.stages.length;if(!n)return {err:'Add a claim stage first.'};
+  const per0=d.stages.reduce((a,s)=>a+num(s.rate),0);const sp=d.stages.map(s=>String(s.split??'').trim()!==''?Math.max(0,num(s.split)):(per0?num(s.rate)/per0*100:100/n));const sum=sp.reduce((a,x)=>a+x,0);
+  if(!sum)return {err:'Give the stages a split first.'};
+  let Q=0,F=0;const q=d.stages.map(()=>0);
+  for(const sec of d.sections)for(const l of sec.lines){if(l.head)continue;
+    if(l.subs&&l.subs.length){for(const sb of l.subs){const i=d.stages.findIndex(z=>z.id===sb.task);if(sb.rate!==''&&sb.rate!=null)F+=num(sb.rate)*lineQty(sb);else if(i>=0)q[i]+=lineQty(sb)}}
+    else if(num(l.rate))F+=num(l.rate)*lineQty(l);else Q+=lineQty(l)}
+  const R=cv-dep-F;const den=sp.reduce((a,x,i)=>a+x/sum*(Q+q[i]),0);
+  if(den<=0)return {err:'Add lines with a quantity to share it across.'};
+  if(R<0)return {err:`The deposit${F?' and the lines with their own rate':''} already come to ${money(dep+F)}, more than the ${money(cv)} it has to come to.`};
+  const per=R/den;const rates=sp.map(x=>Math.floor(per*x/sum*100+1e-6)/100);const tot=dep+F+rates.reduce((a,r,i)=>a+r*(Q+q[i]),0);
+  return {cv,dep,F,R,rates,sp,sum,left:Math.round((cv-tot)*100)/100}}
 function calc(){syncTasks();
   const contract=(S.info.contract!==undefined&&S.info.contract!=='')?num(S.info.contract):claimTotals().c.sum,pcSum=num(S.info.pcSum);
   let vApp=0,vUn=0,vRej=0,vProfit=0;const vCount={};
@@ -2670,6 +2703,8 @@ V.subcontractors=()=>{
   const hd=head('Subcontractors','Build each trade’s claim from your own sections and lines. A line with no rate uses the trade’s standard rate from its claim stages.',t?`<button class="btn ${UI.armed==='trade'+t?'armed':''}" data-act="del" data-kind="trade" data-id="${t}" data-x="">${UI.armed==='trade'+t?'Confirm: remove '+esc(aptDoc(t).name||'this trade'):'Remove trade'}</button> <button class="btn" data-act="setup" aria-expanded="${UI.setup}">${UI.setup?'Close setup':'Edit trade setup'}</button>`:'');
   if(!t)return `<div class="stack">${hd}${chips}<div class="panel empty"><b>No trades yet</b>Add a trade to track a subcontractor's progress line by line.</div></div>`;
   const d=aptDoc(t),a=aptCalc(t);
+  /* the break-up (deposit + every line) against the PO's amount, or the contract value typed in */
+  const CK=(()=>{const P=aptPo(d),cv=aptCv(d);const diff=cv==null?0:Math.round((a.total-cv)*100)/100;return {P,cv,diff,over:cv!=null&&diff>0}})();
   if(UI.level!=='all'&&!d.sections.some(x=>x.id===UI.level))UI.level='all';
   if(!d.stages.some(x=>x.id===UI.bulkStage))UI.bulkStage=d.stages[0]?.id||'';
   const q=UI.q.trim().toUpperCase();
@@ -2716,14 +2751,25 @@ V.subcontractors=()=>{
   ${UI.setup?setupPanel(t,d):''}
   <div class="kpis">
     <div class="kpi"><span class="l">Lines</span><span class="v">${a.count}</span><span class="d">${a.full} fully complete · ${d.sections.length} section${d.sections.length===1?'':'s'}</span></div>
-    <div class="kpi"><span class="l">Contract value</span><span class="v">${kmoney(a.total)}</span><span class="d">${money(a.per)} standard rate per line</span></div>
+    <div class="kpi${CK.over?' apt-kover':''}"><span class="l">Contract value</span><span class="v">${kmoney(a.total)}</span><span class="d">${CK.cv==null?money(a.per)+' standard rate per line':`${CK.P?'PO '+esc(CK.P.o.poNo||'')+' ':'Contract '}${money(CK.cv)} · ${CK.over?`<b>${money(CK.diff)} over</b>`:CK.diff<0?money(-CK.diff)+' not broken up':'✓ matches'}`}</span></div>
     <div class="kpi"><span class="l">Claimed</span><span class="v">${kmoney(a.claimed)}</span><span class="d">${pct(a.pct)} complete</span></div>
     <div class="kpi"><span class="l">Left to claim</span><span class="v">${kmoney(a.total-a.claimed)}</span><span class="d">${d.itps.map(x=>`${a.itp[x.id]||0} ${esc(x.name||'checks')}`).join(' · ')||'No inspections set up'}</span></div>
   </div>
-  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Claim stages</h3><p class="hint">The stages each line is claimed against. Their rates add up to the standard rate per line.</p></div><button class="btn" data-act="add-stage" data-id="${t}">+ Add stage</button></div>
-  ${d.stages.length?`<div class="tw"><table><thead><tr><th></th><th style="min-width:200px">Stage</th><th class="n">Standard rate</th><th class="n">Stage value</th><th class="n">Claimed</th><th style="width:22%">Progress</th><th class="n">Lines at 100%</th></tr></thead><tbody>
-    ${a.stage.map((s2,i)=>`<tr><td style="width:86px">${delBtn('stage',t,String(i),'Remove')}</td><td>${inp('tstage|'+t+'|'+i+'|name',d.stages[i].name,{label:'Stage name',ph:'e.g. Rough-in'})}</td><td style="width:130px"><div class="cur">${inp('tstage|'+t+'|'+i+'|rate',d.stages[i].rate,{num:1,label:'Standard rate'})}</div></td><td class="n money">${money(s2.total)}</td><td class="n money">${money(s2.claimed)}</td><td><div class="bar"><i style="width:${s2.total?(s2.claimed/s2.total*100).toFixed(1):0}%"></i></div></td><td class="n">${s2.done}</td></tr>`).join('')}
-  </tbody><tfoot><tr><td></td><td>Total</td><td class="n money">${money(a.per)}</td><td class="n money">${money(a.total)}</td><td class="n money">${money(a.claimed)}</td><td></td><td></td></tr></tfoot></table></div>`:`<div class="empty"><b>No claim stages</b>Add the stages this subcontractor claims against, such as rough-in and fit-off.</div>`}</div>
+  <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Claim stages</h3><p class="hint">The stages each line is claimed against. Their rates add up to the standard rate per line. A deposit paid up front is Stage 1, a lump sum that isn’t part of any line; <b>Distribute</b> shares the rest of the contract value across the other stages by their split.</p></div><button class="btn" data-act="add-stage" data-id="${t}">+ Add stage</button></div>
+  ${(()=>{const P=CK.P,cv=CK.cv;const G=!P?aptPoGuess(t,d):null;const ORD=ordTreeRows().filter(([,o])=>!o.budgetPo);const dv=num(d.dep);
+    const plan=d.stages.length?aptDistPlan(d):null;
+    const chk=cv==null?`<div class="apt-chk"><span class="hint">Link the trade’s PO (or type a contract value) to check that the break-up adds up to it.</span></div>`
+      :`<div class="apt-chk ${CK.over?'over':CK.diff<0?'under':'ok'}" role="status">${CK.over?`⚠ The break-up (${money(a.total)}) is <b>${money(CK.diff)} over</b> the ${P?'PO':'contract'} value of ${money(cv)}.`:CK.diff<0?`${money(-CK.diff)} of the ${money(cv)} ${P?'PO':'contract value'} isn’t broken up yet (break-up ${money(a.total)}).`:`✓ The break-up matches the ${P?'PO':'contract'} value of ${money(cv)}.`}
+        ${plan&&!plan.err?`<button class="btn${CK.diff<0?' primary':''}" data-act="apt-dist" data-id="${t}" title="Sets each stage’s standard rate so the deposit plus every line comes to ${money(cv)}">Distribute ${money(plan.R)} across the stages</button>`:plan&&plan.err?`<span class="hint">${esc(plan.err)}</span>`:''}${UI.aptMsg&&UI.aptMsg.t===t?`<span class="apt-msg">${esc(UI.aptMsg.m)}</span>`:''}</div>`;
+    return `<div class="apt-po"><label>PO <select class="f" id="trade_${t}_orderId" data-b="trade|${t}|orderId" aria-label="The trade’s PO in Orders & invoices"><option value="">No PO linked</option>${ORD.map(([k2,o])=>`<option value="${k2}"${d.orderId===k2?' selected':''}>${esc(ordOptLab(o))}${num(o.po)?' · '+money(num(o.po)):''}</option>`).join('')}</select></label>
+      ${P?`<span>PO value <b class="money">${money(P.v)}</b> <span class="hint">from Orders &amp; invoices${P.kids?` (incl. ${P.kids} PO${P.kids===1?'':'s'} under it)`:''}</span></span>`
+        :`<label>Contract value <div class="cur">${inp('trade|'+t+'|cv',d.cv??'',{num:1,label:'Contract value',ph:'0'})}</div></label>${G?`<button class="btn" data-act="apt-po-link" data-id="${t}" data-v="${G[0]}" title="Link this PO and use its amount">Use PO ${esc(G[1].poNo||'')} · ${esc(ordSupName(G[1]))} · ${money(num(G[1].po))}</button>`:''}`}
+      <label>Deposit <div class="cur">${inp('trade|'+t+'|dep',d.dep??'',{num:1,label:'Deposit',ph:'0'})}</div></label>
+      ${cv?`<label>or <span class="pctbox">${inp('trade|'+t+'|depPct',dv?String(Math.round(dv/cv*10000)/100):'',{num:1,label:'Deposit as a % of the contract value',ph:'0'})}<span aria-hidden="true">%</span></span> of ${money(cv)}</label>`:''}</div>${chk}`})()}
+  ${d.stages.length||num(d.dep)?`<div class="tw"><table><thead><tr><th></th><th>#</th><th style="min-width:200px">Stage</th><th class="n">Standard rate</th><th class="n" title="Each stage’s share of the contract value left after the deposit, used by Distribute">Split</th><th class="n">Stage value</th><th class="n">Claimed</th><th style="width:20%">Progress</th><th class="n">Lines at 100%</th></tr></thead><tbody>
+    ${num(d.dep)?`<tr class="apt-deprow"><td style="width:86px"></td><td class="mono hint">1</td><td><b>Deposit</b><div class="hint" style="font-size:11.5px">Paid up front · not part of any line</div></td><td class="n hint">Lump sum</td><td class="n hint">—</td><td class="n money">${money(a.dep.total)}</td><td class="n money">${money(a.dep.claimed)}</td><td><div class="apt-depp">${pbox('trade|'+t+'|depClaim',d.depClaim,'Deposit claimed')}<div class="bar"><i style="width:${(a.dep.p*100).toFixed(1)}%"></i></div></div></td><td class="n">${a.dep.p>=1?'<span class="tag good">Paid</span>':''}</td></tr>`:''}
+    ${(()=>{const per0=a.per,n0=d.stages.length;return a.stage.map((s2,i)=>{const sg=d.stages[i];const dsp=per0?num(sg.rate)/per0*100:(n0?100/n0:0);return `<tr><td style="width:86px">${delBtn('stage',t,String(i),'Remove')}</td><td class="mono hint">${i+(num(d.dep)?2:1)}</td><td>${inp('tstage|'+t+'|'+i+'|name',sg.name,{label:'Stage name',ph:'e.g. Rough-in'})}</td><td style="width:130px"><div class="cur">${inp('tstage|'+t+'|'+i+'|rate',sg.rate,{num:1,label:'Standard rate'})}</div></td><td style="width:96px"><span class="pctbox">${inp('tstage|'+t+'|'+i+'|split',sg.split??'',{num:1,label:'Split of the remaining value',ph:String(Math.round(dsp*10)/10)})}<span aria-hidden="true">%</span></span></td><td class="n money">${money(s2.total)}</td><td class="n money">${money(s2.claimed)}</td><td><div class="bar"><i style="width:${s2.total?(s2.claimed/s2.total*100).toFixed(1):0}%"></i></div></td><td class="n">${s2.done}</td></tr>`}).join('')})()}
+  </tbody><tfoot><tr><td></td><td></td><td>Total</td><td class="n money">${money(a.per)}</td><td></td><td class="n money${CK.over?' neg':''}">${money(a.total)}</td><td class="n money">${money(a.claimed)}</td><td></td><td></td></tr></tfoot></table></div>`:`<div class="empty"><b>No claim stages</b>Add the stages this subcontractor claims against, such as rough-in and fit-off.</div>`}</div>
   <div class="panel" style="padding:12px 14px"><div class="toolbar">
     <label>Section <select id="apt_level" data-ui="level"><option value="all">All sections</option>${d.sections.map(x=>`<option value="${x.id}"${UI.level===x.id?' selected':''}>${esc(x.name||'Untitled section')}</option>`).join('')}</select></label>
     <label>Find <input id="apt_q" data-ui="q" value="${esc(UI.q)}" placeholder="Line or description" style="width:150px"></label>
@@ -6898,7 +6944,10 @@ function apply(parts,v){
   if(kind==='tksec'){const d=ensureTask(a);if(d.sections[+b]){d.sections[+b][c]=v;persist('tasks/'+a)}return}
   if(kind==='isub'){const d=ensureTask(a);const sb=subAt(d.items[+b],c);if(sb){lhRec(sb,parts[4]);if(parts[4]==='pct')v=itpCap(a,sb,'isub|'+a+'|'+b+'|'+c,v);if(parts[4]==='pct'&&sb.subPct===undefined)sb.subPct=sb.pct||'';sb[parts[4]]=v;persist('tasks/'+a)}return}
   if(kind==='item'){const t=S.tasks[a]=taskDoc(a);const it=t.items[+b];if(it){lhRec(it,c);if(c==='pct')v=itpCap(a,it,'item|'+a+'|'+b,v);if(c==='pct'&&it.subPct===undefined)it.subPct=it.pct||'';it[c]=v;persist('tasks/'+a)}return}
-  if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
+  if(kind==='trade'){const d=S.apt[a]=aptDoc(a);
+    if(b==='depPct'){const cv=aptCv(d);if(String(v).trim()==='')d.dep='';else if(cv)d.dep=String(Math.round(cv*Math.min(Math.max(num(v),0),100))/100);persist('apartments/'+a);scheduleRender(0);return}
+    if(b==='depClaim'&&String(v).trim()!==''){const n=Math.max(0,Math.min(100,num(v)));if(n!==num(v))v=String(n)}
+    d[b]=v;persist('apartments/'+a);if(['orderId','cv','dep','depClaim'].includes(b))scheduleRender(b==='orderId'?0:300);return}
   if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){if(parts[4]==='kind'){if(v==='head')l.head=true;else delete l.head;structDirty.add(a);persist('apartments/'+a);render();return}l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tsub'){const d=aptDoc(a);const sb=d.sections[+b]?.lines[+c]?.subs?.[+parts[4]];if(sb){if(parts[5]==='pct'&&String(v).trim()!==''){const n=Math.max(0,Math.min(100,num(v)));if(n!==num(v))v=String(n)}sb[parts[5]]=v;structDirty.add(a);persist('apartments/'+a)}return}
@@ -7124,6 +7173,11 @@ document.addEventListener('click',async e=>{
   if(act==='import'){const t=btn.dataset.id;const d=aptDoc(t);const have=new Set(d.sections.flatMap(x=>x.lines.map(l=>l.id)));
     for(const sec of unitSections(UI.importBld||'E')){sec.id=uid('S');sec.lines.forEach(l=>{if(have.has(l.id))l.id=uid('l')});d.sections.push(sec)}
     structDirty.add(t);persist('apartments/'+t);render();return}
+  if(act==='apt-po-link'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);if(S.orders[btn.dataset.v]){d.orderId=btn.dataset.v;persist('apartments/'+t)}render();return}
+  if(act==='apt-dist'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);const P=aptDistPlan(d);
+    if(P.err){UI.aptMsg={t,m:P.err}}else{d.stages.forEach((sg,i)=>{sg.rate=String(P.rates[i])});persist('apartments/'+t);
+      UI.aptMsg={t,m:`Shared ${money(P.R)} across ${d.stages.length} stage${d.stages.length===1?'':'s'}.`+(P.left>0?` ${money(P.left)} is left over from rounding the rates to the cent: add it to the deposit or a line’s rate if it needs to come to the exact amount.`:'')}}
+    clearTimeout(window.__aptMsgT);window.__aptMsgT=setTimeout(()=>{UI.aptMsg=null;if(UI.view==='subcontractors')render()},12000);render();return}
   if(act==='add-stage'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.stages.push({id:uid('s'),name:'',rate:'0'});persist('apartments/'+t);render();return}
   if(act==='add-itp'){const t=btn.dataset.id;const d=S.apt[t]=aptDoc(t);d.itps.push({id:uid('i'),name:''});persist('apartments/'+t);render();return}
   if(act==='task-add'){S.info.xtasks=Array.isArray(S.info.xtasks)?S.info.xtasks:[];const used=[...TASK_IDS,...S.info.xtasks.map(x=>x.id)].map(x=>+String(x).slice(1)||0);
