@@ -598,7 +598,7 @@ td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
 .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .apt td{padding:3px 6px}
 .apt select.f{padding:3px 4px;font-family:var(--f-mono);font-size:12px;min-width:58px}
-.apt select.f.p100{background:var(--good-soft);color:var(--good)}
+.apt select.f.p100{background:var(--good-soft);color:var(--good)}.pctbox{display:inline-flex;align-items:center;gap:3px;min-width:72px}.pctbox input.f{width:62px;text-align:right}.pctbox>span{color:var(--muted);font-size:12px}.apt .pctbox.p100 input.f{background:var(--good-soft);color:var(--good);font-weight:600}.apt .pctbox.ppart input.f{background:var(--warn-soft);color:var(--warn);font-weight:600}
 .apt select.f.ppart{background:var(--warn-soft);color:var(--warn)}
 .apt input[type=checkbox]{width:16px;height:16px;accent-color:var(--good)}
 .apt th{white-space:normal;min-width:70px;line-height:1.2}
@@ -2680,8 +2680,9 @@ V.subcontractors=()=>{
   const q=UI.q.trim().toUpperCase();
   const shown=d.sections.map((x,si)=>({x,si})).filter(o=>UI.level==='all'||o.x.id===UI.level);
   const nLines=shown.reduce((n,o)=>n+o.x.lines.filter(l=>lineMatch(l,q)).length,0);
-  const opts=[0,25,50,75,100].map(x=>[String(x),x+'%']);
   const pc=v=>num(v)>=100?'p100':num(v)>0?'ppart':'';
+  const pctF=v=>String(Math.round(num(v)*100)/100);
+  const pbox=(key,v,label)=>`<div class="pctbox ${pc(v)}">${inp(key,num(v)?pctF(v):'',{num:1,label:label+' (%)',ph:'0'})}<span aria-hidden="true">%</span></div>`;
   const ncol=9+d.stages.length+d.itps.length;
   const n=d.stages.length,per=a.per,share=i=>per?num(d.stages[i].rate)/per:(n?1/n:0);
   const body=shown.map(({x,si})=>{
@@ -2705,14 +2706,14 @@ V.subcontractors=()=>{
           <td><div class="subtask">${sel(ks+'task',sb.task||'',[['','Other task'],...d.stages.map(z=>[z.id,z.name||'Unnamed stage'])],{label:'Task'})}${inp(ks+'desc',sb.desc,{label:'Task description',ph:sg?sg.name:'Task description'})}</div></td>
           <td>${itpCell('tsub|'+t+'|'+si+'|'+li+'|'+ji,sb.itpFile)}</td>
           <td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity',ph:'1'})}</td><td><div class="cur">${inp(ks+'rate',sb.rate,{num:1,label:'Rate',ph:String(sg?num(sg.rate):0)})}</div></td>
-          <td colspan="${Math.max(nS,1)}">${sel(ks+'pct',String(num(sb.pct)),opts,{label:'% complete',cls:pc(sb.pct)})}</td>${d.itps.map(()=>'<td></td>').join('')}
+          <td colspan="${Math.max(nS,1)}">${pbox(ks+'pct',sb.pct,'% complete')}</td>${d.itps.map(()=>'<td></td>').join('')}
           <td class="n money">${money(x.v)}</td><td class="n money">${money(x.c)}</td><td class="n">${x.v?pct(x.p,0):'—'}</td></tr>`}).join('')+
         `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
       }
       const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
       return `<tr class="${aptIsSel('L:'+l.id)?'apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
-      ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${sel(k+'s:'+s.id,String(p),opts,{label:lab+' '+s.name,cls:pc(p)})}</td>`}).join('')}
+      ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${pbox(k+'s:'+s.id,p,lab+' '+s.name)}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
       <td class="n money">${money(v)}</td><td class="n money">${money(uc)}</td><td class="n">${v?pct(uc/v,0):'—'}</td></tr>`}).join(''))+(q||shut?'':`<tr class="addrow"><td colspan="${ncol}"><button class="btn" data-act="add-line" data-id="${t}" data-s="${si}">+ Add line to ${esc(x.name||'this section')}</button></td></tr>`);
   }).join('');
@@ -2736,7 +2737,7 @@ V.subcontractors=()=>{
     ${d.sections.some(x=>x.lines.some(l=>l.subs&&l.subs.length))?`<button class="btn" data-act="coll-all" data-v="1">Minimise all sub-lines</button><button class="btn" data-act="coll-all" data-v="0">Expand all</button>`:''}
     <span style="flex:1"></span>
     ${d.stages.length?`<label>Set <select id="apt_bs" data-ui="bulkStage">${d.stages.map(x=>`<option value="${x.id}"${UI.bulkStage===x.id?' selected':''}>${esc(x.name||'Unnamed stage')}</option>`).join('')}</select></label>
-    <label>to <select id="apt_bp" data-ui="bulkPct">${opts.map(([v,x])=>`<option value="${v}"${UI.bulkPct===v?' selected':''}>${x}</option>`).join('')}</select></label>
+    <label>to <span class="pctbox"><input class="f num" id="apt_bp" data-ui="bulkPct" inputmode="decimal" value="${esc(UI.bulkPct)}" aria-label="Percentage to set (0 to 100)"><span aria-hidden="true">%</span></span></label>
     <button class="btn" data-act="bulk">Apply to ${nLines} shown</button>`:''}
   </div></div>
   ${aptImpHtml(t)}${aptSelBar(t)}
@@ -5712,7 +5713,7 @@ function render(){
   if(UI.view==='labour'||UI.view==='progress')try{syncNodeColl()}catch(e){console.error(e)}
   if(!canView(UI.view)){const f=firstView();if(f){UI.view=f;try{history.replaceState(null,'','#'+f)}catch(e){}}}
   if(!firstView()){renderChrome();MORPH_VIEW=null;MORPH_HTML='';viewEl.innerHTML='<div class="panel empty"><b>No tabs yet</b>An admin hasn’t given you access to any tabs. Ask them to choose your tabs in Team & users.</div>';return}
-  const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;
+  const a=document.activeElement;const id=a&&viewEl.contains(a)?a.id:null;let s0=null,s1=null;const tv=id&&a.tagName==='INPUT'?a.value:null;
   try{s0=a.selectionStart;s1=a.selectionEnd}catch(e){}
   const tws=[...viewEl.querySelectorAll('.tw')].map(t=>[t.scrollLeft,t.scrollTop]);
   renderChrome();
@@ -5722,7 +5723,9 @@ function render(){
   if(UI.view==='claim'&&MORPH_VIEW==='claim'&&viewEl.firstChild){if(html!==MORPH_HTML)morphInto(viewEl,html)}else viewEl.innerHTML=html;MORPH_VIEW=UI.view;MORPH_HTML=UI.view==='claim'?html:'';
   viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{if(UI.view==='programme')gtDraw()}catch(e){console.error(e)}try{setTimeout(invAutoRead,0)}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
-  if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
+  if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});
+    if(el.tagName==='INPUT'&&typeof tv==='string'&&el.value!==tv&&tv.trim()!==''&&/^[\d\s$,.%-]*$/.test(tv)&&/^[\d\s$,.%-]*$/.test(el.value)&&num(tv)===num(el.value))el.value=tv;
+    try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
 }
 
 
@@ -6827,11 +6830,11 @@ function apply(parts,v){
   if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
   if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){if(parts[4]==='kind'){if(v==='head')l.head=true;else delete l.head;structDirty.add(a);persist('apartments/'+a);render();return}l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
-  if(kind==='tsub'){const d=aptDoc(a);const sb=d.sections[+b]?.lines[+c]?.subs?.[+parts[4]];if(sb){sb[parts[5]]=v;structDirty.add(a);persist('apartments/'+a)}return}
+  if(kind==='tsub'){const d=aptDoc(a);const sb=d.sections[+b]?.lines[+c]?.subs?.[+parts[4]];if(sb){if(parts[5]==='pct'&&String(v).trim()!==''){const n=Math.max(0,Math.min(100,num(v)));if(n!==num(v))v=String(n)}sb[parts[5]]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tstage'){const d=S.apt[a]=aptDoc(a);if(d.stages[+b]){d.stages[+b][c]=v;persist('apartments/'+a)}return}
   if(kind==='titp'){const d=S.apt[a]=aptDoc(a);if(d.itps[+b]){d.itps[+b][c]=v;persist('apartments/'+a)}return}
   if(kind==='apt'){const d=S.apt[a]=aptDoc(a);const st=unitState(a,b);const [k,id]=c.split(':');
-    if(k==='itp')st.itp[id]=!!v;else st.s[id]=num(v);
+    if(k==='itp')st.itp[id]=!!v;else st.s[id]=Math.max(0,Math.min(100,num(v)));/* typed %: 0 to 100 */
     d.units[b]=st;(aptQueue[a]=aptQueue[a]||new Set()).add(b);persist('apartments/'+a);return}
 }
 viewEl.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.itp&&t.files&&t.files[0]){const fl=[...t.files];const k=t.dataset.itp;t.value='';if(fl.length===1)uploadItp(k,fl[0]);else if(getItp(k)&&getItp(k).id)uploadItpFiles(k,fl);else uploadItpFiles(k,fl)}
@@ -6866,6 +6869,7 @@ viewEl.addEventListener('input',e=>{
   if(t.dataset.ui==='mvtoTo'&&UI.mvto){UI.mvto.to=t.value;UI.mvto.sec='';UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoSec'&&UI.mvto){UI.mvto.sec=t.value;UI.mvto.par='';scheduleRender(0);return}
   if(t.dataset.ui==='mvtoPar'&&UI.mvto){UI.mvto.par=t.value;scheduleRender(0);return}
+  if(t.id==='apt_bp'){UI.bulkPct=t.value;return}
   if(t.dataset.ui){UI[t.dataset.ui]=t.value;scheduleRender(t.tagName==='SELECT'?0:250);return}
   if(t.dataset.pcapv!==undefined){UI.pcApprV=t.value;return}
   const b=t.dataset.b;if(!b)return;
@@ -7326,7 +7330,7 @@ delete src.sec;tgt.subs.push(src);const tto=M.to||M.t;S.tasks[M.t]=d;S.tasks[tto
     Object.assign(it,{qty:String(Math.round(x.qty*100)/100),estHrs:String(Math.round(x.est*100)/100),budHrs:(()=>{const ex=n=>n.subs&&n.subs.length?n.subs.some(ex):(n.budHrs!==undefined&&n.budHrs!==null&&String(n.budHrs).trim()!=='');if(!ex(it))return '';const n=budOf(it);return String(Math.round(n*100)/100)})(),spentHrs:String(Math.round(x.spent*100)/100),newHrs:(()=>{const n=pendOf(it);return n?String(Math.round(n*100)/100):''})(),pct:String(Math.round(x.pct*1000)/10)});delete it.subs;delete it.hist;delete it.subPct;persist('tasks/'+t);render();return}
   if(act==='add-tsec'){const t=UI.task;const d=ensureTask(t);const id=uid('S');d.sections.push({id,name:''});COLL.delete('lbs'+t+'_'+id);saveColl();d.items.push(newItem(id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('tksec_'+t+'_'+(d.sections.length-1)+'_name');if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
   if(act==='bulk'){
-    const t=UI.bld;if(!t)return;const d=S.apt[t]=aptDoc(t);const q=UI.q.trim().toUpperCase();const v=num(UI.bulkPct);const Q=aptQueue[t]=aptQueue[t]||new Set();
+    const t=UI.bld;if(!t)return;const d=S.apt[t]=aptDoc(t);const q=UI.q.trim().toUpperCase();const v=Math.max(0,Math.min(100,Math.round(num(UI.bulkPct)*100)/100));const Q=aptQueue[t]=aptQueue[t]||new Set();
     for(const x of d.sections)if(UI.level==='all'||x.id===UI.level)for(const l of x.lines)if(lineMatch(l,q)){if(l.subs&&l.subs.length){let hit=false;for(const sb of l.subs)if(sb.task===UI.bulkStage){sb.pct=String(v);hit=true}if(hit)structDirty.add(t);continue}const st=unitState(t,l.id);st.s[UI.bulkStage]=v;d.units[l.id]=st;Q.add(l.id)}
     persist('apartments/'+t);render();return}
   if(act==='del'){
