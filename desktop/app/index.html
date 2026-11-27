@@ -606,6 +606,15 @@ td.msbest .f{background:color-mix(in srgb,var(--good,#2f7d4f) 12%,transparent)}
 .apt-msg{color:var(--ink);font-weight:400}.kpi.apt-kover{border-color:var(--bad);background:var(--bad-soft)}.kpi.apt-kover .v,.kpi.apt-kover .d b{color:var(--bad)}
 .apt-deprow td{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}.apt-depp{display:flex;align-items:center;gap:8px}.apt-depp .bar{flex:1}
 .vcredit{margin-top:12px;padding:10px 12px;border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--accent) 4%,var(--surface))}.vcredit-h{font-weight:600;font-size:13.5px;margin-bottom:6px}.vcredit label .hint{display:block;font-size:11px;margin-top:2px}
+/* drag a row by its ⠿ handle to move it */
+.rdrag{display:inline-flex;align-items:center;justify-content:center;width:16px;min-height:22px;margin-right:2px;color:var(--muted);cursor:grab;font-size:13px;line-height:1;border-radius:4px;touch-action:none;user-select:none;vertical-align:middle;opacity:.55}
+.rdrag:hover{opacity:1;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+body.rd-on,body.rd-on *{cursor:grabbing!important;user-select:none!important}
+tr.rd-src>td{opacity:.45}
+tr.rd-before>td{box-shadow:inset 0 3px 0 var(--accent)!important}tr.rd-after>td{box-shadow:inset 0 -3px 0 var(--accent)!important}
+.rd-ghost{position:fixed;left:0;top:0;z-index:100;pointer-events:none;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.18);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+tr.rd-moved>td{animation:rdMoved 1.6s ease-out}@keyframes rdMoved{from{background:color-mix(in srgb,var(--accent) 18%,var(--surface))}}
+.ro-view .rdrag,.pc-locked .rdrag{display:none}
 .pctbox{display:inline-flex;align-items:center;gap:3px;min-width:72px}.pctbox input.f{width:62px;text-align:right}.pctbox>span{color:var(--muted);font-size:12px}.apt .pctbox.p100 input.f{background:var(--good-soft);color:var(--good);font-weight:600}.apt .pctbox.ppart input.f{background:var(--warn-soft);color:var(--warn);font-weight:600}
 .apt select.f.ppart{background:var(--warn-soft);color:var(--warn)}
 .apt input[type=checkbox]{width:16px;height:16px;accent-color:var(--good)}
@@ -1453,7 +1462,7 @@ function buMini(v){
     ${bu.longDesc?`<div class="hint" style="margin-top:6px"><b>Quote description:</b> ${esc(bu.longDesc)}</div>`:''}${bu.excl?`<div class="hint" style="margin-top:4px;white-space:pre-line"><b>Exclusions and notes:</b> ${esc(bu.excl)}</div>`:''}</div>`;
 }
 function vsubRows(id,l,li,ro){return l.subs.map((x,si)=>{const k='vsub|'+id+'|'+li+'|'+si+'|';const q=num(x.qty);const ov=x.hrsOv!==undefined&&x.hrsOv!==null&&x.hrsOv!=='';
-    return `<tr class="subrow"><td style="white-space:nowrap;padding-left:26px">${ro?'':delBtn('vsub',id,li+'.'+si,'Remove')}</td>
+    return `<tr class="subrow"${ro?'':` data-rdrop="vbu|${id}|${li}|${si}"`}><td style="white-space:nowrap;padding-left:26px">${ro?'':rdH('vbu|'+id+'|'+li+'|'+si)+delBtn('vsub',id,li+'.'+si,'Remove')}</td>
     <td style="min-width:220px;padding-left:22px"><div class="subtask"><span class="hint">↳</span>${inp(k+'item',x.item,{label:'Sub-line item',ph:'Sub-line item'})}</div></td><td class="hint" style="font-size:12px">sub-line ${si+1}</td>
     <td style="width:80px">${inp(k+'qty',x.qty,{num:1,label:'Sub-line quantity',ph:'0'})}</td>
     <td style="width:110px"><div class="cur">${inp(k+'mat',x.mat,{num:1,label:'Sub-line material',ph:'0'})}</div></td>
@@ -2674,7 +2683,7 @@ V.procurement=()=>{
   ${rows.map(([id,p])=>{const k='proc|'+id+'|';const sv=num(p.po)?num(p.tender)-num(p.po):0;
     const by=p.required?addDays(p.required,-7*num(p.lead)):'';const late=by&&!p.ordered&&by<today&&!['Complete','Delivered'].includes(p.status);
     const dd=p.required&&p.eta?daysBetween(p.eta,p.required):null;
-    return `<tr><td>${inp(k+'item',p.item,{label:'Item',ph:'e.g. Main switchboard'})}</td><td style="width:150px">${sel(k+'status',p.status||'Waiting for contract',PSTATUS,{label:'Status'})}</td>
+    return `<tr data-rdrop="prr|${id}"><td><div style="display:flex;align-items:center;gap:2px">${rdH('prr|'+id)}${inp(k+'item',p.item,{label:'Item',ph:'e.g. Main switchboard'})}</div></td><td style="width:150px">${sel(k+'status',p.status||'Waiting for contract',PSTATUS,{label:'Status'})}</td>
     <td style="width:110px">${inp(k+'tender',p.tender,{num:1,label:'Tender price'})}</td><td style="width:110px">${inp(k+'po',p.po,{num:1,label:'PO value'})}</td><td class="n money ${sv<0?'neg':''}">${num(p.po)?money(sv):'—'}</td>
     <td style="width:130px">${inp(k+'supplier',p.supplier,{label:'Supplier'})}</td><td style="width:150px">${inp(k+'poNo',p.poNo,{label:'PO number'})}${(()=>{const oid=procOrderOf(p);return `<label class="hint proc-link">PO ${sel(k+'orderId',oid||'',[['','Link to a PO…'],...ORD.map(([k2,o])=>[k2,(o.poNo||'No PO no.')+(ordSupName(o)?' · '+ordSupName(o):'')])],{label:'Linked PO in Orders & invoices'})}</label>${oid?`<div class="hint" style="font-size:11px">from Orders & invoices</div>`:''}`})()}</td>
     <td style="width:130px">${sel(k+'approval',p.approval||'Not submitted',['Not submitted','Submitted','Approved','Rejected'],{label:'Approval'})}</td>
@@ -2753,19 +2762,19 @@ V.subcontractors=()=>{
     if(q&&!lines.length)return '';
     const sc=a.secs[x.id]||{total:0,claimed:0,count:0};const ka='tsec|'+t+'|'+si+'|';
     const shut=COLL.has('sec'+x.id)&&!q;
-    return `<tr class="secrow${x.done?' sec-done':''}" data-tsec="${esc(sc.id)}" data-secdrag="${si}" draggable="true"><td colspan="3"><div class="secname"><span class="drag-h" title="Drag to move this section" aria-hidden="true">⠿</span>${aptCk('S:'+x.id,'section '+(x.name||si+1))}<button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button><button class="btn ${x.done?'sec-donebtn on':'ghost sec-donebtn'}" data-act="sec-done" data-id="${t}" data-x="${si}" aria-pressed="${!!x.done}" title="${x.done?'Marked done — click to reopen':'Mark this section done once its data is in'}">${x.done?'✓ Done':'Mark done'}</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
+    return `<tr class="secrow${x.done?' sec-done':''}" data-tsec="${esc(sc.id)}" data-rdrop="aps|${t}|${si}"><td colspan="3"><div class="secname"><span class="rdrag" data-rdrag="aps|${t}|${si}" title="Drag to move this section" aria-hidden="true">⠿</span>${aptCk('S:'+x.id,'section '+(x.name||si+1))}<button class="tog" data-act="tog-sub" data-v="sec${esc(x.id)}" aria-expanded="${!shut}" aria-label="${shut?'Expand':'Minimise'} section" title="${shut?'Expand':'Minimise'} section">${shut?'▸':'▾'}</button>${inp(ka+'name',x.name,{label:'Section name',ph:'Section name'})}</div></td><td colspan="${ncol-6}" class="hint"><button class="btn ghost" style="white-space:nowrap;padding:3px 10px;font-size:12.5px;color:var(--accent);margin-right:8px" data-act="sec-clone" data-id="${t}" data-x="${si}" title="Copy this section and its lines">Clone section</button><button class="btn ${x.done?'sec-donebtn on':'ghost sec-donebtn'}" data-act="sec-done" data-id="${t}" data-x="${si}" aria-pressed="${!!x.done}" title="${x.done?'Marked done — click to reopen':'Mark this section done once its data is in'}">${x.done?'✓ Done':'Mark done'}</button>${shut?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}${sc.count} line${sc.count===1?'':'s'} · <span class="money">${money(sc.claimed)} / ${money(sc.total)}</span> · ${pct(sc.total?sc.claimed/sc.total:0,0)}</td><td colspan="2"></td><td style="text-align:right">${delBtn('sec',t,String(si),'Remove section')}</td></tr>`+
     (shut?'':lines.map(({l,li})=>{const st=d.units[l.id]||{s:{},itp:{}};const k='apt|'+t+'|'+l.id+'|';const kl='tline|'+t+'|'+si+'|'+li+'|';
       const kindSel=`<select class="f apt-kind" data-b="${kl}kind" aria-label="Row type">${[['line','Line'],['head','Sub-heading']].map(([v,x])=>`<option value="${v}"${(l.head?'head':'line')===v?' selected':''}>${x}</option>`).join('')}</select>`;
-      if(l.head)return `<tr class="apt-headrow${aptIsSel('L:'+l.id)?' apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'sub-heading '+(l.desc||''))}${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
+      if(l.head)return `<tr class="apt-headrow${aptIsSel('L:'+l.id)?' apt-sel':''}" data-rdrop="apl|${t}|${si}|${li}"><td style="width:86px">${rdH('apl|'+t+'|'+si+'|'+li)}${aptCk('L:'+l.id,'sub-heading '+(l.desc||''))}${delBtn('line',t,si+'.'+li,'Remove')}</td><td></td><td colspan="${ncol-2}"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Sub-heading',ph:'Sub-heading'})}${kindSel}</div></td></tr>`;
       const lab=(l.desc||l.name||('Line '+(si+1)+'.'+(li+1)));const num0=`${si+1}.${li+1}`;
       if(l.subs&&l.subs.length){
         let v=0,uc=0;const xs=l.subs.map(sb=>{const x=subCalc(d,sb);v+=x.v;uc+=x.c;return x});
         const nS=d.stages.length;
-        return `<tr class="parentrow${aptIsSel('L:'+l.id)?' apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+        return `<tr class="parentrow${aptIsSel('L:'+l.id)?' apt-sel':''}" data-rdrop="apl|${t}|${si}|${li}"><td style="width:86px">${rdH('apl|'+t+'|'+si+'|'+li)}${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px;white-space:nowrap"><button class="tog" data-act="tog-sub" data-v="${esc(l.id)}" aria-expanded="${!COLL.has(l.id)}" aria-label="${COLL.has(l.id)?'Show':'Hide'} sub-lines" title="${COLL.has(l.id)?'Show':'Hide'} sub-lines">${COLL.has(l.id)?'▸':'▾'}</button>${num0}</td><td style="min-width:200px">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}</td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
         <td colspan="${2+nS+d.itps.length}" class="hint">${COLL.has(l.id)?'<span class="tag acc" style="margin-right:4px">Minimised</span>':''}Split into ${l.subs.length} task${l.subs.length===1?'':'s'} · <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="unsplit" data-id="${t}" data-x="${si}.${li}">${UI.armed==='unsplit'+t+si+'.'+li?'Confirm merge (tasks without a stage are dropped)':'Merge back'}</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line and its tasks">Clone</button> <button class="btn ghost" style="padding:2px 6px;font-size:12px" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></td>
         <td class="n money"><b>${money(v)}</b></td><td class="n money"><b>${money(uc)}</b></td><td class="n"><b>${v?pct(uc/v,0):'—'}</b></td></tr>`+
         (COLL.has(l.id)?'':l.subs.map((sb,ji)=>{const x=xs[ji];const ks='tsub|'+t+'|'+si+'|'+li+'|'+ji+'|';const sg=d.stages.find(z=>z.id===sb.task);
-          return `<tr class="subrow${aptIsSel('J:'+l.id+':'+sb.id)?' apt-sel':''}"><td style="width:86px">${aptCk('J:'+l.id+':'+sb.id,'sub-line '+num0+'.'+(ji+1))}${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
+          return `<tr class="subrow${aptIsSel('J:'+l.id+':'+sb.id)?' apt-sel':''}" data-rdrop="apu|${t}|${si}|${li}|${ji}"><td style="width:86px">${rdH('apu|'+t+'|'+si+'|'+li+'|'+ji)}${aptCk('J:'+l.id+':'+sb.id,'sub-line '+num0+'.'+(ji+1))}${delBtn('sub',t,si+'.'+li+'.'+ji,'Remove')}</td><td class="mono hint">${num0}.${ji+1}</td>
           <td><div class="subtask">${sel(ks+'task',sb.task||'',[['','Other task'],...d.stages.map(z=>[z.id,z.name||'Unnamed stage'])],{label:'Task'})}${inp(ks+'desc',sb.desc,{label:'Task description',ph:sg?sg.name:'Task description'})}</div></td>
           <td>${itpCell('tsub|'+t+'|'+si+'|'+li+'|'+ji,sb.itpFile)}</td>
           <td>${inp(ks+'qty',sb.qty,{num:1,label:'Quantity',ph:'1'})}</td><td><div class="cur">${inp(ks+'rate',sb.rate,{num:1,label:'Rate',ph:String(sg?num(sg.rate):0)})}</div></td>
@@ -2774,7 +2783,7 @@ V.subcontractors=()=>{
         `<tr class="subadd"><td></td><td colspan="${ncol-1}"><button class="btn ghost" style="font-size:12px;color:var(--accent)" data-act="add-sub" data-id="${t}" data-x="${si}.${li}">+ Add task to line ${num0}</button></td></tr>`);
       }
       const v=(num(l.rate)||per)*lineQty(l);let uc=0;d.stages.forEach((s,i)=>uc+=v*share(i)*num(st.s?.[s.id])/100);
-      return `<tr class="${aptIsSel('L:'+l.id)?'apt-sel':''}"><td style="width:86px">${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
+      return `<tr class="${aptIsSel('L:'+l.id)?'apt-sel':''}" data-rdrop="apl|${t}|${si}|${li}"><td style="width:86px">${rdH('apl|'+t+'|'+si+'|'+li)}${aptCk('L:'+l.id,'line '+num0)}${delBtn('line',t,si+'.'+li,'Remove')}</td><td class="mono hint" style="width:48px">${num0}</td><td style="min-width:200px"><div class="subtask">${inp(kl+'desc',l.desc||l.name||'',{label:'Description',ph:'Description (optional)'})}<button class="btn ghost splitbtn" data-act="split" data-id="${t}" data-x="${si}.${li}" title="Split this line into separate tasks">Split</button>${kindSel}<button class="btn ghost splitbtn" data-act="tline-clone" data-id="${t}" data-x="${si}.${li}" title="Copy this line">Clone</button><button class="btn ghost splitbtn" data-act="tmv" data-id="${t}" data-x="${si}.${li}" title="Move this line to another section">Move…</button></div></td><td style="width:150px">${itpCell('tline|'+t+'|'+si+'|'+li,l.itpFile)}</td>
       <td style="width:64px">${inp(kl+'qty',l.qty,{num:1,label:'Quantity',ph:'1'})}</td><td style="width:120px"><div class="cur">${inp(kl+'rate',l.rate,{num:1,label:'Rate',ph:String(per)})}</div></td>
       ${d.stages.map(s=>{const p=num(st.s?.[s.id]);return `<td>${pbox(k+'s:'+s.id,p,lab+' '+s.name)}</td>`}).join('')}
       ${d.itps.map(x2=>`<td style="text-align:center"><input type="checkbox" id="${'apt_'+t+'_'+l.id+'_itp_'+x2.id}" data-b="${k}itp:${x2.id}" ${st.itp?.[x2.id]?'checked':''} aria-label="${esc(lab+' '+x2.name)}"></td>`).join('')}
@@ -3362,7 +3371,7 @@ V.claim=()=>{try{pcVarSyncAll()}catch(e){console.error(e)}if(!PC_ENTERED){PC_ENT
   <div class="${pcLocked()?'pc-locked':''}"><div><div class="sec-head pcxl-t" data-pcxl="n|0"><div><h3>Contract works</h3><p class="hint">Contract sums must add up to the original tendered amount. Leave % approved blank until ${esc(A)} assesses the claim; until then it follows your % complete. Percentages and amounts are linked: type either and the other updates. Changing the approved % also sets % complete to match. The top bar is claimed, the thin bar approved. <b>Drop an Excel file</b> on a section row to add its lines there, or here to make sections from it (rows with a name and no amount become sections).</p></div><div class="toolbar"><label class="btn" for="pcxlf_n" title="Make sections and lines from an Excel or CSV file">Import Excel</label><input type="file" hidden id="pcxlf_n" data-pcxlf="n|0" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><button class="btn primary" data-act="pc-addsec">+ Add section</button></div></div>
   ${UI.pcXlMsg?`<div class="panel" role="status" style="padding:9px 14px;margin:0 0 10px;${UI.pcXlMsg.err?'border-color:var(--neg,#c0392b)':''}">${esc(UI.pcXlMsg.t)} <button class="btn ghost" data-act="pc-xlmsg-x" aria-label="Dismiss">✕</button></div>`:''}
   <div class="tw"><table style="min-width:1600px">${pcHead()}<tbody>
-  ${d.secs.map((sc,si)=>{const t=pcSum(sc.lines);if(!sc.id)sc.id=uid('C');const shut=COLL.has('pcsec'+sc.id);return `<tr class="secrow pcxl-t" data-pcxl="c|${si}" title="Drop an Excel file here to add its lines to this section"><td colspan="3"><div class="pc-hcell"><button class="tog" data-act="tog-sub" data-v="pcsec${esc(sc.id)}" aria-expanded="${!shut}" aria-label="${shut?'Open':'Minimise'} section">${shut?'▸':'▾'}</button>${inp('pcsec|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Building E wiring'})}</div></td><td colspan="${NC-4}" class="hint">${(n=>n+' line'+(n===1?'':'s'))(sc.lines.filter(l=>!l.head).length)} · <span class="money">${money2(t.claimed)} / ${money2(t.sum)}</span> claimed · this claim <span class="money">${money2(t.this)}</span> <label class="btn ghost pcxl-btn" for="pcxlf_c_${si}" title="Add lines to this section from an Excel or CSV file (or drop the file on this row)">Import Excel</label><input type="file" hidden id="pcxlf_c_${si}" data-pcxlf="c|${si}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></td><td style="text-align:right">${delBtn('pcsec','x',String(si),'Remove section')}</td></tr>`+
+  ${d.secs.map((sc,si)=>{const t=pcSum(sc.lines);if(!sc.id)sc.id=uid('C');const shut=COLL.has('pcsec'+sc.id);return `<tr class="secrow pcxl-t" data-pcxl="c|${si}" data-rdrop="pcs|${si}" title="Drop an Excel file here to add its lines to this section"><td colspan="3"><div class="pc-hcell">${rdH('pcs|'+si)}<button class="tog" data-act="tog-sub" data-v="pcsec${esc(sc.id)}" aria-expanded="${!shut}" aria-label="${shut?'Open':'Minimise'} section">${shut?'▸':'▾'}</button>${inp('pcsec|'+si+'|name',sc.name,{label:'Section label',ph:'Section label, e.g. Building E wiring'})}</div></td><td colspan="${NC-4}" class="hint">${(n=>n+' line'+(n===1?'':'s'))(sc.lines.filter(l=>!l.head).length)} · <span class="money">${money2(t.claimed)} / ${money2(t.sum)}</span> claimed · this claim <span class="money">${money2(t.this)}</span> <label class="btn ghost pcxl-btn" for="pcxlf_c_${si}" title="Add lines to this section from an Excel or CSV file (or drop the file on this row)">Import Excel</label><input type="file" hidden id="pcxlf_c_${si}" data-pcxlf="c|${si}" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></td><td style="text-align:right">${delBtn('pcsec','x',String(si),'Remove section')}</td></tr>`+
     (shut?'':pcRows('c',sc.lines,si)+`<tr class="addrow"><td colspan="${NC}"><button class="btn" data-act="pc-addline" data-a="c" data-s="${si}">+ Add line to ${esc(sc.name||'this section')}</button> <button class="btn" data-act="pc-addhead" data-s="${si}" title="A heading row to group the lines under it">+ Add heading</button></td></tr>`+pcFoot(t,'Subtotal · '+esc(sc.name||'section'),3))}).join('')}
   ${pcFoot(T.c,'Contract works total (ex GST)',3,1)}
   </tbody></table></div></div>
@@ -5854,6 +5863,7 @@ function morphInto(root,html){const t=document.createElement('template');t.inner
     if(tg==='SELECT'){const o=[...y.options].findIndex(o=>o.hasAttribute('selected'));const want=o<0?0:o;if(x.selectedIndex!==want)x.selectedIndex=want}};
   kids(root,t.content)}
 function render(){
+  if(RD&&RD.on){RD.held=true;return}/* not while a row is being dragged: it redraws when you let go */
   if(isDateBox(document.activeElement)){DATE_HOLD=true;return}
   if(isTypeBox(document.activeElement)){TYPE_HOLD=true;return}
   TYPE_HOLD=false;
@@ -5875,6 +5885,7 @@ function render(){
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});
     if(el.tagName==='INPUT'&&typeof tv==='string'&&el.value!==tv&&tv.trim()!==''&&/^[\d\s$,.%-]*$/.test(tv)&&/^[\d\s$,.%-]*$/.test(el.value)&&num(tv)===num(el.value))el.value=tv;
     try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
+  try{rdDecorate()}catch(e){console.error(e)}
   if(UI.llogFlash&&UI.view==='labour')try{llogShowMoved()}catch(e){}
 }
 
@@ -7578,6 +7589,112 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
     /* a date box (or a box on a touch screen) holds the redraw while you're in it: step out so the undone value shows */
     if(isDateBox(t)||isTypeBox(t))t.blur()}
   e.preventDefault();if(redo)doRedo();else doUndo()});
+
+/* ---------- drag rows to move them ----------
+   A row that can be moved has a ⠿ handle (beside its ▲ ▼ buttons where it has them). Drag it: a line shows where it will go,
+   and letting go moves it there. A heading takes everything under it, a split line its sub-lines; a line can go into another
+   section, a sub-line into another split line (each keeps at least one). Esc cancels. One undo puts it back. */
+const RD_FROM={imove:b=>['lti',UI.task,b.dataset.v],smove:b=>['ltu',UI.task,b.dataset.v],'tsec-move':b=>['lts',UI.task,b.dataset.v],'task-move':b=>['tkt',b.dataset.v],
+  'pc-move':b=>['pcl',b.dataset.s,b.dataset.v],'pc-qmove':b=>['pcq',b.dataset.s,b.dataset.v,b.dataset.q],'ord-move':b=>['oro',b.dataset.id],'ordsec-move':b=>['ors',b.dataset.v],
+  'invl-move':b=>['ivl',b.dataset.id,b.dataset.x,b.dataset.l],'ms-mv':b=>['msi',UI.ms,String(b.dataset.v).split('|')[0]],'gt-mv1':b=>['gt',String(b.dataset.v).split('|')[0]],'vline-mv':b=>['vbl',b.dataset.v,b.dataset.x]};
+const rdH=key=>`<span class="rdrag" data-rdrag="${esc(key)}" title="Drag to move" aria-hidden="true">⠿</span>`;
+function rdDecorate(){if(!viewEl)return;for(const [act,f] of Object.entries(RD_FROM))viewEl.querySelectorAll(`[data-act="${act}"]`).forEach(b=>{const tr=b.closest('tr');if(!tr)return;let key;try{key=f(b).join('|')}catch(e){return}
+    if(tr.dataset.rdrop!==key)tr.dataset.rdrop=key;const box=b.closest('.mvbtns,.ms-mv,.vb-mv,.gt-mv1')||b;const pv=box.previousElementSibling;if(pv&&pv.classList&&pv.classList.contains('rdrag'))return;if(box===b&&b.dataset.d==='1'&&b.previousElementSibling&&b.previousElementSibling.dataset&&b.previousElementSibling.dataset.act===act)return;
+    box.insertAdjacentHTML('beforebegin',rdH(key))})}
+const rdParse=k=>String(k||'').split('|');
+const RD_OK={lti:['lti','lts'],ltu:['ltu'],lts:['lts'],tkt:['tkt'],pcl:['pcl','pcs'],pcq:['pcq'],pcs:['pcs'],oro:['oro','ors'],ors:['ors'],ivl:['ivl'],msi:['msi'],gt:['gt'],vbl:['vbl'],vbu:['vbu'],apl:['apl','aps'],apu:['apu'],aps:['aps'],prr:['prr']};
+function rdOk(A,B){const a=A[0];if(!(RD_OK[a]||[]).includes(B[0])||A.join('|')===B.join('|'))return false;
+  if(['lti','ltu','lts','msi','vbl','vbu','apl','apu','aps'].includes(a)&&A[1]!==B[1])return false;
+  if(a==='ltu'&&B[2].startsWith(A[2]+'.'))return false;
+  if(a==='ivl'&&(A[1]!==B[1]||A[2]!==B[2]))return false;
+  if(a==='oro'){const s=S.orders[A[1]];if(!s)return false;if(ordIsKid(s)){const t=B[0]==='oro'&&S.orders[B[1]];return !!t&&ordIsKid(t)&&t.parent===s.parent}}
+  return true}
+var RD=null;/* var: render() looks at it, and render can run before this line */
+document.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.rdrag');if(!h||!viewEl||!viewEl.contains(h)||(e.pointerType==='mouse'&&e.button!==0))return;const row=h.closest('tr');if(!row)return;
+  e.preventDefault();RD={h,row,key:h.dataset.rdrag,x0:e.clientX,y0:e.clientY,cx:e.clientX,cy:e.clientY,on:false,pid:e.pointerId,tgt:null,after:false};try{h.setPointerCapture(e.pointerId)}catch(x){}});
+document.addEventListener('pointermove',e=>{if(!RD||e.pointerId!==RD.pid)return;RD.cx=e.clientX;RD.cy=e.clientY;if(!RD.on){if(Math.hypot(e.clientX-RD.x0,e.clientY-RD.y0)<5)return;rdBegin()}rdTrack();rdAuto()});
+document.addEventListener('pointerup',e=>{if(!RD||e.pointerId!==RD.pid)return;const D=RD;RD=null;rdFinish(D,true)});
+document.addEventListener('pointercancel',()=>{if(!RD)return;const D=RD;RD=null;rdFinish(D,false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&RD){e.preventDefault();e.stopPropagation();const D=RD;RD=null;rdFinish(D,false)}},true);
+function rdLabel(tr){const v=[...tr.querySelectorAll('input.f')].filter(x=>x.type!=='checkbox'&&x.value&&!/^[\d.,$%\s-]*$/.test(x.value)).map(x=>x.value)[0];return (v||tr.textContent.replace(/\s+/g,' ').replace(/[▲▼⠿✕]/g,'').trim()).slice(0,70)}
+function rdBegin(){const D=RD;D.on=true;D.row.classList.add('rd-src');document.body.classList.add('rd-on');const g=document.createElement('div');g.className='rd-ghost';g.textContent='Move: '+rdLabel(D.row);document.body.appendChild(g);D.g=g}
+function rdTrack(){const D=RD;if(!D||!D.on)return;D.g.style.transform=`translate(${D.cx+14}px,${D.cy+12}px)`;
+  const el=document.elementFromPoint(D.cx,D.cy);const tr=el&&el.closest?el.closest('tr[data-rdrop]'):null;let ok=false,after=false;
+  if(tr&&viewEl.contains(tr)&&tr.dataset.rdrop!==D.key&&(!D.row.isConnected||tr.closest('table')===D.row.closest('table'))&&rdOk(rdParse(D.key),rdParse(tr.dataset.rdrop))){const r=tr.getBoundingClientRect();after=D.cy>r.top+r.height/2;ok=true}
+  if(D.tgt&&(D.tgt!==tr||!ok||D.after!==after))D.tgt.classList.remove('rd-before','rd-after');D.tgt=ok?tr:null;D.after=after;if(ok)tr.classList.add(after?'rd-after':'rd-before')}
+/* near the top or bottom of the table's box (or the window), scroll while you hold it there */
+function rdAuto(){const D=RD;if(!D||!D.on||D.raf)return;const step=()=>{const X=RD;if(!X||!X.on){return}X.raf=0;const sc=X.row.closest('.tw');const inBox=sc&&sc.scrollHeight>sc.clientHeight;const r=inBox?sc.getBoundingClientRect():{top:0,bottom:innerHeight};
+    const E=44;let dy=0;if(X.cy<r.top+E)dy=-Math.ceil((r.top+E-X.cy)/3);else if(X.cy>r.bottom-E)dy=Math.ceil((X.cy-(r.bottom-E))/3);
+    if(!dy&&inBox){if(X.cy<E)dy=-Math.ceil((E-X.cy)/3);else if(X.cy>innerHeight-E)dy=Math.ceil((X.cy-(innerHeight-E))/3);if(dy){window.scrollBy(0,dy);rdTrack();X.raf=requestAnimationFrame(step)}return}
+    if(dy){if(inBox)sc.scrollTop+=dy;else window.scrollBy(0,dy);rdTrack();X.raf=requestAnimationFrame(step)}};D.raf=requestAnimationFrame(step)}
+function rdFinish(D,commit){if(D.raf)cancelAnimationFrame(D.raf);D.row.classList.remove('rd-src');document.body.classList.remove('rd-on');if(D.g)D.g.remove();if(D.tgt)D.tgt.classList.remove('rd-before','rd-after');
+  if(!commit||!D.on||!D.tgt||roView())return;const A=rdParse(D.key),B=rdParse(D.tgt.dataset.rdrop);const f=RDK[A[0]];if(!f)return;
+  const u=undoRecord();let ok=false;try{ok=f(A,B,D.after)}catch(e){console.error(e);ok=false}
+  if(!ok){undoDrop(u);render();return}UNDO.burstKey=null;render();
+  const lab=rdLabel(D.row);setTimeout(()=>{const rows=[...viewEl.querySelectorAll('tr[data-rdrop]')].filter(r=>rdLabel(r)===lab);if(rows.length===1){rows[0].classList.add('rd-moved');const r=rows[0].getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)rows[0].scrollIntoView({block:'nearest'})}},40)}
+/* move L[i..e) so it sits in front of what is now L[k] (k = L.length: at the end); false if that's where it already is */
+function rdSplice(L,i,e,k){if(k>=i&&k<=e)return false;const blk=L.splice(i,e-i);L.splice(k>e?k-blk.length:k,0,...blk);return true}
+/* Labour & tasks: which split lines are minimised is kept by position, so it follows the lines when they move */
+function ltColl(t){const d=ensureTask(t);const shut=new Set();const w=(n,p)=>{if(n.subs&&n.subs.length){const k='t'+t+'_'+p;if(COLL.has(k))shut.add(n);COLL.delete(k);n.subs.forEach((x,q)=>w(x,p+'.'+q))}};d.items.forEach((it,i)=>w(it,String(i)));
+  return ()=>{const w2=(n,p)=>{if(n.subs&&n.subs.length){if(shut.has(n))COLL.add('t'+t+'_'+p);n.subs.forEach((x,q)=>w2(x,p+'.'+q))}};d.items.forEach((it,i)=>w2(it,String(i)));saveColl()}}
+const pcLockMsg=()=>{setSave('error','This claim is submitted. Choose Amend in Cash flow to change it.');return false};
+const rdSubMove=(sl,tl,q,tq,after,msg)=>{if(!sl||!tl||!Array.isArray(sl.subs)||!Array.isArray(tl.subs))return false;const node=sl.subs[q],tg=tl.subs[tq];if(!node||!tg||node===tg)return false;
+  if(sl!==tl&&sl.subs.length<2){setSave('error',msg);return false}sl.subs.splice(q,1);const k=tl.subs.indexOf(tg);tl.subs.splice(after?k+1:k,0,node);return true};
+const rdReorder=(L,a,b,after)=>{const i=L.indexOf(a);if(i<0||!L.includes(b)||a===b)return false;L.splice(i,1);const k=L.indexOf(b);L.splice(after?k+1:k,0,a);return true};
+const RDK={
+  /* Labour & tasks */
+  lts(A,B,after){const t=A[1];const d=ensureTask(t);taskSecs(t);const first=d.sections[0]&&d.sections[0].id;for(const x of d.items)if(!d.sections.some(z=>z.id===x.sec))x.sec=first;
+    const s1=d.sections.find(z=>z.id===A[2]),s2=d.sections.find(z=>z.id===B[2]);if(!s1||!s2||!rdReorder(d.sections,s1,s2,after))return false;persist('tasks/'+t);return true},
+  lti(A,B,after){const t=A[1];const d=ensureTask(t);const sids=taskSecs(t).map(z=>z.id);for(const x of d.items)if(!sids.includes(x.sec))x.sec=sids[0];
+    const it=d.items[+A[2]];if(!it)return false;let sec,ref=null,ra=false;
+    if(B[0]==='lti'){const tg=d.items[+B[2]];if(!tg||tg===it)return false;sec=tg.sec;ref=tg;ra=after}
+    else{const si=sids.indexOf(B[2]);if(si<0)return false;if(after||si===0){sec=sids[si];ref=d.items.find(x=>x!==it&&x.sec===sec)||null}else{sec=sids[si-1];const L=d.items.filter(x=>x!==it&&x.sec===sec);ref=L.length?L[L.length-1]:null;ra=true}}
+    const back=ltColl(t);d.items.splice(d.items.indexOf(it),1);it.sec=sec;if(ref){const k=d.items.indexOf(ref);d.items.splice(ra?k+1:k,0,it)}else d.items.push(it);back();persist('tasks/'+t);return true},
+  ltu(A,B,after){const t=A[1];const d=ensureTask(t);const sp=A[2].split('.'),tp=B[2].split('.');const q=+sp.pop(),tq=+tp.pop();const sl=nodeAt(d,sp.join('.')),tl=nodeAt(d,tp.join('.'));
+    const back=ltColl(t);const ok=rdSubMove(sl,tl,q,tq,after,'A split line needs at least one sub-line. Use Merge to turn it back into one line.');back();if(ok)persist('tasks/'+t);return ok},
+  tkt(A,B,after){const O=TASK_IDS.slice();if(!rdReorder(O,A[1],B[1],after))return false;S.info.taskOrder=O;persist('project/info');syncTasks();return true},
+  /* progress claim (contract lines) */
+  pcs(A,B,after){if(pcLocked())return pcLockMsg();const d=claimDoc();const s1=d.secs[+A[1]],s2=d.secs[+B[1]];if(!s1||!s2||!rdReorder(d.secs,s1,s2,after))return false;pcRenumberAll();persist('project/claim');return true},
+  pcl(A,B,after){if(pcLocked())return pcLockMsg();const d=claimDoc();const SL=d.secs[+A[1]]&&d.secs[+A[1]].lines;const i=+A[2];if(!SL||!SL[i])return false;
+    const n=SL[i].head?1+pcTree(SL).kids(i).length:1;let TL,k;
+    if(B[0]==='pcl'){TL=d.secs[+B[1]]&&d.secs[+B[1]].lines;const j=+B[2];if(!TL||!TL[j])return false;const tg=TL[j];k=!after?j:(tg.head&&pcClosed(tg)?j+1+pcTree(TL).kids(j).length:j+1)}
+    else{const sj=+B[1];if(after||sj===0){TL=d.secs[sj]&&d.secs[sj].lines;k=0}else{TL=d.secs[sj-1]&&d.secs[sj-1].lines;k=TL?TL.length:0}if(!TL)return false}
+    if(TL===SL){if(!rdSplice(SL,i,i+n,k))return false}else{const blk=SL.splice(i,n);TL.splice(k,0,...blk)}
+    pcRenumberAll();persist('project/claim');return true},
+  pcq(A,B,after){if(pcLocked())return pcLockMsg();const d=claimDoc();const L1=d.secs[+A[1]]&&d.secs[+A[1]].lines,L2=d.secs[+B[1]]&&d.secs[+B[1]].lines;if(!L1||!L2)return false;
+    if(!rdSubMove(L1[+A[2]],L2[+B[2]],+A[3],+B[3],after,'A line split into sub-lines needs at least one.'))return false;pcRenumberAll();persist('project/claim');return true},
+  /* orders & invoices */
+  ors(A,B,after){const L=ordSecs().slice();const a=L[+A[1]],b=L[+B[1]];if(!a||!b||!rdReorder(L,a,b,after))return false;S.info.ordSecs=L;persist('project/info');return true},
+  oro(A,B,after){const id=A[1];const me=S.orders[id];if(!me)return false;const renum=L=>L.forEach((oid,n)=>{const o=S.orders[oid];if(String(o.pos)!==String(n+1)){o.pos=n+1;persist('orders/'+oid)}});
+    if(ordIsKid(me)){const L=ordKids(me.parent).map(r=>r[0]);if(!rdReorder(L,id,B[1],after))return false;renum(L);return true}
+    const top=sg=>ordRows().filter(r=>!ordIsKid(r[1])&&ordSecOf(r[1])===sg&&r[0]!==id).map(r=>r[0]);let sec,L,k;
+    if(B[0]==='oro'){const tg=S.orders[B[1]];if(!tg)return false;const tid=ordIsKid(tg)?tg.parent:B[1];sec=ordSecOf(S.orders[tid]);L=top(sec);k=L.indexOf(tid);if(k<0)return false;if(after)k++}
+    else{const secs=ordSecs();const j=+B[1];const g=(after||j===0)?secs[j]:secs[j-1];if(!g)return false;sec=g.id;L=top(sec);k=(after||j===0)?0:L.length}
+    L.splice(k,0,id);if((ordSecOf(me)||'')!==(sec||'')){if(sec)me.sec=sec;else delete me.sec;persist('orders/'+id)}renum(L);return true},
+  ivl(A,B,after){const o=S.orders[A[1]];const x=o&&o.inv&&o.inv[+A[2]];if(!x)return false;x.lines=invLines(x);const a=x.lines[+A[3]],b=x.lines[+B[3]];if(!a||!b||!rdReorder(x.lines,a,b,after))return false;persist('orders/'+A[1]);return true},
+  /* MOSD / order costing: a heading takes its lines */
+  msi(A,B,after){const m=S.msods[A[1]];if(!m)return false;const L=m.items;const i=L.findIndex(x=>x.id===A[2]),j=L.findIndex(x=>x.id===B[2]);if(i<0||j<0)return false;
+    const tg=L[j];const k=!after?j:(tg.head&&msCollSet(A[1]).has(tg.id)?msBlkEnd(L,j):j+1);if(!rdSplice(L,i,msBlkEnd(L,i),k))return false;persist('msod/'+A[1]);return true},
+  /* programme: a task takes the tasks under it */
+  gt(A,B,after){const P=progDoc();const T=P.tasks;const i=T.findIndex(x=>x.id===A[1]),j=T.findIndex(x=>x.id===B[1]);if(i<0||j<0)return false;
+    const k=!after?j:((UI.gtColl&&UI.gtColl.has(T[j].id))?gtBlockEnd(T,j):j+1);if(!rdSplice(T,i,gtBlockEnd(T,i),k))return false;gtFixLevels(T);gtAfterEdit();return true},
+  /* variation build-up: a heading takes the lines under it */
+  vbl(A,B,after){const v=S.vars[A[1]];const L=v&&v.bu&&v.bu.lines;if(!L)return false;const i=+A[2],j=+B[2];if(!L[i]||!L[j])return false;
+    const end=a=>{const h=vbHead(L[a]);if(!h)return a+1;let e=a+1;while(e<L.length){const hh=vbHead(L[e]);if((hh&&hh<=h)||(!hh&&kindOf(L[e])!=='L'))break;e++}return e};
+    const tg=L[j];const k=!after?j:(vbHead(tg)&&COLL.has('vbh:'+A[1]+'_'+(tg.id||j))?end(j):j+1);if(!rdSplice(L,i,end(i),k))return false;persist('variations/'+A[1]);return true},
+  vbu(A,B,after){const v=S.vars[A[1]];const L=v&&v.bu&&v.bu.lines;if(!L)return false;if(!rdSubMove(L[+A[2]],L[+B[2]],+A[3],+B[3],after,'A line with sub-lines needs at least one.'))return false;persist('variations/'+A[1]);return true},
+  /* subcontractors: a sub-heading takes its lines; a line can go into another section */
+  aps(A,B,after){const t=A[1];const d=aptDoc(t);const s1=d.sections[+A[2]],s2=d.sections[+B[2]];if(!s1||!s2||!rdReorder(d.sections,s1,s2,after))return false;structDirty.add(t);persist('apartments/'+t);return true},
+  apl(A,B,after){const t=A[1];const d=aptDoc(t);const SL=d.sections[+A[2]]&&d.sections[+A[2]].lines;const i=+A[3];if(!SL||!SL[i])return false;
+    let e=i+1;if(SL[i].head)while(e<SL.length&&!SL[e].head)e++;let TL,k;
+    if(B[0]==='apl'){TL=d.sections[+B[2]]&&d.sections[+B[2]].lines;const j=+B[3];if(!TL||!TL[j])return false;k=after?j+1:j}
+    else{const sj=+B[2];if(after||sj===0){TL=d.sections[sj]&&d.sections[sj].lines;k=0}else{TL=d.sections[sj-1]&&d.sections[sj-1].lines;k=TL?TL.length:0}if(!TL)return false}
+    if(TL===SL){if(!rdSplice(SL,i,e,k))return false}else{const blk=SL.splice(i,e-i);TL.splice(k,0,...blk)}structDirty.add(t);persist('apartments/'+t);return true},
+  apu(A,B,after){const t=A[1];const d=aptDoc(t);const L1=d.sections[+A[2]]&&d.sections[+A[2]].lines,L2=d.sections[+B[2]]&&d.sections[+B[2]].lines;if(!L1||!L2)return false;
+    if(!rdSubMove(L1[+A[3]],L2[+B[3]],+A[4],+B[4],after,'A split line needs at least one task. Use Merge back to make it one line again.'))return false;structDirty.add(t);persist('apartments/'+t);return true},
+  /* procurement: listed in the order they were added, so moving one renumbers that order */
+  prr(A,B,after){const L=Object.entries(S.procs).sort((a,b)=>(a[1].created||0)-(b[1].created||0)).map(r=>r[0]);if(!rdReorder(L,A[1],B[1],after))return false;
+    const base=Math.min(...Object.values(S.procs).map(p=>p.created||Date.now()));L.forEach((id,n)=>{const p=S.procs[id];if(p.created!==base+n){p.created=base+n;persist('procurement/'+id)}});return true}};
 
 /* ---------- moving between boxes like a spreadsheet ----------
    In a table, Enter goes to the box below (Shift+Enter, the box above) and ↑ ↓ go up and down the column, skipping rows with
