@@ -549,6 +549,9 @@ body.tsz-full-on{overflow:hidden}.tsz-full{position:fixed;inset:0;z-index:60;bac
 .colrz:hover::after,body.col-resizing .colrz::after{background:var(--accent);width:2px;top:0;bottom:0}
 body.col-resizing{cursor:col-resize;user-select:none}
 th[style*="max-width"]{overflow:hidden;text-overflow:ellipsis}
+.llog-drop tbody tr td{transition:background-color .6s ease}.llog-drop tr.llog-dup td{background:color-mix(in srgb,var(--bad) 7%,var(--surface))}.llog-drop tr.llog-dup td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.llog-dupmsg{color:var(--bad);font-size:11.5px;line-height:1.3;margin-top:3px;white-space:normal}.llog-dupsum{border:1px solid color-mix(in srgb,var(--bad) 45%,transparent);background:color-mix(in srgb,var(--bad) 6%,var(--surface));border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:13px}
+.llog-drop tr.llog-moved td{background:color-mix(in srgb,var(--accent) 16%,var(--surface))}
 .llog-drop.dropping{outline:2px dashed var(--accent);outline-offset:-6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .pg-last{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:4px;font-size:11.5px}.pg-retract{padding:1px 8px!important;font-size:11.5px!important}
 .pg-submit{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}.pg-submit h3{margin:0 0 4px}.pg-submit p{margin:0;max-width:640px}
@@ -2971,12 +2974,44 @@ V.site=()=>{const date=UI.siteDate||todayISO();const tab=UI.siteTab||'day';const
   ${tab==='day'?`<div class="site-date"><button class="btn" data-act="site-go" data-v="${shift(-1)}" aria-label="Previous day">‹</button><input class="f" type="date" id="site_date" data-ui="siteDate" value="${esc(date)}" aria-label="Date"><button class="btn" data-act="site-go" data-v="${shift(1)}" aria-label="Next day">›</button>${date!==todayISO()?`<button class="btn ghost" data-act="site-go" data-v="${todayISO()}">Today</button>`:''}</div>`:''}</div>
   ${tab==='all'?siteListHtml():tab==='rates'?siteRatesHtml():siteDayHtml(date)}</div>`};
 function sitePhotoView(id){document.getElementById('site_lb')?.remove();const el=document.createElement('div');el.id='site_lb';el.className='site-lb';el.innerHTML=`<button class="btn" aria-label="Close photo">✕ Close</button><img data-ph="${esc(id)}" src="${photoSrc(id)}" alt="Site photo">`;el.onclick=()=>el.remove();document.body.appendChild(el)}
+/* the labour cost log in date order: week starting, then week ending; rows with no dates go last. Rows keep their place in the saved
+   list (and so their boxes keep their ids): a row moves into place when you leave its date, and you stay in the box you were in. */
+function llogOrder(){const R=S.llog.rows;const iso=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'');const key=i=>{const r=R[i]||{};const st=llogStart(r);return iso(st)?'0'+st+'|'+(iso(r.wend)?r.wend:''):'1'};
+  return R.map((_,i)=>i).sort((a,b)=>{const ka=key(a),kb=key(b);return ka<kb?-1:ka>kb?1:a-b})}
+/* a row's period: week starting to week ending (a week from the start if the ending is missing or before it) */
+function llogSpan(r){const st=llogStart(r||{});if(!/^\d{4}-\d{2}-\d{2}$/.test(st))return null;const e=/^\d{4}-\d{2}-\d{2}$/.test(r.wend||'')&&r.wend>=st?r.wend:isoAddDays(st,6);
+  const days=Math.round((Date.parse(e)-Date.parse(st))/864e5)+1;return {s:st,e,days,long:days>31}}
+/* rows that double up on dates: their periods overlap (the same week entered twice, or a week running into another). A row over 31 days
+   long is flagged on its own (its week ending is probably wrong) rather than marking every week it covers. */
+function llogDups(){const P=S.llog.rows.map(llogSpan);const W={};const add=(i,j)=>{(W[i]=W[i]||[]).push(j)};
+  for(let i=0;i<P.length;i++){const a=P[i];if(!a)continue;for(let j=i+1;j<P.length;j++){const b=P[j];if(!b||a.s>b.e||b.s>a.e)continue;
+    if(a.long&&!b.long)add(i,j);else if(b.long&&!a.long)add(j,i);else{add(i,j);add(j,i)}}}
+  return {P,W}}
+const llogDM=v=>{const d=new Date(v+'T00:00:00');return isNaN(d)?v:d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})};
+const llogRange=p=>p.s===p.e?llogDM(p.s):llogDM(p.s)+' – '+llogDM(p.e);
+function llogDupMsg(i,D){const p=D.P[i],W=D.W[i];if(!p||!W)return '';
+  if(p.long)return `<div class="llog-dupmsg">${Math.round(p.days/7)} weeks long: check the week ending. Overlaps ${W.length} other row${W.length===1?'':'s'}.</div>`;
+  const same=W.filter(j=>D.P[j].s===p.s&&D.P[j].e===p.e);const over=W.filter(j=>!same.includes(j));const bits=[];
+  if(same.length)bits.push(`same dates as ${same.length===1?'another row':same.length+' other rows'}`);
+  if(over.length){const lst=[...new Set(over.map(j=>llogRange(D.P[j])))];bits.push('overlaps '+lst.slice(0,2).join(' and ')+(lst.length>2?` and ${lst.length-2} more`:''))}
+  return `<div class="llog-dupmsg">Doubled up: ${esc(bits.join('; '))}</div>`}
+/* while you're still in a date box the redraw waits until you leave it: fill in the week ending and mark doubled-up rows straight away */
+function llogLive(i){const r=S.llog.rows[i];const we=document.getElementById('llog_'+i+'_wend');if(r&&we&&we!==document.activeElement&&we.value!==(r.wend||''))we.value=r.wend||'';
+  const D=llogDups();viewEl.querySelectorAll('.llog-drop tr[data-llog]').forEach(tr=>{const k=+tr.dataset.llog;const dup=!!D.W[k];tr.classList.toggle('llog-dup',dup);const td=tr.children[1];if(!td)return;
+    td.querySelector('.llog-dupmsg')?.remove();if(dup)td.insertAdjacentHTML('beforeend',llogDupMsg(k,D))})}
+/* after a row moves into date order: show where it went */
+function llogShowMoved(){const F=UI.llogFlash;if(!F)return;const tr=viewEl.querySelector(`tr[data-llog="${F.i}"]`);if(!tr){UI.llogFlash=null;return}
+  tr.classList.add('llog-moved');if(!F.shown){F.shown=1;const r=tr.getBoundingClientRect();if(r.top<0||r.bottom>window.innerHeight)tr.scrollIntoView({block:'nearest'});
+    clearTimeout(window.__llogFl);window.__llogFl=setTimeout(()=>{if(UI.llogFlash===F)UI.llogFlash=null;viewEl.querySelectorAll('tr.llog-moved').forEach(x=>x.classList.remove('llog-moved'))},1800)}}
 function labourLogPanel(){
   const T=logTotals();
-  return `<div class="panel llog-drop"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by week. The cash flow counts each week's labour cost in the month of its week starting date. Total hours = labour hire + Oxford + subcontractor + project management. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
+  const ORD=llogOrder(),D=llogDups();const nDup=Object.keys(D.W).length;
+  {const prev=UI.llogOrd;if(UI.llogEdit!=null&&prev&&prev.length===ORD.length&&prev.some((x,q)=>x!==ORD[q]))UI.llogFlash={i:UI.llogEdit};UI.llogOrd=ORD;UI.llogEdit=null}
+  return `<div class="panel llog-drop"><div class="sec-head"><div><h3>Labour cost log</h3><p class="hint">Hours and cost by week, kept in date order: when you enter a date the row moves into place, and rows that double up on dates are highlighted. The cash flow counts each week's labour cost in the month of its week starting date. Total hours = labour hire + Oxford + subcontractor + project management. (Oxford + subcontractor cost + labour hire cost) ÷ total hours gives the average labour rate used for the labour forecast.</p></div>
     <div style="display:flex;gap:28px;text-align:right;flex-wrap:wrap;justify-content:flex-end"><div><div class="kpi" style="padding:0;background:none"><span class="l">Total cost</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1.1">${money(T.total)}</div><div class="hint" style="font-size:11.5px">Oxford + subcontractor + labour hire</div></div><div><div class="kpi" style="padding:0;background:none"><span class="l">Average labour rate</span></div><div style="font-family:var(--f-display);font-weight:700;font-size:34px;color:var(--accent);line-height:1.1">${T.hrs?'$'+T.rate.toFixed(2)+'/hr':'—'}</div></div></div></div>
+  ${nDup?`<div class="llog-dupsum" role="status"><b>${nDup} row${nDup===1?'':'s'} double up on dates</b> (highlighted below): the same dates entered twice, or periods that overlap. If they’re separate costs for the same week, that’s fine; otherwise fix or remove the extra row.</div>`:''}
   <div class="tw"><table style="min-width:900px"><thead><tr><th></th><th style="white-space:normal">Week starting</th><th style="white-space:normal">Week ending</th><th class="n" style="white-space:normal">Labour hire</th><th class="n" style="white-space:normal">Oxford + subcontractor</th><th class="n" style="white-space:normal">Project management</th><th class="n" style="white-space:normal">Total hours</th><th class="n" style="white-space:normal">Oxford + subcontractor cost</th><th class="n" style="white-space:normal">Labour hire cost</th><th class="n" style="white-space:normal" title="Oxford + subcontractor cost + labour hire cost">Total cost</th><th class="n" title="(Oxford + subcontractor cost + labour hire cost) ÷ total hours">Rate $/hr<br><span style="font-weight:500;text-transform:none;letter-spacing:0">incl. labour hire</span></th></tr></thead><tbody>
-  ${S.llog.rows.map((r,i)=>{const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox)+num(r.pm);return `<tr><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Week starting'})}</td><td style="width:150px">${inp(k+'wend',r.wend,{type:'date',label:'Week ending'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford + subcontractor',ph:'0'})}</td><td style="min-width:90px">${inp(k+'pm',r.pm,{num:1,label:'Project management hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money"><b>${num(r.cost)+num(r.hireCost)?money(num(r.cost)+num(r.hireCost)):'—'}</b></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="11" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
+  ${ORD.map(i=>{const r=S.llog.rows[i];const k='llog|'+i+'|';const h=num(r.hire)+num(r.ox)+num(r.pm);const dup=!!D.W[i];return `<tr data-llog="${i}"${dup?' class="llog-dup"':''}><td style="width:86px">${delBtn('llog','x',String(i),'Remove')}</td><td style="width:150px">${inp(k+'date',r.date,{type:'date',label:'Week starting'})}${dup?llogDupMsg(i,D):''}</td><td style="width:150px">${inp(k+'wend',r.wend,{type:'date',label:'Week ending'})}</td><td style="min-width:90px">${inp(k+'hire',r.hire,{num:1,label:'Labour hire',ph:'0'})}</td><td style="min-width:90px">${inp(k+'ox',r.ox,{num:1,label:'Oxford + subcontractor',ph:'0'})}</td><td style="min-width:90px">${inp(k+'pm',r.pm,{num:1,label:'Project management hours',ph:'0'})}</td><td class="n money">${hrs(h)}</td><td style="min-width:120px"><div class="cur">${inp(k+'cost',r.cost,{num:1,label:'Oxford + subcontractor cost',ph:'0'})}</div></td><td style="min-width:110px"><div class="cur">${inp(k+'hireCost',r.hireCost,{num:1,label:'Labour hire cost',ph:'0'})}</div></td><td class="n money"><b>${num(r.cost)+num(r.hireCost)?money(num(r.cost)+num(r.hireCost)):'—'}</b></td><td class="n money">${h?'$'+((num(r.cost)+num(r.hireCost))/h).toFixed(2):'—'}</td></tr>`}).join('')||'<tr><td colspan="11" class="empty">No entries yet. Add a row for each week or pay period.</td></tr>'}
   ${siteDays().map(r=>`<tr class="ro-row" title="From site timesheets"><td><button class="rowlink" data-act="site-go" data-v="${esc(r.date)}">Site hours</button></td><td>${esc(fmtDate(r.date))}</td><td></td><td class="n money">${hrs(r.hire)}</td><td class="n money">${hrs(r.ox)}</td><td class="n money">${hrs(r.pm)}</td><td class="n money">${hrs(r.hire+r.ox+r.pm)}</td><td class="n money">${money(r.cost)}</td><td class="n money">${money(r.hireCost)}</td><td class="n money">${money(r.cost+r.hireCost)}</td><td class="n money">${r.hire+r.ox+r.pm?'$'+((r.cost+r.hireCost)/(r.hire+r.ox+r.pm)).toFixed(2):'—'}</td></tr>`).join('')}
   <tr class="addrow"><td colspan="11"><div class="toolbar"><button class="btn" data-act="llog-add">+ Add row</button><label class="btn" for="llog_file">Import Excel, CSV or PDF</label><input type="file" id="llog_file" accept=".xlsx,.csv,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
     <span class="hint">or drag an Excel (.xlsx), CSV or PDF onto this panel. Columns are matched by their headings: week starting, week ending, labour hire, Oxford + subcontractor, project management, Oxford + subcontractor cost, labour hire cost.</span></div>${UI.llogMsg?`<div class="hint" style="margin-top:6px;color:${UI.llogMsg.err?'var(--bad)':'var(--good,#2f7d4f)'}">${esc(UI.llogMsg.txt)}</div>`:''}</td></tr>
@@ -5670,7 +5705,8 @@ function applyRsz(){viewEl.querySelectorAll('[data-rsz]').forEach(el=>{try{apply
   el.addEventListener('mouseup',()=>{if(!el.style.height)el.style.height=Math.round(el.getBoundingClientRect().height/(parseFloat(el.style.zoom)||1))+'px'},{once:false});if(RSZ_OBS)RSZ_OBS.observe(el)})}
 /* while a date box is being used (calendar open, or typing day/month/year) the page isn't redrawn: a redraw would close the picker and drop the typing. It redraws when you leave the box. */
 let DATE_HOLD=false;const isDateBox=el=>el&&el.tagName==='INPUT'&&/^(date|month|time|datetime-local|week)$/.test(el.type)&&viewEl&&viewEl.contains(el);
-document.addEventListener('focusout',e=>{if(isDateBox(e.target)&&DATE_HOLD){DATE_HOLD=false;setTimeout(()=>{if(!isDateBox(document.activeElement))render()},0)}},true);
+/* the held redraw waits while you move from one date box to the next (week starting → week ending), and happens when you leave them */
+document.addEventListener('focusout',e=>{if(isDateBox(e.target)&&DATE_HOLD){setTimeout(()=>{if(DATE_HOLD&&!isDateBox(document.activeElement)){DATE_HOLD=false;render()}},0)}},true);
 /* phones and tablets: redrawing the page swaps the box being typed in for a new one, which resets the on-screen keyboard (Shift / Caps turn off,
    suggestions reset). So while a data-entry box has focus on a touch screen the redraw waits until you leave the box; what you type is still saved as you go. */
 let TYPE_HOLD=false;const TOUCH=()=>{try{return matchMedia('(pointer: coarse)').matches||matchMedia('(hover: none)').matches}catch(e){return false}};
@@ -5720,6 +5756,7 @@ function render(){
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});
     if(el.tagName==='INPUT'&&typeof tv==='string'&&el.value!==tv&&tv.trim()!==''&&/^[\d\s$,.%-]*$/.test(tv)&&/^[\d\s$,.%-]*$/.test(el.value)&&num(tv)===num(el.value))el.value=tv;
     try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
+  if(UI.llogFlash&&UI.view==='labour')try{llogShowMoved()}catch(e){}
 }
 
 
@@ -6798,7 +6835,7 @@ function apply(parts,v){
     else return;
     persist('msod/'+a);return}
   if(kind==='proc'){if(S.procs[a]){S.procs[a][b]=v;persist('procurement/'+a)}return}
-  if(kind==='llog'){const r=S.llog.rows[+a];if(r){r[b]=v;if(b==='date'&&v)r.wend=isoAddDays(v,6);if(b==='wend'&&v&&!r.date)r.date=isoAddDays(v,-6);persist('project/labourlog');if(b==='date'||b==='wend')render()}return}
+  if(kind==='llog'){const r=S.llog.rows[+a];if(r){r[b]=v;if(b==='date'&&v)r.wend=isoAddDays(v,6);if(b==='wend'&&v&&!r.date)r.date=isoAddDays(v,-6);persist('project/labourlog');if(b==='date'||b==='wend'){UI.llogEdit=+a;render();if(isDateBox(document.activeElement))try{llogLive(+a)}catch(e){}}}return}
   if(kind==='sited'){const [id,d]=siteDiaryDoc(a);d[b]=v;persist('site/'+id);return}
   if(kind==='sitet'){const t=S.site[a];if(!t)return;
     if(b==='tid'){t.tid=v;t.task=v?TASKS[TASK_IDS.indexOf(v)]||'':'';t.line=''}
@@ -7172,8 +7209,8 @@ if(act==='add-order'){const id=uid('o');S.orders[id]={created:Date.now(),inv:[],
 if(act==='add-proc'){const id=uid('p');S.procs[id]={created:Date.now(),status:'Waiting for contract'};persist('procurement/'+id);render();return}
   if(act==='add-item'){const t=UI.task;const d=ensureTask(t);d.items.push(newItem(btn.dataset.s||d.sections[0].id));persist('tasks/'+t);render();setTimeout(()=>{const el=document.getElementById('item_'+t+'_'+(d.items.length-1)+'_desc');if(el)el.focus()},60);return}
   if(act==='llog-add'){const R=S.llog.rows;let ws='',we='';
-    /* the period after the line above: the day after its week ending, the same length (a week; a fortnight stays a fortnight) */
-    for(let i=R.length-1;i>=0&&!ws;i--){const s0=llogStart(R[i]);if(!/^\d{4}-\d{2}-\d{2}$/.test(s0))continue;const e0=/^\d{4}-\d{2}-\d{2}$/.test(R[i].wend||'')&&R[i].wend>=s0?R[i].wend:isoAddDays(s0,6);
+    /* the period after the last dated line (rows are shown in date order): the day after its week ending, the same length (a week; a fortnight stays a fortnight) */
+    const O=llogOrder();for(let q=O.length-1;q>=0&&!ws;q--){const i=O[q];const s0=llogStart(R[i]);if(!/^\d{4}-\d{2}-\d{2}$/.test(s0))continue;const e0=/^\d{4}-\d{2}-\d{2}$/.test(R[i].wend||'')&&R[i].wend>=s0?R[i].wend:isoAddDays(s0,6);
       const len=Math.round((Date.parse(e0)-Date.parse(s0))/864e5)+1;if(len>=1&&len<=31){ws=isoAddDays(e0,1);we=isoAddDays(ws,len-1)}else{ws=isoAddDays(s0,7);we=isoAddDays(ws,6)}}
     /* no dated lines yet: this week, Monday to Sunday */
     if(!ws){const t=todayISO();const dw=(new Date(t+'T00:00:00Z').getUTCDay()+6)%7;ws=isoAddDays(t,-dw);we=isoAddDays(ws,6)}
