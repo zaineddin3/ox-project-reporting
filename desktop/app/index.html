@@ -404,6 +404,9 @@ tr.revrow td{background:color-mix(in srgb,var(--soft) 50%,transparent);font-size
 .extmsg{font-size:12.5px;padding:6px 10px;border-radius:6px;margin-left:2px}
 .extmsg.busy{background:var(--warn-soft);color:var(--warn)}.extmsg.ok{background:var(--good-soft);color:var(--good)}.extmsg.err{background:var(--bad-soft);color:var(--bad)}
 .invbox{display:flex;flex-direction:column;gap:6px;padding:6px 0;border-bottom:1px dashed var(--line)}
+/* an invoice's boxes sit on one line when there's room; in a narrower space (a laptop, a tablet, a phone) they wrap onto more lines */
+.invbox{container-type:inline-size}
+@container (max-width:1080px){.inv-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}}
 .invmat{margin:2px 0 6px 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow-x:auto}
 .invl-addl{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:3px;font-size:11px;font-weight:500;line-height:1.2;color:var(--muted);white-space:nowrap;cursor:pointer}.invl-addl input{margin:0;width:13px;height:13px;accent-color:var(--accent)}.invl-addl:has(input:checked){color:var(--accent)}
 .invmat th{position:static}
@@ -615,6 +618,7 @@ tr.rd-before>td{box-shadow:inset 0 3px 0 var(--accent)!important}tr.rd-after>td{
 .rd-ghost{position:fixed;left:0;top:0;z-index:100;pointer-events:none;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.18);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 tr.rd-moved>td{animation:rdMoved 1.6s ease-out}@keyframes rdMoved{from{background:color-mix(in srgb,var(--accent) 18%,var(--surface))}}
 .ro-view .rdrag,.pc-locked .rdrag{display:none}
+.ord-det{position:sticky;left:var(--det-l,0px);box-sizing:border-box;max-width:var(--det-w,none);min-width:0;padding-left:var(--det-i,0px)!important}
 .pctbox{display:inline-flex;align-items:center;gap:3px;min-width:72px}.pctbox input.f{width:62px;text-align:right}.pctbox>span{color:var(--muted);font-size:12px}.apt .pctbox.p100 input.f{background:var(--good-soft);color:var(--good);font-weight:600}.apt .pctbox.ppart input.f{background:var(--warn-soft);color:var(--warn);font-weight:600}
 .apt select.f.ppart{background:var(--warn-soft);color:var(--warn)}
 .apt input[type=checkbox]{width:16px;height:16px;accent-color:var(--good)}
@@ -1201,7 +1205,7 @@ function completionMeasures(c){/* Downtime & defects is left out of % complete: 
 function overallPct(){const m=completionMeasures(calc()).find(x=>x[2]>0);return m?{v:pct(m[3]),l:m[1]}:{v:'—',l:'No figures yet'}}
 /* Overview → PDF summary for printing or sending */
 async function ovPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=doc.internal.pageSize.getWidth();pdfHeader(doc,'Project summary');
+  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=doc.internal.pageSize.getWidth();pdfHeader(doc,'Project summary');
   const c=calc();const asc=x=>String(x).replace(/−/g,'-');const m2=v=>asc(money(v));const P=v=>asc(pct(v));const H=v=>asc(hrs(v));const proj=PROJ[PID]?.name||S.info.name||'';
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(`Project: ${proj}${S.info.job?'   Job no.: '+S.info.job:''}   Printed: ${fmtDate(todayISO())}`,14,53);
   let y=58;const T=(title,head,body,opt={})=>{if(y>255){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.setFontSize(11.5);doc.setTextColor(176,84,28);doc.text(title,14,y+4);doc.setTextColor(0);
@@ -1413,8 +1417,8 @@ function varRegHtml(){const R=varRegRows();const by={};varRegCount(R).forEach(r=
   <div class="tw"><table><thead><tr><th>Variation</th><th>Client ref</th><th style="min-width:260px">Description</th><th class="n">Sell (ex GST)</th><th>Date submitted</th><th>Status</th></tr></thead><tbody>
   ${R.map(r=>`<tr class="${r.kid?'var-kid':''}"><td class="mono" style="${r.kid?'padding-left:26px':''}">${r.kid?'↳ ':''}${esc(r.ref||'—')}</td><td class="mono">${esc(r.client||'—')}</td><td>${esc(r.desc||'—')}</td><td class="n money ${r.sell<0?'neg':''}">${r.summ?`<i title="Total of its sub-variations (not added again to the totals)">${money2(r.sell)}</i>`:money2(r.sell)}</td><td>${r.date?fmtDate(r.date):'—'}</td><td><span class="tag ${/approv/i.test(r.status)?'ok':/reject|withdraw/i.test(r.status)?'bad':''}">${esc(r.status)}</span></td></tr>`).join('')||'<tr><td colspan="6" class="hint">No variations yet.</td></tr>'}</tbody>
   <tfoot>${Object.entries(by).map(([k,v])=>`<tr><td colspan="3">${esc(k)}</td><td class="n money">${money2(v)}</td><td colspan="2"></td></tr>`).join('')}<tr class="grand"><td colspan="3">Total</td><td class="n money">${money2(tot)}</td><td colspan="2"></td></tr></tfoot></table></div></div>`}
-async function varRegPdf(){if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});pdfHeader(doc,'Variation register');
-  const R=varRegRows();const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+async function varRegPdf(){if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4',orientation:'landscape'}));pdfHeader(doc,'Variation register');
+  const R=varRegRows();const m2=n=>(Number(n)<0?'-$':'$')+Math.abs(Number(n||0)).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
   doc.setFontSize(9.5);doc.text(`Project: ${PROJ[PID]?.name||S.info.name||''}${S.info.job?'   Job no.: '+S.info.job:''}   Printed: ${fmtDate(todayISO())}`,14,52);
   const by={};varRegCount(R).forEach(r=>{by[r.status]=(by[r.status]||0)+r.sell});const tot=varRegCount(R).reduce((a,r)=>a+r.sell,0);
   doc.autoTable({startY:56,head:[['Variation','Client ref','Description','Sell (ex GST)','Date submitted','Status']],body:R.map(r=>[(r.kid?'   ':'')+r.ref,r.client,r.desc+(r.summ?' (summary of sub-variations)':''),r.summ?'('+m2(r.sell)+')':m2(r.sell),r.date?fmtDate(r.date):'',r.status]),
@@ -1458,8 +1462,8 @@ function buMini(v){
   return `<div class="bumini"><table><thead><tr><th>Item</th><th>Type</th><th class="n">Qty</th><th class="n">Material</th><th>Per</th><th class="n">Extension</th><th class="n">Labour hrs</th><th class="n">Lab ext.</th><th>Comments</th></tr></thead><tbody>
     ${(()=>{const VN=vbNums(bu.lines);return bu.lines.map((l,li)=>{if(vbHead(l))return `<tr class="vbh vbh${vbHead(l)}"><td colspan="9"><b>${VN[li]} ${esc(l.item||'')}</b></td></tr>`;const q=num(l.qty);const m=matOf(l),h=effH(l);return `<tr><td>${esc(l.item||'—')}${hasSubs(l)?` <span class="hint">(${l.subs.length} sub-line${l.subs.length===1?'':'s'})</span>`:''}</td><td class="hint">${KN[kindOf(l)]}</td><td class="n money">${f2(q)}</td><td class="n money">${m?money2(m):''}</td><td class="hint">${esc(l.per||'')}</td><td class="n money">${q*m?money2(q*m):''}</td><td class="n money">${f2(h)}</td><td class="n money">${f2(q*h)}</td><td class="hint">${esc(l.comments||'')}</td></tr>`+(hasSubs(l)?l.subs.map(x=>{const sq=num(x.qty);return `<tr class="subrow"><td style="padding-left:22px">↳ ${esc(x.item||'—')}</td><td></td><td class="n money">${f2(sq)}</td><td class="n money">${num(x.mat)?money2(num(x.mat)):''}</td><td class="hint">${esc(x.per||'')}</td><td class="n money">${sq*num(x.mat)?money2(sq*num(x.mat)):''}</td><td class="n money">${f2(effH(x))}</td><td class="n money">${f2(sq*effH(x))}</td><td class="hint">${esc(x.comments||'')}</td></tr>`}).join(''):'')}).join('')})()}
     </tbody></table>
-    <div class="bumini-sum"><span>Material <b>${money2(X.mat)}</b></span><span>${esc(vbMarkLbl(bu,X))} <b>${money2(X.sell.extra)}</b></span><span>Labour ${f2(X.lh)} h @ ${money2(num(r.sl))}${X.lhN?` (${f2(-X.lhN)} credit h @ ${money2(num(crRate(r,'l')))})`:''} <b>${money2(X.sell.lab)}</b></span><span>Supervision ${f2(X.sh)} h <b>${money2(X.sell.sup)}</b></span><span>PM ${f2(X.ph)} h <b>${money2(X.sell.pm)}</b></span><span class="tot">Cost <b>${money2(X.cost.total)}</b></span><span class="tot">Sell <b>${money2(X.sell.total)}</b></span><span class="tot">Margin <b class="${X.margin<0?'neg':''}">${money2(X.margin)} · ${X.sell.total?pct(X.margin/X.sell.total,1):'—'}</b></span></div>
-    ${bu.longDesc?`<div class="hint" style="margin-top:6px"><b>Quote description:</b> ${esc(bu.longDesc)}</div>`:''}${bu.excl?`<div class="hint" style="margin-top:4px;white-space:pre-line"><b>Exclusions and notes:</b> ${esc(bu.excl)}</div>`:''}</div>`;
+    <div class="bumini-sum"><span>Material <b>${money2(X.mat)}</b></span><span>${esc(vbMarkLbl(bu,X))} <b>${money2(X.sell.extra)}</b></span><span>Labour ${f2(X.lh-X.lhN)} h @ ${money2(num(r.sl))} <b>${money2(X.sell.labNew)}</b></span>${X.lhN?`<span>Credits ${f2(-X.lhN)} h @ ${money2(num(crRate(r,'l')))} <b>${money2(X.sell.labCr)}</b></span>`:''}<span>Supervision ${f2(X.sh)} h <b>${money2(X.sell.sup)}</b></span><span>PM ${f2(X.ph)} h <b>${money2(X.sell.pm)}</b></span><span class="tot">Cost <b>${money2(X.cost.total)}</b></span><span class="tot">Sell <b>${money2(X.sell.total)}</b></span><span class="tot">Margin <b class="${X.margin<0?'neg':''}">${money2(X.margin)} · ${X.sell.total?pct(X.margin/X.sell.total,1):'—'}</b></span></div>
+    ${bu.intro?`<div class="hint" style="margin-top:6px;white-space:pre-line"><b>Introduction:</b> ${esc(bu.intro)}</div>`:''}${bu.longDesc?`<div class="hint" style="margin-top:6px"><b>Quote description:</b> ${esc(bu.longDesc)}</div>`:''}${bu.excl?`<div class="hint" style="margin-top:4px;white-space:pre-line"><b>Exclusions and notes:</b> ${esc(bu.excl)}</div>`:''}</div>`;
 }
 function vsubRows(id,l,li,ro){return l.subs.map((x,si)=>{const k='vsub|'+id+'|'+li+'|'+si+'|';const q=num(x.qty);const ov=x.hrsOv!==undefined&&x.hrsOv!==null&&x.hrsOv!=='';
     return `<tr class="subrow"${ro?'':` data-rdrop="vbu|${id}|${li}|${si}"`}><td style="white-space:nowrap;padding-left:26px">${ro?'':rdH('vbu|'+id+'|'+li+'|'+si)+delBtn('vsub',id,li+'.'+si,'Remove')}</td>
@@ -1532,7 +1536,7 @@ function varSummPanel(pid){const P=S.vars[pid];const K=varKids(pid);const G=vGro
     <tfoot>${Object.entries(by).map(([k,v])=>`<tr><td colspan="4">${esc(k)}</td><td class="n money">${money2(v)}</td><td colspan="4"></td></tr>`).join('')}<tr class="grand"><td colspan="4">Total of sub-variations</td><td class="n money">${money2(G.sell)}</td><td class="n money">${money2(G.cost)}</td><td class="n money">${money2(G.margin)}</td><td class="n money">${hrs(G.hrs)}</td><td></td></tr></tfoot></table></div>
     ${hasBu(P)||num(P.submitted)?'<p class="hint" style="margin-top:8px">This variation’s own earlier build-up or amount is kept but not counted while it has sub-variations.</p>':''}</div>`}
 async function varSummPdf(pid){const P=S.vars[pid];if(!P)return;if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
   try{doc.addImage(LOGO,'PNG',14,5.5,23.5,31)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
@@ -1542,7 +1546,7 @@ async function varSummPdf(pid){const P=S.vars[pid];if(!P)return;if(!window.jspdf
   const meta=[['Project',proj||'—'],['Date',fmtDate(P.date)||fmtDate(todayISO())],['VQ #',P.ref||'—'],['Ref',P.clientRef||'—']];
   let y=55;meta.forEach(([a,b],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(a+':',x,y);doc.setFont('helvetica','normal');doc.text(String(b),x+18,y)});
   y+=8;doc.setFont('helvetica','bold');doc.text('Description:',14,y);doc.setFont('helvetica','normal');const dl=doc.splitTextToSize(P.desc||'—',W-28-24);doc.text(dl,38,y);y+=Math.max(6,dl.length*4.6)+3;
-  const m2=n=>'$'+Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});const K=varKids(pid);const tot=K.reduce((a,[,x])=>a+vNums(x).sell,0);
+  const m2=n=>(Number(n)<0?'-$':'$')+Math.abs(Number(n||0)).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});const K=varKids(pid);const tot=K.reduce((a,[,x])=>a+vNums(x).sell,0);
   doc.autoTable({startY:y,head:[['Sub-variation','Client ref','Description','Status','Amount (ex GST)']],body:K.map(([,x])=>[x.ref||'',x.clientRef||'',x.desc||'',x.status||'Submitted',m2(vNums(x).sell)]),
     foot:[[{content:'Total (ex GST)',colSpan:4},m2(tot)],[{content:'GST 10%',colSpan:4},m2(tot*GST)],[{content:'Total (inc GST)',colSpan:4},m2(tot*(1+GST))]],theme:'grid',showFoot:'lastPage',
     styles:{fontSize:9,cellPadding:2,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},footStyles:{fillColor:[240,237,232],textColor:20,fontStyle:'bold'},
@@ -1592,6 +1596,7 @@ function buPanel(id,v,ri){
       <div class="wide markups${ro?'':' vatt-drop'}" ${ro?'':`data-vmkdrop="${id}"`}><div class="mk-h">Attachments <span class="hint">· drawings, sketches or photos (PDF, PNG or JPG), added to the end of the variation PDF when you download it${ro?'':' — drag files here or choose them'}</span></div>
         <div class="mk-list">${(bu.markups||[]).map((m,mi)=>`<span class="mk-item"><a class="itp-file" href="${HOSTED?'#':'/_blob/'+esc(m.id)}" data-file="${esc(m.id)}" target="_blank" rel="noopener" title="${esc(m.name)}">${esc((m.name||'Mark-up').slice(0,40))}</a>${ro||!assets?'':delBtn('vmk',id,String(mi),'✕')}</span>`).join('')||'<span class="hint">None attached yet.</span>'}
         ${ro?'':assets?(UP['vmk'+id]?'<span class="hint">Uploading…</span>':`<label class="btn itp-up" for="vmk_${id}">+ Add attachment</label><input type="file" id="vmk_${id}" data-markup="${id}" accept="application/pdf,.pdf,image/png,image/jpeg" multiple hidden>`):''}</div></div>
+      <label class="wide">Introduction for the quote <span class="hint" style="font-weight:400">— printed at the top of the quotation, above the description</span><textarea class="f" id="vbu_${id}_intro" data-b="${k}intro" rows="${taRows(bu.intro)}" data-grow="1" placeholder="e.g. Further to your request, please find below our price for the additional works. We’d be pleased to discuss any questions.">${esc(bu.intro||'')}</textarea></label>
       <label class="wide">Description for the quote<textarea class="f" id="vbu_${id}_longDesc" data-b="${k}longDesc" placeholder="Scope of the variation as it should appear on the sell sheet">${esc(bu.longDesc||'')}</textarea></label>
       <label class="wide">Exclusions and notes<textarea class="f" id="vbu_${id}_excl" data-b="${k}excl" rows="4" placeholder="e.g. Excludes after-hours work, builder’s works and making good. Price valid for 30 days.">${esc(bu.excl||'')}</textarea></label>
     </div>
@@ -1611,7 +1616,7 @@ function buPanel(id,v,ri){
         <label>Credit supervision $/hr${inp(k+'r_xs',r.xs??'',{num:1,label:'Credit supervision rate',ph:String(num(r.cs))})}${X.shN?`<span class="hint">${f2c(-X.shN)} credit hrs</span>`:''}</label>
         <label>Credit project management $/hr${inp(k+'r_xp',r.xp??'',{num:1,label:'Credit project management rate',ph:String(num(rateOf(r,'cp')))})}${X.phN?`<span class="hint">${f2c(-X.phN)} credit hrs</span>`:''}</label></div></div>`:''}</div>
       <div><h3 style="font-size:15px;margin-bottom:8px">Summary</h3><table class="ledger bu-sum"><thead><tr><td></td><td class="hint">Cost</td><td class="hint">Sell</td></tr></thead><tbody>
-        ${L('Material total',X.cost.mat,X.sell.mat)}${L(vbMarkLbl(bu,X),0,X.sell.extra,'sub')}${L(`Labour (${f2c(X.lh)} hrs${X.lhN?`, incl. ${f2c(-X.lhN)} credit hrs @ ${money2(num(crRate(r,'l')))}`:''})`,X.cost.lab,X.sell.lab)}${L(`Supervision (${f2c(X.sh)} hrs${X.shN?`, incl. ${f2c(-X.shN)} credit hrs @ ${money2(num(crRate(r,'s')))}`:''})`,X.cost.sup,X.sell.sup)}${L(`Project management (${f2c(X.ph)} hrs${X.phN?`, incl. ${f2c(-X.phN)} credit hrs @ ${money2(num(crRate(r,'p')))}`:''})`,X.cost.pm,X.sell.pm)}
+        ${L('Material total',X.cost.mat,X.sell.mat)}${L(vbMarkLbl(bu,X),0,X.sell.extra,'sub')}${X.lhN?L(`Labour (${f2c(X.lh-X.lhN)} hrs)`,(X.lh-X.lhN)*num(r.cl),X.sell.labNew)+L(`Credits (${f2c(-X.lhN)} hrs @ ${money2(num(crRate(r,'l')))})`,X.lhN*num(r.cl),X.sell.labCr):L(`Labour (${f2c(X.lh)} hrs)`,X.cost.lab,X.sell.lab)}${L(`Supervision (${f2c(X.sh)} hrs${X.shN?`, incl. ${f2c(-X.shN)} credit hrs @ ${money2(num(crRate(r,'s')))}`:''})`,X.cost.sup,X.sell.sup)}${L(`Project management (${f2c(X.ph)} hrs${X.phN?`, incl. ${f2c(-X.phN)} credit hrs @ ${money2(num(crRate(r,'p')))}`:''})`,X.cost.pm,X.sell.pm)}
         ${L('Total variation',X.cost.total,X.sell.total,'total')}
         <tr class="total"><td>Margin</td><td></td><td class="money ${X.margin<0?'neg':''}">${money2(X.margin)} · ${X.sell.total?pct(X.margin/X.sell.total,1):'—'}</td></tr>
       </tbody></table></div>
@@ -1628,7 +1633,7 @@ function pdfHeader(doc,title){
 }
 async function claimPdf(lbl){
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const d=claimDoc(),h=d.hdr,T=claimTotals();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+  const d=claimDoc(),h=d.hdr,T=claimTotals();const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
   const no=lbl?lbl.replace(/^PC/,''):(h.claimNo||String(d.hist.length+1));
   pdfHeader(doc,'Progress claim '+(lbl||no));
   doc.setFontSize(9.5);
@@ -1665,7 +1670,7 @@ async function claimPdf(lbl){
 async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=false;
   const cur=S.vars[id];if(!cur)return;const v=(ri!=null&&ri!==''&&cur.revs?.[+ri])||cur;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
   try{doc.addImage(LOGO,'PNG',14,5.5,23.5,31)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
@@ -1675,10 +1680,12 @@ async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=f
   const proj=[S.info.job,PROJ[PID]?.name||S.info.name].filter(Boolean).join(' ');
   const meta=[['Project',proj||'—'],['Date',fmtDate(v.date)||fmtDate(todayISO())],['VQ #',(v.ref||'—')+' Rev '+num(v.rev)],['HCV #',bu.hcv||'—'],['Ref',bu.refTxt||v.clientRef||'—']];
   let y=55;meta.forEach(([a,b],i)=>{const x=i%2?112:14;if(i%2===0&&i)y+=6;doc.setFont('helvetica','bold');doc.text(a+':',x,y);doc.setFont('helvetica','normal');doc.text(String(b),x+18,y)});
-  y+=8;doc.setFont('helvetica','bold');doc.text('Description:',14,y);doc.setFont('helvetica','normal');
+  y+=8;
+  if(!scope&&String(bu.intro||'').trim()){doc.setFont('helvetica','normal');doc.setFontSize(9.5);const il=doc.splitTextToSize(String(bu.intro).trim(),W-28);for(const ln of il){if(y>280){doc.addPage();y=20}doc.text(ln,14,y);y+=4.6}y+=3}
+  doc.setFont('helvetica','bold');doc.text('Description:',14,y);doc.setFont('helvetica','normal');
   const dl=doc.splitTextToSize(bu.longDesc||v.desc||'—',W-28-24);doc.text(dl,38,y);y+=Math.max(6,dl.length*4.6)+3;
   const f2=n=>n?Number(n).toLocaleString('en-AU',{maximumFractionDigits:2}):'';
-  const MKS=vbMarks(bu);const mkOf=l=>1+((MKS[(bu.lines||[]).indexOf(l)]||{}).pct??num(bu.mark))/100;const m2=n=>'$'+n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const MKS=vbMarks(bu);const mkOf=l=>1+((MKS[(bu.lines||[]).indexOf(l)]||{}).pct??num(bu.mark))/100;const m2=n=>(n<0?'-$':'$')+Math.abs(n).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
   const VN=vbNums(bu.lines||[]);const hRow=(l,n)=>[{content:(VN[(bu.lines||[]).indexOf(l)]?VN[(bu.lines||[]).indexOf(l)]+'  ':'')+(l.item||''),colSpan:n,styles:{fontStyle:'bold',fillColor:vbHead(l)===1?[236,232,224]:[246,243,238],textColor:20,cellPadding:{top:2.2,bottom:2.2,left:vbHead(l)===2?6:2,right:2}}}];
   const body=(bu.lines||[]).filter(l=>vbHead(l)?l.item:(l.item||num(l.qty))).flatMap(l=>{if(vbHead(l))return [hRow(l,8)];const q=num(l.qty);const mk=mkOf(l);const um=matOf(l)*(q*matOf(l)<0?1:mk);/* each line at its own mark-up; credits carry none */const row=[l.item||'',f2(q),um?m2(um):'',l.per||'',q*um?m2(q*um):'',f2(effH(l)),f2(q*effH(l)),l.comments||''];
     return [row,...(hasSubs(l)?l.subs.filter(x=>x.item||num(x.qty)).map(x=>{const sq=num(x.qty),sm=num(x.mat)*(sq*num(x.mat)<0?1:mk);return ['    - '+(x.item||''),f2(sq),sm?m2(sm):'',x.per||'',sq*sm?m2(sq*sm):'',f2(effH(x)),f2(sq*effH(x)),x.comments||'']}):[])]});
@@ -1686,7 +1693,7 @@ async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=f
     doc.autoTable({startY:y,head:[['Item','Quantity','Per','Comments']],body:sb.length?sb:[['—','','','']],theme:'grid',styles:{fontSize:9,cellPadding:2,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
       columnStyles:{0:{cellWidth:80},1:{halign:'right',cellWidth:22},2:{cellWidth:16},3:{cellWidth:'auto'}},didParseCell:dt=>{if(dt.section==='head'&&dt.column.index===1)dt.cell.styles.halign='right'},margin:{left:14,right:14}});
     y=doc.lastAutoTable.finalY+8}else if(summ){
-  const ex=X.sell.total,gst=ex*0.1;const rows=[['Material','',money2(X.sell.mat+X.sell.extra)],['Labour',UI.pdfHideLab?'':`${f2(X.lh)} hrs`,money2(X.sell.lab)]];
+  const ex=X.sell.total,gst=ex*0.1;const rows=[['Material','',money2(X.sell.mat+X.sell.extra)],...(X.lhN?[['Labour',UI.pdfHideLab?'':`${f2(X.lh-X.lhN)} hrs`,money2(X.sell.labNew)],['Credits',UI.pdfHideLab?'':`${f2(-X.lhN)} hrs`,money2(X.sell.labCr)]]:[['Labour',UI.pdfHideLab?'':`${f2(X.lh)} hrs`,money2(X.sell.lab)]])];
   if(X.sell.sup)rows.push(['Supervision',UI.pdfHideLab?'':`${f2(X.sh)} hrs`,money2(X.sell.sup)]);if(X.sell.pm)rows.push(['Project management',UI.pdfHideLab?'':`${f2(X.ph)} hrs`,money2(X.sell.pm)]);
   y+=2;doc.autoTable({startY:y,head:[['Summary','','Amount']],body:rows,foot:[['Total variation (ex GST)','',money2(ex)],['GST (10%)','',money2(gst)],['Total (inc GST)','',money2(ex+gst)]],theme:'grid',
     styles:{fontSize:10,cellPadding:2.4,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},footStyles:{fillColor:[241,242,239],textColor:[28,39,50],fontStyle:'bold'},
@@ -1699,7 +1706,10 @@ async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=f
     styles:{fontSize:8.5,cellPadding:1.8,lineColor:[210,214,208],lineWidth:.2},headStyles:{fillColor:[28,39,50],textColor:255,fontStyle:'bold'},
     columnStyles:cs,margin:{left:14,right:14}});
   y=doc.lastAutoTable.finalY+6;if(y>240){doc.addPage();y=20}
-  const tot=[['Material','',money2(X.sell.mat+X.sell.extra)],['Labour total',X.lhN?`${f2(X.lh-X.lhN)} hrs @ ${money2(num(r.sl))}, ${f2(-X.lhN)} credit hrs @ ${money2(num(crRate(r,'l')))}`:`${f2(X.lh)} hrs @ ${money2(num(r.sl))}`,money2(X.sell.lab)],['Supervision',X.shN?`${f2(X.sh-X.shN)} hrs @ ${money2(num(r.ss))}, ${f2(-X.shN)} credit hrs @ ${money2(num(crRate(r,'s')))}`:`${f2(X.sh)} hrs @ ${money2(num(r.ss))}`,money2(X.sell.sup)],['Project management',X.phN?`${f2(X.ph-X.phN)} hrs @ ${money2(num(rateOf(r,'sp')))}, ${f2(-X.phN)} credit hrs @ ${money2(num(crRate(r,'p')))}`:`${f2(X.ph)} hrs @ ${money2(num(rateOf(r,'sp')))}`,money2(X.sell.pm)]];
+  /* a credit gets its own line: Labour (new work), Credits, then supervision and project management */
+  const hh=n=>n?f2(n):'0';const hTx=(all,neg,rate,cr)=>neg?[all-neg?`${hh(all-neg)} hrs @ ${money2(rate)}`:'',`${hh(-neg)} credit hrs @ ${money2(cr)}`].filter(Boolean).join(', '):`${hh(all)} hrs @ ${money2(rate)}`;
+  const labRows=X.lhN?[['Labour',`${hh(X.lh-X.lhN)} hrs @ ${money2(num(r.sl))}`,money2(X.sell.labNew)],['Credits',`${hh(-X.lhN)} hrs @ ${money2(num(crRate(r,'l')))}`,money2(X.sell.labCr)]]:[['Labour total',`${hh(X.lh)} hrs @ ${money2(num(r.sl))}`,money2(X.sell.lab)]];
+  const tot=[['Material','',money2(X.sell.mat+X.sell.extra)],...labRows,['Supervision',hTx(X.sh,X.shN,num(r.ss),num(crRate(r,'s'))),money2(X.sell.sup)],['Project management',hTx(X.ph,X.phN,num(rateOf(r,'sp')),num(crRate(r,'p'))),money2(X.sell.pm)]];
   doc.autoTable({startY:y,body:tot,foot:[['Total variation (ex GST)','',money2(X.sell.total)]],theme:'plain',styles:{fontSize:9.5,cellPadding:1.6},
     columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:50,textColor:[90,100,110]},2:{halign:'right',cellWidth:40}},footStyles:{fontStyle:'bold',fontSize:11,textColor:[28,39,50],lineColor:[28,39,50],lineWidth:{top:.5}},didParseCell:dt=>{if(dt.column.index===2)dt.cell.styles.halign='right'},margin:{left:W-14-150}});
   y=doc.lastAutoTable.finalY+8;}
@@ -1827,6 +1837,11 @@ async function readPdf(blob){
   if(text.replace(/--- page \d+ ---/g,'').trim().length<80){for(const pg of pages){const vp=pg.getViewport({scale:1.6});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;images.push(await new Promise(r=>c.toBlob(r,'image/png')))}}
   return {text:text.slice(0,60000),images};
 }
+/* The PDF tool's built-in fonts can't draw a few characters the app uses: the "−" minus on negative amounts came out as a quote mark
+   ("$475.00), and the thin spaces some dates and times have came out as junk. They're swapped for ones the fonts have. */
+const PDF_CH={'\u2212':'-','\u2009':' ','\u202F':' ','\u2264':'<=','\u2265':'>=','\u2192':'->','\u2190':'<-'};const PDF_RE=/[\u2212\u2009\u202F\u2264\u2265\u2192\u2190]/g;
+const pdfFix=t=>typeof t==='string'?t.replace(PDF_RE,c=>PDF_CH[c]):Array.isArray(t)?t.map(pdfFix):t;
+function pdfSafe(doc){for(const m of ['text','getTextWidth','getStringUnitWidth','splitTextToSize']){const f=doc[m];if(typeof f==='function')doc[m]=function(t,...a){return f.call(this,pdfFix(t),...a)}}return doc}
 /* in-app PDF viewer: works in Claude, the website and the desktop app */
 let PDFV=null;
 function pdfViewClose(){if(PDFV){PDFV.closed=true;PDFV.el.remove();PDFV=null}}
@@ -2264,6 +2279,8 @@ function vbuCalc(bu){
     const k=kindOf(l);const h=q*effH(l);if(k==='S'){sh+=h;if(h<0)shN+=h}else if(k==='P'){ph+=h;if(h<0)phN+=h}else{lh+=h;if(h<0)lhN+=h}});
   const cost={mat,extra:0,lab:lh*num(r.cl),sup:sh*num(r.cs),pm:ph*num(rateOf(r,'cp'))};cost.total=cost.mat+cost.lab+cost.sup+cost.pm;
   const sell={mat,extra:mark,lab:(lh-lhN)*num(r.sl)+lhN*num(crRate(r,'l')),sup:(sh-shN)*num(r.ss)+shN*num(crRate(r,'s')),pm:(ph-phN)*num(rateOf(r,'sp'))+phN*num(crRate(r,'p'))};sell.total=sell.mat+sell.extra+sell.lab+sell.sup+sell.pm;
+  /* the labour split for the quote: new work, and credits (both without supervision and project management) */
+  sell.labNew=(lh-lhN)*num(r.sl);sell.labCr=lhN*num(crRate(r,'l'));
   return {mat,lh,sh,ph,lhN,shN,phN,hrs:lh+sh+ph,cost,sell,margin:sell.total-cost.total,matCost:mat,labCost:cost.lab+cost.sup+cost.pm,markMixed:mixed,markPct:mat-matN>0?mark/(mat-matN)*100:base};
 }
 /* how the material mark-up reads in a total: the universal % unless some lines or sections have their own */
@@ -2622,9 +2639,9 @@ V.orders=()=>{
     <td style="width:140px">${inp(k+'anticipated',o.anticipated,{num:1,label:'Anticipated extra'})}${po-inv<0&&num(o.anticipated)?`<div class="hint" style="font-size:11.5px;text-align:right;margin-top:2px">Counts as <b class="money">${money(extraAdj(o))}</b><br>(less ${money(inv-po)} over PO)</div>`:''}</td>
     <td style="text-align:center;width:110px"><input type="checkbox" id="ord_${id}_retention" data-b="${k}retention" ${o.retention?'checked':''} aria-label="Hold retention">${o.retention?`<div class="ret-pct"><input class="f num" id="ord_${id}_retPct" data-b="${k}retPct" value="${esc(o.retPct??'')}" placeholder="5" inputmode="decimal" aria-label="Retention % of PO value"><span>% of PO</span></div>`:''}</td>
     <td class="n money" style="width:130px">${o.retention?(()=>{const R=retOf(o);return `${money(R.val)}<div class="hint" style="font-size:11px">${R.pct}% of ${money(po)}${inv?`<br>held so far ${money(R.held)}`:''}</div>`})():'<span class="hint">—</span>'}</td><td>${delBtn('ord',id)}</td></tr>
-    ${open?`<tr class="sel ord-drop" data-ord="${id}"><td></td><td colspan="11"><div style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">${KID?'':`<div class="ord-struct"><button class="btn" data-act="ord-addkid" data-id="${id}" title="A PO under this one, with its own PO number, amount and invoices">+ Add a PO under this</button>${!KIDS.length&&TOP.length>1?`<label class="hint ord-putunder">or put this PO under another PO ${sel(k+'parent','',[['','Choose the PO…'],...TOP.filter(r=>r[0]!==id).map(r=>[r[0],(r[1].poNo||'No PO no.')+(r[1].supplier?' · '+r[1].supplier:'')])],{label:'Put this PO under another PO'})}</label>`:''}</div>`}${ordPoPanel(id,o)}<div class="hint" style="margin-top:4px"><b>Invoices</b></div>
+    ${open?`<tr class="sel ord-drop" data-ord="${id}"><td colspan="12" class="ord-dtd"><div class="ord-det" style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">${KID?'':`<div class="ord-struct"><button class="btn" data-act="ord-addkid" data-id="${id}" title="A PO under this one, with its own PO number, amount and invoices">+ Add a PO under this</button>${!KIDS.length&&TOP.length>1?`<label class="hint ord-putunder">or put this PO under another PO ${sel(k+'parent','',[['','Choose the PO…'],...TOP.filter(r=>r[0]!==id).map(r=>[r[0],(r[1].poNo||'No PO no.')+(r[1].supplier?' · '+r[1].supplier:'')])],{label:'Put this PO under another PO'})}</label>`:''}</div>`}${ordPoPanel(id,o)}<div class="hint" style="margin-top:4px"><b>Invoices</b></div>
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const AS=invAddSum(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
-        return `<div class="invbox inv-drop${DUP[id+'|'+j]&&!x.dupOk?' inv-isdup':''}${UI.invHit===id+'|'+j&&Date.now()<UI.invHitTill?' inv-hit':''}" data-inv="${id}|${j}">${invDupHtml(DUP,id,j)}<div style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center"><div>${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.dateAsk&&!x.date?'<div class="hint inv-dateask" role="alert">⚠ Invoice date not found on the invoice: please enter it</div>':''}${x.datePdf&&x.datePdf===x.date?'<div class="hint" style="font-size:11px">date from the invoice</div>':''}</div>${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF${AS?', plus the materials you added':''}"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${AS?`<div class="hint inv-addsum" style="font-size:11px">${money2(num(x.amount)-AS)} on the PDF + ${money2(AS)} you added</div>`:''}${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${AS&&x.amount!==''&&x.amount!=null?`<div class="hint inv-addsum" style="font-size:11px;text-align:right">includes ${money2(AS)} you added</div>`:''}${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
+        return `<div class="invbox inv-drop${DUP[id+'|'+j]&&!x.dupOk?' inv-isdup':''}${UI.invHit===id+'|'+j&&Date.now()<UI.invHitTill?' inv-hit':''}" data-inv="${id}|${j}">${invDupHtml(DUP,id,j)}<div class="inv-grid" style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center"><div>${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.dateAsk&&!x.date?'<div class="hint inv-dateask" role="alert">⚠ Invoice date not found on the invoice: please enter it</div>':''}${x.datePdf&&x.datePdf===x.date?'<div class="hint" style="font-size:11px">date from the invoice</div>':''}</div>${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF${AS?', plus the materials you added':''}"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${AS?`<div class="hint inv-addsum" style="font-size:11px">${money2(num(x.amount)-AS)} on the PDF + ${money2(AS)} you added</div>`:''}${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${AS&&x.amount!==''&&x.amount!=null?`<div class="hint inv-addsum" style="font-size:11px;text-align:right">includes ${money2(AS)} you added</div>`:''}${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
           <span class="to-row" style="gap:4px;flex-wrap:nowrap"><button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button>${priceTags(invPriceSum(PX,id,j,x))}</span><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" title="Read the materials and total from the PDF${L.length?' (replaces the materials read before; lines you added on top of the total stay)':''}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}<select class="f inv-move" data-invmove="${id}|${j}" aria-label="Move this invoice to another PO" title="Move this invoice to another PO"><option value="">Move to…</option>${micPoOpts('').replace('<option value="">Choose the PO…</option>','').replace(`<option value="${id}" >`,`<option value="${id}" disabled>`)}</select></span>${delBtn('inv',id,String(j))}</div>
         ${(()=>{const e=EXT[id+'_'+j];return e?`<div class="extmsg ${e.err?'err':e.ok?'ok':'busy'}">${esc(e.busy||e.ok||e.err)}</div>`:''})()}
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
@@ -3708,7 +3725,7 @@ document.addEventListener('click',async e=>{const a=e.target.closest&&e.target.c
   if(HOSTED&&window.__sb){e.preventDefault();try{const {data,error}=await window.__sb.storage.from('files').createSignedUrl(a.dataset.dlfile,600,{download:a.dataset.dlname||true});if(error)throw error;if(window.oxDesktop)window.oxDesktop.openExternal(data.signedUrl);else location.href=data.signedUrl}catch(err){setSave('error','Could not download the file')}return}
   if(!HOSTED&&downloads){e.preventDefault();try{const r=await fetch(a.getAttribute('href'));const b=await r.blob();await downloads.save({filename:a.dataset.dlname||'PO.pdf',data:b})}catch(err){if(!(err&&err.code==='declined'))setSave('error','Could not download the file')}}});
 function poRaiser(po){return String(po.printName??(window.__me?(window.__me.name||window.__me.email):'')).trim()}
-function poPdf(d){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210;
+function poPdf(d){const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
   try{doc.addImage(LOGO,'PNG',14,5.5,23.5,31)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
@@ -4033,7 +4050,7 @@ async function msApprPdf(id){
   const C=msCalc(m);const ch0=C.ch;
   /* every supplier you've entered anything for; more than five go on A3 so the columns stay readable */
   const SI=m.suppliers.map((n,si)=>si).filter(si=>String(m.suppliers[si]||'').trim()||C.sup[si]>0||m.items.some(it=>String((it.r||[])[si]??'').trim()!=='')||((m.quotes||[])[si]&&m.quotes[si].id)||si===ch0);
-  const big=SI.length>5;const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:big?'a3':'a4',orientation:'landscape'});const W=big?420:297,PH=big?297:210;
+  const big=SI.length>5;const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:big?'a3':'a4',orientation:'landscape'}));const W=big?420:297,PH=big?297:210;
   pdfHeader(doc,'Material schedule & order approval');const cols=MS_COLS[m.type]||MS_COLS.general;const a=m.appr||{};const ch=C.ch;
   const f2=n=>Number(n||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});const fq=n=>Number(n||0).toLocaleString('en-AU',{maximumFractionDigits:2});
   doc.setFontSize(9.5);
@@ -4068,7 +4085,7 @@ async function msPdf(id,di){
   const m=S.msods[id];const d=m&&m.dockets[di];if(!d)return;
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
   const cols=(MS_COLS[m.type]||MS_COLS.general).filter(c=>!(m.type==='submain'&&c[0]==='run'));const land=true;/* landscape so every item schedule column has room */
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',orientation:land?'landscape':'portrait'});const W=land?297:210;const h={...(m.hdr||{})};h.supplier=h.supplier||msSupName(m,msChosen(m));h.jobName=h.jobName||PROJ[PID]?.name||S.info.name||'';h.jobNo=h.jobNo||S.info.job||'';
+  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4',orientation:land?'landscape':'portrait'}));const W=land?297:210;const h={...(m.hdr||{})};h.supplier=h.supplier||msSupName(m,msChosen(m));h.jobName=h.jobName||PROJ[PID]?.name||S.info.name||'';h.jobNo=h.jobNo||S.info.job||'';
   pdfHeader(doc,'Material delivery request');
   doc.setFontSize(9.5);
   const L=[['Supplier',h.supplier],['Attention',h.attention],['Supplier ref',h.supplierRef],['Order no.',h.orderNo],['Job name',h.jobName],['Delivery address',h.address],['Site contact',h.contact]];
@@ -5886,6 +5903,7 @@ function render(){
     if(el.tagName==='INPUT'&&typeof tv==='string'&&el.value!==tv&&tv.trim()!==''&&/^[\d\s$,.%-]*$/.test(tv)&&/^[\d\s$,.%-]*$/.test(el.value)&&num(tv)===num(el.value))el.value=tv;
     try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
   try{rdDecorate()}catch(e){console.error(e)}
+  try{ordDetFit()}catch(e){}
   if(UI.llogFlash&&UI.view==='labour')try{llogShowMoved()}catch(e){}
 }
 
@@ -6874,7 +6892,7 @@ async function gtXlsx(){try{if(!window.ExcelJS)await loadScript('lib/exceljs.min
 
 /* ---- PDF: A3 landscape, task list on the left, Gantt on the right ---- */
 async function gtPdf(){try{if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const P=progDoc();const R=gtCalc(P);const crit=UI.gtCrit!==false;const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a3',orientation:'landscape'});const W=420,Hp=297,M=12;
+  const P=progDoc();const R=gtCalc(P);const crit=UI.gtCrit!==false;const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a3',orientation:'landscape'}));const W=420,Hp=297,M=12;
   const proj=[S.info.job,PROJ[PID]?.name||S.info.name].filter(Boolean).join(' ');
   const cx=[M,M+9,M+97,M+113,M+133,M+153];const gx0=M+166,gx1=W-M;
   let lo=R.start,hi=R.finish;for(const r of R.rows){if(r.t.bs&&r.t.bs<lo)lo=r.t.bs;if(r.t.bf&&r.t.bf>hi)hi=r.t.bf}
@@ -7590,6 +7608,17 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
     if(isDateBox(t)||isTypeBox(t))t.blur()}
   e.preventDefault();if(redo)doRedo();else doUndo()});
 
+/* An open order's details (its PO, terms, attachments and invoices) sit in a row as wide as the whole orders table, which is
+   wider than the screen on most laptops, so the PO was cut off on the right. They're held to the part of the table you can see.
+   On a wide screen they're indented under the order's own columns; on a phone they use the whole width. */
+const ORD_RO=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>{for(const en of es)if(!en.target.isConnected)ORD_RO.unobserve(en.target);requestAnimationFrame(()=>{try{ordDetFit()}catch(e){}})}):null;
+function ordDetFit(){if(!viewEl)return;viewEl.querySelectorAll('.ord-det').forEach(el=>{const tw=el.closest('.tw'),td=el.closest('td');if(!tw||!td)return;
+  if(ORD_RO&&!tw.__odro){tw.__odro=1;ORD_RO.observe(tw)}
+  const cs=getComputedStyle(td),l=td.offsetLeft+(parseFloat(cs.paddingLeft)||0),vis=tw.clientWidth;
+  const tb=td.closest('table'),c0=tb&&tb.rows[0]&&tb.rows[0].cells[0];const ind=vis>=760&&c0?Math.max(0,c0.offsetWidth-td.offsetLeft):0;
+  const w=Math.max(260,vis-l-12);const set=(k,v)=>{if(el.style.getPropertyValue(k)!==v)el.style.setProperty(k,v)};
+  set('--det-l',l+'px');set('--det-w',w+'px');set('--det-i',ind+'px')})}
+addEventListener('resize',()=>{try{ordDetFit()}catch(e){}});
 /* ---------- drag rows to move them ----------
    A row that can be moved has a ⠿ handle (beside its ▲ ▼ buttons where it has them). Drag it: a line shows where it will go,
    and letting go moves it there. A heading takes everything under it, a split line its sub-lines; a line can go into another
