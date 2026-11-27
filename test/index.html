@@ -7571,6 +7571,36 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
     if(isDateBox(t)||isTypeBox(t))t.blur()}
   e.preventDefault();if(redo)doRedo();else doUndo()});
 
+/* ---------- moving between boxes like a spreadsheet ----------
+   In a table, Enter goes to the box below (Shift+Enter, the box above) and ↑ ↓ go up and down the column, skipping rows with
+   nothing in that column. ← → go to the box beside once the cursor is at the start or end of what's typed, or it's all selected
+   (arriving in a box selects what's in it, so typing replaces it; F2 puts the cursor at the end to edit it instead).
+   Drop-downs and ticks move too. Date boxes keep ↑ ↓ ← → for the day, month and year; notes boxes and suggestion lists keep their keys. */
+const navCell=el=>!!el&&!!el.matches&&el.matches('input:not([type=hidden]):not([type=file]):not([type=button]):not([type=submit]):not([type=range]):not([type=color]):not([disabled]),select:not([disabled]),textarea:not([disabled])')&&!!el.closest('td')&&!!viewEl&&viewEl.contains(el)&&el.offsetParent!==null;
+const navRowCells=tr=>[...tr.querySelectorAll(':scope>td input,:scope>td select,:scope>td textarea')].filter(x=>x.closest('tr')===tr&&navCell(x));
+function navVert(el,dir){const tr=el.closest('tr');const tb=tr&&tr.closest('table');if(!tb)return null;const r0=el.getBoundingClientRect();const cx=(r0.left+r0.right)/2;
+  const rows=[...tb.tBodies].flatMap(b=>[...b.rows]);let i=rows.indexOf(tr);if(i<0)return null;
+  for(i+=dir;i>=0&&i<rows.length;i+=dir){let best=null,bd=1e9;
+    for(const c of navRowCells(rows[i])){const r=c.getBoundingClientRect();if(!r.width)continue;
+      if(r0.width<160&&r.width>Math.max(2.5*r0.width,r0.width+150))continue;/* from a narrow column, don't land in a heading's wide box */
+      const inside=r.left<=cx&&cx<=r.right;const dd=inside?Math.abs((r.left+r.right)/2-cx)/1000:Math.min(Math.abs(r.left-cx),Math.abs(r.right-cx));
+      if(!inside&&dd>40)continue;if(dd<bd){bd=dd;best=c}}
+    if(best)return best}
+  return null}
+function navHorz(el,dir){const tr=el.closest('tr');if(!tr)return null;const C=navRowCells(tr);const i=C.indexOf(el);return i<0?null:C[i+dir]||null}
+function navGo(to){if(!to)return false;to.focus();try{if(to.tagName==='INPUT'&&/^(text|search|tel|url|email|)$/.test(to.type||'')&&to.select)to.select()}catch(e){}return true}
+document.addEventListener('keydown',e=>{if(e.defaultPrevented||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;const k=e.key;
+  if(k==='F2'){const el=e.target;if(navCell(el)&&el.tagName==='INPUT'){try{const L=el.value.length;el.setSelectionRange(L,L);e.preventDefault()}catch(x){}}return}
+  if(!['Enter','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))return;
+  const el=e.target;if(!navCell(el)||el.tagName==='TEXTAREA')return;const type=(el.type||'').toLowerCase();const isSel=el.tagName==='SELECT';
+  if(k==='Enter'){if(el.dataset&&el.dataset.enter)return;const to=navVert(el,e.shiftKey?-1:1);if(to){e.preventDefault();navGo(to)}return}
+  if(e.shiftKey)return;/* Shift + arrows select text */
+  if(/^(date|month|time|datetime-local|week)$/.test(type))return;/* a date box's arrows change the day, month or year */
+  if(k==='ArrowUp'||k==='ArrowDown'){if(el.tagName==='INPUT'&&el.getAttribute('list'))return;const to=navVert(el,k==='ArrowDown'?1:-1);if(to||isSel)e.preventDefault();navGo(to);return}
+  if(el.tagName==='INPUT'&&type!=='checkbox'&&type!=='radio'){let s0=null,s1=null;try{s0=el.selectionStart;s1=el.selectionEnd}catch(x){}
+    if(s0!=null){const L=el.value.length,all=s0===0&&s1===L&&L>0;if(k==='ArrowLeft'&&!(all||(s0===0&&s1===0)))return;if(k==='ArrowRight'&&!(all||(s0===L&&s1===L)))return}}
+  const to=navHorz(el,k==='ArrowRight'?1:-1);if(to||isSel)e.preventDefault();navGo(to)});
+
 /* ---------- projects ---------- */
 let unsubs=[];
 function blankState(){Object.assign(S,{invchk:{items:[]},prog:{start:'',days:[1,2,3,4,5],hol:[],base:false,tasks:[]},llog:{rows:[]},info:{},cash:{start:'',m:{}},crew:{rows:null},vars:{},orders:{},procs:{},msods:{},ests:{},tasks:{},apt:{},dwgs:{},site:{},claim:null})}
