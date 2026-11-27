@@ -469,7 +469,7 @@ td.pc-item,th.pc-item{border-right:1px solid var(--line)}td.pc-desc,th.pc-desc{p
 .pc-h2 td{background:color-mix(in srgb,var(--accent) 3.5%,transparent)!important}.pc-h2 .f{font-weight:600;font-size:13.5px}
 .pc-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.pc-hrow .f{font-weight:700;font-size:14px;background:transparent}
 tr.itp-done>td{background:color-mix(in srgb,#2e8b57 13%,transparent)!important}tr.itp-done>td:first-child{box-shadow:inset 4px 0 0 #2e8b57}.tauto>table{min-width:0!important;width:100%}.tauto td,.tauto th{min-width:0!important}.tauto td .f,.tauto td input,.tauto td select{min-width:0!important;width:100%;box-sizing:border-box}.tauto th{white-space:normal}
-.pg-itp{margin-top:4px}tr.itp-dropping>td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}.pg-itp .btn{font-size:12px;padding:3px 9px}
+.pg-itp{margin-top:4px}.itp-need{color:var(--bad);font-size:11.5px;line-height:1.3;margin-top:4px}tr.itp-dropping>td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}.pg-itp .btn{font-size:12px;padding:3px 9px}
 .inst-share{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 tr.var-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.var-kid>td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--accent) 45%,transparent);padding-left:18px}tr.var-kid>td:nth-child(2){position:relative;padding-left:24px}.var-kidmark{position:absolute;left:6px;top:20px;color:var(--accent);font-weight:700}
 .var-subadd{color:var(--accent);font-weight:600;font-size:12px;margin-top:4px;display:inline-block}.var-subsum{font-size:11.5px;color:var(--muted,#667);margin-top:4px;line-height:1.35}.var-ofpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;white-space:nowrap}.var-ofpick .f{font-size:12px;padding:3px 6px;max-width:150px}
@@ -1663,6 +1663,17 @@ function syncNodeColl(){let ch=false;for(const t of TASK_IDS){let N;try{N=taskNo
   if(ch)saveColl()}
 function saveColl(){try{localStorage.setItem('ox_open',JSON.stringify([...OPENED].slice(-3000)))}catch(e){}}
 const NO_ITP=new Set(['t15','t16']);
+/* a line (or sub-line) can't go to 100% complete in Progress until its ITP is uploaded. Temporary works is left out, and so are the
+   tasks that take no ITP (Management & supervision, Downtime & defects) */
+const ITP_FREE=new Set(['t01']);
+const itpNeed=(t,o)=>!!o&&!NO_ITP.has(t)&&!ITP_FREE.has(t)&&!(o.itpFile&&o.itpFile.id);
+function itpCap(t,o,key,v){if(String(v??'').trim()===''||num(v)<100||!itpNeed(t,o)){if(UI.itpMsg&&UI.itpMsg.key===key){UI.itpMsg=null;scheduleRender(0)}return v}
+  UI.itpMsg={key,until:Date.now()+10000};clearTimeout(window.__itpMsgT);window.__itpMsgT=setTimeout(()=>{if(UI.itpMsg&&Date.now()>=UI.itpMsg.until-50){UI.itpMsg=null;if(UI.view==='progress')scheduleRender(0)}},10050);
+  scheduleRender(0);return '99'}
+/* under a line's % complete in Progress: why it stopped at 99%, or a line already at 100% without its ITP */
+function itpNote(t,o,key){if(!itpNeed(t,o))return '';const m=UI.itpMsg;
+  if(m&&m.key===key&&Date.now()<m.until)return `<div class="itp-need" role="alert">Upload the ITP to mark this 100%. Set to 99% until then.</div>`;
+  return num(o.pct)>=100?`<div class="itp-need">100% but no ITP uploaded</div>`:''}
 /* site photos on a progress line or sub-line: take them with the phone camera or pick several, kept with the line */
 const phTarget=key=>{const [k,t,j,...p]=key.split('|');const d=ensureTask(t);const it=d.items[+j];return k==='pph'?(p.length?subAt(it,p.join('|')):it):null};
 function photoCell(key,arr){const P=(arr||[]).filter(x=>x&&x.id);const eid='ph_'+key.replace(/[^A-Za-z0-9_-]/g,'_');
@@ -3306,7 +3317,7 @@ function pgSubs(t,j,node,pre,depth,ctx){const pad=34+(depth-1)*20;
     if(sb.subs&&sb.subs.length){const ck='t'+t+'_'+j+'.'+kp;const cl=COLL.has(ck);
       return `<tr class="subrow subparent"><td style="padding-left:${pad-20}px"><div style="display:flex;align-items:flex-start;gap:6px"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button><div><b>${esc(sb.desc||'Sub-line '+(q+1))}</b>${splitChips(sb)}</div></div></td><td>${ctx.bar(y.pct)}</td><td class="n money">${pendOf(sb)?`<span class="tag acc" style="margin-right:4px">+${fmtH(pendOf(sb))} to submit</span>`:''}<b>${hrs(y.spent)}</b> <span class="hint">/ ${hrs(budOf(sb))} budget</span></td></tr>`+(cl?'':pgSubs(t,j,sb,kp,depth+1,ctx))}
     const itpOn=!NO_ITP.has(t);const hasI=itpOn&&sb.itpFile&&sb.itpFile.id;
-    return `<tr class="subrow${hasI?' itp-done':''}" ${itpOn?`data-itpkey="isub|${t}|${j}|${kp}" title="Drop the ITP PDF on this line"`:''}><td style="padding-left:${pad}px">${esc(sb.desc||'Sub-line '+(q+1))}${itpOn?`<div class="pg-itp">${itpCell('isub|'+t+'|'+j+'|'+kp,sb.itpFile,'ITP')}${photoCell('pph|'+t+'|'+j+'|'+kp,sb.photos)}</div>`:''}</td><td><div class="pg-in">${ctx.pcIn('isub|'+t+'|'+j+'|'+kp+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${ctx.bar(y.pct)}</div></td><td><div class="pg-in">${ctx.pcIn('isub|'+t+'|'+j+'|'+kp+'|newHrs',sb.newHrs,(sb.desc||'Sub-line')+' hours this period')}<span class="hint">${budTxt(y.spent,budLine(sb),1)}</span></div>${lastSubCell(sb,t,j,kp)}</td></tr>`}).join('')}
+    return `<tr class="subrow${hasI?' itp-done':''}" ${itpOn?`data-itpkey="isub|${t}|${j}|${kp}" title="Drop the ITP PDF on this line"`:''}><td style="padding-left:${pad}px">${esc(sb.desc||'Sub-line '+(q+1))}${itpOn?`<div class="pg-itp">${itpCell('isub|'+t+'|'+j+'|'+kp,sb.itpFile,'ITP')}${photoCell('pph|'+t+'|'+j+'|'+kp,sb.photos)}</div>`:''}</td><td><div class="pg-in">${ctx.pcIn('isub|'+t+'|'+j+'|'+kp+'|pct',sb.pct,(sb.desc||'Sub-line')+' % complete')}<span class="hint">%</span>${ctx.bar(y.pct)}</div>${itpNote(t,sb,'isub|'+t+'|'+j+'|'+kp)}</td><td><div class="pg-in">${ctx.pcIn('isub|'+t+'|'+j+'|'+kp+'|newHrs',sb.newHrs,(sb.desc||'Sub-line')+' hours this period')}<span class="hint">${budTxt(y.spent,budLine(sb),1)}</span></div>${lastSubCell(sb,t,j,kp)}</td></tr>`}).join('')}
 function splitChips(it){const n=it.subs.length;return `<div class="splitsum"><span class="schip">Split into ${n} sub-line${n===1?'':'s'}</span></div>`}
 function taskEditor(t){
   const td=taskDoc(t);const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(x=>x.id));
@@ -3364,7 +3375,8 @@ V.progress=()=>{foldWbs();
   if(!allT.some(o=>o.t===UI.pgSel))UI.pgSel=allT[0]?.t||'';const single=!UI.pgAll&&!q;
   const tasks=single?allT.filter(o=>o.t===UI.pgSel):allT;
   const pcIn=(key,val,lbl)=>`<input class="f num" id="${key.replace(/\|/g,'_')}" data-b="${key}" inputmode="decimal" value="${esc(val??'')}" placeholder="0" aria-label="${esc(lbl)}">`;
-  const bar=p=>`<div class="pg-bar"><div class="bar"><i style="width:${Math.min(Math.max(p,0),1)*100}%"></i></div><span class="money">${pct(p,0)}</span></div>`;
+  /* 99.5% and over isn't shown as 100% until it is (a line can sit at 99% waiting for its ITP) */
+  const bar=p=>`<div class="pg-bar"><div class="bar"><i style="width:${Math.min(Math.max(p,0),1)*100}%"></i></div><span class="money">${pct(p>=0.995&&p<1?0.99:p,0)}</span></div>`;
   const match=it=>!q||(it.desc||'').toLowerCase().includes(q)||(it.subs||[]).some(sb=>match(sb));
   const body=tasks.map(({t,ti,d,x})=>{
     const secs=taskSecs(t);const first=secs[0].id;const ids=new Set(secs.map(z=>z.id));const open=!COLL.has('pg'+t);
@@ -3379,7 +3391,7 @@ V.progress=()=>{foldWbs();
           return `<tr class="parentrow"><td><div style="display:flex;align-items:flex-start;gap:6px"><button class="tog" data-act="tog-sub" data-v="${ck}" aria-expanded="${!cl}" aria-label="${cl?'Show':'Hide'} sub-lines">${cl?'▸':'▾'}</button><div><b>${esc(it.desc||'Untitled line')}</b>${splitChips(it)}</div></div></td><td>${bar(y.pct)}</td><td class="n money">${pendOf(it)?`<span class="tag acc" style="margin-right:4px">+${fmtH(pendOf(it))} to submit</span>`:''}<b>${hrs(y.spent)}</b> <span class="hint">/ ${budOf(it)?hrs(budOf(it))+' budget':'no budget'}</span></td></tr>`+
           (cl?'':pgSubs(t,j,it,'',1,{pcIn,bar}));}
         const itpOn=!NO_ITP.has(t);const hasI=itpOn&&it.itpFile&&it.itpFile.id;
-        return `<tr class="${hasI?'itp-done':''}" ${itpOn?`data-itpkey="item|${t}|${j}" title="Drop the ITP PDF on this line"`:''}><td>${esc(it.desc||'Untitled line')}${itpOn?`<div class="pg-itp">${itpCell('item|'+t+'|'+j,it.itpFile,'ITP')}${photoCell('pph|'+t+'|'+j,it.photos)}</div>`:''}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|pct',it.pct,(it.desc||'Line')+' % complete')}<span class="hint">%</span>${bar(y.pct)}</div></td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|newHrs',it.newHrs,(it.desc||'Line')+' hours this period')}<span class="hint">${budTxt(y.spent,budLine(it),1)}</span></div>${lastSubCell(it,t,j,-1)}</td></tr>`}).join(''));
+        return `<tr class="${hasI?'itp-done':''}" ${itpOn?`data-itpkey="item|${t}|${j}" title="Drop the ITP PDF on this line"`:''}><td>${esc(it.desc||'Untitled line')}${itpOn?`<div class="pg-itp">${itpCell('item|'+t+'|'+j,it.itpFile,'ITP')}${photoCell('pph|'+t+'|'+j,it.photos)}</div>`:''}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|pct',it.pct,(it.desc||'Line')+' % complete')}<span class="hint">%</span>${bar(y.pct)}</div>${itpNote(t,it,'item|'+t+'|'+j)}</td><td><div class="pg-in">${pcIn('item|'+t+'|'+j+'|newHrs',it.newHrs,(it.desc||'Line')+' hours this period')}<span class="hint">${budTxt(y.spent,budLine(it),1)}</span></div>${lastSubCell(it,t,j,-1)}</td></tr>`}).join(''));
     }).join('');
     if(q&&!secHtml)return '';
     return `<div class="panel pg-task"><button class="pg-head" data-act="tog-sub" data-v="pg${t}" aria-expanded="${open}"><span class="caret">${open?'▾':'▸'}</span><span class="pg-name">${String(ti+1).padStart(3,'0')} · ${esc(TASKS[ti])}</span><span class="pg-sum">${bar(x.pct)}<span class="money hint">${budTxt(x.spent,taskBud(t),1)}</span></span></button>
@@ -3388,7 +3400,7 @@ V.progress=()=>{foldWbs();
   const P=pendTotal();const armedS=UI.armed==='pg-submit';const last=(S.info.hrsSubs||[]).slice(-1)[0];const armedR=last&&UI.armed==='pgrs'+last.sid;
   const submitBar=`<div class="panel pg-submit"><div><h3>Hours this period</h3><p class="hint">Enter hours against each line below, then submit. Submitting adds them to hours spent in Labour & tasks and clears these fields. % complete stays as entered. Made a mistake? Retract a line’s last submission, or the whole submission.${last?` Last submitted ${fmtDate(last.date)}: ${fmtH(last.hrs)} hrs on ${last.lines} line${last.lines===1?'':'s'}.`:''}</p></div>
     <div class="toolbar">${last&&last.sid?`<button class="btn ${armedR?'armed':''}" data-act="pg-retract-all" data-v="${last.sid}">${armedR?'Confirm: retract '+fmtH(last.hrs)+' hrs':'Retract last submission'}</button>`:''}<span class="money"><b>${fmtH(P.hrs)}</b> hrs on ${P.lines} line${P.lines===1?'':'s'}</span><button class="btn ${armedS?'armed':'primary'}" data-act="pg-submit" ${P.lines?'':'disabled'}>${armedS?'Confirm: submit '+fmtH(P.hrs)+' hrs':'Submit hours'}</button></div></div>`;
-  return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. % complete updates Labour & tasks straight away. Hours are added to Labour & tasks when you submit them.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
+  return `<div class="stack">${head('Progress','Quick progress update for every task, laid out by the sections and lines in Labour & tasks. % complete updates Labour & tasks straight away. A line can’t go to 100% until its ITP is uploaded (except Temporary works and Management). Hours are added to Labour & tasks when you submit them.',`<label class="toolbar"><span class="hint">Find</span><input class="f" style="border-color:var(--line);width:200px" id="pg_q" data-ui="pq" value="${esc(UI.pq||'')}" placeholder="Line description"></label>`)}
   <div class="kpis"><div class="kpi"><span class="l">Overall complete</span><span class="v">${pct(c.lEst?c.lEarned/c.lEst:0)}</span><span class="d">Hours earned ÷ estimated hours</span></div><div class="kpi"><span class="l">Hours spent</span><span class="v">${hrs(c.lSpent)}</span><span class="d">of ${allBud()?hrs(allBud())+' budget':'no budget set'}</span></div><div class="kpi"><span class="l">Forecast at completion</span><span class="v">${hrs(c.lFc)}</span><span class="d ${c.lEst-c.lFc<0?'neg':''}">${c.lEst-c.lFc<0?hrs(c.lFc-c.lEst)+' hrs over':hrs(c.lEst-c.lFc)+' hrs under'}</span></div></div>
   ${submitBar}
   <div class="panel"><div class="sec-head" style="margin-bottom:10px"><div><h3>Overall completion by task</h3><p class="hint">All tasks, by hours earned against estimated hours. Click a task to update its progress below.</p></div></div>
@@ -6837,8 +6849,8 @@ function apply(parts,v){
     persist('project/claim');return}
   if(kind==='pch'){const d=claimDoc();const hh=d.hist[+a];if(hh&&hh.wf&&(hh.status==='Approved'||['status','no','submitted','approved','date'].includes(b))){scheduleRender(0);return}if(d.hist[+a]){d.hist[+a][b]=v;persist('project/claim')}return}
   if(kind==='tksec'){const d=ensureTask(a);if(d.sections[+b]){d.sections[+b][c]=v;persist('tasks/'+a)}return}
-  if(kind==='isub'){const d=ensureTask(a);const sb=subAt(d.items[+b],c);if(sb){lhRec(sb,parts[4]);if(parts[4]==='pct'&&sb.subPct===undefined)sb.subPct=sb.pct||'';sb[parts[4]]=v;persist('tasks/'+a)}return}
-  if(kind==='item'){const t=S.tasks[a]=taskDoc(a);const it=t.items[+b];if(it){lhRec(it,c);if(c==='pct'&&it.subPct===undefined)it.subPct=it.pct||'';it[c]=v;persist('tasks/'+a)}return}
+  if(kind==='isub'){const d=ensureTask(a);const sb=subAt(d.items[+b],c);if(sb){lhRec(sb,parts[4]);if(parts[4]==='pct')v=itpCap(a,sb,'isub|'+a+'|'+b+'|'+c,v);if(parts[4]==='pct'&&sb.subPct===undefined)sb.subPct=sb.pct||'';sb[parts[4]]=v;persist('tasks/'+a)}return}
+  if(kind==='item'){const t=S.tasks[a]=taskDoc(a);const it=t.items[+b];if(it){lhRec(it,c);if(c==='pct')v=itpCap(a,it,'item|'+a+'|'+b,v);if(c==='pct'&&it.subPct===undefined)it.subPct=it.pct||'';it[c]=v;persist('tasks/'+a)}return}
   if(kind==='trade'){const d=S.apt[a]=aptDoc(a);d[b]=v;persist('apartments/'+a);return}
   if(kind==='tsec'){const d=aptDoc(a);if(d.sections[+b]){d.sections[+b][c]=v;structDirty.add(a);persist('apartments/'+a)}return}
   if(kind==='tline'){const d=aptDoc(a);const l=d.sections[+b]?.lines[+c];if(l){if(parts[4]==='kind'){if(v==='head')l.head=true;else delete l.head;structDirty.add(a);persist('apartments/'+a);render();return}l[parts[4]]=v;structDirty.add(a);persist('apartments/'+a)}return}
