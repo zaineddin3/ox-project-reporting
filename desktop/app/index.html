@@ -513,6 +513,7 @@ tr.pcv-grp>td{background:color-mix(in srgb,var(--accent) 7%,var(--panel,#fff));b
 .tag select.pk-role{width:auto!important;min-width:0!important;display:inline-block;padding:1px 22px 1px 6px;font-size:12px;height:auto;margin-left:6px;background-color:var(--panel,#fff)}.pkx{background:var(--bg)}
 /* negative figures typed into a box show in red */
 input.f[value^="-"]:not([type=date]):not([type=email]){color:var(--bad)}tr[data-vdrop] .money.neg,.bupanel .money.neg,.var-reg .money.neg{color:var(--bad)}
+input.f.neg-in,input.neg-in{color:var(--bad)!important}
 .vatt-one{display:inline-flex;align-items:center;gap:2px;white-space:nowrap;margin:1px 4px 1px 0}.vatt-one .btn{padding:0 5px;font-size:11px;min-height:0}
 /* claim % boxes show a % sign after the number */
 .pctw{position:relative;display:block}.pctw input.f{padding-right:20px;text-align:right}.pctw::after{content:'%';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12.5px;pointer-events:none}
@@ -1417,7 +1418,7 @@ function varRegHtml(){const R=varRegRows();const by={};varRegCount(R).forEach(r=
   <div class="tw"><table><thead><tr><th>Variation</th><th>Client ref</th><th style="min-width:260px">Description</th><th class="n">Sell (ex GST)</th><th>Date submitted</th><th>Status</th></tr></thead><tbody>
   ${R.map(r=>`<tr class="${r.kid?'var-kid':''}"><td class="mono" style="${r.kid?'padding-left:26px':''}">${r.kid?'↳ ':''}${esc(r.ref||'—')}</td><td class="mono">${esc(r.client||'—')}</td><td>${esc(r.desc||'—')}</td><td class="n money ${r.sell<0?'neg':''}">${r.summ?`<i title="Total of its sub-variations (not added again to the totals)">${money2(r.sell)}</i>`:money2(r.sell)}</td><td>${r.date?fmtDate(r.date):'—'}</td><td><span class="tag ${/approv/i.test(r.status)?'ok':/reject|withdraw/i.test(r.status)?'bad':''}">${esc(r.status)}</span></td></tr>`).join('')||'<tr><td colspan="6" class="hint">No variations yet.</td></tr>'}</tbody>
   <tfoot>${Object.entries(by).map(([k,v])=>`<tr><td colspan="3">${esc(k)}</td><td class="n money">${money2(v)}</td><td colspan="2"></td></tr>`).join('')}<tr class="grand"><td colspan="3">Total</td><td class="n money">${money2(tot)}</td><td colspan="2"></td></tr></tfoot></table></div></div>`}
-async function varRegPdf(){if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4',orientation:'landscape'}));pdfHeader(doc,'Variation register');
+async function varRegPdf(){if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}const {jsPDF}=window.jspdf;const doc=pdfNegRed(pdfSafe(new jsPDF({unit:'mm',format:'a4',orientation:'landscape'})));pdfHeader(doc,'Variation register');
   const R=varRegRows();const m2=n=>(Number(n)<0?'-$':'$')+Math.abs(Number(n||0)).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
   doc.setFontSize(9.5);doc.text(`Project: ${PROJ[PID]?.name||S.info.name||''}${S.info.job?'   Job no.: '+S.info.job:''}   Printed: ${fmtDate(todayISO())}`,14,52);
   const by={};varRegCount(R).forEach(r=>{by[r.status]=(by[r.status]||0)+r.sell});const tot=varRegCount(R).reduce((a,r)=>a+r.sell,0);
@@ -1536,7 +1537,7 @@ function varSummPanel(pid){const P=S.vars[pid];const K=varKids(pid);const G=vGro
     <tfoot>${Object.entries(by).map(([k,v])=>`<tr><td colspan="4">${esc(k)}</td><td class="n money">${money2(v)}</td><td colspan="4"></td></tr>`).join('')}<tr class="grand"><td colspan="4">Total of sub-variations</td><td class="n money">${money2(G.sell)}</td><td class="n money">${money2(G.cost)}</td><td class="n money">${money2(G.margin)}</td><td class="n money">${hrs(G.hrs)}</td><td></td></tr></tfoot></table></div>
     ${hasBu(P)||num(P.submitted)?'<p class="hint" style="margin-top:8px">This variation’s own earlier build-up or amount is kept but not counted while it has sub-variations.</p>':''}</div>`}
 async function varSummPdf(pid){const P=S.vars[pid];if(!P)return;if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
+  const {jsPDF}=window.jspdf;const doc=pdfNegRed(pdfSafe(new jsPDF({unit:'mm',format:'a4'})));const W=210;
   try{doc.addImage(LOGO,'PNG',14,5.5,23.5,31)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
@@ -1670,7 +1671,7 @@ async function claimPdf(lbl){
 async function sellPdf(id,ri,scope){const summ=scope==='summary';if(summ)scope=false;
   const cur=S.vars[id];if(!cur)return;const v=(ri!=null&&ri!==''&&cur.revs?.[+ri])||cur;const bu=v.bu||VBU_DEF();const X=vbuCalc(bu);const r=bu.rates||{};
   if(!window.jspdf||!window.jspdf.jsPDF){setSave('error','PDF tool did not load. Reload the page and try again.');return}
-  const {jsPDF}=window.jspdf;const doc=pdfSafe(new jsPDF({unit:'mm',format:'a4'}));const W=210;
+  const {jsPDF}=window.jspdf;const doc=pdfNegRed(pdfSafe(new jsPDF({unit:'mm',format:'a4'})));const W=210;
   try{doc.addImage(LOGO,'PNG',14,5.5,23.5,31)}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('OXFORD ELECTRICAL GROUP PTY LTD',W-14,15,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('Unit 15, 20-30 Stubbs St, Silverwater 2128',W-14,20,{align:'right'});doc.text('ABN 93 158 954 600   Ph 02 9002 3377',W-14,24.5,{align:'right'});doc.text('www.oxfordgroup.com.au',W-14,29,{align:'right'});
@@ -1842,6 +1843,15 @@ async function readPdf(blob){
 const PDF_CH={'\u2212':'-','\u2009':' ','\u202F':' ','\u2264':'<=','\u2265':'>=','\u2192':'->','\u2190':'<-'};const PDF_RE=/[\u2212\u2009\u202F\u2264\u2265\u2192\u2190]/g;
 const pdfFix=t=>typeof t==='string'?t.replace(PDF_RE,c=>PDF_CH[c]):Array.isArray(t)?t.map(pdfFix):t;
 function pdfSafe(doc){for(const m of ['text','getTextWidth','getStringUnitWidth','splitTextToSize']){const f=doc[m];if(typeof f==='function')doc[m]=function(t,...a){return f.call(this,pdfFix(t),...a)}}return doc}
+/* variation PDFs: a negative figure (a credit) prints in red */
+const NEG_RE=/^\s*(?:[−-]\s?\$?\s?\d|\$\s?[−-]\d|\([−-]?\$?\d)/;
+function pdfNegRed(doc){const f=doc.text;doc.text=function(t,...a){const s=Array.isArray(t)?t.join(' '):t;if(typeof s==='string'&&NEG_RE.test(s)){const c=doc.getTextColor();doc.setTextColor(200,30,30);try{return f.call(this,t,...a)}finally{doc.setTextColor(c)}}return f.call(this,t,...a)};return doc}
+/* Variations tab: negative figures (credits) show in red, in the boxes you type in too */
+function negPaint(){if(!viewEl||UI.view!=='variations')return;const w=document.createTreeWalker(viewEl,NodeFilter.SHOW_TEXT);let n;
+  while((n=w.nextNode())){const p=n.parentElement;if(!p||/^(SCRIPT|STYLE|OPTION|TEXTAREA|BUTTON)$/.test(p.tagName))continue;if(NEG_RE.test(n.nodeValue))p.classList.add('neg')}
+  viewEl.querySelectorAll('input').forEach(negIn)}
+function negIn(e){if(e&&e.tagName==='INPUT'&&e.type!=='checkbox'&&e.type!=='date')e.classList.toggle('neg-in',/^\s*[−-]\s?\$?\d/.test(e.value||''))}
+document.addEventListener('input',e=>{if(UI.view==='variations')negIn(e.target)},true);
 /* in-app PDF viewer: works in Claude, the website and the desktop app */
 let PDFV=null;
 function pdfViewClose(){if(PDFV){PDFV.closed=true;PDFV.el.remove();PDFV=null}}
@@ -5909,6 +5919,7 @@ function render(){
   try{rdDecorate()}catch(e){console.error(e)}
   try{ordDetFit()}catch(e){}
   if(UI.llogFlash&&UI.view==='labour')try{llogShowMoved()}catch(e){}
+  try{negPaint()}catch(e){}
 }
 
 
