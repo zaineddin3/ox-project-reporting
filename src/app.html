@@ -284,9 +284,15 @@ tr.vdropping td{background:color-mix(in srgb,var(--accent) 10%,var(--surface))!i
 .kpi.spent-chk.under{background:color-mix(in srgb,#f08c00 18%,var(--surface));box-shadow:inset 4px 0 0 #f08c00}.kpi.spent-chk.under .v,.kpi.spent-chk.under .d b{color:#c66a00}
 .pos{color:var(--good)} .neg{color:var(--bad)}
 .tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+/* long tables scroll inside their own box, so the column headings and the heading of the part you're in stay in view */
+.tw:not(.rsz){max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:auto}
+@media (max-width:860px){.tw:not(.rsz){max-height:calc(100dvh - 96px)}}
+tr.stk>td{position:sticky;top:var(--stk,0px);z-index:2;box-shadow:0 1px 0 var(--line)}
+:where(tr.stk.parentrow,tr.stk.vbh)>td{background:var(--surface)}
+@media print{.tw,.tw:not(.rsz),.tw.tall{max-height:none!important;overflow:visible!important}tr.stk>td{position:static!important;box-shadow:none!important}}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
-th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--soft);white-space:nowrap;position:sticky;top:0;z-index:1}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--soft);white-space:nowrap;position:sticky;top:0;z-index:3;box-shadow:0 1px 0 var(--line)}
 tbody tr:last-child td{border-bottom:0}
 td.n,th.n{text-align:right}
 td.mono{font-family:var(--f-mono);font-size:12.5px}
@@ -466,8 +472,8 @@ tr.ord-kid>td{background:color-mix(in srgb,var(--ink) 2.5%,transparent)}tr.ord-k
 td.pc-item,th.pc-item{border-right:1px solid var(--line)}td.pc-desc,th.pc-desc{padding-left:10px}td.pc-item .f{text-align:left;font-variant-numeric:tabular-nums}
 .pc-hcell{display:flex;align-items:center;gap:4px}.pc-hcell .f{flex:1}.pc-hacts{display:flex;gap:6px;margin-top:3px}.pc-hacts .btn{font-size:12px;padding:2px 8px;color:var(--accent)}
 .pc-parent td{background:color-mix(in srgb,var(--ink) 2%,transparent)}.pc-parent .ro{font-style:italic;color:var(--muted,#667)}.pc-subl td{background:color-mix(in srgb,var(--ink) 1%,transparent)}.pc-kind{display:block;margin-top:4px;font-size:11px;padding:2px 2px;width:120px}tr.pc-hrow select.pc-kind,tr.pc-h2 select.pc-kind{font-weight:400!important;font-size:11px!important;background:var(--panel,#fff)!important}.pc-qadd{margin-top:2px}.pc-qadd .btn{font-size:11px;padding:1px 7px;opacity:.75}tr:hover .pc-qadd .btn{opacity:1}
-.pc-h2 td{background:color-mix(in srgb,var(--accent) 3.5%,transparent)!important}.pc-h2 .f{font-weight:600;font-size:13.5px}
-.pc-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.pc-hrow .f{font-weight:700;font-size:14px;background:transparent}
+.pc-h2 td{background:color-mix(in srgb,var(--accent) 3.5%,var(--surface))!important}.pc-h2 .f{font-weight:600;font-size:13.5px}
+.pc-hrow td{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}.pc-hrow .f{font-weight:700;font-size:14px;background:transparent}
 tr.itp-done>td{background:color-mix(in srgb,#2e8b57 13%,transparent)!important}tr.itp-done>td:first-child{box-shadow:inset 4px 0 0 #2e8b57}.tauto>table{min-width:0!important;width:100%}.tauto td,.tauto th{min-width:0!important}.tauto td .f,.tauto td input,.tauto td select{min-width:0!important;width:100%;box-sizing:border-box}.tauto th{white-space:normal}
 .pg-itp{margin-top:4px}.itp-need{color:var(--bad);font-size:11.5px;line-height:1.3;margin-top:4px}tr.itp-dropping>td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}.pg-itp .btn{font-size:12px;padding:3px 9px}
 .inst-share{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -506,7 +512,7 @@ tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!im
 .inv-dup{background:color-mix(in srgb,#d9822b 14%,transparent);border:1px solid color-mix(in srgb,#d9822b 55%,transparent);border-radius:8px;padding:7px 10px;margin:0 0 8px;font-size:13px}.inv-dup .btn{margin-left:6px;padding:2px 8px;font-size:12px}.invbox.inv-isdup{border-color:#d9822b!important;box-shadow:0 0 0 1px #d9822b}
 .ordsec>td{background:color-mix(in srgb,var(--accent) 9%,var(--panel,#fff));border-top:2px solid color-mix(in srgb,var(--accent) 40%,transparent);font-weight:600}.ordsec .ordsec-name{font-weight:700;font-size:15px}.ord-secpick{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}.ord-secpick .f{font-size:12px;padding:3px 6px}
 .pcxl-dropping,.pcxl-dropping td{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 8%,transparent)!important}.pcxl-btn{font-size:12px;padding:3px 8px;margin-left:8px}
-.ms-rn{white-space:nowrap;width:1%}.ms-mv{display:inline-flex;gap:1px}.ms-hcell{display:flex;align-items:center;gap:6px}.ms-hcell .f{flex:1}.ms-tg{padding:2px 8px;font-size:13px;line-height:1}.ms-tgn{white-space:nowrap;font-size:12px;order:2}.ms-subrow td{background:color-mix(in srgb,var(--accent) 3%,transparent);border-top:1px dashed color-mix(in srgb,var(--accent) 25%,transparent)}.ms-subrow .ms-hcell{padding-left:22px}.ms-subrow .f{font-size:13px}.ms-mv .btn{padding:3px 7px;font-size:11px;line-height:1}.ms-mv .btn[disabled]{opacity:.3;cursor:default}.ms-rn label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.ms-ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.ms-rn{white-space:nowrap;width:1%}.ms-mv{display:inline-flex;gap:1px}.ms-hcell{display:flex;align-items:center;gap:6px}.ms-hcell .f{flex:1}.ms-tg{padding:2px 8px;font-size:13px;line-height:1}.ms-tgn{white-space:nowrap;font-size:12px;order:2}.ms-subrow td{background:color-mix(in srgb,var(--accent) 3%,var(--surface));border-top:1px dashed color-mix(in srgb,var(--accent) 25%,transparent)}.ms-subrow .ms-hcell{padding-left:22px}.ms-subrow .f{font-size:13px}.ms-mv .btn{padding:3px 7px;font-size:11px;line-height:1}.ms-mv .btn[disabled]{opacity:.3;cursor:default}.ms-rn label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.ms-ck{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 .mstable tr.ms-selrow>td{background:color-mix(in srgb,var(--accent) 12%,transparent)!important}.mstable tr.ms-selrow>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 .ms-selbar{margin:0 0 8px;padding:6px 4px}.ms-selbar.on{position:sticky;top:8px;z-index:6;background:var(--panel,#fff);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:10px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.08)}.btn.danger-t{color:var(--neg,#c0392b)}
 .ms-bytype{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}.ms-bytype-t{max-width:640px}.ms-bytype-wrap{overflow-x:auto}.ms-bytype-t.tx{max-width:none}.ms-bytype-t td{vertical-align:middle}.ms-bytype-t .f{border:1px solid var(--line-2,var(--line));background:var(--surface)}.ms-bytype-t th{font-size:12px;text-align:left}.ms-bytype-t th.n{text-align:right}
@@ -514,7 +520,7 @@ tr.flash>td{background:color-mix(in srgb,var(--accent) 18%,var(--panel,#fff))!im
 .ms-fltrow th{background:var(--panel,#fff);padding:4px 4px 6px;font-weight:400}.ms-fltrow .f{font-size:12px;padding:4px 6px;min-width:0;width:100%}.ms-fill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-tfill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .ms-tfill .f{width:auto}
-.ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,transparent);border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
+.ms-hrow td{background:color-mix(in srgb,var(--accent) 7%,var(--surface));border-top:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}.ms-hrow .f{font-weight:700;font-size:14px;background:transparent}
 .msxl-dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
 .ms-appr-tile{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent)}.ms-appr-tile .hint{font-size:12px;max-width:420px}
 .ms-suptot{font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;margin:3px 0;white-space:nowrap}.ms-suptot b{font-size:13px}
@@ -5656,6 +5662,46 @@ function tszBar(k){const z=RSZ[k+':z']||1;return `<div class="tsz-bar" data-tszb
   <span class="sep"></span><span>Rows</span>${[['c','Compact'],['n','Normal'],['t','Tall']].map(([v,l])=>`<button class="btn ghost${(RSZ[k+':dens']||'n')===v?' on':''}" type="button" data-tsz="${k}|dens-${v}" aria-pressed="${(RSZ[k+':dens']||'n')===v}">${l}</button>`).join('')}<span class="sep"></span>
   <button class="btn ghost" type="button" data-tsz="${k}|full">${TSZ_FULL===k?'Exit full screen':'Full screen'}</button><button class="btn ghost" type="button" data-tsz="${k}|reset" title="Back to normal size, column widths too">Reset</button><span class="hint" style="margin-left:6px">Drag a column edge to widen it, a row’s bottom edge to make that row taller, or the bar under the table to resize.</span></div>`}
 function tszSave(){try{localStorage.setItem('ox_rsz',JSON.stringify(RSZ))}catch(e){}}
+/* ---------- long tables: headings stay in view ----------
+   A long table scrolls inside its box with its column headings held at the top (th is sticky). Under them sits the heading of
+   the part you're scrolled into: its section, then its heading, sub-heading and split line, each just below the one above.
+   A split line is held only while you're among its sub-lines. */
+const STK_LV=['tr.secrow,tr.ordsec,tr.to-cath','tr.pc-hrow:not(.pc-h2),tr.ms-hrow:not(.ms-subrow),tr.apt-headrow,tr.vbh1,tr.pcv-grp','tr.pc-h2,tr.ms-subrow,tr.vbh2','tr.parentrow'];
+const STK_KIDS=[['tr.parentrow','tr.subrow,tr.subadd'],['tr.pcv-grp','tr[class*="pcv-"]:not(.pcv-grp)']];
+let STK_GEN=0;
+function stkRows(tw){if(tw.__stkGen===STK_GEN)return tw.__stk;const tb=tw.querySelector(':scope>table');const R=[];
+  if(tb){const all=[...tb.querySelectorAll(':scope>tbody>tr')];
+    for(let i=0;i<all.length;i++){const tr=all[i];const lv=STK_LV.findIndex(sel=>tr.matches(sel));if(lv<0)continue;
+      const kid=STK_KIDS.find(([sel])=>tr.matches(sel));let last=null;
+      if(kid){let j=i+1;while(j<all.length&&all[j].matches(kid[1]))j++;if(j===i+1)continue;last=all[j-1]}
+      R.push({tr,lv,last})}}
+  /* column headings aren't held on phones (th is static there): the held rows then start at the top of the box */
+  const th=tb&&tb.tHead&&tb.tHead.querySelector('th');tw.__stkTh=!!th&&getComputedStyle(th).position==='sticky';
+  tw.__stk=R;tw.__stkTb=tb;tw.__stkGen=STK_GEN;return R}
+function stkUpdate(tw){const R=stkRows(tw);const tb=tw.__stkTb;if(!tb)return;
+  /* moving to a box with Tab (or jumping to a line) keeps it clear of the held headings */
+  const pad=v=>{const px=Math.round(v)+'px';if(tw.style.scrollPaddingTop!==px)tw.style.scrollPaddingTop=px};
+  if(!R.length||(tw.scrollTop<=0&&!tw.__stkAny)){if(tb.tHead&&tw.__stkTh&&tw.scrollHeight>tw.clientHeight){const zw=tw.offsetHeight?tw.getBoundingClientRect().height/tw.offsetHeight:1;pad(tb.tHead.getBoundingClientRect().height/zw)}return}
+  /* measured on screen; a table can be zoomed (Auto fit), so its own lengths are scaled by zr */
+  const twR=tw.getBoundingClientRect(),tbR=tb.getBoundingClientRect();const zr=tb.offsetHeight?tbR.height/tb.offsetHeight:1,zw=tw.offsetHeight?twR.height/tw.offsetHeight:1;
+  const line=twR.top+tw.clientTop*zw;const top=tr=>tbR.top+tr.offsetTop*zr;
+  let off=tb.tHead&&tw.__stkTh?tb.tHead.getBoundingClientRect().height:0;const pick=new Map();let lo=0,hi=R.length;
+  for(let lv=0;lv<STK_LV.length;lv++){let c=-1;
+    for(let k=lo;k<hi;k++){const r=R[k];if(r.lv<lv)break;if(r.lv!==lv)continue;if(top(r.tr)<line+off-0.5)c=k;else break}/* held once it starts to go under */
+    if(c<0)continue;const r=R[c];const h=r.tr.offsetHeight*zr;
+    if(r.last&&top(r.last)+r.last.offsetHeight*zr<=line+off+h)continue;/* scrolled past the split line's sub-lines */
+    /* each held row tucks its top border under the row above (or the column headings), so nothing shows between them */
+    if(r.bt===undefined)r.bt=parseFloat(getComputedStyle(r.tr.cells[0]||r.tr).borderTopWidth)||0;const ov=Math.max(1,Math.ceil(r.bt*zr));
+    pick.set(r.tr,Math.max(0,off-ov)/zr);off+=h-ov;
+    lo=c+1;let n=c+1;while(n<R.length&&R[n].lv>lv)n++;hi=n}
+  let any=false;
+  for(const r of R){const v=pick.get(r.tr);if(v!==undefined){any=true;if(!r.tr.classList.contains('stk'))r.tr.classList.add('stk');const px=(Math.round(v*100)/100)+'px';if(r.tr.style.getPropertyValue('--stk')!==px)r.tr.style.setProperty('--stk',px)}
+    else if(r.tr.classList.contains('stk'))r.tr.classList.remove('stk')}
+  tw.__stkAny=any;pad(off/zw)}
+function stkAll(){STK_GEN++;viewEl.querySelectorAll('.tw').forEach(tw=>{if(tw.scrollHeight>tw.clientHeight)try{stkUpdate(tw)}catch(e){}})}
+{let raf=0;const Q=new Set();
+  document.addEventListener('scroll',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('tw'))return;Q.add(t);if(!raf)raf=requestAnimationFrame(()=>{raf=0;for(const tw of Q)try{stkUpdate(tw)}catch(err){}Q.clear()})},true);
+  window.addEventListener('resize',()=>{STK_GEN++;if(viewEl)viewEl.querySelectorAll('.tw').forEach(tw=>{try{stkUpdate(tw)}catch(e){}})})}
 function tszFull(){viewEl.querySelectorAll('.tsz-full').forEach(x=>x.classList.remove('tsz-full'));document.body.classList.toggle('tsz-full-on',!!TSZ_FULL);if(!TSZ_FULL)return;const bar=viewEl.querySelector(`[data-tszbar="${TSZ_FULL}"]`),tw=viewEl.querySelector(`[data-rsz="${TSZ_FULL}"]`);if(!bar||!tw){TSZ_FULL=null;document.body.classList.remove('tsz-full-on');return}
   let w=bar.parentElement.querySelector(':scope > .tsz-wrap');if(!w||!w.contains(tw)){w=document.createElement('div');w.className='tsz-wrap';bar.before(w);w.append(bar,tw);const g=viewEl.querySelector(`[data-tszgrip="${TSZ_FULL}"]`);if(g)w.append(g)}w.classList.add('tsz-full')}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-tsz]');if(!b)return;const [k,a]=b.dataset.tsz.split('|');const tw=viewEl.querySelector(`[data-rsz="${k}"]`);
@@ -5746,6 +5792,7 @@ function render(){
   if(UI.view==='claim'&&MORPH_VIEW==='claim'&&viewEl.firstChild){if(html!==MORPH_HTML)morphInto(viewEl,html)}else viewEl.innerHTML=html;MORPH_VIEW=UI.view;MORPH_HTML=UI.view==='claim'?html:'';
   viewEl.querySelectorAll('#cp_list,.vpick').forEach((el,i)=>{const v=keepSc[el.id||('vp'+i)];if(v)el.scrollTop=v});calcHost();try{toSync()}catch(e){console.error(e)}try{applyColWidths()}catch(e){}try{roDecorate()}catch(e){}try{if(UI.view==='programme')gtDraw()}catch(e){console.error(e)}try{setTimeout(invAutoRead,0)}catch(e){}try{tszFull()}catch(e){}try{applyRsz()}catch(e){}
   [...viewEl.querySelectorAll('.tw')].forEach((t,i)=>{if(tws[i]){t.scrollLeft=tws[i][0];t.scrollTop=tws[i][1]}});
+  try{stkAll()}catch(e){}
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});
     if(el.tagName==='INPUT'&&typeof tv==='string'&&el.value!==tv&&tv.trim()!==''&&/^[\d\s$,.%-]*$/.test(tv)&&/^[\d\s$,.%-]*$/.test(el.value)&&num(tv)===num(el.value))el.value=tv;
     try{if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
