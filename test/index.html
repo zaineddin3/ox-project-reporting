@@ -2569,13 +2569,14 @@ V.orders=()=>{
 const PROC_HDR={item:/^(item|description|equipment|scope|package|material)s?$|item\s*desc|^desc/,status:/^status$/,tender:/tender|budget|allowance/,po:/^po\s*(value|amount|\$|price)|order\s*value|^po$|^value$|contract\s*value/,supplier:/supplier|vendor|subcontractor|^sub$/,
   poNo:/po\s*(no|number|#|ref)|order\s*(no|number)/,approval:/approv/,lead:/lead/,required:/required|on\s*site|^ros$|need(ed)?\s*by/,ordered:/^ordered|order(ed)?\s*date|date\s*ordered|order\s*placed/,eta:/eta|est(imated)?\.?\s*deliver|expected/,comments:/comment|note|remark/};
 /* procurement ↔ Orders & invoices: an item is linked to its PO (picked, or found by PO number); the PO number, PO value and
-   supplier then come from the order, and the status moves to Ordered (a budget-only PO from the MOSD isn't an order yet) */
+   supplier then come from the order, and the status moves to Ordered when it's linked (a budget-only PO from the MOSD isn't an order yet) */
 const procNo=t=>String(t||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 function procOrderOf(p){if(p.orderId&&S.orders[p.orderId])return p.orderId;if(p.orderId==='none')return null;const n=procNo(p.poNo);if(!n)return null;const hit=Object.entries(S.orders).find(([,o])=>procNo(o.poNo)===n);return hit?hit[0]:null}
 const ordSupName=o=>String((o.poMeta&&o.poMeta.supplier)||o.supplier||'').split(' – ')[0].trim();
 function procSync(){let n=0;for(const [id,p] of Object.entries(S.procs)){const oid=procOrderOf(p);if(!oid)continue;const o=S.orders[oid];if(o.budgetPo)continue;const before=JSON.stringify(p);
     if(o.poNo)p.poNo=o.poNo;if(num(o.po))p.po=String(num(o.po));const sup=ordSupName(o);if(sup&&!/^supplier( to be confirmed)?$/i.test(sup))p.supplier=sup;
-    if(!['Ordered','Delivered','Complete'].includes(p.status))p.status='Ordered';if(!p.ordered&&o.date)p.ordered=o.date;
+    /* linking moves the status to Ordered once for that PO; after that the status is yours to change (it used to be put back on every redraw) */
+    if(p.ordLinked!==oid){if(!['Ordered','Delivered','Complete'].includes(p.status))p.status='Ordered';p.ordLinked=oid}if(!p.ordered&&o.date)p.ordered=o.date;
     if(JSON.stringify(p)!==before){persist('procurement/'+id);n++}}return n}
 function procDate(v){v=String(v||'').trim();if(!v)return '';if(/^\d{4}-\d{2}-\d{2}/.test(v))return v.slice(0,10);let m=v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}
   if(/^\d{5}$/.test(v)){const d=new Date(Date.UTC(1899,11,30)+(+v)*864e5);return d.toISOString().slice(0,10)}const d=new Date(v);return isNaN(d)?'':d.toISOString().slice(0,10)}
