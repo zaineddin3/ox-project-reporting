@@ -710,7 +710,7 @@ tr.sel td{background:var(--accent-soft)}
         <h1 id="pname">Project report</h1>
         <div class="meta" id="pmeta"></div>
       </div>
-      <div class="toprt"><div class="undobar"><button class="btn" id="undoBtn" data-act="undo" disabled title="Undo (Ctrl+Z)">↶ Undo</button><button class="btn" id="redoBtn" data-act="redo" disabled title="Redo (Ctrl+Shift+Z)">↷ Redo</button></div><span class="pill" id="savepill">Connecting</span></div>
+      <div class="toprt"><div class="undobar"><button class="btn" id="undoBtn" data-act="undo" disabled title="Undo (Ctrl+Z)">↶ Undo</button><button class="btn" id="redoBtn" data-act="redo" disabled title="Redo (Ctrl+Y)">↷ Redo</button></div><span class="pill" id="savepill">Connecting</span></div>
     </header>
     <div id="banner"></div>
     <section id="view" aria-live="off"></section>
@@ -7501,14 +7501,21 @@ function undoRestore(snap){
 }
 function doUndo(){const e=UNDO.stack.pop();if(!e)return;UI.tkMsg='';const now=undoSnap();UNDO.redo.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
 function doRedo(){const e=UNDO.redo.pop();if(!e)return;const now=undoSnap();UNDO.stack.push({snap:now,key:snapKey(now)});undoRestore(e.snap);UNDO.burstKey=null;UI.armed=null;undoButtons();render()}
-function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length}}
+function undoButtons(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u){u.disabled=!UNDO.stack.length;u.title=UNDO.stack.length?'Undo your last change (Ctrl+Z)':'Nothing to undo'}if(r){r.disabled=!UNDO.redo.length;r.title=UNDO.redo.length?'Redo (Ctrl+Y)':'Nothing to redo'}}
 function undoClear(){UNDO.stack=[];UNDO.redo=[];UNDO.burstKey=null;undoButtons()}
 const UNDO_SKIP=new Set(['inv-reread','inv-reread-stop','inv-reread-x','aptimp-x','ov-pdf','ov-go','inv-q-clear','inv-q-go','task-rename-reset','cpto-sec','cpto','cpto-close','cpto-none','cpto-allsec','site-tab','site-go','site-ph','tmv','tmv-close','mvto','mvto-close','vpdf','vpdf-scope','pgsel','pgmode','vparts','vcalc','vpick-close','undo','redo','nav','proj','ptog','proj-rename','proj-cancel','tog-sub','ms-tab','ms-pick','ms-newpick','ms-dk','ms-paste','bld','setup','task','pg-all','sec-all','coll-all','bqg','add-proj']);
 document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el&&el.dataset&&el.dataset.enter){const b=document.querySelector('[data-act="'+el.dataset.enter+'"]');if(b){e.preventDefault();b.click()}}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.vpick){UI.vpick=null;render();return}if(e.key==='Escape'&&UI.mvto){UI.mvto=null;render();return}if(e.key==='Escape'&&UI.tmv){UI.tmv=null;render();return}});
+/* Ctrl+Z undoes your last change and Ctrl+Y (or Ctrl+Shift+Z) redoes it, the same as the Undo and Redo buttons (⌘ on a Mac).
+   This works in the boxes that hold project data too: the browser's own undo in a box is lost each time the page redraws, so
+   it rarely did anything. Boxes that aren't project data (Find, filters, sign-in) keep the browser's own undo. */
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
-  const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)&&t.type!=='checkbox')return;
-  e.preventDefault();if(k==='y'||e.shiftKey)doRedo();else doUndo()});
+  const redo=k==='y'||e.shiftKey;const t=e.target;
+  const box=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)&&t.type!=='checkbox';
+  if(box){if(!(t.dataset&&t.dataset.b!==undefined&&viewEl.contains(t)))return;if(!(redo?UNDO.redo.length:UNDO.stack.length))return;
+    /* a date box (or a box on a touch screen) holds the redraw while you're in it: step out so the undone value shows */
+    if(isDateBox(t)||isTypeBox(t))t.blur()}
+  e.preventDefault();if(redo)doRedo();else doUndo()});
 
 /* ---------- projects ---------- */
 let unsubs=[];
