@@ -2320,15 +2320,37 @@ function ordRows(){const E=Object.entries(S.orders);const manual=E.some(([,o])=>
   return E.sort((a,b)=>{const ha=a[1].pos!=null&&a[1].pos!=='',hb=b[1].pos!=null&&b[1].pos!=='';if(ha&&hb)return num(a[1].pos)-num(b[1].pos)||ordCmp(a[1],b[1]);if(!ha&&!hb)return ordCmp(a[1],b[1]);
     return ha?-1:1}).reduce((out,e)=>{if(e[1].pos!=null&&e[1].pos!==''){out.push(e)}else{const i=out.findIndex(x=>ordCmp(e[1],x[1])<0);if(i<0)out.push(e);else out.splice(i,0,e)}return out},[])}
 /* ---------- duplicate invoices: the same invoice number, the same PDF, or the same amount on the same date for one order ---------- */
-function invDupMap(){const nref=t=>String(t||'').toLowerCase().replace(/^(inv(oice)?|tax\s*invoice)\s*(no\.?|number|#)?\s*/,'').replace(/[^a-z0-9]/g,'').replace(/^0+/,'');
-  const all=[];for(const [oid,o] of Object.entries(S.orders))(o.inv||[]).forEach((x,j)=>{if(!x.dupOk)all.push({oid,o,j,x})});/* one marked “Not a duplicate” no longer flags the invoices it matched */const M={};
+/* Possible duplicate invoices, across every PO:
+   - the same invoice number from the same supplier (an "invoice number" needs at least 3 digits, so words read off a PDF such as "Purchase"
+     or "Issue", or a claim count like "Tracker 1", don't count; and two suppliers can each have their own invoice 1001, so a different supplier isn't a duplicate)
+   - the same file (same content; or the same file name, unless the invoice numbers differ)
+   - the same amount and date on one PO (unless the invoice numbers differ)
+   "Accept · not a duplicate" settles it with the invoices it matched at the time; a later invoice with the same number is still flagged. */
+const invNref=t=>String(t||'').toLowerCase().replace(/^(inv(oice)?|tax\s*invoice)\s*(no\.?|number|#)?\s*/,'').replace(/[^a-z0-9]/g,'').replace(/^0+/,'');
+const invSupKey=o=>{const w=String((o&&o.poMeta&&o.poMeta.supplier)||(o&&o.supplier)||'').toLowerCase().replace(/\b(pty|ltd|limited|the|and)\b/g,' ').match(/[a-z0-9]{3,}/);return w?w[0]:''};
+/* counts as an invoice number: at least 3 digits (not "Purchase", "Issue" or a claim count like "Tracker 1") */
+const invNoOk=t=>(String(t||'').match(/\d/g)||[]).length>=3;
+const invSig=x=>invNref(x.ref)+'|'+(x.date||'')+'|'+Math.round(invAmt(x)*100);
+function invDupOkPair(a,b){const W=a.x.dupOkWith;if(Array.isArray(W))return W.includes(invSig(b.x));
+  /* accepted before this was kept per invoice: it covers the invoices that were there then, not a later-dated one */
+  return !!a.x.dupOk&&!(a.x.date&&b.x.date&&b.x.date>a.x.date)}
+function invDupMap(){const nref=invNref;
+  const all=[];for(const [oid,o] of Object.entries(S.orders))(o.inv||[]).forEach((x,j)=>all.push({oid,o,j,x,r:invNoOk(x.ref)?nref(x.ref):'',sk:invSupKey(o)}));const M={};
   const add=(a,b,why)=>{(M[a.oid+'|'+a.j]=M[a.oid+'|'+a.j]||[]).push({oid:b.oid,j:b.j,why})};
-  for(let i=0;i<all.length;i++)for(let k=0;k<all.length;k++){if(i===k)continue;const a=all[i],b=all[k];const ra=nref(a.x.ref),rb=nref(b.x.ref);
-    if(ra&&ra===rb){add(a,b,'ref');continue}
-    const fa=a.x.invFile&&a.x.invFile.name,fb=b.x.invFile&&b.x.invFile.name;if(fa&&fa===fb){add(a,b,'file');continue}
-    if(a.oid===b.oid&&a.x.date&&a.x.date===b.x.date&&invAmt(a.x)>0&&Math.abs(invAmt(a.x)-invAmt(b.x))<0.005)add(a,b,'amount')}
+  for(let i=0;i<all.length;i++)for(let k=0;k<all.length;k++){if(i===k)continue;const a=all[i],b=all[k];
+    if(invDupOkPair(a,b)||invDupOkPair(b,a))continue;
+    if(a.r&&a.r===b.r&&(!a.sk||!b.sk||a.sk===b.sk)){add(a,b,'ref');continue}
+    if(a.x.hash&&a.x.hash===b.x.hash){add(a,b,'file');continue}
+    /* a shared file name ("scan.pdf", "tle day to day.pdf") isn't a duplicate when the two invoice numbers are different */
+    const diffNo=!!a.r&&!!b.r&&a.r!==b.r;
+    const fa=a.x.invFile&&a.x.invFile.name,fb=b.x.invFile&&b.x.invFile.name;if(fa&&fa===fb&&!diffNo){add(a,b,'file');continue}
+    if(!diffNo&&a.oid===b.oid&&a.x.date&&a.x.date===b.x.date&&invAmt(a.x)>0&&Math.abs(invAmt(a.x)-invAmt(b.x))<0.005)add(a,b,'amount')}
   return M}
-function invDupHtml(D,oid,j){const x=S.orders[oid]?.inv?.[j];const L=D[oid+'|'+j];if(!L||!L.length||x.dupOk)return '';
+/* accept: remember exactly which invoices this one was checked against */
+function invDupAccept(oid,j){const x=S.orders[oid]?.inv?.[j];if(!x)return;const L=invDupMap()[oid+'|'+j]||[];
+  const W=new Set(Array.isArray(x.dupOkWith)?x.dupOkWith:[]);for(const d of L){const y=S.orders[d.oid]?.inv?.[d.j];if(y)W.add(invSig(y))}
+  x.dupOk=true;x.dupOkWith=[...W];persist('orders/'+oid)}
+function invDupHtml(D,oid,j){const x=S.orders[oid]?.inv?.[j];const L=D[oid+'|'+j];if(!x||!L||!L.length)return '';
   const desc=d=>{const o=S.orders[d.oid];const y=o.inv[d.j];return `${d.oid===oid?'this order':'PO <b>'+esc(o.poNo||'(no number)')+'</b>'+(o.supplier?' · '+esc(o.supplier):'')} (invoice ${d.j+1}${y.date?' dated '+fmtDate(y.date):''}${invAmt(y)?', '+money2(invAmt(y)):''})`};
   const why={ref:'has the same invoice number as',file:'is the same PDF file as',amount:'has the same amount and date as'};
   return `<div class="inv-dup" role="alert"><b>⚠ Possible duplicate.</b> This invoice ${L.slice(0,3).map(d=>why[d.why]+' '+desc(d)).join('; and ')}. Check it isn’t entered twice.<div style="margin-top:6px">${invDupActs(oid,j)}</div></div>`}
@@ -2341,8 +2363,8 @@ function invMove(oid,j,to){const A=S.orders[oid],B=S.orders[to];if(!A||!B||!A.in
   for(const k of Object.keys(EXT))if(k.startsWith(oid+'_'))delete EXT[k];setSave('saved');UI.dupMsg=`Moved invoice ${x.ref||''} to ${B.poNo||'the other PO'}${B.supplier?' · '+B.supplier:''}.`;render();setTimeout(()=>goInvoice(to,B.inv.length-1,-1),0)}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.invmove===undefined||!t.value)return;const [oid,j]=t.dataset.invmove.split('|');invMove(oid,+j,t.value)});
 function invDupGroups(D){D=D||invDupMap();const seen=new Set(),G=[];
-  for(const k of Object.keys(D)){if(seen.has(k))continue;const [oid,j]=k.split('|');if(S.orders[oid]?.inv?.[+j]?.dupOk)continue;const grp=[],why=new Set(),st=[k];
-    while(st.length){const c=st.pop();if(seen.has(c))continue;seen.add(c);grp.push(c);for(const d of D[c]||[]){why.add(d.why);const n=d.oid+'|'+d.j;if(!seen.has(n)&&!S.orders[d.oid]?.inv?.[d.j]?.dupOk)st.push(n)}}
+  for(const k of Object.keys(D)){if(seen.has(k))continue;const grp=[],why=new Set(),st=[k];
+    while(st.length){const c=st.pop();if(seen.has(c))continue;seen.add(c);grp.push(c);for(const d of D[c]||[]){why.add(d.why);const n=d.oid+'|'+d.j;if(!seen.has(n))st.push(n)}}
     if(grp.length>1)G.push({items:grp.map(c=>{const [o,i]=c.split('|');return {oid:o,j:+i}}),why:[...why]})}
   return G}
 function invDupList(D){const G=invDupGroups(D);if(!G.length)return '';const W={ref:'same invoice number',file:'same PDF / photo',amount:'same amount and date'};
@@ -2583,7 +2605,7 @@ const ordSecOf=o=>{if(ordIsKid(o))o=S.orders[o.parent];return ordSecs().some(x=>
 function ordGroups(rows){const secs=ordSecs();if(!secs.length)return [{id:null,rows}];
   const g=[{id:'',name:'Not in a section',rows:[]},...secs.map(x=>({id:x.id,name:x.name,rows:[]}))];for(const r of rows)g.find(x=>x.id===ordSecOf(r[1])).rows.push(r);
   return g.filter(x=>x.id!==''||x.rows.length)}
-function ordSecHead(g,gi,NG){const DM=invDupMap();const GR=g.rows.flatMap(r=>[r,...ordKids(r[0])]);const nd=GR.reduce((a,[oid,o])=>a+(o.inv||[]).filter((x,j)=>DM[oid+'|'+j]&&!x.dupOk).length,0);const secs=ordSecs();const si=secs.findIndex(x=>x.id===g.id);const key='ordsec:'+(g.id||'none');const closed=ordSecClosed(g.id);
+function ordSecHead(g,gi,NG){const DM=invDupMap();const GR=g.rows.flatMap(r=>[r,...ordKids(r[0])]);const nd=GR.reduce((a,[oid,o])=>a+(o.inv||[]).filter((x,j)=>DM[oid+'|'+j]).length,0);const secs=ordSecs();const si=secs.findIndex(x=>x.id===g.id);const key='ordsec:'+(g.id||'none');const closed=ordSecClosed(g.id);
   const T=g.rows.flatMap(r=>[r,...ordKids(r[0])]).reduce((a,[,o])=>{const po=num(o.po),inv=(o.inv||[]).reduce((s,x)=>s+invAmt(x),0);a.po+=po;a.inv+=inv;a.ext+=extraAdj(o);if(o.retention)a.ret+=retOf(o).val;return a},{po:0,inv:0,ext:0,ret:0});
   return `<tr class="ordsec${closed?' closed':''}" data-ordsec="${g.id}"><td style="white-space:nowrap">${g.id?`<span class="mvbtns"><button class="mv" data-act="ordsec-move" data-v="${si}" data-d="-1" title="Move section up" aria-label="Move section up" ${si===0?'disabled':''}>▲</button><button class="mv" data-act="ordsec-move" data-v="${si}" data-d="1" title="Move section down" aria-label="Move section down" ${si===secs.length-1?'disabled':''}>▼</button></span>`:''}<button class="btn ghost" data-act="tog-sub" data-v="${key}" aria-expanded="${!closed}" style="color:var(--ink)">${closed?'▸':'▾'} ${GR.length}</button></td>
     <td colspan="3">${g.id?`<input class="f ordsec-name" id="ordsec_${g.id}" data-b="ordsec|${g.id}|name" value="${esc(g.name||'')}" placeholder="Section name, e.g. Switchboards" aria-label="Section name">${nd?`<span class="tag bad" title="Invoices in this section may be entered twice">⚠ ${nd} duplicate${nd===1?'':'s'}?</span>`:''}`:`<b>${esc(g.name)}</b><div class="hint" style="font-size:11.5px">Choose a section for these orders under their supplier</div>`}</td>
@@ -2614,7 +2636,7 @@ V.orders=()=>{
   try{procSync()}catch(e){}
   try{if(assets)setTimeout(poMergeCheck,600)}catch(e){}
   const c=calc();const PX=priceIndex();
-  const rows=ordRows();const TOP=rows.filter(r=>!ordIsKid(r[1]));const DUP=invDupMap();const dupOf=oid=>(S.orders[oid].inv||[]).filter((x,j)=>DUP[oid+'|'+j]&&!x.dupOk).length;const nDup=Object.keys(S.orders).reduce((a,oid)=>a+dupOf(oid),0);const OG=ordGroups(TOP);const SECS=ordSecs();
+  const rows=ordRows();const TOP=rows.filter(r=>!ordIsKid(r[1]));const DUP=invDupMap();const dupOf=oid=>(S.orders[oid].inv||[]).filter((x,j)=>DUP[oid+'|'+j]).length;const nDup=Object.keys(S.orders).reduce((a,oid)=>a+dupOf(oid),0);const OG=ordGroups(TOP);const SECS=ordSecs();
   const OQ=String(UI.ordQ||'');const OW=OQ.toLowerCase().split(/\s+/).filter(Boolean);const ordHit=o=>OW.every(w=>ordHay(o).includes(w));
   const OGV=!OW.length?OG:OG.map(g=>({...g,rows:g.rows.filter(([id,o])=>ordHit(o)||ordKids(id,rows).some(([,k])=>ordHit(k)))})).filter(g=>g.rows.length);
   const nHit=OW.length?Object.values(S.orders).filter(o=>ordHit(o)).length:0;
@@ -2639,7 +2661,7 @@ V.orders=()=>{
     <td class="n money" style="width:130px">${o.retention?(()=>{const R=retOf(o);return `${money(R.val)}<div class="hint" style="font-size:11px">${R.pct}% of ${money(po)}${inv?`<br>held so far ${money(R.held)}`:''}</div>`})():'<span class="hint">—</span>'}</td><td>${delBtn('ord',id)}</td></tr>
     ${open?`<tr class="sel ord-drop" data-ord="${id}"><td colspan="12" class="ord-dtd"><div class="ord-det" style="display:flex;flex-direction:column;gap:6px;padding:4px 0 8px">${KID?'':`<div class="ord-struct"><button class="btn" data-act="ord-addkid" data-id="${id}" title="A PO under this one, with its own PO number, amount and invoices">+ Add a PO under this</button>${!KIDS.length&&TOP.length>1?`<label class="hint ord-putunder">or put this PO under another PO ${sel(k+'parent','',[['','Choose the PO…'],...TOP.filter(r=>r[0]!==id).map(r=>[r[0],(r[1].poNo||'No PO no.')+(r[1].supplier?' · '+r[1].supplier:'')])],{label:'Put this PO under another PO'})}</label>`:''}</div>`}${ordPoPanel(id,o)}<div class="hint" style="margin-top:4px"><b>Invoices</b></div>
       ${(o.inv||[]).map((x,j)=>{const L=invLines(x);const AS=invAddSum(x);const mk='invm'+id+'_'+j;const mo=!!UI.open[mk];const kb='inv|'+id+'|'+j+'|';
-        return `<div class="invbox inv-drop${DUP[id+'|'+j]&&!x.dupOk?' inv-isdup':''}${UI.invHit===id+'|'+j&&Date.now()<UI.invHitTill?' inv-hit':''}" data-inv="${id}|${j}">${invDupHtml(DUP,id,j)}<div class="inv-grid" style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center"><div>${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.dateAsk&&!x.date?'<div class="hint inv-dateask" role="alert">⚠ Invoice date not found on the invoice: please enter it</div>':''}${x.datePdf&&x.datePdf===x.date?'<div class="hint" style="font-size:11px">date from the invoice</div>':''}</div>${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF${AS?', plus the materials you added':''}"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${AS?`<div class="hint inv-addsum" style="font-size:11px">${money2(num(x.amount)-AS)} on the PDF + ${money2(AS)} you added</div>`:''}${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${AS&&x.amount!==''&&x.amount!=null?`<div class="hint inv-addsum" style="font-size:11px;text-align:right">includes ${money2(AS)} you added</div>`:''}${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
+        return `<div class="invbox inv-drop${DUP[id+'|'+j]?' inv-isdup':''}${UI.invHit===id+'|'+j&&Date.now()<UI.invHitTill?' inv-hit':''}" data-inv="${id}|${j}">${invDupHtml(DUP,id,j)}<div class="inv-grid" style="display:grid;grid-template-columns:150px 160px 150px 220px auto 1fr auto;gap:6px;align-items:center"><div>${inp(kb+'date',x.date,{type:'date',label:'Invoice date'})}${x.dateAsk&&!x.date?'<div class="hint inv-dateask" role="alert">⚠ Invoice date not found on the invoice: please enter it</div>':''}${x.datePdf&&x.datePdf===x.date?'<div class="hint" style="font-size:11px">date from the invoice</div>':''}</div>${x.refFromPdf&&x.ref?`<div class="pdfval" title="Read from the uploaded PDF"><span class="hint">Invoice no.</span> <b class="mono">${esc(x.ref)}</b> <span class="tag good">from PDF</span></div>`:inp(kb+'ref',x.ref,{label:'Invoice number',ph:'Invoice no.'})}${x.amountFromPdf?`<div class="pdfval" title="Read from the uploaded PDF${AS?', plus the materials you added':''}"><b class="money">${money2(num(x.amount))}</b> <span class="hint">ex GST</span> <span class="tag good">from PDF</span>${AS?`<div class="hint inv-addsum" style="font-size:11px">${money2(num(x.amount)-AS)} on the PDF + ${money2(AS)} you added</div>`:''}${L.length&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px">Materials add to ${money2(linesSum(x))}</div>`:''}</div>`:''}<div${x.amountFromPdf?' hidden':''}><div class="cur" title="Invoice total excluding GST">${inp(kb+'amount',x.amount,{num:1,label:'Invoice total ex GST',ph:L.length?String(Math.round(linesSum(x)*100)/100):'Total ex GST'})}</div>${AS&&x.amount!==''&&x.amount!=null?`<div class="hint inv-addsum" style="font-size:11px;text-align:right">includes ${money2(AS)} you added</div>`:''}${L.length&&x.amount!==''&&x.amount!=null&&Math.abs(num(x.amount)-linesSum(x))>0.5?`<div class="hint" style="font-size:11px;text-align:right">Materials add to ${money2(linesSum(x))}</div>`:''}</div><div>${itpCell('inv|'+id+'|'+j,x.invFile,'Invoice')}</div>
           <span class="to-row" style="gap:4px;flex-wrap:nowrap"><button class="btn ${mo?'primary':''}" style="padding:4px 10px;font-size:12px;white-space:nowrap" data-act="toggle" data-id="${mk}" aria-expanded="${mo}">${mo?'▾':'▸'} Materials${L.length?' · '+L.length:''}</button>${priceTags(invPriceSum(PX,id,j,x))}</span><span>${x.invFile&&x.invFile.id?`<button class="btn ghost" style="padding:3px 8px;font-size:12px;color:var(--accent);white-space:nowrap" data-act="inv-read" data-id="${id}" data-x="${j}" title="Read the materials and total from the PDF${L.length?' (replaces the materials read before; lines you added on top of the total stay)':''}" ${EXT[id+'_'+j]?.busy?'disabled':''}>${UI.armed==='invread'+id+j?'Confirm: replace materials':'Read PDF'}</button>`:''}<select class="f inv-move" data-invmove="${id}|${j}" aria-label="Move this invoice to another PO" title="Move this invoice to another PO"><option value="">Move to…</option>${micPoOpts('').replace('<option value="">Choose the PO…</option>','').replace(`<option value="${id}" >`,`<option value="${id}" disabled>`)}</select></span>${delBtn('inv',id,String(j))}</div>
         ${(()=>{const e=EXT[id+'_'+j];return e?`<div class="extmsg ${e.err?'err':e.ok?'ok':'busy'}">${esc(e.busy||e.ok||e.err)}</div>`:''})()}
         ${mo?`<div class="invmat"><table><thead><tr><th></th><th style="min-width:240px">Material</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price ex GST</th><th class="n">Total ex GST</th><th class="n">GST</th><th class="n">Total inc GST</th></tr></thead><tbody>
@@ -6071,7 +6093,7 @@ async function micHash(f){try{const b=await f.arrayBuffer();if(window.crypto&&cr
 function micDups(it){const out=[];const r=micNref(it.ref),amt=num(it.amount),fn=String(it.name||'').toLowerCase();
   for(const [oid,o] of Object.entries(S.orders))(o.inv||[]).forEach((x,j)=>{const why=[];
     if(it.hash&&x.hash&&it.hash===x.hash)why.push('the same file');
-    if(r&&r===micNref(x.ref))why.push('the same invoice number');
+    if(r&&invNoOk(it.ref)&&r===micNref(x.ref))why.push('the same invoice number');
     const xf=String(x.invFile&&x.invFile.name||'').toLowerCase();if(fn&&xf&&fn===xf&&!why.includes('the same file'))why.push('the same file name');
     if(!why.length&&amt>0&&Math.abs(amt-invAmt(x))<0.005&&it.date&&it.date===x.date)why.push('the same amount and date');
     if(why.length)out.push({kind:'po',oid,j,why,strong:why.some(w=>w!=='the same amount and date')})});
@@ -6153,8 +6175,8 @@ function micUnused(){
 }
 function micAdd(it){const o=S.orders[it.po];if(!o)return false;o.inv=o.inv||[];
   const x={date:it.date||todayISO(),ref:it.ref||'',amount:it.amount||''};if(it.file&&it.file.id)x.invFile={...it.file,at:Date.now()};if(it.hash)x.hash=it.hash;
-  if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}if(it.dupOk)x.dupOk=true;
-  o.inv.push(x);persist('orders/'+it.po);return true}
+  if(it.ref)x.refFromPdf=true;if(it.amount)x.amountFromPdf=true;if(it.date)x.datePdf=it.date;if(it.lines&&it.lines.length){x.lines=it.lines;x.readTried=READER_V}
+  o.inv.push(x);if(it.dupOk)invDupAccept(it.po,o.inv.length-1);persist('orders/'+it.po);return true}
 async function micAct(act,btn){const D=micDoc();const it=D.items.find(x=>x.id===btn.dataset.v);
   if(act==='mic-tog'){UI.micOpen=UI.micOpen===false;micRefresh();return}
   if(act==='mic-retry'&&it){let f=MIC_FILES.get(it.id);if(!f&&it.file&&it.file.id){try{const bl=await fileBlob(it.file);f=new File([bl],it.name,{type:it.file.type||bl.type})}catch(e){console.error(e)}}if(!f){UI.micMsg=`${it.name}: the file isn’t available any more. Remove it and drop it in again.`;render();return}
@@ -7341,7 +7363,7 @@ if(act==='inv-duplist'){UI.dupList=!UI.dupList;render();return}
 if(act==='inv-reread'){invRereadAll();return}
 if(act==='inv-reread-stop'){if(UI.reread)UI.reread.stop=true;return}
 if(act==='inv-reread-x'){UI.reread=null;render();return}
-if(act==='inv-dupok'){const x=S.orders[btn.dataset.id]?.inv?.[+btn.dataset.x];if(x){x.dupOk=true;persist('orders/'+btn.dataset.id);render()}return}
+if(act==='inv-dupok'){invDupAccept(btn.dataset.id,+btn.dataset.x);render();return}
 if(act==='ordsec-add'){const L=S.info.ordSecs=ordSecs().slice();const x={id:uid('os'),name:''};L.push(x);persist('project/info');COLL.delete('ordsec:'+x.id);saveColl();render();setTimeout(()=>{const el=document.getElementById('ordsec_'+x.id);if(el){el.focus();el.scrollIntoView({block:'center'})}},60);return}
 if(act==='ordsec-move'){const L=S.info.ordSecs=ordSecs().slice();const i=+btn.dataset.v,j=i+(+btn.dataset.d);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];persist('project/info');render();return}
 if(act==='opo-notes-upd'){opoNotesSoon(btn.dataset.id,0);return}
