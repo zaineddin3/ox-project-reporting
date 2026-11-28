@@ -193,6 +193,17 @@ button.cgo{background:none;border:1px solid transparent;border-radius:10px;paddi
 .site-phadd{width:104px;height:104px;border:2px dashed var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12.5px;color:var(--muted)}.site-phadd span{font-size:26px}
 .site-other{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}.site-other p{margin:4px 0}
 .site-times{display:flex;flex-direction:column;gap:8px}.site-card{container-type:inline-size}
+.dp-card .dp-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.dp-sum{margin:0 0 8px}
+.dp-tbl td{vertical-align:top}.dp-tbl tr.dp-bad td{background:color-mix(in srgb,var(--bad) 7%,transparent)}.dp-tbl tr.dp-warn td{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+.dp-map{text-decoration:none;font-size:12px}.dp-err{color:var(--bad);margin:0 0 8px;font-weight:600}.dp-msg{color:var(--good);margin:0 0 8px;font-weight:600}
+.dp-steps{margin:0 0 10px;padding-left:20px;font-size:13px;line-height:1.5}.dp-info{margin-top:8px;font-size:12.5px}.dp-info summary{cursor:pointer;color:var(--accent);font-weight:600}
+.site-time.dp-nosign{box-shadow:inset 3px 0 0 var(--bad);border-radius:6px}
+/* on a phone each person is a small card instead of a wide table */
+@media (max-width:640px){.dp-card .tw{overflow:visible;max-height:none}.dp-tbl thead{display:none}.dp-tbl,.dp-tbl tbody{display:block;width:100%}
+  .dp-tbl tr{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;padding:9px 10px;border-bottom:1px solid var(--line)}
+  .dp-tbl td{display:block;border:0!important;padding:0!important;text-align:left!important;background:transparent!important}
+  .dp-tbl tr.dp-bad{background:color-mix(in srgb,var(--bad) 7%,transparent)}.dp-tbl tr.dp-warn{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+  .dp-tbl td:first-child,.dp-tbl td:last-child{grid-column:1/-1}.dp-tbl td[data-l]::before{content:attr(data-l) ' ';color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}}
 .site-time{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 64px minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.3fr);grid-template-areas:"who cat hrs task line nr";gap:6px;align-items:center}
 .site-time>*{min-width:0;width:100%}.site-time select.f{text-overflow:ellipsis}.site-linehint{font-size:12px}
 .site-time>[data-b$="|who"]{grid-area:who}.site-time>[data-b$="|hrs"]{grid-area:hrs}.site-time>[data-b$="|cat"]{grid-area:cat}.site-time>[data-b$="|tid"]{grid-area:task}.site-time>.site-line,.site-time>.site-linehint{grid-area:line}.site-time>.site-nr{grid-area:nr}
@@ -3097,7 +3108,105 @@ async function sitePhotos(files){if(!assets&&!HOSTED){UI.siteMsg='Photos can be 
     try{if(!assets)throw Object.assign(new Error('no storage'),{code:'no_assets'});const r=await assets.upload(file,{type:'image/jpeg'});d.photos.push({id:r.id,name,at:Date.now()})}
     catch(e){if(HOSTED&&(e.code==='no_assets'?false:true)&&offIsNet(e)){const pid='pend-'+uid('p');await offBlobPut(pid,file);d.photos.push({id:pid,name,at:Date.now(),pending:1});queued++}else{console.error(e);bad++}}}
   persist('site/'+id);UI.siteMsg=bad?(assets?'Some photos could not be uploaded.':'Photos can be added from the website or the desktop app.'):queued?(queued===1?'1 photo saved on this phone. It uploads':queued+' photos saved on this phone. They upload')+' when you’re back online.':'';render()}
-function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const mine=S.site[myId]||{};const others=siteDiaries(date).filter(([id])=>id!==myId);
+/* ---------- Dashpivot sign in / out (Site diary & hours) ----------
+   Sign-ins come from the job's Dashpivot "Sign In or Out" forms through a Flowsite "Hosted Source for Excel" flow, which publishes
+   them as a file at a link with a username and password. The server function "dashpivot" keeps those details (the app never gets the
+   password back), reads the file and returns the sign-ins. Each day shows who signed in and out, their time on site, and how that
+   compares with the hours entered on this page. Works on the website and the desktop app (the Claude version has no server sign-in). */
+const DP={st:{},ev:{},form:{},busy:'',msg:'',err:'',edit:false,arm:false,info:null};
+const dpOk=()=>!!(HOSTED&&!window.__mcpMode&&window.__sb&&window.__sb.functions&&typeof window.__sb.functions.invoke==='function');
+async function dpCall(body){const r=await window.__sb.functions.invoke('dashpivot',{body:Object.assign({project:PID},body)});
+  if(r&&r.error){let m=r.error.message||'The request failed';try{const c=r.error.context;if(c&&typeof c.json==='function'){const j=await c.json();if(j&&j.error)m=j.error}}catch(e){}
+    if(/Failed to send a request|fetch/i.test(m))m='Couldn’t reach the server. Check your internet connection.';throw new Error(m)}
+  return (r&&r.data)||{}}
+function dpStatus(){if(!dpOk())return null;const s=DP.st[PID];if(s)return s;DP.st[PID]={loading:1};
+  dpCall({action:'status'}).then(d=>{DP.st[PID]=d||{linked:false};render()}).catch(e=>{DP.st[PID]={err:e.message};render()});return DP.st[PID]}
+/* sign-ins are read for three weeks before to a week after the day shown; again when you move outside that, or press Refresh */
+function dpEvents(date,force){const s=DP.st[PID];if(!s||!s.linked)return null;const c=DP.ev[PID];
+  if(c&&!force&&(c.loading||(date>=c.from&&date<=c.to&&!(c.at&&Date.now()-c.at>10*60e3))))return c;
+  const from=isoAddDays(date,-21),to=isoAddDays(date,7);const prev=c&&!c.loading?c:(c&&c.prev)||null;DP.ev[PID]={loading:1,from,to,prev};
+  dpCall({action:'events',from,to,force:!!force}).then(d=>{if(d.linked===false){DP.st[PID]={linked:false};delete DP.ev[PID]}else DP.ev[PID]=Object.assign({from,to,at:Date.now()},d);render()})
+    .catch(e=>{DP.ev[PID]={from,to,error:e.message,events:(prev&&prev.events)||[],fetchedAt:prev&&prev.fetchedAt};render()});
+  return DP.ev[PID]}
+const dpKey=s=>String(s||'').toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[^a-z' -]/g,' ').replace(/[' -]+/g,' ').trim();
+/* "John Smith" matches "john smith", "John S", "J Smith", and "John" when only one John signed in that day */
+function dpLike(a,b){const A=dpKey(a),B=dpKey(b);if(!A||!B)return 0;if(A===B)return 2;const x=A.split(' '),y=B.split(' ');const xl=x[x.length-1],yl=y[y.length-1];
+  if(x[0]===y[0]&&(x.length===1||y.length===1))return 1;
+  if(x.length>1&&y.length>1&&x[0]===y[0]&&xl[0]===yl[0]&&(xl.length===1||yl.length===1))return 1;
+  if(x.length>1&&y.length>1&&xl===yl&&x[0][0]===y[0][0]&&(x[0].length===1||y[0].length===1))return 1;
+  return 0}
+const dpH=n=>(Math.round((n||0)*4)/4).toLocaleString('en-AU',{maximumFractionDigits:2});
+const dpT=t=>{const m=String(t||'').match(/^(\d{1,2}):(\d{2})/);if(!m)return '';const h=+m[1];return (h%12||12)+':'+m[2]+' '+(h<12?'am':'pm')};
+/* one day: each person who signed in (first in, last out, time on site) matched to the hours entered for them */
+function dpDay(date){const c=DP.ev[PID];const all=c?(c.events||(c.prev&&c.prev.events)||null):null;if(!all)return null;
+  const E=all.filter(e=>e.day===date);const P=new Map();
+  for(const e of E){const k=dpKey(e.name);const p=P.get(k)||{name:e.name,ev:[]};p.ev.push(e);P.set(k,p)}
+  const ppl=[...P.values()];
+  for(const p of ppl){p.ev.sort((a,b)=>a.at<b.at?-1:a.at>b.at?1:0);let open=null,ms=0;p.noIn=false;p.noOut=false;
+    for(const e of p.ev){if(e.type==='in'){if(open)p.noOut=true;open=e}else if(open){ms+=Date.parse(e.at)-Date.parse(open.at);open=null}else p.noIn=true}
+    if(open)p.stillIn=true;p.onsite=ms/36e5;p.first=p.ev.find(e=>e.type==='in')||null;p.last=[...p.ev].reverse().find(e=>e.type==='out')||null;p.entered=0;p.rows=[]}
+  const H=new Map();for(const [id,t] of siteTimes(date)){const n=String(t.who||'').trim();if(!n)continue;const k=dpKey(n);const h=H.get(k)||{name:n,hrs:0,ids:[]};h.hrs+=num(t.hrs);h.ids.push(id);H.set(k,h)}
+  const none=[];const nameOf={};
+  for(const h of H.values()){const best=ppl.map(p=>[p,dpLike(h.name,p.name)]).filter(x=>x[1]);const top=best.length?Math.max(...best.map(x=>x[1])):0;const m=best.filter(x=>x[1]===top);
+    if(m.length===1){m[0][0].entered+=h.hrs;m[0][0].rows.push(h.name);h.ids.forEach(i=>nameOf[i]=m[0][0].name)}else{h.unsure=m.length>1;none.push(h);h.ids.forEach(i=>nameOf[i]='')}}
+  /* today, before anyone's sign-in has come through from Dashpivot, the hours aren't flagged yet */
+  const wait=!ppl.length&&date>=todayISO();if(wait)for(const k in nameOf)delete nameOf[k];
+  return {wait,ppl:ppl.sort((a,b)=>(a.first?a.first.at:'z')<(b.first?b.first.at:'z')?-1:1),none,nameOf,today:date===todayISO()}}
+function dpCheck(p,D){
+  if(p.noIn&&!p.first)return ['warn','Signed out, no sign in'];
+  if(p.stillIn&&!D.today)return ['warn','No sign out'];
+  if(p.stillIn&&D.today&&!p.onsite)return ['','On site'];
+  if(p.entered>p.onsite+0.25&&p.onsite>0)return ['bad',dpH(p.entered-p.onsite)+' h more entered than on site'];
+  if(!p.entered&&p.onsite>0)return ['warn','No hours entered'];
+  if(p.noIn)return ['warn','A sign out with no sign in'];
+  if(p.noOut)return ['warn','Signed in twice without signing out'];
+  if(p.onsite-p.entered>1.5)return ['',dpH(p.onsite-p.entered)+' h on site not entered (breaks?)'];
+  return ['ok','✓ Matches']}
+const dpLinkSteps=()=>`<ol class="dp-steps"><li>In <b>Flowsite</b>, open <b>Flows</b> and click <b>Create Flow</b>, then choose <b>Hosted Source for Excel</b>.</li>
+  <li>Under <b>Dashpivot Templates</b>, paste the Template ID of this job’s <b>Sign In or Out</b> form. Set the trigger to run as often as you can, e.g. every hour.</li>
+  <li>Click <b>Save</b> and wait for the run to show <b>Successful</b>.</li>
+  <li>Copy the flow’s <b>URL</b>, <b>username</b> and <b>password</b> into the boxes below. The password is only shown once in Flowsite; if it’s lost, regenerate it there.</li></ol>`;
+function dpForm(s){const f=DP.form;const editing=!!(s&&s.linked);
+  return `<div class="dp-form">${editing?'<p class="hint" style="margin:0 0 8px">Leave the link and password blank to keep the ones saved.</p>':dpLinkSteps()}
+    <div class="form"><label class="wide">Flowsite hosted file link<input class="f" id="dp_url" data-dpf="url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${editing?'Saved link on '+esc(s.host||'Flowsite'):'https://…'}" value="${esc(f.url||'')}"></label>
+    <label>Username<input class="f" id="dp_user" data-dpf="user" autocomplete="off" spellcheck="false" value="${esc(f.user!=null?f.user:(editing?s.username||'':''))}"></label>
+    <label>Password<input class="f" id="dp_pass" data-dpf="pass" type="password" autocomplete="new-password" placeholder="${editing?'Saved (leave blank to keep)':''}"></label>
+    <label class="wide">Only rows containing <span class="hint" style="font-weight:400;text-transform:none;letter-spacing:0">(optional: only if one flow covers several jobs, e.g. OX63)</span><input class="f" id="dp_filter" data-dpf="filter" autocomplete="off" value="${esc(f.filter!=null?f.filter:(editing?s.filter||'':''))}"></label></div>
+    <div class="toolbar" style="margin-top:8px"><button class="btn primary" data-act="dp-save" ${DP.busy?'disabled':''}>${DP.busy==='save'?'Checking the link…':'Save and test'}</button>${editing?`<button class="btn" data-act="dp-cancel">Cancel</button><button class="btn ghost" data-act="dp-unlink">${DP.arm?'Confirm: unlink Dashpivot':'Unlink'}</button>`:''}</div>
+    <p class="hint" style="margin:8px 0 0">The username and password are kept on the server for this project. They aren’t shown in the app again, and only people with access to this project can see the sign-ins.</p></div>`}
+function dpPanel(date){
+  if(!dpOk())return HOSTED?'':`<div class="panel site-card dp-card"><h3>Sign in / out (Dashpivot)</h3><p class="hint" style="margin:4px 0 0">Dashpivot sign-ins show here on the website and in the desktop app.</p></div>`;
+  const s=dpStatus();const msg=(DP.err?`<p class="dp-err" role="alert">${esc(DP.err)}</p>`:'')+(DP.msg?`<p class="dp-msg">${esc(DP.msg)}</p>`:'');
+  const head=(right='')=>`<div class="sec-head" style="margin-bottom:6px"><div><h3>Sign in / out (Dashpivot)</h3><p class="hint" style="margin:2px 0 0">Who signed in and out on ${esc(fmtDate(date))}, checked against the hours above.</p></div>${right}</div>`;
+  if(!s||s.loading)return `<div class="panel site-card dp-card">${head()}<p class="hint" style="margin:0">Checking the Dashpivot link…</p></div>`;
+  if(s.err)return `<div class="panel site-card dp-card">${head()}<p class="dp-err" role="alert">${esc(s.err)}</p><button class="btn" data-act="dp-retry">Try again</button></div>`;
+  if(!s.linked||DP.edit)return `<div class="panel site-card dp-card">${head()}${msg}${!s.linked&&!DP.edit?`<p class="hint" style="margin:0 0 8px">Not linked yet. Link this job’s Dashpivot <b>Sign In or Out</b> forms to see sign-ins here.</p><button class="btn primary" data-act="dp-link">Link Dashpivot</button>`:dpForm(s)}${DP.info?dpInfo(DP.info):''}</div>`;
+  const c=dpEvents(date);const D=dpDay(date);
+  const when=c&&c.fetchedAt?new Date(c.fetchedAt).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+  const right=`<div class="dp-tools"><button class="btn" data-act="dp-refresh" ${c&&c.loading?'disabled':''}>${c&&c.loading?'Reading…':'↻ Refresh'}</button><button class="btn ghost" data-act="dp-edit" title="Change the Flowsite link or filter">Link settings</button></div>`;
+  let body='';
+  if(!D)body=`<p class="hint" style="margin:0">${c&&c.error?'':'Reading sign-ins from Dashpivot…'}</p>`;
+  else if(D.wait||(!D.ppl.length&&!D.none.length))body=`<p class="hint" style="margin:0">${D.wait?'No Dashpivot sign-ins have come through for today yet. They show after your Flowsite flow next runs.':'No Dashpivot sign-ins on this day.'}</p>`;
+  else{const tin=D.ppl.reduce((a,p)=>a+p.onsite,0),ten=D.ppl.reduce((a,p)=>a+p.entered,0)+D.none.reduce((a,h)=>a+h.hrs,0);
+    const map=e=>e&&e.lat!=null&&e.lng!=null?` <a class="dp-map" href="https://www.google.com/maps?q=${encodeURIComponent(e.lat+','+e.lng)}" target="_blank" rel="noopener" title="Where they signed ${e.type==='in'?'in':'out'}">📍</a>`:'';
+    body=`<p class="dp-sum"><b>${D.ppl.length}</b> signed in · <b>${dpH(tin)} h</b> on site · <b>${dpH(ten)} h</b> entered</p>
+    <div class="tw"><table class="dp-tbl"><thead><tr><th>Worker</th><th>In</th><th>Out</th><th class="n">On site</th><th class="n">Entered</th><th>Check</th></tr></thead><tbody>
+    ${D.ppl.map(p=>{const [k,t]=dpCheck(p,D);return `<tr class="dp-${k||'none'}"><td><b>${esc(p.name)}</b>${p.rows.length&&p.rows.some(r=>dpKey(r)!==dpKey(p.name))?`<div class="hint" style="font-size:11px">Hours entered as ${esc(p.rows.join(', '))}</div>`:''}</td>
+      <td data-l="In">${p.first?esc(dpT(p.first.time))+map(p.first):'—'}</td><td data-l="Out">${p.last?esc(dpT(p.last.time))+map(p.last):(p.stillIn&&D.today?'<span class="hint">On site</span>':'—')}</td>
+      <td class="n" data-l="On site">${p.onsite?dpH(p.onsite)+' h':'—'}</td><td class="n" data-l="Entered">${p.entered?dpH(p.entered)+' h':'—'}</td><td>${k?`<span class="tag ${k}">${esc(t)}</span>`:`<span class="hint">${esc(t)}</span>`}</td></tr>`}).join('')}
+    ${D.none.map(h=>`<tr class="dp-bad"><td><b>${esc(h.name)}</b></td><td data-l="In">—</td><td data-l="Out">—</td><td class="n" data-l="On site">—</td><td class="n" data-l="Entered">${dpH(h.hrs)} h</td><td><span class="tag bad">${h.unsure?'Hours entered: name matches more than one sign-in':'Hours entered, no Dashpivot sign in'}</span></td></tr>`).join('')}
+    </tbody></table></div>`}
+  return `<div class="panel site-card dp-card">${head(right)}${msg}${c&&c.error?`<p class="dp-err" role="alert">${esc(c.error)}</p>`:''}${body}
+    <p class="hint" style="margin:8px 0 0">From Dashpivot via Flowsite${when?`, read ${esc(when)}`:''}. New sign-ins show after your Flowsite flow next runs. Times on site run from first sign in to last sign out, with no break taken off.</p>${DP.info?dpInfo(DP.info):''}</div>`}
+/* after linking: what was found in the Flowsite file, so a mismatch can be sorted out */
+function dpInfo(d){if(!d)return '';const det=d.detected||{};const why=Object.entries(d.why||{}).map(([k,v])=>`${v} ${k}`).join(', ');
+  return `<details class="dp-info"${d.events?'':' open'}><summary>${d.events?'What was read from Dashpivot':'No sign-ins found in the file: what it contains'}</summary>
+    <p class="hint">${num(d.rows)} form${num(d.rows)===1?'':'s'} read, ${num(d.events)} sign in / out found${why?` (skipped: ${esc(why)})`:''}.</p>
+    <p class="hint">Columns: ${(d.columns||[]).map(x=>esc(x)).join(' · ')||'none'}</p>
+    <p class="hint">Used: person “${esc(det.name||'not found')}”, in/out “${esc(det.type||'not found')}”, time “${esc(det.loc||det.time||'not found')}”.</p></details>`}
+function dpFill(){const p=document.getElementById('dp_pass');if(p&&DP.form.pass&&!p.value)p.value=DP.form.pass}
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.dpf)DP.form[t.dataset.dpf]=t.value},true);
+function siteDayHtml(date){const DPD=(()=>{try{const s=dpOk()&&DP.st[PID];return s&&s.linked?(dpEvents(date),dpDay(date)):null}catch(e){return null}})();const me=siteMe();const myId=siteDiaryId(date);const mine=S.site[myId]||{};const others=siteDiaries(date).filter(([id])=>id!==myId);
   const k='sited|'+date+'|';const T=siteTimes(date);const R=siteRates();let dh=0,dc=0;for(const [,t] of T){const h=num(t.hrs);dh+=h;dc+=t.cat==='hire'?h*R.hire:t.cat==='pm'?0:h*R.ox}
   const names=[...new Set([...siteTimes().map(([,t])=>t.who).filter(Boolean),...((typeof TEAM!=='undefined'&&TEAM)||[]).map(u=>u.name).filter(Boolean)])].sort();
   const prev=(()=>{const ds=[...new Set(siteTimes().map(([,t])=>t.date))].filter(x=>x&&x<date).sort();return ds[ds.length-1]||''})();
@@ -3115,7 +3224,7 @@ function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const 
   </div>
   <div class="panel site-card"><div class="sec-head" style="margin-bottom:6px"><div><h3>Hours</h3><p class="hint" style="margin:2px 0 0">Everyone’s hours on ${esc(fmtDate(date))}. They go into the labour cost log and cost to complete.</p></div><div style="text-align:right"><div class="site-big">${hrs(dh)} h</div><div class="hint">${money(dc)}</div></div></div>
     <datalist id="site_names">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
-    <div class="site-times">${T.map(([id,t])=>{const kk='sitet|'+id+'|';return `<div class="site-time">
+    <div class="site-times">${T.map(([id,t])=>{const kk='sitet|'+id+'|';const nos=DPD&&String(t.who||'').trim()&&DPD.nameOf[id]==='';return `<div class="site-time${nos?' dp-nosign':''}"${nos?' title="No Dashpivot sign in for this name on this day"':''}>
       <input class="f" id="sitet_${id}_who" data-b="${kk}who" list="site_names" value="${esc(t.who||'')}" placeholder="Name" aria-label="Name" autocomplete="off">
       ${sel(kk+'cat',t.cat||'ox',SITE_CAT,{label:'Type'})}
       <input class="f num" id="sitet_${id}_hrs" data-b="${kk}hrs" inputmode="decimal" value="${esc(t.hrs||'')}" placeholder="Hours" aria-label="Hours">
@@ -3124,7 +3233,8 @@ function siteDayHtml(date){const me=siteMe();const myId=siteDiaryId(date);const 
       <div class="site-nr"><input class="f site-note" id="sitet_${id}_note" data-b="${kk}note" value="${esc(t.note||'')}" placeholder="Note" aria-label="Note">${delBtn('site',id,'','Remove')}</div></div>`}).join('')||'<p class="hint" style="margin:0">No hours yet for this day.</p>'}</div>
     <div class="toolbar" style="margin-top:10px"><button class="btn primary site-add" data-act="site-add-time">+ Add hours</button>${prev&&!T.length?`<button class="btn" data-act="site-copy" data-v="${esc(prev)}">Copy crew from ${esc(fmtDate(prev))}</button>`:''}</div>
     <p class="hint" style="margin:8px 0 0">Choose a task and line (or sub-line) to add the hours to that line’s spent hours in Labour & tasks and Progress. Lines that are split need a sub-line.</p>
-    <p class="hint" style="margin:6px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>`}
+    <p class="hint" style="margin:6px 0 0">Costed at ${money2(R.ox)}/h for Oxford / subcontractor and ${money2(R.hire)}/h for labour hire${R.oxSet||R.hireSet?'':' (crew rate; set your own under Rates)'}. Project management hours are counted but not costed, as in the labour cost log.</p></div>
+  ${dpPanel(date)}`}
 function siteListHtml(){const days=new Map();for(const [,x] of Object.entries(S.site)){if(!x||!x.date||(x.kind!=='diary'&&x.kind!=='time'))continue;const d=days.get(x.date)||{date:x.date,dia:[],h:0,ph:0};if(x.kind==='diary'){d.dia.push(x);d.ph+=(x.photos||[]).length}else d.h+=num(x.hrs);days.set(x.date,d)}
   const rows=[...days.values()].sort((a,b)=>b.date.localeCompare(a.date));
   return `<div class="panel">${rows.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Weather</th><th class="n">On site</th><th>Work done</th><th class="n">Photos</th><th class="n">Hours</th></tr></thead><tbody>${rows.map(d=>{const w=d.dia.map(x=>(SITE_WX.find(v=>v[0]===x.weather)||['',''])[1]).filter(Boolean);const on=d.dia.reduce((a,x)=>Math.max(a,num(x.onsite)),0);
@@ -5967,6 +6077,7 @@ function render(){
   try{ordDetFit()}catch(e){}
   if(UI.llogFlash&&UI.view==='labour')try{llogShowMoved()}catch(e){}
   try{negPaint()}catch(e){}
+  try{if(UI.view==='site')dpFill()}catch(e){}
 }
 
 
@@ -7176,6 +7287,18 @@ document.addEventListener('click',async e=>{
   if(act==='site-tab'){UI.siteTab=btn.dataset.v;render();return}
   if(act==='site-go'){UI.siteDate=btn.dataset.v;UI.siteTab='day';UI.siteMsg='';if(UI.view!=='site'){UI.view='site';try{history.replaceState(null,'','#site')}catch(err){}}render();window.scrollTo&&window.scrollTo(0,0);return}
   if(act==='site-wx'){const date=UI.siteDate||todayISO();const [id,d]=siteDiaryDoc(date);d.weather=d.weather===btn.dataset.v?'':btn.dataset.v;persist('site/'+id);render();return}
+  if(act==='dp-link'){DP.edit=true;DP.form={};DP.err='';DP.msg='';DP.info=null;render();setTimeout(()=>document.getElementById('dp_url')?.focus(),30);return}
+  if(act==='dp-edit'){DP.edit=true;DP.form={};DP.err='';DP.msg='';DP.arm=false;render();return}
+  if(act==='dp-cancel'){DP.edit=false;DP.form={};DP.err='';render();return}
+  if(act==='dp-retry'){delete DP.st[PID];delete DP.ev[PID];DP.err='';render();return}
+  if(act==='dp-refresh'){DP.err='';DP.msg='';dpEvents(UI.siteDate||todayISO(),true);render();return}
+  if(act==='dp-save'){const dv=id=>{const e=document.getElementById(id);return e?e.value:undefined};const f=Object.assign({},DP.form||{},{url:dv('dp_url')??(DP.form||{}).url,user:dv('dp_user')??(DP.form||{}).user,pass:dv('dp_pass')||(DP.form||{}).pass||'',filter:dv('dp_filter')??(DP.form||{}).filter});const st=DP.st[PID]||{};if(!st.linked&&(!String(f.url||'').trim()||!String(f.user||'').trim()||!f.pass)){DP.err='Enter the Flowsite link, username and password.';render();return}
+    DP.busy='save';DP.err='';DP.msg='';render();
+    dpCall({action:'save',url:String(f.url||'').trim(),username:f.user!=null?String(f.user).trim():undefined,password:f.pass||'',filter:f.filter!=null?String(f.filter).trim():(st.filter||'')})
+      .then(d=>{DP.busy='';DP.edit=false;DP.form={};DP.st[PID]={linked:true,host:d.host,username:d.username,filter:d.filter,fetchedAt:new Date().toISOString()};delete DP.ev[PID];DP.info=d;
+        DP.msg=d.events?`Linked. Read ${num(d.rows)} form${num(d.rows)===1?'':'s'} from Dashpivot with ${num(d.events)} sign in / out.`:'Linked, but no sign-ins were found in the file yet. See what it contains below.';render()})
+      .catch(e=>{DP.busy='';DP.err=e.message;render()});return}
+  if(act==='dp-unlink'){if(!DP.arm){DP.arm=true;render();return}DP.arm=false;dpCall({action:'unlink'}).then(()=>{DP.st[PID]={linked:false};delete DP.ev[PID];DP.edit=false;DP.info=null;DP.msg='Dashpivot unlinked from this project.';render()}).catch(e=>{DP.err=e.message;render()});return}
   if(act==='site-add-time'){const date=UI.siteDate||todayISO();const id=uid('t');const me=siteMe();S.site[id]={kind:'time',date,who:'',cat:'ox',hrs:'',task:'',note:'',by:me.email,created:Date.now()};persist('site/'+id);render();setTimeout(()=>{const el=document.getElementById('sitet_'+id+'_who');if(el){el.focus();el.scrollIntoView({block:'center'})}},50);return}
   if(act==='site-copy'){const date=UI.siteDate||todayISO();const me=siteMe();let n=0;for(const [,t] of siteTimes(btn.dataset.v)){const id=uid('t');S.site[id]={kind:'time',date,who:t.who||'',cat:t.cat||'ox',hrs:t.hrs||'',task:t.task||'',tid:siteTid(t),line:t.line||'',note:'',by:me.email,created:Date.now()+n++};persist('site/'+id)}render();return}
   if(act==='site-ph'){sitePhotoView(btn.dataset.v);return}
