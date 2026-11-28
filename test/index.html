@@ -3180,13 +3180,14 @@ function dpPanel(date){
   const head=(right='')=>`<div class="sec-head" style="margin-bottom:6px"><div><h3>Sign in / out (Dashpivot)</h3><p class="hint" style="margin:2px 0 0">Who signed in and out on ${esc(fmtDate(date))}, checked against the hours above.</p></div>${right}</div>`;
   if(!s||s.loading)return `<div class="panel site-card dp-card">${head()}<p class="hint" style="margin:0">Checking the Dashpivot link…</p></div>`;
   if(s.err)return `<div class="panel site-card dp-card">${head()}<p class="dp-err" role="alert">${esc(s.err)}</p><button class="btn" data-act="dp-retry">Try again</button></div>`;
-  if(!s.linked||DP.edit)return `<div class="panel site-card dp-card">${head()}${msg}${!s.linked&&!DP.edit?`<p class="hint" style="margin:0 0 8px">Not linked yet. Link this job’s Dashpivot <b>Sign In or Out</b> forms to see sign-ins here.</p><button class="btn primary" data-act="dp-link">Link Dashpivot</button>`:dpForm(s)}${DP.info?dpInfo(DP.info):''}</div>`;
+  if(!s.linked||DP.edit)return `<div class="panel site-card dp-card">${head()}${msg}${!s.linked&&!DP.edit?`<p class="hint" style="margin:0 0 8px">No Dashpivot sign-ins for this job yet. They’re pulled from Dashpivot every evening for each job whose <b>job number</b> (in Project details${S.info&&S.info.job?`, here ${esc(S.info.job)}`:', not set yet'}) matches a Dashpivot folder, e.g. “OX63 - Sanctuary Stage 4”.</p><button class="btn ghost" data-act="dp-link">Use a Flowsite file instead</button>`:dpForm(s)}${DP.info?dpInfo(DP.info):''}</div>`;
   const c=dpEvents(date);const D=dpDay(date);
   const when=c&&c.fetchedAt?new Date(c.fetchedAt).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
-  const right=`<div class="dp-tools"><button class="btn" data-act="dp-refresh" ${c&&c.loading?'disabled':''}>${c&&c.loading?'Reading…':'↻ Refresh'}</button><button class="btn ghost" data-act="dp-edit" title="Change the Flowsite link or filter">Link settings</button></div>`;
+  const byClaude=s.source==='claude'||(c&&c.source==='claude');
+  const right=`<div class="dp-tools"><button class="btn" data-act="dp-refresh" ${c&&c.loading?'disabled':''}>${c&&c.loading?'Reading…':'↻ Refresh'}</button>${byClaude?'':'<button class="btn ghost" data-act="dp-edit" title="Change the Flowsite link or filter">Link settings</button>'}</div>`;
   let body='';
   if(!D)body=`<p class="hint" style="margin:0">${c&&c.error?'':'Reading sign-ins from Dashpivot…'}</p>`;
-  else if(D.wait||(!D.ppl.length&&!D.none.length))body=`<p class="hint" style="margin:0">${D.wait?'No Dashpivot sign-ins have come through for today yet. They show after your Flowsite flow next runs.':'No Dashpivot sign-ins on this day.'}</p>`;
+  else if(D.wait||(!D.ppl.length&&!D.none.length))body=`<p class="hint" style="margin:0">${D.wait?(byClaude?'Today’s Dashpivot sign-ins are pulled this evening.':'No Dashpivot sign-ins have come through for today yet. They show after your Flowsite flow next runs.'):'No Dashpivot sign-ins on this day.'}</p>`;
   else{const tin=D.ppl.reduce((a,p)=>a+p.onsite,0),ten=D.ppl.reduce((a,p)=>a+p.entered,0)+D.none.reduce((a,h)=>a+h.hrs,0);
     const map=e=>e&&e.lat!=null&&e.lng!=null?` <a class="dp-map" href="https://www.google.com/maps?q=${encodeURIComponent(e.lat+','+e.lng)}" target="_blank" rel="noopener" title="Where they signed ${e.type==='in'?'in':'out'}">📍</a>`:'';
     body=`<p class="dp-sum"><b>${D.ppl.length}</b> signed in · <b>${dpH(tin)} h</b> on site · <b>${dpH(ten)} h</b> entered</p>
@@ -3197,7 +3198,7 @@ function dpPanel(date){
     ${D.none.map(h=>`<tr class="dp-bad"><td><b>${esc(h.name)}</b></td><td data-l="In">—</td><td data-l="Out">—</td><td class="n" data-l="On site">—</td><td class="n" data-l="Entered">${dpH(h.hrs)} h</td><td><span class="tag bad">${h.unsure?'Hours entered: name matches more than one sign-in':'Hours entered, no Dashpivot sign in'}</span></td></tr>`).join('')}
     </tbody></table></div>`}
   return `<div class="panel site-card dp-card">${head(right)}${msg}${c&&c.error?`<p class="dp-err" role="alert">${esc(c.error)}</p>`:''}${body}
-    <p class="hint" style="margin:8px 0 0">From Dashpivot via Flowsite${when?`, read ${esc(when)}`:''}. New sign-ins show after your Flowsite flow next runs. Times on site run from first sign in to last sign out, with no break taken off.</p>${DP.info?dpInfo(DP.info):''}</div>`}
+    <p class="hint" style="margin:8px 0 0">${byClaude?`Pulled from Dashpivot every evening${when?`, last pulled ${esc(when)}`:''}.`:`From Dashpivot via Flowsite${when?`, read ${esc(when)}`:''}. New sign-ins show after your Flowsite flow next runs.`} Times on site run from first sign in to last sign out, with no break taken off.</p>${DP.info?dpInfo(DP.info):''}</div>`}
 /* after linking: what was found in the Flowsite file, so a mismatch can be sorted out */
 function dpInfo(d){if(!d)return '';const det=d.detected||{};const why=Object.entries(d.why||{}).map(([k,v])=>`${v} ${k}`).join(', ');
   return `<details class="dp-info"${d.events?'':' open'}><summary>${d.events?'What was read from Dashpivot':'No sign-ins found in the file: what it contains'}</summary>

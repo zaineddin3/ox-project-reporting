@@ -246,7 +246,8 @@ export async function handle(req, deps) {
     if (act === 'status') {
       const row = await deps.db.get(pid);
       if (!row) return json({ linked: false });
-      return json({ linked: true, host: (() => { try { return new URL(row.url).hostname; } catch { return ''; } })(), username: row.username, filter: row.filter || '', updatedAt: row.updated_at, fetchedAt: row.fetched_at, lastError: row.last_error || '' });
+      const source = /^https:/i.test(row.url) ? 'flowsite' : 'claude';
+      return json({ linked: true, source, host: source === 'flowsite' ? (() => { try { return new URL(row.url).hostname; } catch { return ''; } })() : '', username: row.username, filter: row.filter || '', updatedAt: row.updated_at, fetchedAt: row.fetched_at, lastError: row.last_error || '' });
     }
     if (act === 'unlink') { await deps.db.del(pid); return json({ linked: false }); }
     if (act === 'save') {
@@ -272,7 +273,9 @@ export async function handle(req, deps) {
       if (!row) return json({ linked: false });
       const age = row.fetched_at ? now - Date.parse(row.fetched_at) : Infinity;
       let C = row.cache; let err = '';
-      if (!C || age > FRESH_MS || (b.force && age > FORCE_MS)) {
+      // rows filled by the daily pull from Dashpivot (url "claude:…") have no file to read: they're used as saved
+      const live = /^https:/i.test(row.url);
+      if (live && (!C || age > FRESH_MS || (b.force && age > FORCE_MS))) {
         const got = await pull(row, deps, !!C);
         if (got.err) { err = got.err; await deps.db.patch(pid, { last_error: err }); }
         else if (got.same) { await deps.db.patch(pid, { fetched_at: new Date(now).toISOString(), last_error: '' }); row.fetched_at = new Date(now).toISOString(); }
@@ -284,7 +287,7 @@ export async function handle(req, deps) {
       }
       if (!C) return json({ linked: true, error: err || 'No sign-ins read yet.' });
       const from = day(b.from); const to = day(b.to);
-      return json({ linked: true, events: eventsBetween(C.events, from, to), fetchedAt: row.fetched_at, error: err, columns: C.columns, detected: C.detected, total: C.total, skipped: C.skipped, why: C.why });
+      return json({ linked: true, source: live ? 'flowsite' : 'claude', events: eventsBetween(C.events, from, to), fetchedAt: row.fetched_at, error: err, columns: C.columns, detected: C.detected, total: C.total, skipped: C.skipped, why: C.why });
     }
     return json({ error: 'Unknown action.' }, 400);
   } catch (e) {
