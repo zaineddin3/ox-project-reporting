@@ -3112,14 +3112,17 @@ async function dpCall(body){const r=await window.__sb.functions.invoke('dashpivo
   if(r&&r.error){let m=r.error.message||'The request failed';try{const c=r.error.context;if(c&&typeof c.json==='function'){const j=await c.json();if(j&&j.error)m=j.error}}catch(e){}
     if(/Failed to send a request|fetch/i.test(m))m='Couldn’t reach the server. Check your internet connection.';throw new Error(m)}
   return (r&&r.data)||{}}
-function dpStatus(){if(!dpOk())return null;const s=DP.st[PID];if(s)return s;DP.st[PID]={loading:1};
-  dpCall({action:'status'}).then(d=>{DP.st[PID]=d||{linked:false};render()}).catch(e=>{DP.st[PID]={err:e.message};render()});return DP.st[PID]}
+/* switching jobs: clear the last job's messages and form, and ask the server again unless this job's answer is recent and linked */
+function dpSwitch(){if(DP.pid===PID)return;DP.pid=PID;DP.msg='';DP.err='';DP.edit=false;DP.arm=false;DP.info=null;DP.form={};DP.busy='';
+  const s=DP.st[PID];if(s&&!s.loading&&(!s.linked||!s.at||Date.now()-s.at>5*60e3)){delete DP.st[PID];delete DP.ev[PID]}}
+function dpStatus(){if(!dpOk())return null;dpSwitch();const s=DP.st[PID];if(s&&(s.loading||(s.linked&&!s.err)||Date.now()-(s.at||0)<60e3))return s;const pid=PID;DP.st[pid]={loading:1};
+  dpCall({action:'status'}).then(d=>{DP.st[pid]=Object.assign({at:Date.now()},d||{linked:false});if(pid===PID)render()}).catch(e=>{DP.st[pid]={err:e.message,at:Date.now()};if(pid===PID)render()});return DP.st[pid]}
 /* sign-ins are read for three weeks before to a week after the day shown; again when you move outside that, or press Refresh */
 function dpEvents(date,force){const s=DP.st[PID];if(!s||!s.linked)return null;const c=DP.ev[PID];
   if(c&&!force&&(c.loading||(date>=c.from&&date<=c.to&&!(c.at&&Date.now()-c.at>10*60e3))))return c;
-  const from=isoAddDays(date,-21),to=isoAddDays(date,7);const prev=c&&!c.loading?c:(c&&c.prev)||null;DP.ev[PID]={loading:1,from,to,prev};
-  dpCall({action:'events',from,to,force:!!force}).then(d=>{if(d.linked===false){DP.st[PID]={linked:false};delete DP.ev[PID]}else DP.ev[PID]=Object.assign({from,to,at:Date.now()},d);render()})
-    .catch(e=>{DP.ev[PID]={from,to,error:e.message,events:(prev&&prev.events)||[],fetchedAt:prev&&prev.fetchedAt};render()});
+  const from=isoAddDays(date,-21),to=isoAddDays(date,7);const prev=c&&!c.loading?c:(c&&c.prev)||null;const pid=PID;DP.ev[pid]={loading:1,from,to,prev};
+  dpCall({action:'events',from,to,force:!!force}).then(d=>{if(d.linked===false){DP.st[pid]={linked:false,at:Date.now()};delete DP.ev[pid]}else DP.ev[pid]=Object.assign({from,to,at:Date.now()},d);if(pid===PID)render()})
+    .catch(e=>{DP.ev[pid]={from,to,error:e.message,events:(prev&&prev.events)||[],fetchedAt:prev&&prev.fetchedAt};if(pid===PID)render()});
   return DP.ev[PID]}
 const dpKey=s=>String(s||'').toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[^a-z' -]/g,' ').replace(/[' -]+/g,' ').trim();
 /* "John Smith" matches "john smith", "John S", "J Smith", and "John" when only one John signed in that day */
